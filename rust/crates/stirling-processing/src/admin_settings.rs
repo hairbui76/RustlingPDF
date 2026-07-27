@@ -66,12 +66,14 @@ const SENSITIVE_FIELD_NAMES: &[&str] = &[
     "licensekey",
 ];
 
-#[derive(Debug)]
 pub(crate) struct AdminSettingsService {
     settings_path: PathBuf,
     loaded_settings: Value,
     pending: Mutex<BTreeMap<String, Value>>,
     write_lock: Mutex<()>,
+    // Java `AdminSettingsController.maybePushAiEngineLive`: forwards pending
+    // aiEngine.* changes to the engine after a bulk save.
+    ai_engine_sync: Option<std::sync::Arc<crate::ai_engine_config_sync::AiEngineConfigSync>>,
 }
 
 #[derive(Debug, Error)]
@@ -113,7 +115,19 @@ impl AdminSettingsService {
             loaded_settings,
             pending: Mutex::new(BTreeMap::new()),
             write_lock: Mutex::new(()),
+            ai_engine_sync: None,
         }
+    }
+
+    /// Attaches the engine config pusher notified after bulk saves that touch
+    /// `aiEngine.*` keys.
+    #[must_use]
+    pub(crate) fn with_ai_engine_sync(
+        mut self,
+        sync: std::sync::Arc<crate::ai_engine_config_sync::AiEngineConfigSync>,
+    ) -> Self {
+        self.ai_engine_sync = Some(sync);
+        self
     }
 
     fn all_settings(&self, include_pending: bool) -> Result<Value, AdminSettingsError> {
@@ -187,7 +201,10 @@ impl AdminSettingsService {
         })
     }
 
-    fn update_many(&self, updates: BTreeMap<String, Value>) -> Result<usize, AdminSettingsError> {
+    fn update_many(
+        &self,
+        updates: BTreeMap<String, Value>,
+    ) -> Result<BTreeMap<String, Value>, AdminSettingsError> {
         if updates.is_empty() {
             return Err(AdminSettingsError::Invalid);
         }
@@ -200,9 +217,32 @@ impl AdminSettingsService {
             })
             .collect::<Result<BTreeMap<_, _>, AdminSettingsError>>()?;
         self.persist_updates(&normalized)?;
-        let count = normalized.len();
-        self.pending()?.extend(normalized);
-        Ok(count)
+        self.pending()?.extend(normalized.clone());
+        Ok(normalized)
+    }
+
+    /// Forwards pending `aiEngine.*` changes to the engine after a bulk save,
+    /// mirroring Java `maybePushAiEngineLive`: only when this save touched an
+    /// `aiEngine.*` key, and sending all accumulated pending changes, not just
+    /// this save's — the running configuration doesn't reflect unrestarted
+    /// values. The save has already persisted; nothing here can fail it.
+    fn maybe_push_ai_engine_live(&self, changed: &BTreeMap<String, Value>) {
+        let Some(sync) = &self.ai_engine_sync else {
+            return;
+        };
+        if !changed.keys().any(|key| key.starts_with("aiEngine.")) {
+            return;
+        }
+        let Ok(pending) = self.pending() else {
+            return;
+        };
+        let pending_ai_engine: BTreeMap<String, Value> = pending
+            .iter()
+            .filter(|(key, _)| key.starts_with("aiEngine."))
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+        drop(pending);
+        sync.push_live_after_save(&pending_ai_engine);
     }
 
     /// Persists live runtime-owned settings through the same serialized writer
@@ -248,7 +288,9 @@ impl AdminSettingsService {
             .into_iter()
             .map(|(key, value)| (format!("{section}.{key}"), value))
             .collect();
-        self.update_many(updates)
+        // Java only pushes AI settings live from the bulk update endpoint, not
+        // from section or single-key saves; mirror that by not notifying here.
+        self.update_many(updates).map(|applied| applied.len())
     }
 
     fn persist_updates(&self, updates: &BTreeMap<String, Value>) -> Result<(), AdminSettingsError> {
@@ -309,12 +351,18 @@ async fn update_settings(
     Json(request): Json<UpdateSettingsRequest>,
 ) -> Response {
     match service.update_many(request.settings) {
-        Ok(count) => Json(json!({
-            "message": format!(
-                "Successfully updated {count} setting(s). Changes will take effect on application restart."
-            )
-        }))
-        .into_response(),
+        Ok(applied) => {
+            // Push changed AI settings live so model/RAG/limit changes skip the
+            // restart, mirroring Java's bulk-save-only trigger.
+            service.maybe_push_ai_engine_live(&applied);
+            let count = applied.len();
+            Json(json!({
+                "message": format!(
+                    "Successfully updated {count} setting(s). Changes will take effect on application restart."
+                )
+            }))
+            .into_response()
+        }
         Err(error) => settings_error_response(&error),
     }
 }
@@ -704,6 +752,102 @@ mod tests {
             )])),
             Err(AdminSettingsError::Invalid)
         ));
+        Ok(())
+    }
+
+    // TESTER: the live engine push must fire from the bulk settings save (and
+    // only from it, matching Java's controller), carry the accumulated pending
+    // aiEngine.* values, and never fail the save when the engine is down.
+    #[tokio::test]
+    async fn bulk_saves_push_pending_ai_engine_settings_live()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use std::{sync::Arc, time::Duration};
+
+        use axum::{
+            body::Body,
+            extract::Extension,
+            http::{Request, StatusCode},
+        };
+        use tower::ServiceExt as _;
+
+        use crate::{
+            ai_engine_config_sync::{AiEngineConfigSync, test_support::start_engine_stub},
+            runtime_config::AiEnginePushSettings,
+        };
+
+        let (address, mut received) = start_engine_stub(0).await?;
+        let sync = Arc::new(AiEngineConfigSync::new(
+            AiEnginePushSettings {
+                enabled: true,
+                ..AiEnginePushSettings::default()
+            },
+            format!("http://{address}"),
+            Duration::from_secs(5),
+            None,
+            Duration::from_millis(10),
+        ));
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("settings.yml");
+        fs::write(&path, "{}\n")?;
+        let service = Arc::new(
+            AdminSettingsService::new(path, json!({})).with_ai_engine_sync(Arc::clone(&sync)),
+        );
+        let app = super::routes().layer(Extension(Arc::clone(&service)));
+
+        let put = |uri: &str, body: serde_json::Value| {
+            Request::put(uri)
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+        };
+
+        // A single-key save touching aiEngine must NOT push (Java only pushes
+        // from the bulk update endpoint).
+        let response = app
+            .clone()
+            .oneshot(put(
+                "/api/v1/admin/settings/key/aiEngine.rag.topK",
+                json!({ "value": 9 }),
+            )?)
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // The bulk save pushes, overlaying this save's values AND the earlier
+        // accumulated pending aiEngine.* change.
+        let response = app
+            .clone()
+            .oneshot(put(
+                "/api/v1/admin/settings",
+                json!({ "settings": {
+                    "aiEngine.models.apiKey": "sk-live",
+                    "ui.appName": "Renamed"
+                }}),
+            )?)
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let recorded = tokio::time::timeout(Duration::from_secs(10), received.recv())
+            .await?
+            .ok_or("stub records the push")?;
+        assert_eq!(recorded.body["models"]["apiKey"], json!("sk-live"));
+        assert_eq!(recorded.body["rag"]["topK"], json!(9));
+        // Touched models identity travels concretely; untouched rag identity
+        // stays blank so the engine keeps its env configuration.
+        assert_eq!(recorded.body["models"]["provider"], json!("anthropic"));
+        assert_eq!(recorded.body["rag"]["embeddingProvider"], json!(""));
+
+        // A bulk save without any aiEngine.* key must not push.
+        let response = app
+            .clone()
+            .oneshot(put(
+                "/api/v1/admin/settings",
+                json!({ "settings": { "ui.appName": "Again" }}),
+            )?)
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(
+            received.try_recv().is_err(),
+            "no push may fire for engine-irrelevant saves"
+        );
         Ok(())
     }
 }

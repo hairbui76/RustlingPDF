@@ -905,6 +905,18 @@ impl SecurityStore {
         }
         let connection = Connection::open(path)?;
         initialize_connection(&connection)?;
+        // One-time lazy at-rest encryption of rows persisted before secret
+        // columns were encrypted. Runs on every open but rewrites nothing once
+        // all rows are ciphertext, so it is idempotent.
+        if let Some(cipher) = &secret_cipher {
+            let migrated = migrate_plaintext_secret_rows(&connection, cipher)?;
+            if migrated > 0 {
+                tracing::info!(
+                    migrated,
+                    "encrypted legacy plaintext integration/policy rows at rest"
+                );
+            }
+        }
         #[cfg(unix)]
         restrict_database_permissions(path)?;
         Ok(Self {
@@ -5092,10 +5104,23 @@ fn integration_config_from_row(
     let default_access = row.get::<_, String>(8)?;
     let encrypted = row.get::<_, Option<String>>(9)?;
     let config = match encrypted.filter(|value| !value.trim().is_empty()) {
-        Some(encrypted) => {
-            let plaintext = cipher
-                .decrypt_java_compatible(&encrypted)
-                .map_err(|error| invalid_persisted_value(9, error))?;
+        Some(stored) => {
+            // Transitional decrypt-or-passthrough (Java's
+            // `LegacyDecryptStringConverter` rule): plaintext JSON can never be
+            // our Base64 ciphertext — '{' is not in the Base64 alphabet — so a
+            // row written before at-rest encryption (or by an older build
+            // sharing this database ahead of the startup migration) is read
+            // as-is instead of being lost. Anything else must decrypt;
+            // undecryptable non-JSON is foreign ciphertext and stays an error,
+            // matching Java's `EncryptedStringConverter`.
+            let plaintext = if stored.trim_start().starts_with('{') {
+                stored.into_bytes()
+            } else {
+                cipher
+                    .decrypt_java_compatible(&stored)
+                    .map_err(|error| invalid_persisted_value(9, error))?
+                    .to_vec()
+            };
             serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&plaintext)
                 .unwrap_or_default()
         }
@@ -5148,6 +5173,64 @@ fn protected_json_from_row<T: DeserializeOwned>(
         |plaintext| plaintext.to_vec(),
     );
     serde_json::from_slice(&plaintext).map_err(|error| invalid_persisted_value(index, error))
+}
+
+/// The secret-bearing columns that must be ciphertext at rest: S3/MCP/API
+/// integration configs and the policy source/pipeline JSON blobs that may
+/// embed legacy credentials.
+const PROTECTED_SECRET_COLUMNS: &[(&str, &str)] = &[
+    ("integration_configs", "config_encrypted"),
+    ("policy_sources", "source_json"),
+    ("policies", "policy_json"),
+];
+
+/// One-time re-encryption of legacy plaintext secret rows, run at open before
+/// any request can observe the store.
+///
+/// Decision per row — never destructive:
+/// - Valid JSON (`{`/`[` first, which can never begin our Base64 ciphertext):
+///   a plaintext legacy row → encrypted in place with the store's cipher.
+/// - Anything else (our ciphertext, or ciphertext under a key we don't hold):
+///   left byte-for-byte untouched; the read path decides what to do with it.
+///
+/// Unparseable partial JSON is also left untouched rather than dropped, so a
+/// truncated row loses nothing and keeps failing loudly at read time.
+fn migrate_plaintext_secret_rows(
+    connection: &Connection,
+    cipher: &ProtectedSecretCipher,
+) -> Result<usize, SecurityError> {
+    let mut migrated = 0;
+    for (table, column) in PROTECTED_SECRET_COLUMNS {
+        let mut statement = connection.prepare(&format!(
+            "SELECT rowid, {column} FROM {table} WHERE {column} IS NOT NULL"
+        ))?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        for (rowid, stored) in rows {
+            if !is_plaintext_json_secret(&stored) {
+                continue;
+            }
+            let encrypted = cipher.encrypt_java_compatible(stored.as_bytes())?;
+            connection.execute(
+                &format!("UPDATE {table} SET {column} = ?1 WHERE rowid = ?2"),
+                params![encrypted, rowid],
+            )?;
+            migrated += 1;
+        }
+    }
+    Ok(migrated)
+}
+
+fn is_plaintext_json_secret(stored: &str) -> bool {
+    let trimmed = stored.trim_start();
+    // '{' and '[' are outside the Base64 alphabet, so ciphertext can never be
+    // misidentified; non-container JSON is not a shape these columns store.
+    (trimmed.starts_with('{') || trimmed.starts_with('['))
+        && serde_json::from_str::<serde_json::Value>(stored).is_ok()
 }
 
 fn options_reference_integration(
@@ -8392,6 +8475,165 @@ mod tests {
             concurrent < budget,
             "concurrent auth {concurrent:?} not sub-linear vs serial {serial:?} \
              (budget {budget:?}); bcrypt appears to run under the connection lock",
+        );
+        Ok(())
+    }
+
+    fn deterministic_cipher()
+    -> Result<crate::security_crypto::ProtectedSecretCipher, Box<dyn std::error::Error>> {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        Ok(crate::security_crypto::ProtectedSecretCipher::from_base64(
+            &STANDARD.encode([7_u8; 32]),
+        )?)
+    }
+
+    fn stored_blob(
+        connection: &Connection,
+        sql: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(connection.query_row(sql, [], |row| row.get(0))?)
+    }
+
+    // TESTER: legacy plaintext credential rows must become ciphertext at rest on
+    // the first open — with zero data loss — and unreadable/foreign blobs must
+    // never be rewritten (a wrong guess would destroy someone's data for good).
+    #[test]
+    fn open_encrypts_legacy_plaintext_secret_rows_once_without_data_loss()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("security.db");
+        drop(SecurityStore::open_protected(
+            &path,
+            deterministic_cipher()?,
+        )?);
+
+        let plaintext_config = r#"{"bucket":"docs","accessKeyId":"id","secretAccessKey":"s3cr3t"}"#;
+        let plaintext_source = r#"{"id":"src-1","options":{"secretAccessKey":"embedded"}}"#;
+        let plaintext_policy = r#"{"id":"pol-1","output":{"type":"s3"}}"#;
+        // Valid Base64 that is not our ciphertext: a key we don't hold.
+        let foreign_ciphertext = "Zm9yZWlnbi1jaXBoZXJ0ZXh0LWZyb20tYW5vdGhlci1rZXk=";
+        // A truncated legacy row: not decryptable, not parseable either.
+        let truncated_json = r#"{"secretAccessKey":"#;
+        {
+            let connection = Connection::open(&path)?;
+            connection.execute(
+                "INSERT INTO integration_configs
+                     (integration_config_id, integration_type, name, scope, config_encrypted)
+                 VALUES (1, 'S3', 'legacy', 'SERVER', ?1),
+                        (2, 'S3', 'foreign', 'SERVER', ?2),
+                        (3, 'S3', 'truncated', 'SERVER', ?3)",
+                rusqlite::params![plaintext_config, foreign_ciphertext, truncated_json],
+            )?;
+            connection.execute(
+                "INSERT INTO policy_sources (id, name, type, enabled, source_json)
+                 VALUES ('src-1', 'legacy', 's3', 1, ?1)",
+                [plaintext_source],
+            )?;
+            connection.execute(
+                "INSERT INTO policies (id, name, enabled, policy_json)
+                 VALUES ('pol-1', 'legacy', 1, ?1)",
+                [plaintext_policy],
+            )?;
+        }
+
+        let store = SecurityStore::open_protected(&path, deterministic_cipher()?)?;
+        // The migrated row reads back through the normal API with its secret intact.
+        let config = store
+            .get_integration_config(1)?
+            .ok_or("migrated integration config present")?;
+        assert_eq!(
+            config
+                .config
+                .get("secretAccessKey")
+                .and_then(|v| v.as_str()),
+            Some("s3cr3t")
+        );
+        drop(store);
+
+        let cipher = deterministic_cipher()?;
+        let config_row_sql =
+            "SELECT config_encrypted FROM integration_configs WHERE integration_config_id = 1";
+        let connection = Connection::open(&path)?;
+        let mut first_ciphertext = String::new();
+        for (sql, original) in [
+            (config_row_sql, plaintext_config),
+            (
+                "SELECT source_json FROM policy_sources WHERE id = 'src-1'",
+                plaintext_source,
+            ),
+            (
+                "SELECT policy_json FROM policies WHERE id = 'pol-1'",
+                plaintext_policy,
+            ),
+        ] {
+            let stored = stored_blob(&connection, sql)?;
+            assert!(
+                !stored.trim_start().starts_with('{'),
+                "row must be ciphertext at rest, got {stored:?}"
+            );
+            assert_eq!(
+                cipher.decrypt_java_compatible(&stored)?.as_slice(),
+                original.as_bytes(),
+                "migration must preserve the exact original payload"
+            );
+            if sql == config_row_sql {
+                first_ciphertext = stored;
+            }
+        }
+        // Foreign and truncated rows are byte-for-byte untouched.
+        assert_eq!(
+            stored_blob(
+                &connection,
+                "SELECT config_encrypted FROM integration_configs WHERE integration_config_id = 2"
+            )?,
+            foreign_ciphertext
+        );
+        assert_eq!(
+            stored_blob(
+                &connection,
+                "SELECT config_encrypted FROM integration_configs WHERE integration_config_id = 3"
+            )?,
+            truncated_json
+        );
+        drop(connection);
+
+        // Idempotence: a further open leaves the ciphertext bytes unchanged
+        // (no pointless re-encryption with fresh nonces).
+        drop(SecurityStore::open_protected(
+            &path,
+            deterministic_cipher()?,
+        )?);
+        let connection = Connection::open(&path)?;
+        assert_eq!(stored_blob(&connection, config_row_sql)?, first_ciphertext);
+        Ok(())
+    }
+
+    // TESTER: the transitional read path must serve a plaintext row that the
+    // startup migration has not touched yet (old build writing while a new
+    // build reads the same database) instead of erroring it away.
+    #[test]
+    fn integration_reads_pass_legacy_plaintext_rows_through()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open_in_memory()?;
+        initialize_connection(&connection)?;
+        connection.execute(
+            "INSERT INTO integration_configs
+                 (integration_config_id, integration_type, name, scope, config_encrypted)
+             VALUES (7, 'S3', 'legacy', 'SERVER', ?1)",
+            [r#"{"bucket":"docs","secretAccessKey":"plain"}"#],
+        )?;
+        let config = super::select_integration_config(&connection, 7, &deterministic_cipher()?)?
+            .ok_or("plaintext row must be readable")?;
+        assert_eq!(
+            config.config.get("bucket").and_then(|v| v.as_str()),
+            Some("docs")
+        );
+        assert_eq!(
+            config
+                .config
+                .get("secretAccessKey")
+                .and_then(|v| v.as_str()),
+            Some("plain")
         );
         Ok(())
     }

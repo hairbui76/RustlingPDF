@@ -1,6 +1,7 @@
 pub mod additional_language;
 mod admin_settings;
 pub mod ai_document;
+pub mod ai_engine_config_sync;
 mod ai_proxy;
 mod ai_workflow;
 mod classification;
@@ -1369,6 +1370,7 @@ pub struct ProcessingRuntime {
     policy_execution: Option<Arc<policy_execution::PolicyExecutionService>>,
     audit_retention: Option<AuditRetentionMaintenance>,
     storage_maintenance: Option<Arc<storage::StorageService>>,
+    ai_engine_config_sync: Arc<ai_engine_config_sync::AiEngineConfigSync>,
 }
 
 /// Handle for the periodic audit-retention sweep: the durable store plus the
@@ -1432,6 +1434,9 @@ impl ProcessingRuntime {
         let ai_comment_engine_settings = Arc::new(AiCommentEngineSettings::from_runtime_config(
             &runtime_config,
         ));
+        let ai_engine_config_sync = Arc::new(
+            ai_engine_config_sync::AiEngineConfigSync::from_runtime_config(&runtime_config),
+        );
         let job_manager = Arc::new(JobManager::with_result_ttl(job_result_ttl));
         let job_queue = Arc::new(JobQueue::new(job_queue_config));
         let async_job_settings = Arc::new(AsyncJobSettings {
@@ -1508,6 +1513,7 @@ impl ProcessingRuntime {
             policy_execution: None,
             audit_retention: None,
             storage_maintenance: None,
+            ai_engine_config_sync,
         }
     }
 
@@ -1575,10 +1581,18 @@ impl ProcessingRuntime {
         let mcp_runtime_config = Arc::new(runtime_config.clone());
         let security_http_config =
             reviewed_security_http_config(&runtime_config, initialized_license.verification)?;
-        let admin_settings = Arc::new(admin_settings::AdminSettingsService::new(
-            runtime_config.settings_path().to_path_buf(),
-            runtime_config.settings_snapshot(),
-        ));
+        // One shared pusher serializes the startup push and every admin-save
+        // push, matching Java's single-thread executor ordering guarantee.
+        let engine_config_sync = Arc::new(
+            ai_engine_config_sync::AiEngineConfigSync::from_runtime_config(&runtime_config),
+        );
+        let admin_settings = Arc::new(
+            admin_settings::AdminSettingsService::new(
+                runtime_config.settings_path().to_path_buf(),
+                runtime_config.settings_snapshot(),
+            )
+            .with_ai_engine_sync(Arc::clone(&engine_config_sync)),
+        );
         let license_admin = initialize_license_admin(
             &runtime_config,
             &initialized_license,
@@ -1646,6 +1660,9 @@ impl ProcessingRuntime {
         let audit_retention_days = runtime_config.security_audit_retention_days();
         let mut runtime =
             Self::with_runtime_config(max_upload_bytes, timestamp_settings, runtime_config);
+        // Replace the runtime's own pusher with the instance already shared
+        // with the admin settings service so all pushes stay serialized.
+        runtime.ai_engine_config_sync = engine_config_sync;
         runtime.license_refresh_runtime = Some(license::LicenseRefreshRuntime::new(
             initialized_license.verifier,
             Arc::clone(&initialized_license.config),
@@ -1772,6 +1789,12 @@ impl ProcessingRuntime {
     /// spawned so callers and tests can verify the wiring.
     #[must_use = "the count reports which maintenance loops are actually running"]
     pub fn spawn_background_maintenance(&self) -> usize {
+        // Best-effort push of admin-configured AI settings to the engine,
+        // mirroring Java `AiEngineConfigSync.pushConfigOnStartup` (fires on
+        // ApplicationReadyEvent). Off-thread with bounded retries: a down or
+        // still-booting engine never blocks startup.
+        self.ai_engine_config_sync.push_on_startup();
+
         // One-shot startup reclamation, mirroring Java
         // `TempFileCleanupService.runStartupCleanup` conservatively: only the
         // runtime's own naming patterns, only entries older than 24 hours.

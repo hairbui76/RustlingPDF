@@ -106,6 +106,33 @@ administrator-only list/read/update/clear surface with atomic replacement and
 link-safe bounds. See [`login-disclaimer.md`](login-disclaimer.md) for lookup
 rules and [`login-agreement-admin.md`](login-agreement-admin.md) for mutation.
 
+## Install identity (`AutomaticallyGenerated`)
+
+At startup (before the serving configuration is loaded) the executable runs
+`RuntimeConfig::initialize_generated_identity`, the port of Java
+`InitialSetup`: an invalid or missing `AutomaticallyGenerated.UUID` /
+`AutomaticallyGenerated.key` is replaced with a fresh RFC 4122 v4 UUID and
+persisted into the settings file, and the running application version is
+persisted as `AutomaticallyGenerated.appVersion`. A previously empty or
+`0.0.0` version marks the instance as a new server (Java
+`InitialSetup.isNewServer`; the template's shipped placeholder version means
+template-created files are *not* "new", matching Java). Values supplied via
+Spring's relaxed env spellings (`AUTOMATICALLYGENERATED_UUID`, `…_KEY`,
+`…_APPVERSION`) are honored without being written back, like Java's property
+binding. Validation matches `UUID.fromString`'s accepted shapes (five
+hyphen-separated hex groups); exotic short-group spellings are kept, not
+rotated.
+
+Documented divergences: Java rewrites the same values on every boot — the
+Rust port writes only when something actually changes, so an unchanged boot
+leaves the settings file byte-stable (preserving the desktop template-merge
+idempotence); and a failure to persist (e.g. read-only config mount) is
+fail-open with a warning and an ephemeral in-process identity, where Java
+fails startup. The writer reuses an existing section/key spelling that
+differs only by case instead of duplicating it. Java's `InitialSetup` legal-URL
+defaulting (`legal.termsAndConditions`/`privacyPolicy`) is intentionally not
+persisted by the Rust port; those defaults are applied at read time.
+
 ## Explicit boundaries
 
 Apart from the first-run analytics choice and the reviewed administrator surfaces,

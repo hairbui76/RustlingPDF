@@ -110,3 +110,39 @@ memory. Engine long-running calls use
 `aiEngine.longRunningTimeoutSeconds`/`AIENGINE_LONGRUNNINGTIMEOUTSECONDS`
 (default 600 seconds); ingested personal documents use the configured security
 JWT lifetime (default 1,440 minutes) as their expiry.
+
+## Processor→engine config push
+
+Mirroring Java `AiEngineConfigSync` (`ai_engine_config_sync.rs`), the
+processor pushes the engine-relevant `aiEngine.*` configuration to the
+engine's `POST /api/v1/config`:
+
+- **On startup** (fired from `spawn_background_maintenance`, the Rust analog
+  of `ApplicationReadyEvent`): the full models/rag/limits payload, retried up
+  to 5 times with a 3-second delay, entirely off-thread — a down or
+  still-booting engine never blocks startup and only produces warnings.
+- **After a successful bulk admin settings save** touching `aiEngine.*`
+  (see `contracts/admin-settings.md`): one attempt, overlaying the
+  accumulated pending `aiEngine.models.*`/`aiEngine.rag.*`/`aiEngine.limits.*`
+  values onto the live configuration.
+
+Both gates match Java: nothing is pushed unless `aiEngine.enabled` is true
+and `aiEngine.pushConfigToEngine` (default `true`, env
+`AIENGINE_PUSHCONFIGTOENGINE`) is on — pin it false for env-driven
+deployments so the engine stays environment-controlled. Pushes carry the
+`X-Engine-Auth` shared secret (`STIRLING_ENGINE_SHARED_SECRET`) when set and
+are strictly serialized through one queue (Java's single-thread executor), so
+overlapping pushes cannot leave the engine on a stale payload.
+
+Payload rules ported verbatim from Java: camelCase spellings match the
+engine's tolerant wire contract; unconfigured model/RAG identity
+(provider/model/credential fields all at Java defaults with blank keys) is
+blanked to empty strings so the engine keeps its own env credentials, while a
+section that is configured — or whose identity keys were touched by this save
+— travels as-is so an explicit clear really clears. Settings resolution uses
+Spring's relaxed spellings (`AIENGINE_MODELS_SMARTMODEL`,
+`AIENGINE_RAG_EMBEDDINGPROVIDER`, `AIENGINE_LIMITS_MAXPAGES`, …) over the
+`aiEngine.models/rag/limits` YAML sections with Java's defaults
+(`anthropic`/`claude-haiku-4-5`, `voyageai`/`voyage-4`, 8192/2048 tokens,
+topK 20, maxSearches 5, maxPages 200, maxCharacters 200000,
+modelMaxConcurrency 32).

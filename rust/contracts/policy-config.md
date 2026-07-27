@@ -32,7 +32,10 @@ Rust uses Java's logical SQLite tables and scalar projections: `policy_sources` 
 `source_json`, and `policies` with `policy_json`, `trigger_type`, and `sort_order`. JSON writes use
 the same unversioned AES-256-GCM/Base64 format as Java's credential encryption. Reads are lenient:
 they decrypt current rows and fall back to pre-encryption plaintext JSON. Existing policy tables
-gain `sort_order` without replacing their data.
+gain `sort_order` without replacing their data. In addition, a one-time lazy migration at store
+open re-encrypts any remaining plaintext `source_json`/`policy_json` rows at rest (see
+`contracts/resource-access-integrations.md`, "Secrets and persistence"); unreadable foreign
+ciphertext is never rewritten.
 
 Missing IDs are assigned RFC 4122 version-4 UUIDs. Creation stamps owner and team from trusted
 `AuthContext`; update preserves stored ownership. Reads, updates, deletes, source references, and
