@@ -131,6 +131,7 @@ mod server_certificate;
 pub mod signature_assets;
 pub mod signing_key;
 mod smtp_mail;
+mod spa;
 mod storage;
 mod storage_http;
 pub mod svg_to_pdf;
@@ -1369,6 +1370,7 @@ pub struct ProcessingRuntime {
     policy_execution: Option<Arc<policy_execution::PolicyExecutionService>>,
     audit_retention: Option<AuditRetentionMaintenance>,
     storage_maintenance: Option<Arc<storage::StorageService>>,
+    spa: Option<Arc<spa::SpaServing>>,
 }
 
 /// Handle for the periodic audit-retention sweep: the durable store plus the
@@ -1440,6 +1442,10 @@ impl ProcessingRuntime {
             max_upload_bytes,
         });
         let mobile_scanner = MobileScannerService::new().ok().map(Arc::new);
+        // Single-binary SPA serving (config-gated; inert when unset). Built
+        // once here so index caching mirrors the Java controller's
+        // @PostConstruct initialization.
+        let spa_serving = spa::SpaServing::from_runtime_config(&runtime_config).map(Arc::new);
         let pipeline_dispatcher = PipelineDispatcher::new(
             processing_routes_with_features(
                 smtp_mail_service.clone(),
@@ -1508,6 +1514,7 @@ impl ProcessingRuntime {
             policy_execution: None,
             audit_retention: None,
             storage_maintenance: None,
+            spa: spa_serving,
         }
     }
 
@@ -1887,12 +1894,20 @@ impl ProcessingRuntime {
         // Assembly boundary for the DoS transport guardrails: every production
         // and test entry point funnels the fully-merged router through here, so
         // wrapping it once covers BOTH the OSS router and the reviewed-security
-        // router without touching the individual route modules.
-        apply_transport_limits(self.router, TransportLimits::production())
+        // router without touching the individual route modules. The SPA
+        // fallback is attached first so unmatched requests reach it while API
+        // routes always win, and the transport limits still cover it.
+        apply_transport_limits(
+            spa::attach_fallback(self.router, self.spa),
+            TransportLimits::production(),
+        )
     }
 
     pub fn router(&self) -> Router {
-        apply_transport_limits(self.router.clone(), TransportLimits::production())
+        apply_transport_limits(
+            spa::attach_fallback(self.router.clone(), self.spa.clone()),
+            TransportLimits::production(),
+        )
     }
 }
 
