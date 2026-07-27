@@ -1,8 +1,4 @@
-use crate::state::connection_state::{
-    AppConnectionState,
-    ConnectionMode,
-    ServerConfig,
-};
+use crate::state::connection_state::{AppConnectionState, ConnectionMode, ServerConfig};
 use crate::utils::{add_log, app_data_dir, system_provisioning_dir};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -219,9 +215,7 @@ pub(crate) fn provisioning_path_is_admin_owned(
 
 pub fn apply_provisioning_if_present(app_handle: &AppHandle) -> Result<(), String> {
     let provisioning_paths = provisioning_file_paths();
-    let provisioning_path = provisioning_paths
-        .into_iter()
-        .find(|path| path.exists());
+    let provisioning_path = provisioning_paths.into_iter().find(|path| path.exists());
 
     let provisioning_path = match provisioning_path {
         Some(path) => path,
@@ -243,7 +237,10 @@ pub fn apply_provisioning_if_present(app_handle: &AppHandle) -> Result<(), Strin
     // may early-return when no URL is present.
     if let Some(login_agreement_enabled) = parsed.login_agreement_enabled {
         if let Ok(store) = app_handle.store(STORE_FILE) {
-            store.set(LOGIN_AGREEMENT_KEY, serde_json::json!(login_agreement_enabled));
+            store.set(
+                LOGIN_AGREEMENT_KEY,
+                serde_json::json!(login_agreement_enabled),
+            );
             let _ = store.save();
         }
         add_log(format!(
@@ -290,8 +287,7 @@ pub fn apply_provisioning_if_present(app_handle: &AppHandle) -> Result<(), Strin
         let cfg = ServerConfig { url };
         store.set(
             SERVER_CONFIG_KEY,
-            serde_json::to_value(&cfg)
-                .map_err(|e| format!("Failed to serialize config: {}", e))?,
+            serde_json::to_value(&cfg).map_err(|e| format!("Failed to serialize config: {}", e))?,
         );
 
         store.set(
@@ -319,10 +315,7 @@ pub fn apply_provisioning_if_present(app_handle: &AppHandle) -> Result<(), Strin
         // selector permanently (the file is deleted after apply, but the
         // lock flag persists in the store).
         let system_dir = system_provisioning_dir();
-        let locked = provisioning_path_is_admin_owned(
-            &provisioning_path,
-            system_dir.as_deref(),
-        );
+        let locked = provisioning_path_is_admin_owned(&provisioning_path, system_dir.as_deref());
         store.set(UPDATE_MODE_LOCKED_KEY, serde_json::json!(locked));
         add_log(format!(
             "🧩 Provisioning set update mode to {:?} (locked={})",
@@ -334,9 +327,10 @@ pub fn apply_provisioning_if_present(app_handle: &AppHandle) -> Result<(), Strin
         .save()
         .map_err(|e| format!("Failed to save store: {}", e))?;
 
-    if let (Some(cfg), Ok(mut conn_state)) =
-        (server_config.as_ref(), app_handle.state::<AppConnectionState>().0.lock())
-    {
+    if let (Some(cfg), Ok(mut conn_state)) = (
+        server_config.as_ref(),
+        app_handle.state::<AppConnectionState>().0.lock(),
+    ) {
         conn_state.mode = ConnectionMode::SelfHosted;
         conn_state.server_config = Some(cfg.clone());
         conn_state.lock_connection_mode = lock_flag;
@@ -423,10 +417,7 @@ pub async fn get_update_mode(app_handle: AppHandle) -> Result<UpdateModeInfo, St
 /// Refuses to overwrite a provisioned (locked) value so an MDM-managed
 /// deployment can't be subverted by a user clicking in Settings.
 #[tauri::command]
-pub async fn set_update_mode(
-    app_handle: AppHandle,
-    mode: UpdateMode,
-) -> Result<(), String> {
+pub async fn set_update_mode(app_handle: AppHandle, mode: UpdateMode) -> Result<(), String> {
     let store = app_handle
         .store(STORE_FILE)
         .map_err(|e| format!("Failed to access store: {}", e))?;
@@ -507,9 +498,8 @@ mod tests {
         // A provisioning file in ProgramData\Stirling-PDF (or /Library, /etc)
         // requires admin/root rights to write — those locations are how MSI
         // and Intune deliver policy — so locking the UI here is correct.
-        let system_path = PathBuf::from(
-            "C:\\ProgramData\\Stirling-PDF\\stirling-provisioning.json",
-        );
+        let system_path =
+            PathBuf::from("C:\\ProgramData\\Stirling-PDF\\stirling-provisioning.json");
         let system_dir = PathBuf::from("C:\\ProgramData\\Stirling-PDF");
 
         assert!(provisioning_path_is_admin_owned(
@@ -541,11 +531,9 @@ mod tests {
 
     #[test]
     fn macos_library_provisioning_does_lock_ui() {
-        let system_path = PathBuf::from(
-            "/Library/Application Support/Stirling-PDF/stirling-provisioning.json",
-        );
-        let system_dir =
-            PathBuf::from("/Library/Application Support/Stirling-PDF");
+        let system_path =
+            PathBuf::from("/Library/Application Support/Stirling-PDF/stirling-provisioning.json");
+        let system_dir = PathBuf::from("/Library/Application Support/Stirling-PDF");
         assert!(provisioning_path_is_admin_owned(
             &system_path,
             Some(&system_dir),
@@ -557,8 +545,7 @@ mod tests {
         let user_path = PathBuf::from(
             "/Users/alice/Library/Application Support/Stirling-PDF/stirling-provisioning.json",
         );
-        let system_dir =
-            PathBuf::from("/Library/Application Support/Stirling-PDF");
+        let system_dir = PathBuf::from("/Library/Application Support/Stirling-PDF");
         assert!(!provisioning_path_is_admin_owned(
             &user_path,
             Some(&system_dir),
@@ -571,7 +558,8 @@ mod tests {
         // refuse to lock — the user-AppData file is the only thing we'd be
         // matching against, and that's the case we explicitly want to leave
         // unlocked.
-        let user_path = PathBuf::from("/home/alice/.config/Stirling-PDF/stirling-provisioning.json");
+        let user_path =
+            PathBuf::from("/home/alice/.config/Stirling-PDF/stirling-provisioning.json");
         assert!(!provisioning_path_is_admin_owned(&user_path, None));
     }
 }
