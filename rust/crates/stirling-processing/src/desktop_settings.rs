@@ -28,6 +28,10 @@ use std::{
 
 use chrono::Utc;
 
+// `desktop_settings` is compiled as a bin-local module (declared in
+// `main.rs`), so the shared editor is reached through the library crate.
+use stirling_processing::settings_yaml;
+
 const TAURI_MODE_VARIABLE: &str = "STIRLING_PDF_TAURI_MODE";
 const BASE_PATH_VARIABLE: &str = "STIRLING_BASE_PATH";
 const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template");
@@ -113,16 +117,6 @@ fn persist_if_missing(path: &Path, contents: &[u8]) -> Result<(), io::Error> {
     }
 }
 
-/// The YAML quoting style of a template leaf's existing value text, so a
-/// carried-over user value is re-emitted in the template's own style rather than
-/// snakeyaml's default rendering.
-#[derive(Clone, Copy)]
-enum ScalarStyle {
-    DoubleQuoted,
-    SingleQuoted,
-    Plain,
-}
-
 /// Folds any keys the bundled [`SETTINGS_TEMPLATE`] has gained into an existing,
 /// long-enough `settings.yml`, preserving the user's customized values, and
 /// returns whether the file was rewritten.
@@ -175,9 +169,10 @@ fn merge_template_into_existing(path: &Path) -> Result<bool, io::Error> {
     Ok(true)
 }
 
-/// Flattens every non-mapping leaf of a parsed settings document to a dotted-key
-/// path, matching how [`merge_user_values_into_template`] builds paths from the
-/// template's indentation.
+/// Flattens every non-mapping leaf of a parsed settings document to a
+/// lowercased dotted-key path, matching how
+/// [`settings_yaml::rewrite_inline_values`] resolves paths from the template's
+/// indentation (its lookups are ASCII-case-insensitive over lowercased keys).
 fn flatten_scalar_leaves(value: &serde_yaml::Value) -> HashMap<String, serde_yaml::Value> {
     let mut leaves = HashMap::new();
     if let serde_yaml::Value::Mapping(root) = value {
@@ -201,7 +196,7 @@ fn collect_leaves(
         match value {
             serde_yaml::Value::Mapping(child) => collect_leaves(child, &path, leaves),
             leaf => {
-                leaves.insert(path, leaf.clone());
+                leaves.insert(path.to_ascii_lowercase(), leaf.clone());
             }
         }
     }
@@ -217,221 +212,13 @@ fn scalar_key(value: &serde_yaml::Value) -> Option<String> {
     }
 }
 
-/// Walks [`SETTINGS_TEMPLATE`] line by line, tracking the current key path via
-/// indentation, and rewrites only the value portion of each leaf line the user
-/// customized to a different scalar/inline value. Every other byte — comments,
-/// blank lines, parent keys, indentation, inline comments — is preserved exactly.
+/// Rewrites [`SETTINGS_TEMPLATE`]'s leaf values with the user's customized
+/// values via the shared comment-preserving inline editor
+/// ([`settings_yaml::rewrite_inline_values`]): every template byte — comments,
+/// blank lines, parent keys, indentation, inline comments — is preserved
+/// exactly, with only the value portion of customized leaf lines swapped.
 fn merge_user_values_into_template(user_leaves: &HashMap<String, serde_yaml::Value>) -> String {
-    let mut output = String::with_capacity(SETTINGS_TEMPLATE.len());
-    // Mapping keys currently open, as (indent width, key).
-    let mut open_mappings: Vec<(usize, String)> = Vec::new();
-    for chunk in SETTINGS_TEMPLATE.split_inclusive('\n') {
-        let (content, terminator) = split_line_terminator(chunk);
-        match rewrite_template_line(content, &mut open_mappings, user_leaves) {
-            Some(rewritten) => output.push_str(&rewritten),
-            None => output.push_str(content),
-        }
-        output.push_str(terminator);
-    }
-    output
-}
-
-/// Splits a `split_inclusive('\n')` chunk into its content and its line
-/// terminator (`""`, `"\n"`, or `"\r\n"`), so exact newlines — including a
-/// possibly missing final one — round-trip untouched.
-fn split_line_terminator(chunk: &str) -> (&str, &str) {
-    let Some(body) = chunk.strip_suffix('\n') else {
-        return (chunk, "");
-    };
-    let split_at = body.strip_suffix('\r').map_or(body.len(), str::len);
-    (&chunk[..split_at], &chunk[split_at..])
-}
-
-/// Returns the rewritten line if the user customized this leaf's value, or
-/// `None` to keep the line verbatim. Updates `open_mappings` as it descends and
-/// ascends the template's indentation.
-fn rewrite_template_line(
-    content: &str,
-    open_mappings: &mut Vec<(usize, String)>,
-    user_leaves: &HashMap<String, serde_yaml::Value>,
-) -> Option<String> {
-    let trimmed = content.trim_start();
-    if trimmed.is_empty() || trimmed.starts_with('#') {
-        // Blank lines and comments carry no structure: emit verbatim and leave
-        // the open-mapping stack untouched.
-        return None;
-    }
-    let indent = content.len() - trimmed.len();
-    // Every non-comment line in this template is a `key:` mapping entry, and no
-    // key contains a colon, so the first colon separates key from value.
-    let colon = trimmed.find(':')?;
-    let key = &trimmed[..colon];
-    let after_colon = &trimmed[colon + 1..];
-
-    // Dedent: drop mappings at or deeper than this line before resolving its path.
-    while open_mappings
-        .last()
-        .is_some_and(|(open_indent, _)| *open_indent >= indent)
-    {
-        open_mappings.pop();
-    }
-
-    let Some((value_start, value_end)) = value_span(after_colon) else {
-        // Nothing but (optionally) a comment after the colon: this key opens a
-        // nested mapping. Record it and keep the line verbatim.
-        open_mappings.push((indent, key.to_owned()));
-        return None;
-    };
-
-    let value_text = &after_colon[value_start..value_end];
-    let path = dotted_path(open_mappings, key);
-    let user_value = user_leaves.get(&path)?;
-    let rendered = render_user_value(user_value, scalar_style(value_text))?;
-    if rendered == value_text {
-        return None;
-    }
-
-    // Rewrite ONLY the value portion, keeping indentation, key, the gap before any
-    // inline comment, and the comment itself byte-for-byte. Offsets are computed
-    // in `content`, and every slice boundary sits on the ASCII value region.
-    let value_offset = indent + colon + 1 + value_start;
-    let value_offset_end = indent + colon + 1 + value_end;
-    let mut rewritten = String::with_capacity(content.len() + rendered.len());
-    rewritten.push_str(&content[..value_offset]);
-    rewritten.push_str(&rendered);
-    rewritten.push_str(&content[value_offset_end..]);
-    Some(rewritten)
-}
-
-/// Locates the value token within the text after a `key:` separator, returning
-/// its `(start, end)` byte offsets, or `None` when only whitespace/an inline
-/// comment follows (i.e. the key opens a nested mapping). Whitespace inside the
-/// value is retained; a trailing ` # comment` and surrounding gap are excluded.
-fn value_span(after_colon: &str) -> Option<(usize, usize)> {
-    let bytes = after_colon.as_bytes();
-    let start = bytes
-        .iter()
-        .position(|byte| !matches!(byte, b' ' | b'\t'))?;
-    if bytes[start] == b'#' {
-        return None;
-    }
-    let mut end = start;
-    let mut quote: Option<u8> = None;
-    for index in start..bytes.len() {
-        let byte = bytes[index];
-        match quote {
-            Some(active) => {
-                end = index + 1;
-                if byte == active {
-                    quote = None;
-                }
-            }
-            None => match byte {
-                // A YAML inline comment starts at a `#` preceded by whitespace.
-                b'#' if matches!(bytes[index - 1], b' ' | b'\t') => break,
-                b'"' | b'\'' => {
-                    quote = Some(byte);
-                    end = index + 1;
-                }
-                b' ' | b'\t' => {}
-                _ => end = index + 1,
-            },
-        }
-    }
-    Some((start, end))
-}
-
-fn dotted_path(open_mappings: &[(usize, String)], key: &str) -> String {
-    let mut path = String::new();
-    for (_, open_key) in open_mappings {
-        path.push_str(open_key);
-        path.push('.');
-    }
-    path.push_str(key);
-    path
-}
-
-fn scalar_style(value_text: &str) -> ScalarStyle {
-    let bytes = value_text.as_bytes();
-    match (bytes.first(), bytes.last()) {
-        (Some(b'"'), Some(b'"')) if bytes.len() >= 2 => ScalarStyle::DoubleQuoted,
-        (Some(b'\''), Some(b'\'')) if bytes.len() >= 2 => ScalarStyle::SingleQuoted,
-        _ => ScalarStyle::Plain,
-    }
-}
-
-/// Renders a user value into the template's quoting style. Returns `None` for
-/// nested collections (mappings / tagged / nested sequences), which are out of
-/// the inline scope and left at the template default.
-fn render_user_value(value: &serde_yaml::Value, style: ScalarStyle) -> Option<String> {
-    match value {
-        serde_yaml::Value::Bool(flag) => Some(flag.to_string()),
-        serde_yaml::Value::Number(number) => Some(number.to_string()),
-        serde_yaml::Value::Null => Some("null".to_owned()),
-        serde_yaml::Value::String(text) => render_scalar_string(text, style),
-        serde_yaml::Value::Sequence(items) => render_flow_sequence(items),
-        serde_yaml::Value::Mapping(_) | serde_yaml::Value::Tagged(_) => None,
-    }
-}
-
-/// Renders a user-supplied String into the template leaf's quoting style.
-///
-/// For a DOUBLE- or SINGLE-quoted template value the user's string is re-emitted
-/// in that same style. For a PLAIN-styled value it is emitted as an inline YAML
-/// scalar that reparses to exactly `text` — bare when plain-safe, otherwise
-/// quoted with correct escaping (see [`render_plain_inline_scalar`]). Returns
-/// `None` only when the plain rendering would span multiple lines, which is
-/// outside this port's single-line inline scope.
-fn render_scalar_string(text: &str, style: ScalarStyle) -> Option<String> {
-    match style {
-        ScalarStyle::DoubleQuoted => Some(format!("\"{}\"", escape_double_quoted(text))),
-        ScalarStyle::SingleQuoted => Some(format!("'{}'", text.replace('\'', "''"))),
-        ScalarStyle::Plain => render_plain_inline_scalar(text),
-    }
-}
-
-/// Emits `text` as a single-line inline YAML scalar using `serde_yaml`'s own
-/// emitter, so the "is this plain-safe / how must it be quoted" decision is
-/// parser-backed rather than a hand-maintained list of unsafe characters. A
-/// plain-safe value comes out bare (`postgres`), matching the template's style
-/// with no quoting churn; a value that a raw emit would corrupt — one carrying a
-/// `#`/`:`/`*`/leading-indicator, leading/trailing space, an empty string, or one
-/// that would otherwise reparse as a bool/number/null — comes out correctly
-/// single- or double-quoted so it round-trips back to exactly `text`. This is the
-/// fix for the plain-scalar corruption: a raw `text.to_owned()` here silently
-/// truncated secrets at an inline `#` and could break the whole file on `:`/`*`.
-///
-/// Returns `None` if `serde_yaml` selects a block/multiline style (only reachable
-/// for a value containing a newline; a settings scalar is single-line) or fails
-/// to serialize, leaving the key at its template default rather than injecting a
-/// line break that would corrupt the surrounding template line.
-fn render_plain_inline_scalar(text: &str) -> Option<String> {
-    let serialized = serde_yaml::to_string(&serde_yaml::Value::String(text.to_owned())).ok()?;
-    let inline = serialized.strip_suffix('\n').unwrap_or(&serialized);
-    if inline.contains('\n') {
-        return None;
-    }
-    Some(inline.to_owned())
-}
-
-fn escape_double_quoted(text: &str) -> String {
-    text.replace('\\', "\\\\").replace('"', "\\\"")
-}
-
-fn render_flow_sequence(items: &[serde_yaml::Value]) -> Option<String> {
-    let mut rendered = Vec::with_capacity(items.len());
-    for item in items {
-        let part = match item {
-            serde_yaml::Value::Bool(flag) => flag.to_string(),
-            serde_yaml::Value::Number(number) => number.to_string(),
-            serde_yaml::Value::Null => "null".to_owned(),
-            serde_yaml::Value::String(text) => format!("\"{}\"", escape_double_quoted(text)),
-            // Nested collections in a flow list are beyond the inline scope.
-            _ => return None,
-        };
-        rendered.push(part);
-    }
-    Some(format!("[{}]", rendered.join(", ")))
+    settings_yaml::rewrite_inline_values(SETTINGS_TEMPLATE, user_leaves).content
 }
 
 fn overwrite_atomically(path: &Path, contents: &[u8]) -> Result<(), io::Error> {

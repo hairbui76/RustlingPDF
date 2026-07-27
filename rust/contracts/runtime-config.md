@@ -112,8 +112,15 @@ At startup (before the serving configuration is loaded) the executable runs
 `RuntimeConfig::initialize_generated_identity`, the port of Java
 `InitialSetup`: an invalid or missing `AutomaticallyGenerated.UUID` /
 `AutomaticallyGenerated.key` is replaced with a fresh RFC 4122 v4 UUID and
-persisted into the settings file, and the running application version is
-persisted as `AutomaticallyGenerated.appVersion`. A previously empty or
+persisted into the settings file, and the canonical application version
+(`application_version()`, backed by the repo `VERSION` file — the Rust
+equivalent of Java's `version.properties`, never the crate version) is
+persisted as `AutomaticallyGenerated.appVersion`. The write is
+comment-preserving, like Java's snakeyaml writer
+(`GeneralUtils.saveKeyToSettings` with `parseComments`/`dumpComments`): only
+the targeted value lines change, so a first desktop boot leaves the settings
+file byte-identical to the bundled template except the three
+`AutomaticallyGenerated` value lines. A previously empty or
 `0.0.0` version marks the instance as a new server (Java
 `InitialSetup.isNewServer`; the template's shipped placeholder version means
 template-created files are *not* "new", matching Java). Values supplied via

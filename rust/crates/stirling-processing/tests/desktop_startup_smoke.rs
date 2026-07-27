@@ -8,6 +8,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use stirling_processing::runtime_metrics::application_version;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 const HANDSHAKE_PREFIX: &str = "Stirling-PDF running on port: ";
@@ -121,12 +122,92 @@ fn initializes_missing_desktop_settings_before_reporting_ready() -> Result<(), B
     assert!(reported_ready, "processing child did not report ready");
 
     let config_directory = working_directory.path().join("configs");
-    assert_eq!(
-        fs::read_to_string(config_directory.join("settings.yml"))?,
-        SETTINGS_TEMPLATE
-    );
+    let settings = fs::read_to_string(config_directory.join("settings.yml"))?;
+    assert_settings_is_template_with_generated_identity(&settings)?;
     assert_eq!(fs::read(config_directory.join("custom_settings.yml"))?, b"");
     Ok(())
+}
+
+/// First-boot contract for `settings.yml`: byte-identical to the bundled
+/// template — banner and every comment preserved — EXCEPT the three value
+/// lines inside the template's existing `AutomaticallyGenerated` section,
+/// where the startup identity write puts a generated UUID-shaped `key` and
+/// `UUID` and the canonical application version (never the crate version).
+fn assert_settings_is_template_with_generated_identity(
+    settings: &str,
+) -> Result<(), Box<dyn Error>> {
+    let template_lines: Vec<&str> = SETTINGS_TEMPLATE.split_inclusive('\n').collect();
+    let settings_lines: Vec<&str> = settings.split_inclusive('\n').collect();
+    assert_eq!(
+        settings_lines.len(),
+        template_lines.len(),
+        "settings.yml must keep the template's exact line count"
+    );
+
+    let mut generated_key = None;
+    let mut generated_uuid = None;
+    for (line_number, (settings_line, template_line)) in
+        settings_lines.iter().zip(&template_lines).enumerate()
+    {
+        match template_line.trim_end() {
+            "  key: example" => {
+                generated_key = settings_line
+                    .trim_end()
+                    .strip_prefix("  key: ")
+                    .map(ToOwned::to_owned);
+            }
+            "  UUID: example" => {
+                generated_uuid = settings_line
+                    .trim_end()
+                    .strip_prefix("  UUID: ")
+                    .map(ToOwned::to_owned);
+            }
+            "  appVersion: 0.35.0" => {
+                assert_eq!(
+                    settings_line.trim_end(),
+                    format!("  appVersion: {}", application_version()),
+                    "appVersion must be the canonical application version"
+                );
+            }
+            _ => {
+                assert_eq!(
+                    settings_line,
+                    template_line,
+                    "line {} must be byte-identical to the template",
+                    line_number + 1
+                );
+            }
+        }
+    }
+
+    let generated_key =
+        generated_key.ok_or("the template's AutomaticallyGenerated.key line is missing")?;
+    let generated_uuid =
+        generated_uuid.ok_or("the template's AutomaticallyGenerated.UUID line is missing")?;
+    assert!(
+        is_uuid_shaped(&generated_key),
+        "generated key {generated_key:?} must be UUID-shaped"
+    );
+    assert!(
+        is_uuid_shaped(&generated_uuid),
+        "generated UUID {generated_uuid:?} must be UUID-shaped"
+    );
+    assert_ne!(
+        generated_key, generated_uuid,
+        "key and UUID must be generated independently"
+    );
+    Ok(())
+}
+
+/// Canonical UUID shape: 36 characters, hyphens at the four canonical
+/// positions, hex digits everywhere else.
+fn is_uuid_shaped(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 36
+        && bytes.iter().enumerate().all(|(index, byte)| match index {
+            8 | 13 | 18 | 23 => *byte == b'-',
+            _ => byte.is_ascii_hexdigit(),
+        })
 }
 
 #[test]
