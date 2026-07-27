@@ -337,6 +337,12 @@ JSON-only pages rebuild ordered raster images
 and alpha soft masks. Both
 unfiltered and bounded single-filter Flate/LZW/ASCII85/DCT 8-bit device-colour inline images
 are extracted; candidate `EI` markers are accepted only when decoding matches the declared raster.
+Integer entries in inline-image dictionaries and `DecodeParms` (`/W`/`/H`/`/BPC`,
+`/Predictor`/`/Colors`/`/BitsPerComponent`/`/Columns`) follow PDFBox `COSDictionary.getInt`
+numeric coercion: a real value truncates via Java's `(int)` cast (toward zero, `NaN` to `0`,
+saturating at the `int` bounds), so `/Predictor 2.0` reads as `2` rather than acting as absent.
+`/ColorTransform` is the deliberate exception — its oracle is PDF.js
+(`Number.isInteger`), which never truncates, so a real-valued `/ColorTransform` acts as absent.
 Color-key `/Mask` arrays are applied to supported device and Indexed samples, including DCT
 Gray/RGB images and native four-channel CMYK/ICC DCT samples (compared, like all color-key
 ranges, against raw decoder output before any `/Decode` mapping);

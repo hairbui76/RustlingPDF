@@ -1102,12 +1102,16 @@ fn inline_image_decoded_length(dictionary: &Dictionary) -> Option<usize> {
     (total <= MAX_EDITOR_IMAGE_BYTES).then_some(total)
 }
 
+/// Reads an inline-image integer entry with `COSDictionary.getInt` numeric
+/// coercion (`PDInlineImage.getWidth`/`getHeight`/`getBitsPerComponent`):
+/// a real value truncates via [`cos_number_int`], so `/W 2.0` reads as `2`
+/// rather than acting as absent. Negative results stay unusable (`None`).
 fn inline_dictionary_u64(dictionary: &Dictionary, key: &[u8], alias: &[u8]) -> Option<u64> {
     let value = dictionary
         .get(key)
         .or_else(|_| dictionary.get(alias))
         .ok()?;
-    u64::try_from(value.as_i64().ok()?).ok()
+    u64::try_from(cos_number_int(value)?).ok()
 }
 
 fn inline_dictionary_bool(dictionary: &Dictionary, key: &[u8], alias: &[u8]) -> Option<bool> {
@@ -1396,8 +1400,23 @@ fn lopdf_filter_layer(
         .ok()
 }
 
+/// Ports `COSNumber.intValue()` for a numeric PDF object: an Integer passes
+/// through, a Real takes Java's `(int)` float cast — truncation toward zero,
+/// `NaN` to `0`, saturation at the `i32` bounds (Rust `as i32` from a float
+/// has exactly those semantics) — widened back to `i64`. Non-numeric objects
+/// yield `None`.
+#[allow(clippy::cast_possible_truncation)]
+fn cos_number_int(object: &Object) -> Option<i64> {
+    match object {
+        Object::Integer(value) => Some(*value),
+        Object::Real(value) => Some(i64::from(*value as i32)),
+        _ => None,
+    }
+}
+
 /// Reads an integer decode parameter, treating a missing or non-numeric value
-/// as `default` (ports `COSDictionary.getInt`).
+/// as `default` (ports `COSDictionary.getInt`, whose `COSNumber.intValue()`
+/// truncates real values — `/Predictor 2.0` reads as `2`, not as absent).
 fn decode_parms_i64(
     document: Option<&Document>,
     parms: &Dictionary,
@@ -1408,7 +1427,7 @@ fn decode_parms_i64(
         .get(key)
         .ok()
         .and_then(|value| maybe_resolved(document, value))
-        .and_then(|value| value.as_i64().ok())
+        .and_then(cos_number_int)
         .unwrap_or(default)
 }
 
@@ -2265,6 +2284,13 @@ fn apply_dct_color_transform(
     Some(())
 }
 
+/// Reads `/DecodeParms /ColorTransform` for the PDF.js-compatible DCT colour
+/// conversion. Deliberately NOT coerced through [`cos_number_int`]: this
+/// site's oracle is PDF.js (`Number.isInteger(params.get("ColorTransform"))`),
+/// which never truncates — a fractional real acts as absent — while `PDFBox`
+/// 3.0.7's `DCTFilter` ignores `/ColorTransform` entirely. Known residual
+/// divergence: PDF.js accepts an integral real (`1.0` reads as `1`) because
+/// JS numbers carry no integer/real distinction; here any Real acts as absent.
 fn dct_color_transform(document: &Document, stream: &Stream) -> Option<i32> {
     let parameters = stream
         .dict
@@ -5617,9 +5643,12 @@ fn dictionary_text(document: &Document, dictionary: &Dictionary, key: &[u8]) -> 
     }
 }
 
+/// Ports `COSDictionary.getInt` (all call sites of this helper mirror Java
+/// `getInt` reads): numeric coercion via [`cos_number_int`], so a real value
+/// truncates toward zero instead of acting as absent.
 fn dictionary_i32(document: &Document, dictionary: &Dictionary, key: &[u8]) -> Option<i32> {
     let object = resolved_object(document, dictionary.get(key).ok()?)?;
-    i32::try_from(object.as_i64().ok()?).ok()
+    i32::try_from(cos_number_int(object)?).ok()
 }
 
 fn dictionary_i32_alias(
@@ -14874,6 +14903,79 @@ q 20 0 0 10 5 7 cm BI /W 2 /H 1 /CS /RGB /BPC 8 ID\n"
         content.extend_from_slice(b"\nEI\nQ");
 
         let model = inline_image_content_model(content, "flate-tiff-predictor-inline.pdf")?;
+        let decoded = single_inline_image_pixels(&model)?;
+        assert_eq!(decoded.to_rgb8().as_raw(), &samples);
+        Ok(())
+    }
+
+    /// `COSDictionary.getInt` truncates a real `/Predictor 2.0` to `2`
+    /// (`COSNumber.intValue()`); it must select TIFF prediction rather than
+    /// acting as an absent predictor.
+    #[test]
+    fn extracts_real_valued_predictor_inline_images() -> Result<(), Box<dyn std::error::Error>> {
+        let samples = [
+            10_u8, 20, 30, 110, 140, 160, // row 0
+            50, 60, 70, 40, 30, 20, // row 1
+        ];
+        let differenced = [
+            10_u8, 20, 30, 100, 120, 130, // row 0
+            50, 60, 70, 246, 226, 206, // row 1
+        ];
+        let compressed = zlib_fixture(&differenced)?;
+        let mut content = b"q 8 0 0 8 2 3 cm BI /W 2 /H 2 /CS /RGB /BPC 8 /F /Fl \
+/DP << /Predictor 2.0 /Colors 3 /BitsPerComponent 8 /Columns 2 >> ID\n"
+            .to_vec();
+        content.extend_from_slice(&compressed);
+        content.extend_from_slice(b"\nEI\nQ");
+
+        let model = inline_image_content_model(content, "flate-real-predictor-inline.pdf")?;
+        let decoded = single_inline_image_pixels(&model)?;
+        assert_eq!(decoded.to_rgb8().as_raw(), &samples);
+        Ok(())
+    }
+
+    /// Real-valued `/Colors 3.9`, `/BitsPerComponent 8.5`, and `/Columns 2.9`
+    /// truncate toward zero to `3`/`8`/`2` (`COSNumber.intValue()`), decoding
+    /// exactly like their integer spellings.
+    #[test]
+    fn truncates_real_valued_predictor_geometry_inline_images()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let samples = [
+            10_u8, 20, 30, 110, 140, 160, // row 0
+            50, 60, 70, 40, 30, 20, // row 1
+        ];
+        let differenced = [
+            10_u8, 20, 30, 100, 120, 130, // row 0
+            50, 60, 70, 246, 226, 206, // row 1
+        ];
+        let compressed = zlib_fixture(&differenced)?;
+        let mut content = b"q 8 0 0 8 2 3 cm BI /W 2 /H 2 /CS /RGB /BPC 8 /F /Fl \
+/DP << /Predictor 2 /Colors 3.9 /BitsPerComponent 8.5 /Columns 2.9 >> ID\n"
+            .to_vec();
+        content.extend_from_slice(&compressed);
+        content.extend_from_slice(b"\nEI\nQ");
+
+        let model = inline_image_content_model(content, "flate-real-geometry-inline.pdf")?;
+        let decoded = single_inline_image_pixels(&model)?;
+        assert_eq!(decoded.to_rgb8().as_raw(), &samples);
+        Ok(())
+    }
+
+    /// Real-valued inline dimensions (`/W 2.0 /H 1.9 /BPC 8.0`) truncate to
+    /// `2`/`1`/`8` like `PDInlineImage.getWidth`/`getHeight`/
+    /// `getBitsPerComponent` (all `COSDictionary.getInt`), so the unfiltered
+    /// payload length and the raster decode both see the integer geometry.
+    #[test]
+    fn truncates_real_valued_inline_image_dimensions() -> Result<(), Box<dyn std::error::Error>> {
+        let samples = [10_u8, 20, 30, 40, 50, 60];
+        let mut content = b"q 8 0 0 8 2 3 cm BI /W 2.0 /H 1.9 /CS /RGB /BPC 8.0 ID\n".to_vec();
+        content.extend_from_slice(&samples);
+        content.extend_from_slice(b"\nEI\nQ");
+
+        let model = inline_image_content_model(content, "real-dimensions-inline.pdf")?;
+        let image = &model.pages[0].image_elements[0];
+        assert_eq!(image.native_width, Some(2));
+        assert_eq!(image.native_height, Some(1));
         let decoded = single_inline_image_pixels(&model)?;
         assert_eq!(decoded.to_rgb8().as_raw(), &samples);
         Ok(())
