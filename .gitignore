@@ -1,0 +1,33 @@
+# Rust
+rust/target/
+rust/.pdfium/
+**/*.rs.bk
+
+# Node / frontend
+node_modules/
+frontend/editor/dist/
+frontend/editor/src-tauri/target/
+frontend/editor/src-tauri/gen/
+*.local
+.env.*.local
+
+# Task runner
+.task/
+
+# Runtime artifacts (backend creates these in its working directory)
+pipeline/
+configs/custom_settings.yml
+configs/settings.yml.*.bak
+*.log
+
+# Python (differential harness)
+__pycache__/
+testing/differential/_generated/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# CodeGraph (machine-local index)
+.codegraph/

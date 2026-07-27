@@ -1,0 +1,276 @@
+version: '3'
+
+tasks:
+  install:
+    desc: "Fetch AI engine dependencies"
+    cmds:
+      - cargo fetch --manifest-path rust/Cargo.toml --locked
+
+  prepare:
+    desc: "Prepare the AI engine workspace"
+    deps: [install]
+    cmds:
+      - cargo metadata --manifest-path rust/Cargo.toml --no-deps --format-version 1
+
+  build:
+    desc: "Build AI engine binaries"
+    deps: [":rust:clean:deps"]
+    cmds:
+      - cargo build --manifest-path rust/Cargo.toml -p stirling-ai-engine --bins --locked
+
+  run:
+    desc: "Run the AI engine server"
+    deps: [":rust:clean:deps"]
+    ignore_error: true
+    dotenv: ["engine/.env.local", "engine/.env"]
+    vars:
+      HOST: '{{.HOST | default "127.0.0.1"}}'
+      PORT: '{{.PORT | default "5001"}}'
+    env:
+      STIRLING_ENGINE_HOST: '{{.HOST}}'
+      STIRLING_ENGINE_PORT: '{{.PORT}}'
+    cmds:
+      - cargo run --manifest-path rust/Cargo.toml -p stirling-ai-engine --bin stirling-ai-engine --locked
+
+  dev:
+    desc: "Start the AI engine for development"
+    deps: [":rust:clean:deps"]
+    ignore_error: true
+    dotenv: ["engine/.env.local", "engine/.env"]
+    vars:
+      HOST: '{{.HOST | default "127.0.0.1"}}'
+      PORT: '{{.PORT | default "5001"}}'
+    env:
+      STIRLING_ENGINE_HOST: '{{.HOST}}'
+      STIRLING_ENGINE_PORT: '{{.PORT}}'
+    cmds:
+      - cargo run --manifest-path rust/Cargo.toml -p stirling-ai-engine --bin stirling-ai-engine --locked
+
+  lint:
+    desc: "Run AI engine linting"
+    deps: [":rust:clean:deps"]
+    cmds:
+      - cargo clippy --manifest-path rust/Cargo.toml -p stirling-ai-engine --all-targets --locked -- -D warnings
+
+  lint:fix:
+    desc: "Auto-fix AI engine lint issues"
+    deps: [":rust:clean:deps"]
+    cmds:
+      - cargo clippy --manifest-path rust/Cargo.toml -p stirling-ai-engine --all-targets --locked --fix --allow-dirty --allow-staged
+
+  typecheck:
+    desc: "Run AI engine type checking"
+    deps: [":rust:clean:deps"]
+    cmds:
+      - cargo check --manifest-path rust/Cargo.toml -p stirling-ai-engine --all-targets --locked
+
+  format:
+    desc: "Auto-fix AI engine formatting"
+    cmds:
+      - cargo fmt --manifest-path rust/Cargo.toml --package stirling-ai-engine
+
+  format:check:
+    desc: "Check AI engine formatting"
+    cmds:
+      - cargo fmt --manifest-path rust/Cargo.toml --package stirling-ai-engine --check
+
+  test:
+    desc: "Run AI engine tests"
+    deps: [":rust:clean:deps"]
+    cmds:
+      - cargo test --manifest-path rust/Cargo.toml -p stirling-ai-engine --locked
+
+  fix:
+    desc: "Auto-fix AI engine source"
+    cmds:
+      - task: format
+      - task: lint:fix
+      - task: format
+
+  container:check:
+    desc: "Verify AI engine container and operational configuration"
+    deps: [":rust:clean:deps"]
+    cmds:
+      - cargo test --manifest-path rust/Cargo.toml -p stirling-ai-engine --test operational_cutover --locked
+
+  check:
+    desc: "Run the AI engine quality gate"
+    cmds:
+      - task: format:check
+      - task: typecheck
+      - task: lint
+      - task: test
+
+  tool-models:
+    desc: "Generate the Rust AI operation catalog from the Java OpenAPI spec"
+    deps: [":backend:swagger"]
+    cmds:
+      - >
+        cargo run --manifest-path rust/Cargo.toml
+        -p stirling-operation-catalog --locked --
+        --spec SwaggerDoc.json
+        --output rust/crates/stirling-ai-engine/src/operation_catalog.json
+        --mcp-supplement rust/crates/stirling-processing/src/mcp_operation_supplement.json
+    sources:
+      - SwaggerDoc.json
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - rust/crates/stirling-operation-catalog/Cargo.toml
+      - rust/crates/stirling-operation-catalog/src/**/*.rs
+    generates:
+      - rust/crates/stirling-ai-engine/src/operation_catalog.json
+      - rust/crates/stirling-processing/src/mcp_operation_supplement.json
+
+  tool-models:check:
+    desc: "Fail if the Rust AI operation catalog is out of date"
+    deps: [":backend:swagger"]
+    cmds:
+      - >
+        cargo run --manifest-path rust/Cargo.toml
+        -p stirling-operation-catalog --locked --
+        --spec SwaggerDoc.json
+        --output rust/crates/stirling-ai-engine/src/operation_catalog.json
+        --mcp-supplement rust/crates/stirling-processing/src/mcp_operation_supplement.json
+        --check
+
+  clean:
+    desc: "Clean AI engine build artifacts"
+    cmds:
+      - cargo clean --manifest-path rust/Cargo.toml -p stirling-ai-engine
+
+  legacy:install:
+    desc: "Install legacy Python engine dependencies"
+    run: once
+    dir: engine
+    cmds:
+      - uv python install 3.13.8
+      - uv sync
+    sources:
+      - engine/uv.lock
+      - engine/pyproject.toml
+    status:
+      - test -d .venv
+
+  legacy:prepare:
+    desc: "Set up the legacy Python engine environment"
+    deps: [legacy:install]
+    dir: engine
+    cmds:
+      - uv run scripts/setup_env.py
+    sources:
+      - engine/scripts/setup_env.py
+    generates:
+      - engine/.env.local
+
+  legacy:run:
+    desc: "Run the legacy Python engine oracle"
+    deps: [legacy:prepare]
+    ignore_error: true
+    dir: engine/src
+    vars:
+      PORT: '{{.PORT | default "5001"}}'
+    env:
+      PYTHONUNBUFFERED: "1"
+    cmds:
+      - uv run uvicorn stirling.api.app:app --host 0.0.0.0 --port {{.PORT}} --workers "${STIRLING_ENGINE_WORKERS:-4}"
+
+  legacy:dev:
+    desc: "Start the legacy Python engine oracle for development"
+    deps: [legacy:prepare]
+    ignore_error: true
+    dir: engine/src
+    vars:
+      PORT: '{{.PORT | default "5001"}}'
+    env:
+      PYTHONUNBUFFERED: "1"
+    cmds:
+      - uv run uvicorn stirling.api.app:app --host 0.0.0.0 --port {{.PORT}} --reload
+
+  legacy:lint:
+    desc: "Run legacy Python engine linting"
+    deps: [legacy:install]
+    dir: engine
+    cmds:
+      - uv run ruff check .
+
+  legacy:lint:fix:
+    desc: "Auto-fix legacy Python engine lint issues"
+    deps: [legacy:install]
+    dir: engine
+    cmds:
+      - uv run ruff check . --fix
+
+  legacy:format:
+    desc: "Auto-fix legacy Python engine formatting"
+    deps: [legacy:install]
+    dir: engine
+    cmds:
+      - uv run ruff format .
+
+  legacy:format:check:
+    desc: "Check legacy Python engine formatting"
+    deps: [legacy:install]
+    dir: engine
+    cmds:
+      - uv run ruff format . --diff
+
+  legacy:typecheck:
+    desc: "Run legacy Python engine type checking"
+    deps: [legacy:install]
+    dir: engine
+    cmds:
+      - uv run pyright . --warnings
+
+  legacy:test:
+    desc: "Run legacy Python engine oracle tests"
+    deps: [legacy:prepare]
+    dir: engine
+    cmds:
+      - uv run pytest tests
+
+  legacy:fix:
+    desc: "Auto-fix legacy Python engine source"
+    cmds:
+      - task: legacy:format
+      - task: legacy:lint:fix
+      - task: legacy:format
+
+  legacy:check:
+    desc: "Run the legacy Python engine oracle quality gate"
+    cmds:
+      - task: legacy:typecheck
+      - task: legacy:lint
+      - task: legacy:format:check
+      - task: legacy:test
+
+  legacy:tool-models:
+    desc: "Generate legacy Python engine models from the Java OpenAPI spec"
+    deps: [legacy:install, ":backend:swagger"]
+    cmds:
+      - uv run --project engine python engine/scripts/generate_tool_models.py --spec SwaggerDoc.json --output engine/src/stirling/models/tool_models.py
+    sources:
+      - SwaggerDoc.json
+      - engine/scripts/generate_tool_models.py
+    generates:
+      - engine/src/stirling/models/tool_models.py
+
+  legacy:clean:
+    desc: "Clean legacy Python engine build artifacts"
+    cmds:
+      - task: '{{if eq .OS "Windows_NT"}}legacy:clean:windows{{else}}legacy:clean:unix{{end}}'
+
+  legacy:clean:unix:
+    internal: true
+    dir: engine
+    cmds:
+      - rm -rf .venv data logs output
+
+  legacy:clean:windows:
+    internal: true
+    ignore_error: true
+    dir: engine
+    cmds:
+      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue .venv
+      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue data
+      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue logs
+      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue output
