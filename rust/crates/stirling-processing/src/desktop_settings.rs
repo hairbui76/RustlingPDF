@@ -30,8 +30,7 @@ use chrono::Utc;
 
 const TAURI_MODE_VARIABLE: &str = "STIRLING_PDF_TAURI_MODE";
 const BASE_PATH_VARIABLE: &str = "STIRLING_BASE_PATH";
-const SETTINGS_TEMPLATE: &str =
-    include_str!("../../../../app/core/src/main/resources/settings.yml.template");
+const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template");
 /// Matches Java's `ConfigInitializer.MIN_SETTINGS_FILE_LINES`.
 const MIN_SETTINGS_FILE_LINES: usize = 31;
 

@@ -11749,8 +11749,7 @@ mod tests {
         use super::{convert_json_to_pdf, pdf_to_json, resolved_dictionary};
         use lopdf::{Document, Object, Stream, content::Content, dictionary};
 
-        let font_program =
-            include_bytes!("../../../../app/core/src/main/resources/static/fonts/DejaVuSans.ttf");
+        let font_program = include_bytes!("../resources/fonts/DejaVuSans.ttf");
         let mut source = Document::with_version("1.7");
         let pages_id = source.new_object_id();
         let font_program_id = source.add_object(Stream::new(dictionary! {}, font_program.to_vec()));
@@ -14347,8 +14346,7 @@ end";
         let mut source = Document::with_version("1.7");
         let page_tree_id = source.new_object_id();
         let to_unicode_id = source.add_object(Stream::new(dictionary! {}, to_unicode.to_vec()));
-        let font_program =
-            include_bytes!("../../../../app/core/src/main/resources/static/fonts/DejaVuSans.ttf");
+        let font_program = include_bytes!("../resources/fonts/DejaVuSans.ttf");
         let font_program_id = source.add_object(Stream::new(dictionary! {}, font_program.to_vec()));
         let descriptor_id = source.add_object(dictionary! {
             "Type" => "FontDescriptor",

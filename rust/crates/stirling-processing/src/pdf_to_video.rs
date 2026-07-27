@@ -32,8 +32,7 @@ const FFMPEG_COMMAND_ENV: &str = "STIRLING_PROCESSING_FFMPEG_COMMAND";
 const MAX_VIDEO_FRAMES: usize = 10_000;
 const MAX_WATERMARK_CHARACTERS: usize = 4_096;
 const MAX_WATERMARK_PIXELS: u64 = 32 * 1024 * 1024;
-const DEJAVU_SANS_BOLD: &[u8] =
-    include_bytes!("../../../../app/core/src/main/resources/static/fonts/DejaVuSans-Bold.ttf");
+const DEJAVU_SANS_BOLD: &[u8] = include_bytes!("../resources/fonts/DejaVuSans-Bold.ttf");
 
 /// The two output containers supported by the Java request contract.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

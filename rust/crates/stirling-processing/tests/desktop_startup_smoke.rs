@@ -16,8 +16,7 @@ const PARENT_EXIT_TIMEOUT: Duration = Duration::from_secs(10);
 const PARENT_HELPER_BACKEND_VARIABLE: &str = "STIRLING_TEST_PARENT_HELPER_BACKEND";
 const PARENT_HELPER_DIRECTORY_VARIABLE: &str = "STIRLING_TEST_PARENT_HELPER_DIRECTORY";
 const PARENT_HELPER_INFO_VARIABLE: &str = "STIRLING_TEST_PARENT_HELPER_INFO";
-const SETTINGS_TEMPLATE: &str =
-    include_str!("../../../../app/core/src/main/resources/settings.yml.template");
+const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template");
 
 struct ChildGuard(Child);
 

@@ -201,15 +201,12 @@ async fn require_status(
 }
 
 fn signed_fixture() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../..")
-        .join("test_irs_signed.pdf");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/test_irs_signed.pdf");
     Ok(fs::read(path)?)
 }
 
 fn custom_certificate_fixture() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../app/core/src/test/resources/certs/test-cert.der");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/certs/test-cert.der");
     Ok(fs::read(path)?)
 }
 

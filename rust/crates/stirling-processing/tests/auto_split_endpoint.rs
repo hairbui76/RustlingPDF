@@ -51,9 +51,8 @@ async fn native_qr_detection_splits_and_duplex_skips_the_divider_back()
     let before = write_pdf(directory.path().join("before.pdf"), &text_pdf(1)?)?;
     let back = write_pdf(directory.path().join("back.pdf"), &text_pdf(1)?)?;
     let after = write_pdf(directory.path().join("after.pdf"), &text_pdf(1)?)?;
-    let divider = repository_root().join(
-        "app/core/src/main/resources/static/files/Auto Splitter Divider (with instructions).pdf",
-    );
+    let divider =
+        crate_root().join("resources/files/Auto Splitter Divider (with instructions).pdf");
     let merged = directory.path().join("packet.pdf");
     merge_pdf_paths_to_file(
         &[
@@ -249,6 +248,6 @@ fn merge_input(filename: &str, path: PathBuf) -> MergeInput {
     }
 }
 
-fn repository_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
+fn crate_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }

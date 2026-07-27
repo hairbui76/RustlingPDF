@@ -1397,8 +1397,7 @@ mod tests {
     #[test]
     fn extracts_public_metadata_from_a_signing_certificate()
     -> Result<(), Box<dyn std::error::Error>> {
-        let certificate =
-            include_bytes!("../../../../app/core/src/test/resources/certs/test-cert.der");
+        let certificate = include_bytes!("../tests/data/certs/test-cert.der");
         let info =
             certificate_info_from_der("certificate-alias".to_owned(), "WINDOWS_STORE", certificate)
                 .ok_or_else(|| std::io::Error::other("test certificate must parse"))?;
