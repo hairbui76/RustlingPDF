@@ -4335,6 +4335,17 @@ mod tests {
             RuntimeConfig::from_files(&sequence_root, directory.path().join("missing.yml"));
         assert!(config.initialize_generated_identity().is_err());
         assert_eq!(fs::read_to_string(&sequence_root)?, before);
+
+        // Root is a FLOW mapping: it passes the is-a-mapping pre-check, but
+        // the comment-preserving editor has no block structure to extend —
+        // appending a section would corrupt the file into two YAML documents.
+        // The write must refuse cleanly and leave every byte untouched.
+        let flow_root = directory.path().join("flow.yml");
+        fs::write(&flow_root, "{system: {defaultLocale: en-GB}}\n")?;
+        let before = fs::read_to_string(&flow_root)?;
+        let config = RuntimeConfig::from_files(&flow_root, directory.path().join("missing.yml"));
+        assert!(config.initialize_generated_identity().is_err());
+        assert_eq!(fs::read_to_string(&flow_root)?, before);
         Ok(())
     }
 
