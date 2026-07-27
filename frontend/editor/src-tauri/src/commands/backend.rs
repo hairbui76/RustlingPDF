@@ -196,20 +196,20 @@ fn bundled_pdfium_directory(app: &tauri::AppHandle) -> Option<PathBuf> {
 }
 
 // Normalize path to remove Windows UNC prefix
-fn normalize_path(path: &PathBuf) -> PathBuf {
+fn normalize_path(path: &Path) -> PathBuf {
     if cfg!(windows) {
         let path_str = path.to_string_lossy();
-        if path_str.starts_with(r"\\?\") {
-            PathBuf::from(&path_str[4..]) // Remove \\?\ prefix
+        if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
         } else {
-            path.clone()
+            path.to_path_buf()
         }
     } else {
-        path.clone()
+        path.to_path_buf()
     }
 }
 
-fn migrate_legacy_workspace(legacy_dir: &PathBuf, target_root: &PathBuf) -> std::io::Result<()> {
+fn migrate_legacy_workspace(legacy_dir: &Path, target_root: &Path) -> std::io::Result<()> {
     for entry in std::fs::read_dir(legacy_dir)? {
         let entry = entry?;
         let file_type = entry.file_type()?;
@@ -249,14 +249,14 @@ fn copy_dir_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
 }
 
 fn migrate_legacy_workspace_and_remove(
-    legacy_dir: &PathBuf,
-    target_root: &PathBuf,
+    legacy_dir: &Path,
+    target_root: &Path,
 ) -> std::io::Result<()> {
     migrate_legacy_workspace(legacy_dir, target_root)?;
     std::fs::remove_dir_all(legacy_dir)
 }
 
-fn migrate_legacy_workspace_if_present(app_data_root: &PathBuf) {
+fn migrate_legacy_workspace_if_present(app_data_root: &Path) {
     let legacy_work_dir = app_data_root.join("workspace");
     if !legacy_work_dir.exists() {
         return;
@@ -746,7 +746,7 @@ mod tests {
         fs::create_dir_all(&nested)?;
         fs::write(nested.join("signature.json"), b"{}")?;
 
-        migrate_legacy_workspace_and_remove(&legacy, &directory.path().to_path_buf())?;
+        migrate_legacy_workspace_and_remove(&legacy, directory.path())?;
 
         assert!(!legacy.exists());
         assert_eq!(

@@ -547,7 +547,7 @@ pub async fn login(
             .as_ref()
             .and_then(|m| m.full_name.clone())
             .or_else(|| email.clone())
-            .unwrap_or_else(|| username);
+            .unwrap_or(username);
 
         Ok(LoginResponse {
             token: login_response.access_token,
@@ -606,7 +606,8 @@ pub async fn login(
                 } else if error_lower.contains("timeout") {
                     format!("Connection timeout: Server at {} is not responding. Check your network connection.", login_url)
                 } else if error_lower.contains("dns") || error_lower.contains("resolve") {
-                    format!("DNS resolution failed: Cannot resolve hostname. Check if the server URL is correct.")
+                    "DNS resolution failed: Cannot resolve hostname. Check if the server URL is correct."
+                        .to_string()
                 } else {
                     format!("Network error: {}", e)
                 }
