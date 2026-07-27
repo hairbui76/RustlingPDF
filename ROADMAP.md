@@ -19,32 +19,44 @@ lands or the queue changes.
 - Canonical app version lives in `rust/VERSION` (consumed by `build.rs`).
 - Verified quick start: `task rust:install && task dev`.
 
-## In flight — Batch 3 (dev+tester pairs, may be running or interrupted)
+## Landed — Batch 3 (2026-07-28, all tester-signed, merged to `main`)
 
-Three git worktrees under `/mnt/ssdvolumes/repo/RustlingPDF-worktrees/`,
-branches based on `b08a550`. Each work-item is delivered only when its
-**independent tester** signs off (adversarial review + gate + upstream parity).
+All four work-items delivered by dev+tester pairs and merged; the PM's combined
+gate then caught a cross-item defect that a follow-up fix pair closed.
 
-| Worktree | Branch | Work-item(s) |
-|---|---|---|
-| `ci/` | `wi/github-ci` | `.github/workflows/`: backend gate (fmt/clippy/tests + PDFium), frontend gate (typecheck/lint/vitest/build), differential rust-only smoke |
-| `deploy/` | `wi/spa-serving-docker` | (1) SPA serving from the binary — port upstream `ReactRoutingController` semantics behind `STIRLING_FRONTEND_DIST`, traversal-safe, API-precedence; then (2) Docker packaging — multi-stage Dockerfile (Rust release + frontend dist + PDFium + external tools), compose example, `task docker:*`, built and smoke-tested locally |
-| `parity/` | `wi/parity-trio` | AI-engine config push (mirror `AiEngineConfigSync`), integration/S3 credential at-rest encryption (AES-256-GCM reuse + lazy migration), `AutomaticallyGenerated` UUID/key settings persistence |
+- **GitHub CI** (`.github/workflows/`): backend gate (fmt/clippy/tests + PDFium
+  install), frontend gate (typecheck/lint/vitest/build), differential rust-only
+  smoke. Action pins byte-for-byte match upstream; actionlint-clean.
+- **Single-binary SPA serving**: config-gated static layer behind
+  `STIRLING_FRONTEND_DIST` porting `ReactRoutingController` semantics
+  (traversal/symlink-safe, `/api` precedence, deep links, cache policy);
+  unset ⇒ today's Vite-proxy dev flow unchanged. Contract:
+  `rust/contracts/spa-serving.md`.
+- **Docker packaging**: multi-stage image (Rust release + frontend dist +
+  PDFium + external tools), **~1.41 GB main / 116 MB ai-engine**, compose
+  example, `task docker:*`; built and container-smoke-tested locally
+  (bit-identical rebuild by the tester).
+- **Parity trio**: AI-engine config push (`AiEngineConfigSync` parity, bounded
+  off-thread retry), AES-256-GCM at-rest encryption for integration/S3
+  credentials with lossless lazy migration, and `AutomaticallyGenerated`
+  UUID/key install-identity persistence.
+- **Follow-up fix pair** (found by the combined gate): the identity write was
+  stripping the settings comment banner and using the wrong version, and — a
+  pre-existing bug — an empty `custom_settings.yml` blanked the whole snapshot
+  so desktop re-rolled UUID/key every boot. Fixed: empty YAML documents merge
+  as a no-op, identity writes are comment-preserving and use the canonical
+  `rust/VERSION`, flow-collection sections are refused rather than destroyed,
+  and the desktop smoke test now asserts byte-stable settings across two boots.
 
-**If you find this section still marked in-flight in a new session:** check each
-worktree (`git -C <wt> log --oneline -3; git -C <wt> status`) — committed work
-with a tester sign-off gets merged (`git merge --no-ff <branch>`) into `main`;
-uncommitted partial work is an interrupted agent (see the crash-resilience
-notes in CLAUDE.md's team-workflow section: review the partial diff, keep what
-is correct). After merging everything: run the combined gate
-(fmt, clippy, both crate test suites with
-`STIRLING_PDFIUM_LIBRARY_PATH=$PWD/rust/.pdfium/current`, frontend check),
-update `rust/PORT_STATUS.md` + this file, remove the worktrees and branches,
-push `main`.
+One recorded minor (follow-up candidate): a hand-authored **flow-styled root**
+settings.yml (`{a: 1}`) would get an appended block section, producing a
+two-document YAML that fails to reparse — refuse it like flow sections. Also
+noted: the admin license-persist path still uses serde round-trip (drops
+comments) — migrate onto `settings_yaml`.
 
 ## Near-term queue (next batches, in rough priority order)
 
-1. **CI hardening + release pipeline** (after batch 3 lands): release workflow
+1. **Release pipeline** (CI base landed in batch 3): release workflow
    (tagged builds, `rust/VERSION` bump discipline), Docker image publish
    (GHCR), dependabot/renovate for Cargo + npm.
 2. **Tauri desktop → Rust sidecar**: `src-tauri` still declares JRE/JAR
