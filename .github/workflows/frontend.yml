@@ -1,0 +1,83 @@
+name: Frontend CI
+
+# Quality gate for the React SPA (frontend/): typecheck, ESLint, vitest, and a
+# production build of the core (OSS) flavor. Runs through the repo Taskfile
+# where the task maps 1:1 onto what we want; the vitest invocation is direct so
+# we can bound its worker pool (see the comment on that step).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".taskfiles/frontend.yml"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".taskfiles/frontend.yml"
+      - ".github/workflows/frontend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Node 22 (current LTS), decided as follows: vite ^7.3 requires
+      # node ^20.19.0 || >=22.12.0 and jsdom ^26 declares engines node >=18, so
+      # both are satisfied on 22. The jsdom ^26 pin was made on a local Node 20
+      # workstation, but nothing in it is 20-specific — and Node 20 left LTS
+      # maintenance in April 2026, so 22 is the correct CI runtime.
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Task
+        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
+
+      # frontend/ is the npm workspace root (package.json + package-lock.json).
+      # The taskfile's install task would also run `npm ci` under CI=true, but
+      # running it explicitly keeps the dependency step visible and cacheable.
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Typecheck the core flavor — the same flavor built below. The remaining
+      # flavors (proprietary/saas/desktop/cloud/portal) are covered by
+      # `task frontend:typecheck:all` in the full local gate.
+      - name: Typecheck (core flavor)
+        run: task frontend:typecheck:core
+
+      - name: ESLint
+        run: task frontend:lint:eslint
+
+      # Direct vitest run (instead of `task frontend:test`) so the worker pool
+      # can be bounded: hosted runners have 4 vCPUs / 16 GB, and the
+      # jsdom-heavy suites OOM-risk with vitest's default per-CPU worker
+      # spawning. `task frontend:typecheck:core` above already ran the
+      # `prepare` dependency (env files, icons, OG metadata) that
+      # `task frontend:test` would have run.
+      - name: Run tests (bounded workers)
+        working-directory: frontend
+        run: npx vitest run --root editor --maxWorkers=2 --minWorkers=1
+
+      - name: Build (core flavor)
+        run: task frontend:build:core

@@ -1,0 +1,96 @@
+name: Differential smoke (Rust artifact well-formedness)
+
+# Builds the Rust backend, boots it, and drives the differential harness in
+# --rust-only mode (testing/differential/run_smoke.sh): every manifest case is
+# POSTed to the live backend and each response is validated as a well-formed
+# artifact (parseable PDF / valid JSON / structurally sound ZIP). This is the
+# artifact-wellformedness gate — it needs no Java oracle. The full Java-vs-Rust
+# diff requires an externally running upstream Stirling-PDF instance and is out
+# of scope for CI here (see testing/differential/README.md).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "rust/**"
+      - "testing/differential/**"
+      - ".github/workflows/differential-smoke.yml"
+  pull_request:
+    paths:
+      - "rust/**"
+      - "testing/differential/**"
+      - ".github/workflows/differential-smoke.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: differential-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+        with:
+          toolchain: 1.94.0
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: rust -> target
+
+      # The harness itself is Python 3 stdlib-only (ubuntu-latest ships
+      # python3), but its compare/validation engine rasterizes PDFs with
+      # Ghostscript — that one IS a hard requirement (compare.py raises if `gs`
+      # is not on PATH), and fixtures.py generates the multi-page fixture with
+      # it too.
+      - name: Install native tools (Ghostscript)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ghostscript
+          gs --version
+
+      # PDFium so the booted backend serves its full endpoint surface instead
+      # of self-disabling pdfium-backed operations (pinned revision, sha256
+      # verified by the script; installs to rust/.pdfium/current).
+      - name: Install pinned PDFium runtime
+        run: bash rust/scripts/install-pdfium.sh
+
+      - name: Build Rust backend
+        working-directory: rust
+        run: cargo build -p stirling-processing --locked
+
+      # run_smoke.sh boots target/debug/stirling-processing on :8091 from a
+      # throwaway CWD, waits for /api/v1/info/status, runs
+      # differential.py --rust-only, and tears the backend down. TMPDIR is
+      # pointed into the runner's temp so the backend log it mktemps can be
+      # uploaded on failure.
+      - name: Run differential smoke (rust-only)
+        env:
+          STIRLING_PDFIUM_LIBRARY_PATH: ${{ github.workspace }}/rust/.pdfium/current
+          TMPDIR: ${{ runner.temp }}/diff-smoke
+        run: |
+          mkdir -p "$TMPDIR"
+          bash testing/differential/run_smoke.sh
+
+      - name: Upload backend log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: differential-smoke-logs
+          path: ${{ runner.temp }}/diff-smoke/diff-rust-*.log
+          if-no-files-found: ignore
+          retention-days: 7

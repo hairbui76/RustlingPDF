@@ -1,0 +1,93 @@
+name: Backend CI (Rust)
+
+# Quality gate for the Rust processing backend and AI engine (the whole cargo
+# workspace under rust/): rustfmt, clippy with -D warnings, and the full test
+# suite with the pinned PDFium runtime bound.
+#
+# The steps deliberately mirror the cargo commands behind `task rust:check`
+# instead of invoking the task itself: the taskfile's cargo tasks depend on
+# `rust:clean:deps` (a local-disk storage guard that deletes target/debug/deps
+# before every build), which would throw away everything Swatinem/rust-cache
+# just restored and make every CI run a full rebuild. Keep these commands in
+# sync with .taskfiles/rust.yml.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rust/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "rust/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+        with:
+          # Matches rust-version = "1.94" in rust/Cargo.toml.
+          toolchain: 1.94.0
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: rust -> target
+
+      # External-tool policy: no backend test HARD-requires an external binary.
+      # Every suite that exercises one branches on a presence helper
+      # (ghostscript_present(), libreoffice_present(), weasyprint_present(),
+      # tesseract_present(), pdftohtml_present(), ocrmypdf_present(),
+      # calibre_present()) and asserts the 501/DEPENDENCY path when the tool is
+      # absent — so the suite is green either way. Ghostscript is the one cheap
+      # apt package that flips several suites (PDF/A conversion, add-attachments
+      # PDF/A-3b, replace-invert colour-space) onto their real execution paths,
+      # so we install it. The heavy tools (LibreOffice, Tesseract/OCRmyPDF,
+      # WeasyPrint, Calibre) are deliberately NOT installed: their suites
+      # self-adapt to absence, and installing them would multiply job time for
+      # little signal. Add them here only if a test ever hard-requires them.
+      - name: Install native tools (Ghostscript)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ghostscript
+          gs --version
+
+      # Pinned PDFium revision with sha256 verification — the script is the
+      # single source of truth for the version (also used by `task rust:install`).
+      # Installs to rust/.pdfium/current.
+      - name: Install pinned PDFium runtime
+        run: bash rust/scripts/install-pdfium.sh
+
+      - name: Check formatting
+        working-directory: rust
+        run: cargo fmt --check
+
+      - name: Clippy (deny warnings)
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Run tests (PDFium bound)
+        working-directory: rust
+        env:
+          STIRLING_PDFIUM_LIBRARY_PATH: ${{ github.workspace }}/rust/.pdfium/current
+        run: cargo test --workspace --locked
