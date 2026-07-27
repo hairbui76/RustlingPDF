@@ -67,13 +67,12 @@ Full operator guide, ports/binding, configuration and environment reference:
 
 ## Roadmap
 
-1. Background maintenance loops, MCP OAuth/JWT mode, OIDC browser-callback UX,
-   PDF-JSON fidelity slice 2 (in flight).
-2. Independent security review → enable secured mode in production.
-3. Container packaging (Rust binary + PDFium image) and CI for this repository.
-4. Coordinated `Stirling` → `Rustling` rename across crates/env/config with a
-   compatibility window.
-5. Desktop (Tauri) bundling of the Rust backend.
+The detailed, living plan — current batch, queue, deferred items with unblock
+conditions, and session hand-off instructions — is in [ROADMAP.md](ROADMAP.md).
+Headlines: GitHub CI, single-binary SPA serving + Docker packaging, and three
+small upstream-parity items (in flight); then release pipeline, the Tauri
+Rust-sidecar desktop port, the coordinated `Stirling` → `Rustling` rename, and
+the independent security review that unlocks secured mode.
 
 ## Relationship to Stirling-PDF
 
