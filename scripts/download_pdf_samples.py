@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Download large batches of PDF URLs into a local directory so they can be fed to
-scripts/harvest_type3_fonts.py (or any other processing pipeline).
+any downstream processing pipeline.
 
 Usage examples:
 
