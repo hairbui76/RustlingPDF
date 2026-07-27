@@ -4106,6 +4106,43 @@ mod tests {
         Ok(())
     }
 
+    // TESTER: hostile settings shapes must never panic or corrupt sibling
+    // sections — a malformed `AutomaticallyGenerated` node is repaired, and a
+    // non-mapping document fails cleanly so the caller stays fail-open.
+    #[test]
+    fn generated_identity_survives_hostile_settings_shapes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+
+        // Section present but a scalar: repaired into a mapping, siblings kept.
+        let scalar_section = directory.path().join("scalar.yml");
+        fs::write(
+            &scalar_section,
+            "system:\n  defaultLocale: en-GB\nAutomaticallyGenerated: 42\n",
+        )?;
+        let config =
+            RuntimeConfig::from_files(&scalar_section, directory.path().join("missing.yml"));
+        let identity = config.initialize_generated_identity()?;
+        assert!(super::is_valid_settings_uuid(&identity.uuid));
+        let persisted: serde_json::Value =
+            serde_yaml::from_str(&fs::read_to_string(&scalar_section)?)?;
+        assert_eq!(
+            persisted["AutomaticallyGenerated"]["UUID"],
+            json!(identity.uuid)
+        );
+        assert_eq!(persisted["system"]["defaultLocale"], json!("en-GB"));
+
+        // Whole document is not a mapping: a clean error, no partial write.
+        let sequence_root = directory.path().join("sequence.yml");
+        fs::write(&sequence_root, "- not\n- a\n- mapping\n")?;
+        let before = fs::read_to_string(&sequence_root)?;
+        let config =
+            RuntimeConfig::from_files(&sequence_root, directory.path().join("missing.yml"));
+        assert!(config.initialize_generated_identity().is_err());
+        assert_eq!(fs::read_to_string(&sequence_root)?, before);
+        Ok(())
+    }
+
     #[test]
     fn settings_uuid_validation_matches_java_shapes() {
         assert!(super::is_valid_settings_uuid(
