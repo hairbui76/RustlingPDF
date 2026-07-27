@@ -2676,7 +2676,11 @@ fn write_analytics_setting(settings_path: &Path, enabled: bool) -> Result<(), St
 /// comment intact. An existing section or key whose spelling differs only by
 /// ASCII case is reused rather than duplicated, matching Java's relaxed
 /// binding reading either spelling back; keys the file lacks are inserted into
-/// the section, and a missing section (or file) is created.
+/// the section, and a missing section (or file) is created. Hostile
+/// hand-edited shapes the editor cannot extend (flow-collection roots or
+/// sections, block-scalar values, block-sequence sections) are refused with
+/// the file untouched, and the edited text must reparse as a YAML mapping
+/// before any byte reaches disk.
 fn update_settings_file_values(
     settings_path: &Path,
     section: &str,
@@ -2710,6 +2714,17 @@ fn update_settings_file_values(
         .map_err(|error| format!("could not update {}: {error}", settings_path.display()))?;
     if updated == contents {
         return Ok(());
+    }
+    // Prove the edited text still parses as a YAML mapping before any byte
+    // reaches disk: an editor defect on a hostile hand-edited shape must fail
+    // the update cleanly (the identity caller stays fail-open), never write a
+    // corrupted settings file.
+    if !serde_yaml::from_str::<serde_yaml::Value>(&updated).is_ok_and(|parsed| parsed.is_mapping())
+    {
+        return Err(format!(
+            "could not update {}: the edited settings would no longer parse as a YAML mapping",
+            settings_path.display()
+        ));
     }
     if let Some(parent) = settings_path
         .parent()
@@ -4346,6 +4361,33 @@ mod tests {
         let config = RuntimeConfig::from_files(&flow_root, directory.path().join("missing.yml"));
         assert!(config.initialize_generated_identity().is_err());
         assert_eq!(fs::read_to_string(&flow_root)?, before);
+
+        // The generated section holds a block SEQUENCE: it also passes the
+        // is-a-mapping pre-check, but mapping keys cannot join `- item`
+        // children — the writer used to append `UUID:`/`key:` lines after the
+        // items, writing UNPARSEABLE YAML while reporting Ok. It must refuse
+        // cleanly with every byte untouched.
+        let sequence_section = directory.path().join("sequence-section.yml");
+        fs::write(&sequence_section, "automaticallyGenerated:\n  - 1\n  - 2\n")?;
+        let before = fs::read_to_string(&sequence_section)?;
+        let config =
+            RuntimeConfig::from_files(&sequence_section, directory.path().join("missing.yml"));
+        assert!(config.initialize_generated_identity().is_err());
+        assert_eq!(fs::read_to_string(&sequence_section)?, before);
+
+        // A UUID leaf holding a block scalar: rewriting only the `|`
+        // indicator would fold the continuation lines into the new value
+        // (valid YAML, wrong data), so the write refuses untouched.
+        let block_scalar_leaf = directory.path().join("block-scalar.yml");
+        fs::write(
+            &block_scalar_leaf,
+            "AutomaticallyGenerated:\n  UUID: |\n    junk\n",
+        )?;
+        let before = fs::read_to_string(&block_scalar_leaf)?;
+        let config =
+            RuntimeConfig::from_files(&block_scalar_leaf, directory.path().join("missing.yml"));
+        assert!(config.initialize_generated_identity().is_err());
+        assert_eq!(fs::read_to_string(&block_scalar_leaf)?, before);
         Ok(())
     }
 

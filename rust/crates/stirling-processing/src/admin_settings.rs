@@ -323,12 +323,32 @@ impl AdminSettingsService {
         if edited == contents {
             return Ok(());
         }
-        // Prove the edited text still reparses as a YAML mapping before any
+        // Prove the edited text still reparses as a YAML mapping AND that
+        // every targeted leaf reads back as the requested value before any
         // byte reaches disk: an editor defect must fail the save, never
-        // corrupt the file.
-        let reparsed: Result<serde_yaml::Value, _> = serde_yaml::from_str(&edited);
-        if !reparsed.is_ok_and(|value| value.is_mapping()) {
-            return Err(AdminSettingsError::Serialization);
+        // corrupt the file — and never report success while persisting a
+        // different value (e.g. surrounding block structure absorbing a
+        // rewritten leaf into a folded multiline scalar).
+        let reparsed: serde_yaml::Value = serde_yaml::from_str(&edited).map_err(|_| {
+            AdminSettingsError::Unwritable(
+                "the edited settings would no longer parse as YAML; the file was left untouched"
+                    .to_owned(),
+            )
+        })?;
+        if !reparsed.is_mapping() {
+            return Err(AdminSettingsError::Unwritable(
+                "the edited settings root would no longer be a mapping; the file was left \
+                 untouched"
+                    .to_owned(),
+            ));
+        }
+        for (path, expected) in &dotted {
+            if yaml_leaf_at(&reparsed, path) != Some(expected) {
+                return Err(AdminSettingsError::Unwritable(format!(
+                    "the edited settings would not read back the requested value for {path}; the \
+                     file was left untouched"
+                )));
+            }
         }
         write_settings_text(&self.settings_path, &edited)
     }
@@ -567,10 +587,12 @@ fn validate_pipeline_paths(value: &Value) -> Result<(), AdminSettingsError> {
 
 /// Decomposes update values into inline-renderable dotted leaves for the
 /// comment-preserving writer: a JSON object value becomes one leaf per nested
-/// scalar (merge semantics — sibling keys already in the file survive,
-/// matching Java's transactional writer intent), while scalars and arrays stay
-/// one leaf each. Object keys must be plain-safe path segments and every leaf
-/// must render as inline YAML; violations are `Invalid`, the same refusal the
+/// scalar with MERGE semantics — sibling keys already in the file survive.
+/// This is a documented divergence from Java's `YamlHelper.updateValue`,
+/// which REPLACES the whole subtree with a freshly built block `MappingNode`
+/// (see `contracts/admin-settings.md`). Scalars and arrays stay one leaf
+/// each. Object keys must be plain-safe path segments and every leaf must
+/// render as inline YAML; violations are `Invalid`, the same refusal the
 /// editor applies to values with no inline rendering.
 fn flatten_dotted_updates(
     updates: &BTreeMap<String, Value>,
@@ -606,6 +628,21 @@ fn flatten_dotted_value(
     }
     leaves.push((path.to_owned(), value));
     Ok(())
+}
+
+/// Case-insensitive dotted-path lookup in a parsed YAML document, mirroring
+/// the editor's relaxed key matching. Used to prove each targeted leaf reads
+/// back as exactly the requested value before the edited text reaches disk.
+fn yaml_leaf_at<'a>(root: &'a serde_yaml::Value, path: &str) -> Option<&'a serde_yaml::Value> {
+    path.split('.').try_fold(root, |current, segment| {
+        current.as_mapping().and_then(|map| {
+            map.iter().find_map(|(key, value)| {
+                key.as_str()
+                    .is_some_and(|key| key.eq_ignore_ascii_case(segment))
+                    .then_some(value)
+            })
+        })
+    })
 }
 
 /// Whether an object key can join a dotted settings path verbatim: non-empty
@@ -902,6 +939,38 @@ security:\n  oauth2:\n    clientSecret: old-secret\n    client:\n      scope: op
             Err(AdminSettingsError::Unwritable(_))
         ));
         assert_eq!(fs::read_to_string(&path)?, "- not\n- a\n- mapping\n");
+        Ok(())
+    }
+
+    // TESTER: a leaf holding a block scalar must refuse the save (500
+    // Unwritable) with the file untouched. Rewriting only the `|` indicator
+    // used to report success while the continuation lines folded into the new
+    // value — valid YAML silently carrying the WRONG data. (Java's snakeyaml
+    // replaces the whole scalar node; refusing this hand-edited shape is the
+    // documented conservative divergence.) A section holding a block sequence
+    // refuses the same way: mapping keys cannot join `- item` children.
+    #[test]
+    fn saves_refuse_block_scalar_leaves_and_block_sequence_sections()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let path = directory.path().join("settings.yml");
+        let block_scalar = "ui:\n  appName: |\n    abc\n    def\n";
+        fs::write(&path, block_scalar)?;
+        let loaded = serde_yaml::from_str(&fs::read_to_string(&path)?)?;
+        let service = AdminSettingsService::new(path.clone(), loaded);
+        assert!(matches!(
+            service.update_many(BTreeMap::from([("ui.appName".to_owned(), json!("New"))])),
+            Err(AdminSettingsError::Unwritable(_))
+        ));
+        assert_eq!(fs::read_to_string(&path)?, block_scalar);
+
+        let block_sequence = "ui:\n  - 1\n  - 2\n";
+        fs::write(&path, block_sequence)?;
+        assert!(matches!(
+            service.update_many(BTreeMap::from([("ui.appName".to_owned(), json!("New"))])),
+            Err(AdminSettingsError::Unwritable(_))
+        ));
+        assert_eq!(fs::read_to_string(&path)?, block_sequence);
         Ok(())
     }
 

@@ -136,7 +136,13 @@ leaves the settings file byte-stable (preserving the desktop template-merge
 idempotence); and a failure to persist (e.g. read-only config mount) is
 fail-open with a warning and an ephemeral in-process identity, where Java
 fails startup. The writer reuses an existing section/key spelling that
-differs only by case instead of duplicating it. Java's `InitialSetup` legal-URL
+differs only by case instead of duplicating it. Hand-edited settings shapes
+the comment-preserving editor cannot extend — a flow-collection root or
+section value, an `AutomaticallyGenerated` section holding a block sequence
+(`- item` children), or an identity leaf holding a block scalar (`UUID: |`)
+— are refused with the file byte-for-byte untouched (fail-open, ephemeral
+identity), and the edited text must reparse as a YAML mapping before any
+byte reaches disk; the stock template contains none of those shapes. Java's `InitialSetup` legal-URL
 defaulting (`legal.termsAndConditions`/`privacyPolicy`) is intentionally not
 persisted by the Rust port; those defaults are applied at read time.
 

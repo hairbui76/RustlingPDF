@@ -89,8 +89,10 @@ tests:
   deliberate, kept Rust improvement.)
 - A JSON **object** value is decomposed into one nested leaf per scalar with
   **merge** semantics: sibling keys already in the file survive (the serde
-  writer used to replace the whole subtree). Object keys must be plain-safe
-  path segments (ASCII alphanumeric/`_`/`-`, no `.`).
+  writer used to replace the whole subtree). This is a deliberate, documented
+  divergence from Java's `YamlHelper.updateValue`, which replaces the whole
+  subtree with a freshly built block `MappingNode`. Object keys must be
+  plain-safe path segments (ASCII alphanumeric/`_`/`-`, no `.`).
 - Values with no single-line inline YAML rendering — multi-line strings,
   empty objects, arrays containing objects — are rejected `400 Invalid`, the
   same refusal `settings_yaml` applies everywhere.
@@ -102,9 +104,22 @@ tests:
   serde writer's empty output — is treated as empty and rebuilt as a block
   mapping. Replacing an existing nested block mapping with a scalar leaf is
   refused the same way.
-- Before any byte reaches disk the edited text is reparsed and must still be
-  a YAML mapping; the write itself keeps all prior hardening (symlink
-  refusal, 2 MiB cap, `0o600` mode, fsync, serialized write lock).
+- Hand-edited block shapes the inline editor cannot rewrite refuse the same
+  `500` way with the file untouched: a targeted leaf (or any key on the
+  path) holding a **block scalar** (`key: |` / `key: >` — rewriting only the
+  indicator would fold the continuation lines into the new value, silently
+  persisting the wrong data; Java's snakeyaml replaces the whole scalar node,
+  so refusal is a deliberate conservative divergence), and a mapping on the
+  path holding **block-sequence** children (`- item` lines that inserted
+  mapping keys cannot join). The stock settings template contains neither
+  shape.
+- Before any byte reaches disk the edited text is reparsed: it must still be
+  a YAML mapping **and every targeted leaf must read back as exactly the
+  requested value** (a final proof against silent wrong-value persistence);
+  a failed proof is the same `500` with the file untouched. The write itself
+  keeps all prior hardening (symlink refusal, 2 MiB cap, `0o600` mode,
+  fsync, serialized write lock). Lines inserted into a CRLF file use CRLF,
+  so a save never introduces mixed line endings.
 
 **Restart divergence.** `POST /restart` intentionally returns
 `503 { "error": "In-process restart is unavailable…" }` instead of Java's
