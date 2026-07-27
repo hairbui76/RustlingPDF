@@ -1,0 +1,236 @@
+name: Release
+
+# Release pipeline for tagged builds: verify the version discipline, publish
+# both Docker images to GHCR, and create the GitHub release.
+#
+# Trigger contract: push a tag `v<version>` where `<version>` is exactly the
+# contents of rust/VERSION (the canonical version source, consumed by
+# stirling-processing's build.rs). The verify-version job fail-fasts when the
+# tag and the versioned files disagree — including suffixed tags like
+# v2.14.2-rc1, which are rejected on purpose: this pipeline only publishes
+# exact releases, and RELEASING.md documents the full bump checklist.
+# workflow_dispatch exists solely to re-run the pipeline for an existing v*
+# tag (dispatch it from the tag ref); dispatching from a branch fails the
+# same guard.
+#
+# Images: ghcr.io/<owner>/rustlingpdf (default `runtime` target — backend +
+# baked-in SPA + PDFium + external tools) and
+# ghcr.io/<owner>/rustlingpdf-ai-engine (slim optional sidecar), both built
+# from docker/Dockerfile, tagged `v<version>` and `latest`, linux/amd64.
+# GHCR requires lowercase image names, so the owner is lowercased in-job.
+# OCI version/source/revision/created labels are supplied through the
+# Dockerfile's ARG plumbing (defaults keep plain local `task docker:build`
+# working with no arguments).
+#
+# Caching: the Dockerfile's BuildKit cache mounts (cargo registry + target)
+# do not persist on hosted runners, so both build steps share a
+# `type=gha,scope=release` layer cache; mode=max also exports the
+# intermediate stages (rust-build, frontend-build, pdfium) that the two final
+# targets have in common.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# cancel-in-progress deliberately deviates from the CI workflows' `true`:
+# cancelling a half-finished image publish or release creation mid-flight
+# would leave a partly published version. Runs for the same tag queue instead.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      tag: ${{ steps.verify.outputs.tag }}
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # The single source of truth is rust/VERSION; the tag and every
+      # hard-coded version site must move in lockstep (RELEASING.md has the
+      # checklist). Exact string equality — no prefixes, no -rc/-beta
+      # suffixes — so a stray pre-release tag can never publish `latest`.
+      - name: Verify tag matches rust/VERSION and tauri.conf.json
+        id: verify
+        run: |
+          set -euo pipefail
+
+          case "${GITHUB_REF}" in
+            refs/tags/*) tag="${GITHUB_REF#refs/tags/}" ;;
+            *)
+              echo "::error::Release runs must start from a tag ref, got '${GITHUB_REF}'."
+              echo "Push a release tag (git tag vX.Y.Z && git push origin vX.Y.Z) or dispatch this workflow from an existing v* tag. See RELEASING.md."
+              exit 1
+              ;;
+          esac
+
+          version="$(tr -d '[:space:]' < rust/VERSION)"
+          expected="v${version}"
+
+          if [ "${tag}" != "${expected}" ]; then
+            echo "::error::Tag '${tag}' does not exactly match '${expected}' (\"v\" + rust/VERSION)."
+            echo "Suffixed tags (e.g. '${expected}-rc1') are rejected by design: this pipeline publishes exact releases only."
+            echo "See RELEASING.md for the version-bump checklist — rust/VERSION and every hard-coded version site move in lockstep."
+            exit 1
+          fi
+
+          tauri_version="$(jq -r '.version' frontend/editor/src-tauri/tauri.conf.json)"
+          if [ "${tauri_version}" != "${version}" ]; then
+            echo "::error::frontend/editor/src-tauri/tauri.conf.json .version is '${tauri_version}' but rust/VERSION is '${version}'."
+            echo "The bump checklist in RELEASING.md updates rust/VERSION and every hard-coded version site (tauri.conf.json included) in lockstep."
+            exit 1
+          fi
+
+          echo "Verified: tag ${tag} == v + rust/VERSION, tauri.conf.json agrees (${version})."
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+  publish-images:
+    needs: verify-version
+    runs-on: ubuntu-latest
+    # Cold multi-stage build on a 4-vCPU hosted runner: full cargo release
+    # build of the workspace plus the Vite production build plus LibreOffice/
+    # Tesseract apt layers. 120 gives the uncached worst case headroom;
+    # gha-cache-warmed runs finish far under it.
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GHCR rejects uppercase repository paths, and github.repository_owner
+      # preserves the owner's display casing — lowercase it once here. The
+      # OCI `created` timestamp is computed at build time (UTC, RFC 3339).
+      - name: Compute image coordinates
+        id: meta
+        run: |
+          set -euo pipefail
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "runtime_image=ghcr.io/${owner}/rustlingpdf" >> "${GITHUB_OUTPUT}"
+          echo "ai_image=ghcr.io/${owner}/rustlingpdf-ai-engine" >> "${GITHUB_OUTPUT}"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
+
+      - name: Build and push runtime image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: runtime
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.runtime_image }}:${{ needs.verify-version.outputs.tag }}
+            ${{ steps.meta.outputs.runtime_image }}:latest
+          build-args: |
+            VERSION=${{ needs.verify-version.outputs.version }}
+            REVISION=${{ github.sha }}
+            CREATED=${{ steps.meta.outputs.created }}
+            SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=release
+          cache-to: type=gha,mode=max,scope=release
+
+      # Shares the rust-build stage with the runtime build above: the buildx
+      # builder's local state plus the scope=release gha cache make this an
+      # assembly-only build in the common case.
+      - name: Build and push AI-engine image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ai-engine
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.ai_image }}:${{ needs.verify-version.outputs.tag }}
+            ${{ steps.meta.outputs.ai_image }}:latest
+          build-args: |
+            VERSION=${{ needs.verify-version.outputs.version }}
+            REVISION=${{ github.sha }}
+            CREATED=${{ steps.meta.outputs.created }}
+            SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=release
+          cache-to: type=gha,mode=max,scope=release
+
+  github-release:
+    needs: [verify-version, publish-images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # `gh release create` with the built-in GITHUB_TOKEN instead of a
+      # third-party release action: one less supply-chain pin, and the gh CLI
+      # ships on the hosted runner. --generate-notes appends the
+      # auto-generated changelog after the pull-commands body; --verify-tag
+      # refuses to mint a release for a tag that is not on the remote. The
+      # existence guard makes workflow_dispatch re-runs (e.g. after a
+      # transient publish failure) idempotent instead of erroring.
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify-version.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "${TAG}" --json tagName --jq .tagName >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; leaving it untouched (idempotent re-run)."
+            exit 0
+          fi
+
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          notes="${RUNNER_TEMP}/release-notes.md"
+          cat > "${notes}" <<EOF
+          ## Container images
+
+          Published to GitHub Container Registry by this release run:
+
+          \`\`\`bash
+          docker pull ghcr.io/${owner}/rustlingpdf:${TAG}
+          docker pull ghcr.io/${owner}/rustlingpdf-ai-engine:${TAG}   # optional AI sidecar
+          \`\`\`
+
+          Both are also tagged \`latest\`. Run instructions: rust/RUNNING_WITH_RUST.md, section "Docker".
+          EOF
+
+          gh release create "${TAG}" \
+            --verify-tag \
+            --title "RustlingPDF ${TAG}" \
+            --generate-notes \
+            --notes-file "${notes}"

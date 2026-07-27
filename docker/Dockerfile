@@ -19,6 +19,17 @@
 # resources, which makes manifest-only dependency layers brittle. Cache mounts
 # give the same incremental-rebuild property on any BuildKit builder (Docker
 # >= 23 default). The npm stage uses classic layer caching on the lockfile.
+#
+# OCI metadata build args (all optional — a plain `task docker:build` /
+# `docker build` with no --build-arg keeps working): the release workflow
+# (.github/workflows/release.yml) passes the real values; local builds fall
+# back to the neutral defaults below. Consumed as LABELs by both final
+# targets (runtime and ai-engine).
+
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG CREATED=unknown
+ARG SOURCE=https://github.com/hairbui76/RustlingPDF
 
 ########################################################################
 # Stage 1: Rust release build (both binaries, one shared stage)
@@ -102,6 +113,20 @@ ENV STIRLING_ENGINE_HOST=0.0.0.0 \
     STIRLING_ENGINE_PORT=5001 \
     STIRLING_DOCUMENTS_SQLITE_PATH=/data/ai-engine-documents.db
 
+# Stage-local redeclarations pick up the global defaults above (or the
+# release workflow's --build-arg values). licenses matches the root LICENSE.
+ARG VERSION
+ARG REVISION
+ARG CREATED
+ARG SOURCE
+LABEL org.opencontainers.image.title="RustlingPDF AI engine" \
+      org.opencontainers.image.description="Optional AI-engine sidecar for RustlingPDF: typed AI operations on :5001" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.source="${SOURCE}" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.created="${CREATED}"
+
 VOLUME /data
 EXPOSE 5001/tcp
 USER stirling
@@ -170,10 +195,20 @@ ENV STIRLING_HOST=0.0.0.0 \
     STIRLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so \
     HOME=/home/stirling
 
+# Stage-local redeclarations pick up the global defaults above (or the
+# release workflow's --build-arg values). licenses matches the root LICENSE.
+ARG VERSION
+ARG REVISION
+ARG CREATED
+ARG SOURCE
 LABEL org.opencontainers.image.title="RustlingPDF" \
       org.opencontainers.image.description="Self-hosted PDF toolbox: pure-Rust backend + React SPA in one container" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.keywords="PDF, manipulation, API, Rust, axum, React"
+      org.opencontainers.image.keywords="PDF, manipulation, API, Rust, axum, React" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.source="${SOURCE}" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.created="${CREATED}"
 
 VOLUME /data
 EXPOSE 8080/tcp

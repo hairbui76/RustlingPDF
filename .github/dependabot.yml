@@ -1,0 +1,74 @@
+# Dependabot: weekly dependency PRs for every ecosystem in the repository.
+#
+# Grouping policy: patch + minor updates are batched into one PR per
+# ecosystem (low-risk, gate-verified in bulk); major updates always arrive as
+# individual PRs so breaking changes get reviewed one at a time. Every PR
+# still has to pass the matching CI gate (backend.yml / frontend.yml /
+# differential-smoke.yml) before merge.
+#
+# Ecosystems:
+#   cargo /rust                       — the backend workspace (Cargo.lock committed,
+#                                       gates run with --locked)
+#   cargo /frontend/editor/src-tauri  — the Tauri desktop shell (its own lockfile)
+#   npm   /frontend                   — the npm workspace root (frontend/package-lock.json)
+#   github-actions /                  — workflow actions; Dependabot natively updates
+#                                       full-SHA pins and their "# vX.Y.Z" comments,
+#                                       preserving the house pinning style
+#
+# Commit-message prefixes follow the repo's conventional-commit style
+# (build:/ci:).
+
+version: 2
+
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/rust"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+    groups:
+      rust-backend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "cargo"
+    directory: "/frontend/editor/src-tauri"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build"
+    groups:
+      tauri-shell-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+    groups:
+      frontend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
