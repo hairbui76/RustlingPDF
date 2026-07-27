@@ -40,12 +40,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Wait for health.
+# Wait for health; fail fast with the backend log if it never comes up, instead
+# of letting every differential case surface as a connection error.
+healthy=0
 for _ in $(seq 1 60); do
   if curl -fsS -o /dev/null "http://localhost:$PORT/api/v1/info/status" 2>/dev/null; then
+    healthy=1
     break
   fi
   sleep 0.5
 done
+if [[ "$healthy" -ne 1 ]]; then
+  echo "ERROR: Rust backend did not become healthy on port $PORT within 30s."
+  echo "Last backend log lines ($LOG):"
+  tail -n 20 "$LOG" || true
+  exit 3
+fi
 
 python3 "$HERE/differential.py" --rust-url "http://localhost:$PORT" --rust-only "$@"
