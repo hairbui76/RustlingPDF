@@ -1694,6 +1694,27 @@ impl RuntimeConfig {
             .join("fonts")
     }
 
+    /// Returns the administrator-provided static override directory
+    /// (`customFiles/static/`), the Rust spelling of upstream
+    /// `InstallationPathConfig.getStaticPath()`.
+    #[must_use]
+    pub(crate) fn custom_static_dir(&self) -> PathBuf {
+        self.custom_files_dir.join("static")
+    }
+
+    /// Returns the built SPA `dist/` directory to serve from the binary, when
+    /// single-binary UI serving is enabled via `STIRLING_FRONTEND_DIST` (env)
+    /// or `system.frontendDist` (settings). Upstream has no equivalent
+    /// property: the Java build bakes the dist onto the servlet classpath, so
+    /// this key is owned by the Rust runtime. Unset means SPA serving stays
+    /// fully disabled (the Vite dev-proxy workflow).
+    #[must_use]
+    pub fn frontend_dist_dir(&self) -> Option<PathBuf> {
+        let configured = self.string(&["system", "frontendDist"], "STIRLING_FRONTEND_DIST", "");
+        let trimmed = configured.trim();
+        (!trimmed.is_empty()).then(|| PathBuf::from(trimmed))
+    }
+
     /// Persists the first anonymous analytics choice and applies it immediately.
     ///
     /// Returns `Ok(true)` when the setting changed, `Ok(false)` if it was already
