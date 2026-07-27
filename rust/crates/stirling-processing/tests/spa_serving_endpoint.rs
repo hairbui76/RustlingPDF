@@ -464,3 +464,32 @@ async fn custom_files_static_index_overrides_the_dist_index()
     assert!(!body.contains("SPA-INDEX-BODY"));
     Ok(())
 }
+
+#[tokio::test]
+async fn encoded_api_spellings_never_reach_the_spa_index() -> Result<(), Box<dyn std::error::Error>>
+{
+    let dist = SyntheticDist::new()?;
+    // Percent-encoded spellings of /api bypass axum route matching but must
+    // not fall through to the SPA index (decoded exclusion still applies).
+    for uri in [
+        "/%61pi/v1/config/app-config",
+        "/%61pi/foo",
+        "/api%2Fv1",
+        "/%2e%2e",
+        "/%c0%ae%c0%ae/etc/passwd",
+        "/share/%2e%2e",
+    ] {
+        let response = get(dist.runtime_config()?, uri).await?;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "uri: {uri}");
+        assert!(
+            !body_string(response).await?.contains("SPA-INDEX-BODY"),
+            "uri: {uri}"
+        );
+    }
+    // A percent-encoded spelling of a mapped SPA page still serves the index,
+    // matching servlet decoding semantics upstream.
+    let response = get(dist.runtime_config()?, "/index%2Ehtml").await?;
+    assert_index_response(&response);
+    assert!(body_string(response).await?.contains("SPA-INDEX-BODY"));
+    Ok(())
+}
