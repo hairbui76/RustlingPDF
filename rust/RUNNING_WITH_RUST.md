@@ -182,7 +182,90 @@ The engine's quality gate is `task engine:check`.
 
 ---
 
-## 5. Verifying parity yourself
+## 5. Docker
+
+The repository ships a self-contained container image: the `stirling-processing`
+release binary, the built React SPA (served by the binary itself — see
+`contracts/spa-serving.md`), a pinned checksum-verified PDFium, and the external
+conversion tools, all in one image listening on `:8080`.
+
+```bash
+task docker:build     # build the image (tag: rustlingpdf)
+task docker:up        # start docker/compose.yml detached on :8080
+task docker:logs      # tail the stack's logs
+task docker:down      # stop the stack
+```
+
+Equivalent raw commands: `docker build -t rustlingpdf -f docker/Dockerfile .`
+and `docker compose -f docker/compose.yml up -d`.
+
+### What the image contains
+
+- **One process, one port.** The Rust binary serves the REST API and the web UI
+  (`STIRLING_FRONTEND_DIST=/app/frontend` bakes the Vite `dist/` in; the SPA
+  index, deep links, and static-asset serving follow the single-binary SPA
+  contract). No nginx, no separate frontend container.
+- **Frontend flavor: proprietary** — the same flavor upstream Stirling-PDF's
+  self-hosted embedded image builds (`STIRLING_FLAVOR=proprietary`) and this
+  repo's default dev/build mode. In open mode the runtime app-config flags keep
+  login/premium features off, so it behaves like the core UI plus
+  gracefully-gated extras.
+- **External tools** (Debian trixie packages): LibreOffice `-nogui`
+  (writer/calc/impress/draw), Ghostscript, qpdf 12.2, Tesseract (+`eng`+OSD),
+  OCRmyPDF (+unpaper/pngquant), WeasyPrint 62, poppler-utils (`pdftohtml`),
+  7zip (CBR fallback), and metric-compatible + Noto/CJK fonts. **Not**
+  included, versus upstream's standard image: Calibre (~1 GB — the ebook↔PDF
+  endpoints self-report `DEPENDENCY`), ImageMagick/unoserver/Python extras
+  (Java-era needs), unrar (non-free), ffmpeg (PDF→video stays opt-in). Add a
+  missing tool with your own derived image; the backend picks it up at startup.
+- **PDFium** installed by `rust/scripts/install-pdfium.sh` inside the build for
+  the image's architecture (`STIRLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so`).
+- **Non-root** (`stirling`, uid/gid 1000), `tini` as PID 1, `HEALTHCHECK`
+  against `/api/v1/info/status`, `STIRLING_HOST=0.0.0.0`.
+
+### State and configuration
+
+`STIRLING_BASE_PATH=/data` (declared `VOLUME`): `settings.yml` /
+`custom_settings.yml` are read from `/data/configs/` when present. An empty
+volume works out of the box — built-in template defaults plus environment
+overrides apply until you drop a `settings.yml` there (the automatic
+first-start materialization of the file is a desktop/Tauri-mode behavior, not
+a container one). Pipeline state and `customFiles/` overrides resolve beneath
+`/data` as well. When bind
+mounting (the compose example uses `./data:/data`), give the directory to
+uid/gid 1000: `mkdir -p data && chown 1000:1000 data`. All the environment
+variables from [Configuration](#3-configuration) apply unchanged; secured mode
+remains fail-closed (`SECURITY_ENABLELOGIN=true` refuses startup) — run the
+container in open mode on a trusted network or behind your own auth proxy.
+
+### The optional AI-engine sidecar
+
+The same Dockerfile has an `ai-engine` target with only the
+`stirling-ai-engine` binary (`task docker:build:ai-engine`, port 5001,
+`/health` healthcheck, its own `/data` volume for the documents store). The
+compose file wires it behind the `ai` profile:
+
+```bash
+task docker:up:ai     # or: docker compose -f docker/compose.yml --profile ai up -d
+```
+
+Then set `AIENGINE_ENABLED=true` (and a provider credential such as
+`ANTHROPIC_API_KEY` on the sidecar) to activate the `/api/v1/ai/*` proxy
+routes. The main image never requires the sidecar; with it absent the AI
+features simply stay off.
+
+### Smoke-checking a running container
+
+```bash
+curl -s http://localhost:8080/api/v1/info/status        # {"status":"UP",...}
+curl -s http://localhost:8080/ | head -1                 # SPA index.html
+curl -s -o rotated.pdf -F fileInput=@some.pdf -F angle=90 \
+     http://localhost:8080/api/v1/general/rotate-pdf     # a real PDF operation
+```
+
+---
+
+## 6. Verifying parity yourself
 
 - `task rust:check` — fmt + clippy + full test suite with PDFium bound (see
   `PORT_STATUS.md` for the latest full-gate numbers).
@@ -196,7 +279,7 @@ The engine's quality gate is `task engine:check`.
 
 ---
 
-## 6. What does NOT run on Rust yet
+## 7. What does NOT run on Rust yet
 
 These are deliberate, documented limits — the authoritative list with rationale is
 [`PORT_STATUS.md`](PORT_STATUS.md):
@@ -227,12 +310,13 @@ These are deliberate, documented limits — the authoritative list with rational
   synthesis, Type0/Type3 byte-parity, >4-component DeviceN JPEGs): see the
   "Remaining" section of `PORT_STATUS.md`.
 
-## 7. Production readiness position
+## 8. Production readiness position
 
 The Rust service is the only backend in this repository and open mode is
-production-usable today. The remaining gates before secured mode and packaged
-distribution are: independent security review of the secured router and signing
-subsystem, container/CI packaging and desktop bundling of the Rust binary +
-PDFium, and the residual fidelity gaps above. Follow `PORT_STATUS.md`,
+production-usable today; the [Docker image](#5-docker) is the supported packaged
+form. The remaining gates before secured mode and full packaged distribution
+are: independent security review of the secured router and signing subsystem,
+desktop bundling of the Rust binary + PDFium, and the residual fidelity gaps
+above. Follow `PORT_STATUS.md`,
 `SECURITY_MIGRATION_DESIGN.md`, and `SIGNING_MIGRATION_DESIGN.md` for the live
 state of each gate.

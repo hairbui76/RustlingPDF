@@ -1,0 +1,36 @@
+version: '3'
+
+vars:
+  DOCKERFILE: docker/Dockerfile
+  COMPOSE_FILE: docker/compose.yml
+
+tasks:
+  build:
+    desc: "Build the RustlingPDF Docker image"
+    cmds:
+      - docker build -t rustlingpdf -f {{.DOCKERFILE}} .
+
+  build:ai-engine:
+    desc: "Build the optional AI-engine sidecar Docker image"
+    cmds:
+      - docker build -t rustlingpdf-ai-engine --target ai-engine -f {{.DOCKERFILE}} .
+
+  up:
+    desc: "Start the docker compose stack"
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d
+
+  up:ai:
+    desc: "Start the docker compose stack including the AI engine"
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} --profile ai up -d
+
+  down:
+    desc: "Stop the docker compose stack"
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} --profile ai down
+
+  logs:
+    desc: "Tail docker compose logs"
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} logs -f

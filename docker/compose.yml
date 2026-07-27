@@ -1,0 +1,53 @@
+# Example RustlingPDF compose stack.
+#
+#   docker compose -f docker/compose.yml up -d     (or: task docker:up)
+#
+# The web UI and the REST API are both served by the one container on
+# http://localhost:8080. All mutable state (settings.yml, pipeline configs,
+# customFiles overrides) lives in the ./data bind mount; the container runs as
+# uid/gid 1000, so pre-create the directory with matching ownership
+# (`mkdir -p data && chown 1000:1000 data`) or let the named-volume variant
+# below manage it for you.
+#
+# The AI engine sidecar is optional and off by default; enable it with
+#   docker compose -f docker/compose.yml --profile ai up -d
+# and set a provider credential (e.g. ANTHROPIC_API_KEY) in the environment.
+
+services:
+  rustlingpdf:
+    image: rustlingpdf:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: rustlingpdf
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      # Open mode is the supported mode; secured mode is fail-closed by design
+      # and the binary refuses to start with SECURITY_ENABLELOGIN=true.
+      SECURITY_ENABLELOGIN: "false"
+      # Wire the optional AI sidecar (only reachable when the "ai" profile is up).
+      AIENGINE_ENABLED: "false"
+      AIENGINE_URL: "http://ai-engine:5001"
+    restart: unless-stopped
+
+  ai-engine:
+    image: rustlingpdf-ai-engine:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: ai-engine
+    container_name: rustlingpdf-ai-engine
+    profiles: ["ai"]
+    volumes:
+      - ai-engine-data:/data
+    environment:
+      # Provider credentials pass straight through to the engine, e.g.:
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      STIRLING_ENGINE_HOST: "0.0.0.0"
+    restart: unless-stopped
+
+volumes:
+  ai-engine-data:

@@ -1,0 +1,31 @@
+# Keep the Docker build context small and cache-friendly.
+# The image build needs: rust/ sources (not build artifacts), frontend/ sources
+# (not node_modules or previous dist outputs), and rust/scripts/install-pdfium.sh.
+
+.git
+.github
+.taskfiles
+.claude
+
+# Rust build artifacts and the host's PDFium cache (multi-GB; the image
+# installs its own arch-correct PDFium via rust/scripts/install-pdfium.sh).
+rust/target
+rust/.pdfium
+
+# Frontend dependency/build outputs (rebuilt inside the node stage).
+frontend/node_modules
+frontend/editor/dist
+frontend/editor/dev-dist
+frontend/editor/src-tauri/target
+frontend/editor/src-tauri/gen
+frontend/editor/playwright-report
+frontend/editor/test-results
+frontend/editor/.env.local
+frontend/editor/.env.*.local
+
+# Not needed to build or run the image (note: bare *.md matches root level only,
+# so crate-internal markdown that tooling may reference stays in the context).
+testing
+scripts
+Taskfile.yml
+*.md

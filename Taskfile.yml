@@ -28,6 +28,9 @@ includes:
   pre-commit:
     taskfile: .taskfiles/pre-commit.yml
     dir: .
+  docker:
+    taskfile: .taskfiles/docker.yml
+    dir: .
 
 tasks:
   # ============================================================
