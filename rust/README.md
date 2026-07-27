@@ -1,27 +1,30 @@
-# Stirling Rust Processing
+# RustlingPDF Rust Workspace
 
-This workspace ports the Java backend while retaining the existing browser UI and
-its REST contract. It contains three crates:
+This workspace is the backend of RustlingPDF: a pure-Rust port of the upstream
+Stirling-PDF Java backend, retaining the existing browser UI and its REST
+contract. It contains three crates:
 
-- **`stirling-processing`** — the axum HTTP service mirroring the Java
+- **`stirling-processing`** — the axum HTTP service mirroring the upstream
   `/api/v1/...` surface: the PDF-operation routes (merge/split/convert/security/
   forms/redaction/…), configuration and UI-data endpoints, pipelines and
   watched folders, async jobs, and — inside an opt-in reviewed secured router —
   accounts, storage, collaborative signing, audit, policies, and MCP.
-- **`stirling-ai-engine`** — the Rust port of the Python AI engine
-  (classification, PDF questions, document creation, math audit, orchestration).
+- **`stirling-ai-engine`** — the Rust port of upstream Stirling-PDF's Python AI
+  engine (classification, PDF questions, document creation, math audit,
+  orchestration).
 - **`stirling-operation-catalog`** — generates the typed operation catalog from
-  the Java OpenAPI document (`task engine:tool-models`).
+  the frozen `SwaggerDoc.json` OpenAPI snapshot at the repo root
+  (`task engine:tool-models`).
 
 **Where to look things up:**
 
-- **How to run the repo on Rust instead of Java** — see
+- **How to run this repository** — see
   [`RUNNING_WITH_RUST.md`](RUNNING_WITH_RUST.md) (prerequisites, external tools,
   ports, configuration, AI engine, limitations).
 - **What is ported, and how faithfully** — see [`PORT_STATUS.md`](PORT_STATUS.md)
   (the authoritative ledger) and the per-surface compatibility contracts in
-  [`contracts/`](contracts/) (routes, Java counterparts, parity notes, explicit
-  gaps).
+  [`contracts/`](contracts/) (routes, upstream Java counterparts, parity notes,
+  explicit gaps).
 
 The route surface is deliberately **not** enumerated here — an earlier hand-kept
 list in this file drifted dozens of routes behind reality. A fixed route total is
@@ -42,18 +45,16 @@ task rust:install
 task backend:dev
 ```
 
-`task backend:dev`, `task dev`, and the default `task dev:all` now select the
-Rust processing service for open-mode local development. `backend:dev` listens
+`task backend:dev`, `task dev`, and `task dev:all` all run the Rust processing
+service — it is the only backend in this repository. `backend:dev` listens
 on `127.0.0.1:8080` by default; `task rust:run` provides the same direct Rust
 entry point. Set `PORT` on either Task command, or set `STIRLING_PORT` (or the
 Spring-compatible `SERVER_PORT`) when invoking the binary directly. Port `0`
 requests an OS-assigned ephemeral port, and startup reports the bound port in
-the desktop-compatible `Stirling-PDF running on port: <port>` format. The Java
-oracle remains available as `task backend:dev:java`; portal and SaaS development
-also remain on their explicit Java profiles. This local default is not the
-production-container cutover: Java remains the packaged route owner until every
-documented limit in the per-route contracts is removed and the production proof
-matrix passes.
+the desktop-compatible `Stirling-PDF running on port: <port>` format. The
+upstream Java implementation lives in the separate Stirling-PDF repository and
+can still be run side-by-side as an external compatibility oracle via
+`testing/differential`.
 
 The binary remains loopback-only unless `STIRLING_HOST` or the Spring-compatible
 `SERVER_ADDRESS` is set to an explicit IP address. Container-shaped runs use
@@ -66,11 +67,13 @@ legacy workspace, accepts the stable startup handshake from either output
 stream, and fails a bounded startup on early process exit. The processing binary
 prints that handshake even when `RUST_LOG` is unset, exits when the PID/start-time
 identity of its Tauri parent disappears, and atomically initializes the packaged
-settings template plus empty override only on a fresh install. Java remains the
-default when the variable is absent; the Rust binary and PDFium are not yet bundled
-or enabled for production desktop builds. Upgrade-time settings migration,
-sidecar/PDFium packaging, cross-platform bundle proof, and the default switch remain
-cutover gates. See `contracts/desktop-native-startup.md`.
+settings template plus empty override only on a fresh install. When the variable
+is absent the Tauri host still attempts its legacy bundled-JRE launch path — a
+leftover from the upstream Java desktop app that this repository does not build
+artifacts for — so desktop builds do not yet ship a working backend. Rust
+sidecar/PDFium packaging, upgrade-time settings migration, cross-platform bundle
+proof, and making the Rust path the default are tracked roadmap items. See
+`contracts/desktop-native-startup.md`.
 
 `task rust:install` downloads PDFium revision 7543 for the current platform, verifies
 its pinned SHA-256 digest, and keeps the runtime under the ignored `rust/.pdfium`

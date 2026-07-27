@@ -1,8 +1,8 @@
 # Durable storage compatibility
 
 Rust compatibility contract for the owner-scoped durable file storage surface:
-Java's `FileStorageController`, `FolderController`, and
-`FileFolderPlacementController` (all under
+upstream Stirling-PDF's Java `FileStorageController`, `FolderController`, and
+`FileFolderPlacementController` (all under upstream
 `app/proprietary/.../storage/controller/`). The Rust surface lives in
 `rust/crates/stirling-processing/src/storage_http.rs` (16 `.route()`
 registrations, 21 method+path pairs) backed by `storage.rs`

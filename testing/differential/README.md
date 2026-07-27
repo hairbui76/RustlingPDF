@@ -1,9 +1,12 @@
 # Java-vs-Rust differential test harness
 
-Posts the **same input** to the Java and Rust Stirling-PDF backends, then
+Posts the **same input** to this repository's Rust backend and, optionally, an
+externally running instance of the upstream Stirling-PDF Java backend, then
 **semantically** compares the responses and reports parity per endpoint. It is
 the regression net for the Rust port: prove the Rust backend produces output
-equivalent to the Java oracle, endpoint by endpoint.
+equivalent to the upstream Java oracle, endpoint by endpoint. (No Java lives in
+this repository — the Java side is always an external instance you point the
+harness at.)
 
 ```
 same input  ──►  POST  ──►  Java backend  ─┐
@@ -19,22 +22,17 @@ that render the same page compare equal.
 
 ## Why this shape (environment reality)
 
-A live Java-vs-Rust comparison **cannot run in the dev sandbox**, and the harness
-is built around that fact:
-
-| | dev sandbox (here) | JDK-25 CI host |
-|---|---|---|
-| JDK | 17 (project needs 25) — no runnable `bootJar` | 25 |
-| Native tools | only Ghostscript + bundled PDFium; **no** LibreOffice / Tesseract / qpdf / WeasyPrint / Calibre / ffmpeg / unrar | full toolchain installed |
-| Rust backend | builds + serves fine | builds + serves fine |
-
-So the harness has two halves:
+This repository contains no Java, so a live Java-vs-Rust comparison always needs
+an **external** upstream Stirling-PDF instance (built and run from the upstream
+repo, which needs JDK 25 and the full native toolchain — LibreOffice, Tesseract,
+qpdf, WeasyPrint, Calibre, ffmpeg, unrar). The harness is built around that fact
+and has two halves:
 
 - **Rust half — runs and is validated here.** `--rust-only` drives every case
   against the live Rust backend and checks each response is a well-formed
-  artifact. This is proven working in the sandbox.
-- **Java half — parameterized by URL.** Point `--java-url` at a Java backend
-  running in a JDK-25 + tools environment and the harness diffs the two. When
+  artifact. This runs entirely inside this repository.
+- **Java half — parameterized by URL.** Point `--java-url` at an upstream
+  Stirling-PDF instance running elsewhere and the harness diffs the two. When
   `--java-url` is unset or unreachable, Java is skipped gracefully (never a hard
   failure).
 
@@ -81,8 +79,8 @@ PORT=9099 ./run_smoke.sh       # different port
 **Manual:**
 
 ```bash
-# 1. build once if needed
-cargo build -p stirling-processing        # or: task engine:build
+# 1. build once if needed (from rust/)
+cargo build -p stirling-processing        # or: task rust:build
 
 # 2. start the Rust backend
 STIRLING_PORT=8091 ./rust/target/debug/stirling-processing &
@@ -104,15 +102,17 @@ python3 selftest.py --rust-url http://localhost:8091
 
 ---
 
-## Run the FULL diff in CI (`--diff`)
+## Run the FULL diff (`--diff`)
 
-In a JDK-25 host with the native toolchain installed:
+On a host that can also run the upstream Stirling-PDF Java backend (JDK 25 +
+its native toolchain, from the upstream repo):
 
 ```bash
-# 1. Java backend, security disabled, on :8080
+# 1. Upstream Java backend, security disabled, on :8080
 export DOCKER_ENABLE_SECURITY=false
-# (start the Java Spring Boot app / container so /api/v1/... is served on :8080,
-#  with LibreOffice/Tesseract/qpdf/etc present if you later widen the manifest)
+# (start the upstream Stirling-PDF Spring Boot app / container so /api/v1/...
+#  is served on :8080, with LibreOffice/Tesseract/qpdf/etc present if you later
+#  widen the manifest)
 
 # 2. Rust backend on :8091
 STIRLING_PORT=8091 ./rust/target/debug/stirling-processing &
@@ -303,7 +303,7 @@ pure PDF JSON reads that need none of the missing native tools:
   (`misc/repair`), **compression** (`misc/compress-pdf`, which shells to qpdf),
   **signing / certs** (`security/cert-sign`, `validate-signature`), ebook, etc.
   These need LibreOffice / Tesseract / qpdf / WeasyPrint / Calibre / ffmpeg /
-  certificates that are **absent in the sandbox**, and several are inherently
+  certificates that **cannot be assumed present**, and several are inherently
   **non-deterministic** (embedded timestamps, OCR heuristics, lossy re-encode),
   so they cannot yield a meaningful byte- or pixel-stable parity verdict here.
 

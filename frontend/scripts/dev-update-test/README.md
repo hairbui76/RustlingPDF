@@ -1,5 +1,11 @@
 # Auto-Update Testing
 
+> **Currently non-functional in this repository.** These scripts date from the
+> upstream Stirling-PDF desktop app and build a JRE + backend JAR from the Java
+> sources (`app/core`), which do not exist in RustlingPDF. They will be
+> reworked when the Rust backend is bundled as the Tauri sidecar (tracked
+> roadmap item); until then the flows below cannot complete here.
+
 ## One command (automated)
 
 ```bash

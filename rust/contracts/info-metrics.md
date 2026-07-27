@@ -1,18 +1,17 @@
 # Info and runtime metrics contract
 
-Rust compatibility contract for the Java `MetricsController` and its request/WAU
-filters.
+Rust compatibility contract for upstream Stirling-PDF's Java `MetricsController`
+and its request/WAU filters.
 
 ## Routes
 
 - `GET /api/v1/info/status` and `GET /api/v1/info/health` return
   `{ "status": "UP", "version": "<application version>" }`. The version is
-  loaded from the repository's authoritative `version.properties` file. Because
-  that file is gitignored (Gradle's `writeVersion` generates it), the crate's
-  `build.rs` stages a copy into `OUT_DIR`: the Gradle artifact is copied
-  verbatim when present, otherwise the version is parsed from the canonical
-  `version = '<x.y.z>'` assignment in `build.gradle`, so a clean checkout
-  compiles and reports the same version.
+  loaded from the repository's authoritative `rust/VERSION` file: the crate's
+  `build.rs` stages a `version.properties` copy into `OUT_DIR` from that
+  committed file (same `version=<x.y.z>` line shape the upstream
+  Gradle-generated artifact used), so a clean checkout compiles and reports
+  the canonical version.
 - `GET /api/v1/info/load[?endpoint=<path>]` and `/load/unique` return the total
   or unique-session count for GET requests.
 - `GET /api/v1/info/load/all` and `/load/all/unique` return ordered

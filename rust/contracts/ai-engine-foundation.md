@@ -311,33 +311,34 @@ agent capability either.
 
 ## Operational runtime
 
-Normal Task entry points now run `stirling-ai-engine`: `task engine:dev`,
+All Task entry points run `stirling-ai-engine`: `task engine:dev`,
 `engine:run`, `engine:test`, and `engine:check`. Consequently `task dev:all`
-starts the Rust process and configures the Java proxy with its selected port.
-The former Python commands remain explicit under `task engine:legacy:*` for
-oracle comparisons and are still validated by a separately named CI step.
-The run and development tasks load the optional `engine/.env.local` with
-precedence over `engine/.env`, preserving local provider credentials without
-requiring the Rust binary itself to parse dotenv files.
+starts the Rust engine process and configures the processing backend's AI
+proxy with its selected port. (The former Python commands and the `engine/`
+dotenv-loading convenience existed only in the upstream Stirling-PDF monorepo,
+whose Python `engine/` tree is not part of this repository; provider
+credentials are supplied through the process environment.)
 
 `STIRLING_MODEL_MAX_CONCURRENCY` defaults to `32` and limits all structured
 model completions through one process-wide semaphore shared by the smart and
 fast model tiers. Agent-specific worker limits remain additional, narrower
 bounds; switching tiers cannot bypass the provider-account ceiling.
 
-The engine image builds from the repository root with `engine/Dockerfile`. Its
-pinned Rust builder produces both the server and `migrate-sqlite-vec`; the
-non-Python Debian runtime installs only CA certificates, runs as a non-root
-user, and binds `0.0.0.0:5001`. PR demo builds use the same root context.
+The upstream Stirling-PDF monorepo built an engine container image
+(`engine/Dockerfile` there): a pinned Rust builder producing both the server
+and `migrate-sqlite-vec`, with a non-Python Debian runtime installing only CA
+certificates, running as a non-root user, and binding `0.0.0.0:5001`. This
+repository does not yet ship a Dockerfile; container packaging is a tracked
+roadmap item and the description above is the reference shape for it.
 
-`task engine:tool-models` now reads Java's generated `SwaggerDoc.json` directly
-through the typed Rust `stirling-operation-catalog` generator and updates the
-compile-time `operation_catalog.json` without Python. The generator preserves
-the former endpoint allow/exclude rules, camel-case acronym aliases, optional
-field/default behavior, and transitive component schemas. The retained Python
-`tool_models.py` is generated independently by
-`task engine:legacy:tool-models`; generated-model CI builds the Rust catalog
-before installing the Python oracle and diffs both artifacts.
+`task engine:tool-models` reads the committed `SwaggerDoc.json` OpenAPI
+snapshot at the repository root directly through the typed Rust
+`stirling-operation-catalog` generator and updates the compile-time
+`operation_catalog.json` without Python. The generator preserves the former
+endpoint allow/exclude rules, camel-case acronym aliases, optional
+field/default behavior, and transitive component schemas. (The parallel Python
+`tool_models.py` generation and the CI step diffing both artifacts live in the
+upstream Stirling-PDF monorepo alongside the Python oracle.)
 
 ## Remaining cutover constraints
 

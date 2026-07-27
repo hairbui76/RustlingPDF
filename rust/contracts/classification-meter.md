@@ -1,7 +1,8 @@
 # Classification meter
 
-Rust compatibility contract for Java's `ClassificationMeterController`
-(`app/proprietary/.../policy/controller/ClassificationMeterController.java`).
+Rust compatibility contract for upstream Stirling-PDF's Java
+`ClassificationMeterController` (upstream
+`app/proprietary/.../policy/controller/ClassificationMeterController.java`).
 Kept as its own small file rather than a section of
 `contracts/classification-labels.md` because it meters **client-side**
 classification runs and performs no classification itself — it shares only

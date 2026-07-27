@@ -1,8 +1,20 @@
 # Rust Port Status
 
+> **Repository note (RustlingPDF).** This repository is **RustlingPDF** — the
+> standalone Rust product. It contains no Java, Gradle, or Python engine code.
+> This ledger is kept as the historical *and* living record of the Java → Rust
+> port that was executed inside the upstream Stirling-PDF monorepo, so its body
+> still speaks in that porting context: references to Java sources (`app/core`,
+> `app/proprietary`, `app/saas`, `*.java` classes), the Python oracle
+> (`engine/`), Java/legacy Task entry points, and upstream CI workflows (e.g.
+> `differential-parity`, `rust-processing`) all point at the **upstream
+> Stirling-PDF repository** or an externally running instance of it — none of
+> them exist in this repo. The Rust facts (crates, routes, tests, contracts)
+> describe this repository.
+
 Tracks the Java → Rust port of the Stirling-PDF backend (UI excluded). The Rust
 service lives in this `rust/` workspace as the `stirling-processing` crate — an
-axum HTTP service mirroring the Java `/api/v1/...` endpoints.
+axum HTTP service mirroring the upstream Java `/api/v1/...` endpoints.
 
 **Latest validation (2026-07-27, after merging the tester-signed OIDC-hardening,
 MCP-category-tool, and PDF-JSON-ICC-CMYK work-items):** `cargo fmt --check` and strict
@@ -19,10 +31,9 @@ library bound and misread the fallback as a pre-existing failure); the two
 parse); and six endpoint tests that had rotted against later features (webhook
 trigger listing, P-521 signing message, admin-only custom-API authoring, and the
 OIDC login-CSRF browser-binding cookie). The clean-checkout build defect is fixed:
-`build.rs` now stages `version.properties` into `OUT_DIR` (verbatim when the
-Gradle-generated file exists, parsed from `build.gradle`'s canonical version
-otherwise), so the crate compiles on a fresh clone and the `rust-processing` CI
-gate no longer dies before running tests. The security-mode guard now reads every
+`build.rs` now stages `version.properties` into `OUT_DIR` from the committed
+`rust/VERSION` file (in this repository; the upstream monorepo variant staged
+the Gradle-generated file), so the crate compiles on a fresh clone. The security-mode guard now reads every
 boolean spelling Spring accepts (`1`/`on`/`yes`, YAML-1.1 strings, numeric `1`) and
 **fails closed on unreadable values** — a present-but-malformed
 `SECURITY_ENABLELOGIN`/`security.enableLogin` refuses startup, matching Java's
@@ -558,8 +569,9 @@ handshake, desktop/base-path/login-agreement environment, legacy-workspace
 migration, a bounded startup wait, early-exit reporting, stale-port cleanup,
 PID/start-time parent-death enforcement, and atomic fresh-install settings/template
 initialization. Open-mode local `backend:dev`, `dev`, and default `dev:all` now
-launch `stirling-processing`; the explicit Java oracle plus portal and SaaS Task
-paths remain available. Java remains the packaged production and desktop backend.
+launch `stirling-processing` (in this repository they are the only backend entry
+points; the Java-oracle and SaaS Task paths existed in the upstream monorepo).
+Packaged desktop/container distribution of the Rust binary remains a roadmap item.
 Java-compatible short-file recovery is now ported: a `settings.yml` with fewer than
 `MIN_SETTINGS_FILE_LINES` (31, matching `ConfigInitializer`) lines is treated as truncated by an
 interrupted write, backed up to `settings.yml.<epoch-millis>.bak`, and recreated from the template,

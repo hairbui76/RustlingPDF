@@ -2,9 +2,9 @@
 
 One contract for two administrator-only lifecycle surfaces that the code keeps
 as sibling modules and mounts together on the secured router:
-`admin_settings.rs` (Java `AdminSettingsController`,
-`app/proprietary/.../security/controller/api/`) and `server_certificate.rs`
-(Java `ServerCertificateController`). They are documented together because
+`admin_settings.rs` (upstream Stirling-PDF's Java `AdminSettingsController`,
+upstream `app/proprietary/.../security/controller/api/`) and
+`server_certificate.rs` (upstream Java `ServerCertificateController`). They are documented together because
 both are `/api/v1/admin/*` configuration surfaces registered side by side in
 `lib.rs`; the modules themselves are cleanly separate, so this file has two
 sections rather than two files.

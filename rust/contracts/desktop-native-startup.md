@@ -1,7 +1,10 @@
 # Native desktop processing startup
 
 The Tauri launcher can opt into a Rust processing executable with
-`STIRLING_NATIVE_BACKEND_PATH`; Java remains the packaged/default sidecar.
+`STIRLING_NATIVE_BACKEND_PATH`. Its default launch path is still the upstream
+Java-sidecar wiring (a JRE + JAR this repository does not build or bundle), so
+desktop builds have no working backend until the Rust sidecar becomes the
+packaged default — a tracked roadmap item.
 
 The native path now provides:
 

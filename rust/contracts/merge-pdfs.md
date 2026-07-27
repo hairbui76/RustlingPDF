@@ -49,9 +49,9 @@ consumed or dropped.
 
 ## Deliberate Pre-Cutover Limits
 
-This slice is not enabled as the production owner of the legacy route. The signature-field
-flattening blocker has been removed, but Java remains authoritative until the remaining
-large-file and cutover checks are complete.
+The signature-field flattening blocker has been removed, but the upstream Java
+implementation remains the parity reference until the remaining large-file and
+cutover checks are complete.
 
 The native path imports pages with PDFium, saves directly to the response-backed file,
 and appends bookmarks without constructing the combined `lopdf` object graph.

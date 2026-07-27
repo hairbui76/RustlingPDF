@@ -1,18 +1,22 @@
-# Running Stirling-PDF with the Rust backend (replacing Java)
+# Running RustlingPDF (the Rust backend)
 
-This is the operator's guide to running this repository with the Rust processing
-service (`stirling-processing`) in place of the Java Spring Boot backend, plus the
-optional Rust AI engine (`stirling-ai-engine`) in place of the legacy Python engine.
+This is the operator's guide to running this repository: the Rust processing
+service (`stirling-processing`) — a full port of upstream Stirling-PDF's Java
+Spring Boot backend — plus the optional Rust AI engine (`stirling-ai-engine`),
+which ports upstream's Python engine. This repository contains no Java and no
+Python engine; the upstream Stirling-PDF repo is a separate project used only as
+an external reference oracle.
 
 **Status in one paragraph:** the Rust service serves the same `/api/v1/...` REST
-surface the unchanged web UI talks to, and it is already the *default* backend for
-local development tasks (`task dev`, `task backend:dev`, `task dev:all`). Open mode
-(no login) is the supported way to run it today. Secured mode (login/users/teams)
-exists behind an opt-in review gate and the binary deliberately **refuses to start**
-when `SECURITY_ENABLELOGIN=true` or `DOCKER_ENABLE_SECURITY=true` is set — see
-[Limitations](#what-does-not-run-on-rust-yet). Java remains the packaged
-production/desktop backend until the cutover gates in
-[`PORT_STATUS.md`](PORT_STATUS.md) are closed.
+surface the unchanged web UI talks to, and it is the only backend here — all
+local development tasks (`task dev`, `task backend:dev`, `task dev:all`) run it.
+Open mode (no login) is the supported way to run it today. Secured mode
+(login/users/teams) exists behind an opt-in review gate and the binary
+deliberately **refuses to start** when `SECURITY_ENABLELOGIN=true` or
+`DOCKER_ENABLE_SECURITY=true` is set — see
+[Limitations](#what-does-not-run-on-rust-yet). The remaining gates before
+secured-mode/production packaging are tracked in
+[`PORT_STATUS.md`](PORT_STATUS.md).
 
 ---
 
@@ -36,11 +40,11 @@ processing paths (and many endpoint tests) need it — install it.
 
 ### Optional external tools
 
-Like the Java backend, some conversions shell out to external tools. The Rust
-service discovers them at startup (bounded discovery, with minimum versions where
-Java requires them). A missing tool does not crash anything: the affected endpoints
-report as unavailable with reason `DEPENDENCY` in
-`GET /api/v1/config/endpoints-availability`, exactly like Java's alternatives
+Like the upstream Java backend, some conversions shell out to external tools. The
+Rust service discovers them at startup (bounded discovery, with minimum versions
+where upstream requires them). A missing tool does not crash anything: the affected
+endpoints report as unavailable with reason `DEPENDENCY` in
+`GET /api/v1/config/endpoints-availability`, exactly like upstream's alternatives
 mechanism.
 
 | Tool (binary) | Enables | Notes |
@@ -87,12 +91,10 @@ task dev              # backend (Rust) + frontend
 task dev:all          # backend (Rust) + frontend + Rust AI engine
 ```
 
-`task backend:dev`, `task dev`, and `task dev:all` all select the **Rust** backend
-by default. The Java backend remains available as the compatibility oracle:
-
-```bash
-task backend:dev:java # Java Spring Boot backend instead
-```
+`task backend:dev`, `task dev`, and `task dev:all` all run the **Rust** backend —
+there is no other backend in this repository. (The upstream Java implementation
+lives in the separate Stirling-PDF repo and can be run from there as an external
+compatibility oracle for `testing/differential`.)
 
 Direct entry point without Task:
 
@@ -125,10 +127,10 @@ curl http://127.0.0.1:8080/api/v1/config/app-config
 
 ## 3. Configuration
 
-The Rust service reads the same YAML files as Java:
+The Rust service reads the same YAML files as upstream Stirling-PDF:
 `configs/settings.yml` then `configs/custom_settings.yml`, resolved below
-`STIRLING_BASE_PATH` (default: the working directory). Behavior matches Java's
-`ConfigInitializer`, including:
+`STIRLING_BASE_PATH` (default: the working directory). Behavior matches upstream
+Java's `ConfigInitializer`, including:
 
 - template merge on upgrade (new template keys arrive with defaults; user-set leaf
   values are preserved; comments/ordering kept; idempotent),
@@ -163,8 +165,8 @@ contract as Java (`general/job/{jobId}`, `/result`, `/result/files`,
 
 The AI features (`/api/v1/ai/*`, MCP, classification, PDF question answering,
 document creation, math audit, orchestration) are served by the separate
-`stirling-ai-engine` crate, which replaced the Python engine (the Python oracle
-remains under `engine/` for compatibility testing).
+`stirling-ai-engine` crate, the Rust replacement for upstream Stirling-PDF's
+Python engine (which stays in the upstream repo; it is not part of this one).
 
 ```bash
 task engine:dev       # Rust AI engine on localhost:5001
@@ -176,22 +178,21 @@ Point the processing service at it with `AIENGINE_URL` (default
 the engine's own configuration (structured-output-capable providers, including
 Anthropic/OpenAI-compatible APIs and native `ollama:<model>` for local models).
 `STIRLING_ENGINE_SHARED_SECRET` protects the engine boundary when set.
-The engine's quality gate is `task engine:check`; the legacy Python oracle keeps
-`task engine:legacy:*`.
+The engine's quality gate is `task engine:check`.
 
 ---
 
 ## 5. Verifying parity yourself
 
-- `task rust:check` — fmt + clippy + full test suite with PDFium bound (the
-  same gate CI runs; see `PORT_STATUS.md` for the latest full-gate numbers).
-- **Differential harness** (`testing/differential/`) — drives BOTH backends with
-  the same requests and semantically diffs the responses; known, root-caused
-  differences are declared with pinned values in `known_diffs.py`. CI runs this as
-  the `differential-parity` workflow; `run_smoke.sh` is the local entry point
-  (needs both backends runnable).
+- `task rust:check` — fmt + clippy + full test suite with PDFium bound (see
+  `PORT_STATUS.md` for the latest full-gate numbers).
+- **Differential harness** (`testing/differential/`) — drives this backend and,
+  optionally, an externally running upstream Stirling-PDF instance with the same
+  requests, then semantically diffs the responses; known, root-caused differences
+  are declared with pinned values in `known_diffs.py`. `run_smoke.sh` is the local
+  Rust-only entry point; pass `--java-url` to diff against an upstream instance.
 - **Per-surface contracts** (`rust/contracts/*.md`) — each ported surface documents
-  routes, Java counterparts, parity notes, and explicit gaps.
+  routes, upstream Java counterparts, parity notes, and explicit gaps.
 
 ---
 
@@ -205,29 +206,33 @@ These are deliberate, documented limits — the authoritative list with rational
   human security review. Setting `SECURITY_ENABLELOGIN=true` or
   `DOCKER_ENABLE_SECURITY=true` makes the Rust binary refuse startup (fail-closed,
   including on malformed boolean values) instead of serving an unsecured
-  approximation. Run open mode, or use the Java backend for secured deployments.
-- **SaaS / hosted-cloud layer** (`app/saas`, account-link billing): deliberately
-  deferred; depends on external cloud services unverifiable here.
+  approximation. Run open mode; secured deployments must wait for the review
+  gate (or use the upstream Stirling-PDF Java product from its own repo).
+- **SaaS / hosted-cloud layer** (upstream's `app/saas`, account-link billing):
+  deliberately not ported; depends on external cloud services unverifiable here.
 - **SAML2 SSO**: deferred pending a maintainer decision on a native XML-signature
   dependency. (Generic OIDC login is ported inside the opt-in secured router;
   Supabase JWT verification is ported.)
 - **H2 database backup/restore routes**: N/A — the Rust store is SQLite.
 - **PDF → video** route: implemented but an explicit opt-in
   (`STIRLING_PROCESSING_FFMPEG_COMMAND`) while upstream FFmpeg CVEs are assessed —
-  the current Java route is itself commented out.
+  upstream's own Java route is itself commented out.
 - **Desktop packaging**: the Tauri desktop app can *validate* against a Rust
   backend via `STIRLING_NATIVE_BACKEND_PATH` (ephemeral-port handshake, workspace
-  migration), but Java remains the bundled desktop backend; PDFium/sidecar
-  packaging is a release-pipeline task.
+  migration), but the Rust binary and PDFium are not yet bundled into the desktop
+  build — the Tauri host's default launch path is a leftover from the upstream
+  Java desktop app whose artifacts this repository does not produce, so desktop
+  builds do not currently ship a working backend.
 - **Deep PDF-fidelity edges** in the PDF↔JSON editor model (e.g. Type3 glyph
   synthesis, Type0/Type3 byte-parity, >4-component DeviceN JPEGs): see the
   "Remaining" section of `PORT_STATUS.md`.
 
-## 7. Production cutover position
+## 7. Production readiness position
 
-Local development defaults to Rust; the packaged production containers and desktop
-builds still ship Java. The remaining cutover gates are: independent security
-review of the secured router and signing subsystem, desktop/CI packaging of the
-Rust binary + PDFium, and the residual fidelity gaps above. Follow
-`PORT_STATUS.md`, `SECURITY_MIGRATION_DESIGN.md`, and `SIGNING_MIGRATION_DESIGN.md`
-for the live state of each gate.
+The Rust service is the only backend in this repository and open mode is
+production-usable today. The remaining gates before secured mode and packaged
+distribution are: independent security review of the secured router and signing
+subsystem, container/CI packaging and desktop bundling of the Rust binary +
+PDFium, and the residual fidelity gaps above. Follow `PORT_STATUS.md`,
+`SECURITY_MIGRATION_DESIGN.md`, and `SIGNING_MIGRATION_DESIGN.md` for the live
+state of each gate.

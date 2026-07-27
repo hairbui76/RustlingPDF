@@ -34,10 +34,6 @@ These files contain non-secret defaults and are checked into Git, so most dev wo
 
 To override values locally (API keys, machine-specific settings), create an uncommitted sibling `editor/.env.local` / `editor/.env.desktop.local` / `editor/.env.saas.local`. Vite automatically layers these on top of the committed files.
 
-## Docker Setup
-
-For Docker deployments and configuration, see the [Docker README](../docker/README.md).
-
 ## Tauri
 
 All desktop tasks are available via [Task](https://taskfile.dev). From the root of the repo:
@@ -48,7 +44,7 @@ All desktop tasks are available via [Task](https://taskfile.dev). From the root 
 task desktop:dev
 ```
 
-This ensures the JLink runtime and backend JAR exist (skipping if already built), then starts Tauri in dev mode.
+This prepares the desktop environment (env files, icons, and — on Windows — the installer provisioner), then starts Tauri in dev mode.
 
 ### Build
 
@@ -56,7 +52,10 @@ This ensures the JLink runtime and backend JAR exist (skipping if already built)
 task desktop:build
 ```
 
-This does a full clean rebuild of the backend JAR and JLink runtime, then builds the Tauri app for production.
+This prepares the desktop environment, then builds the Tauri app for production.
+
+Note: the desktop bundle does not yet include a working backend — bundling the
+Rust backend binary (plus PDFium) as a Tauri sidecar is a tracked roadmap item.
 
 Platform-specific dev builds are also available:
 
@@ -67,21 +66,10 @@ task desktop:build:dev:windows   # Windows NSIS installer
 task desktop:build:dev:linux     # Linux AppImage
 ```
 
-### JLink Tasks
-
-You can also run JLink steps individually:
-
-```bash
-task desktop:jlink          # Build JAR + create JLink runtime
-task desktop:jlink:jar      # Build backend JAR only
-task desktop:jlink:runtime  # Create JLink custom JRE only
-task desktop:jlink:clean    # Remove JLink artifacts
-```
-
 ### Clean
 
 ```bash
 task desktop:clean
 ```
 
-Removes all desktop build artifacts including JLink runtime, bundled JARs, Cargo build, and dist/build directories.
+Removes all desktop build artifacts including the Cargo build and dist/build directories.

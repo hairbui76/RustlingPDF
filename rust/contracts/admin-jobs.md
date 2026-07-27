@@ -1,7 +1,8 @@
 # Administrator job statistics and cleanup
 
-Rust compatibility contract for Java's `AdminJobController`
-(`app/proprietary/.../controller/api/AdminJobController.java`). The three
+Rust compatibility contract for upstream Stirling-PDF's Java
+`AdminJobController` (upstream
+`app/proprietary/.../controller/api/AdminJobController.java`). The three
 routes are registered alongside the general job routes in
 `rust/crates/stirling-processing/src/lib.rs` and served by
 `admin_job_stats` / `admin_job_queue_stats` / `admin_job_cleanup` over the

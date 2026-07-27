@@ -1,5 +1,10 @@
 # Rust Backend Replacement — Design & Plan
 
+> **Repository note (RustlingPDF).** Historical design document from the port
+> executed inside the upstream Stirling-PDF monorepo. All Java sources it
+> describes live in the upstream Stirling-PDF repository; this repo contains
+> only the Rust result.
+
 Decision (2026-07-15): the Rust service is to **replace the entire Java backend**,
 not act as a PDF-only sidecar. This document scopes that work so it can be reviewed
 and sequenced before coding, rather than ground out endpoint-by-endpoint.
