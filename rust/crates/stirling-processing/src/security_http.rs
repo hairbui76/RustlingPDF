@@ -1256,11 +1256,14 @@ fn oidc_failure_redirect(headers: &HeaderMap) -> Response {
 
 /// Builds the `302 Found` browser redirect both OIDC callback outcomes share,
 /// clearing the SPA redirect-path cookie on the way out with Java's exact
-/// clearing attributes (`clearRedirectCookie`: `Path=/; Max-Age=0;
-/// SameSite=Lax`, no `HttpOnly`/`Secure` — the SPA itself writes this cookie
-/// from script). If `location` cannot be a header value (a non-ASCII or
-/// control byte smuggled through a forwarded header), the redirect falls back
-/// to the default SPA callback path instead of failing open.
+/// clearing attributes (`clearRedirectCookie` builds `ResponseCookie` with
+/// `Path=/; Max-Age=0; SameSite=Lax`, no `HttpOnly`/`Secure` — the SPA itself
+/// writes this cookie from script; Spring's `ResponseCookie#toString` emits an
+/// `Expires=Thu, 01 Jan 1970 00:00:00 GMT` segment right after a non-negative
+/// `Max-Age`, so the cleared cookie carries it byte-for-byte). If `location`
+/// cannot be a header value (a non-ASCII or control byte smuggled through a
+/// forwarded header), the redirect falls back to the default SPA callback path
+/// instead of failing open.
 fn oidc_browser_redirect(location: &str) -> Response {
     let location = HeaderValue::from_str(location)
         .unwrap_or_else(|_| HeaderValue::from_static(SPA_CALLBACK_PATH));
@@ -1268,7 +1271,10 @@ fn oidc_browser_redirect(location: &str) -> Response {
     response.headers_mut().insert(header::LOCATION, location);
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_static("stirling_redirect_path=; Path=/; Max-Age=0; SameSite=Lax"),
+        HeaderValue::from_static(
+            "stirling_redirect_path=; Path=/; Max-Age=0; \
+             Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+        ),
     );
     response
 }
@@ -3396,13 +3402,17 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("/auth/callback?errorOAuth=oauth2AuthenticationError")
         );
-        // The SPA redirect-path cookie is cleared with Java's exact attributes.
+        // The SPA redirect-path cookie is cleared with Java's exact attributes
+        // (Spring `ResponseCookie#toString` puts `Expires` right after `Max-Age`).
         assert_eq!(
             response
                 .headers()
                 .get(header::SET_COOKIE)
                 .and_then(|value| value.to_str().ok()),
-            Some("stirling_redirect_path=; Path=/; Max-Age=0; SameSite=Lax")
+            Some(
+                "stirling_redirect_path=; Path=/; Max-Age=0; \
+                 Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax"
+            )
         );
         Ok(())
     }
