@@ -199,6 +199,28 @@ task docker:down      # stop the stack
 Equivalent raw commands: `docker build -t rustlingpdf -f docker/Dockerfile .`
 and `docker compose -f docker/compose.yml up -d`.
 
+### Pulling a prebuilt image from GHCR
+
+Every tagged release (see `RELEASING.md` at the repo root) publishes both
+image targets to GitHub Container Registry, so building locally is optional:
+
+```bash
+docker pull ghcr.io/hairbui76/rustlingpdf:latest             # or a specific vX.Y.Z tag
+docker run -d -p 8080:8080 -v "$(pwd)/data:/data" \
+    ghcr.io/hairbui76/rustlingpdf:latest
+
+docker pull ghcr.io/hairbui76/rustlingpdf-ai-engine:latest   # optional AI sidecar
+```
+
+The pulled image is content-identical to a local `task docker:build` (same
+Dockerfile, `runtime` target, plus OCI `version`/`source`/`revision`/
+`created` labels stamped by the release workflow). To use it with
+`docker/compose.yml` — which references the local tags — either retag it
+(`docker tag ghcr.io/hairbui76/rustlingpdf:latest rustlingpdf:latest`, and
+likewise for the sidecar) or point the compose `image:` fields at the GHCR
+names. Pin `vX.Y.Z` (or a digest) instead of `latest` when you need
+reproducible deployments; `latest` moves on every release.
+
 ### What the image contains
 
 - **One process, one port.** The Rust binary serves the REST API and the web UI
