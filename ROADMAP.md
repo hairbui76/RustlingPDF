@@ -5,15 +5,17 @@ Living planning document. A fresh working session should read this file plus
 feature/parity ledger) to get fully oriented. Update this file whenever a batch
 lands or the queue changes.
 
-## Snapshot (2026-07-27)
+## Snapshot (2026-07-28)
 
 - Repo: standalone product based on Stirling-PDF; **no Java anywhere** — the
   upstream checkout (if present at `../Stirling-PDF`) is a read-only reference
   oracle only.
-- `main` @ `b08a550` — full quality gate green:
-  `cargo fmt`/`clippy -D warnings` clean, **stirling-processing 1455 passed /
-  0 failed**, **stirling-ai-engine 144 / 0**; frontend typecheck/eslint clean,
-  **1647 vitest passed**, `vite build` (core) succeeds.
+- `main` — full quality gate green after batch 3:
+  `cargo fmt`/`clippy -D warnings` clean, **stirling-processing 1508 passed /
+  0 failed** (1 ignored), **stirling-ai-engine 144 / 0**; frontend
+  typecheck/eslint clean, **1647 vitest passed**, `vite build` (core) succeeds;
+  differential rust-only smoke **13/13**. Ships GitHub CI, single-binary SPA
+  serving, and a Docker image.
 - Open mode is the supported runtime; secured mode is implemented + tested but
   **fail-closed** pending independent human security review.
 - Canonical app version lives in `rust/VERSION` (consumed by `build.rs`).

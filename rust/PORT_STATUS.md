@@ -16,14 +16,19 @@ Tracks the Java → Rust port of the Stirling-PDF backend (UI excluded). The Rus
 service lives in this `rust/` workspace as the `stirling-processing` crate — an
 axum HTTP service mirroring the upstream Java `/api/v1/...` endpoints.
 
-**Latest validation (2026-07-27, after merging the tester-signed OIDC-hardening,
-MCP-category-tool, and PDF-JSON-ICC-CMYK work-items):** `cargo fmt --check` and strict
-locked all-target workspace Clippy (`--workspace --all-targets --locked -- -D warnings`)
-are clean. With PDFium bound via `STIRLING_PDFIUM_LIBRARY_PATH` (as `task rust:test`
-does), `cargo test -p stirling-processing --locked` reports **1395 passed / 0 failed**
-(one pre-existing ignored test) across the library suite and all integration suites, and
-`cargo test -p stirling-ai-engine --locked` reports **147 passed / 0 failed** across
-all targets. Four previously-red areas are now green rather than excused: the
+**Latest validation (2026-07-28, RustlingPDF `main` after batch 3 — GitHub CI,
+single-binary SPA serving, Docker packaging, the parity trio, and the identity-
+persistence fix pair):** `cargo fmt --check` and strict locked all-target workspace
+Clippy (`--workspace --all-targets --locked -- -D warnings`) are clean. With PDFium
+bound via `STIRLING_PDFIUM_LIBRARY_PATH` (as `task rust:test` does),
+`cargo test -p stirling-processing --locked` reports **1508 passed / 0 failed**
+(one pre-existing ignored test) across the library suite and all integration suites,
+`cargo test -p stirling-ai-engine --locked` reports **144 passed / 0 failed** across
+all targets, and the frontend gate (typecheck/eslint/**1647 vitest**/`vite build`)
+plus the differential rust-only smoke (**13/13**) are green. (This is the standalone
+RustlingPDF repository; test totals differ slightly from the upstream Stirling-PDF
+port tree because a handful of upstream-CI-specific assertions were dropped in the
+repo split.) Four previously-red areas are now green rather than excused: the
 `pdf_markdown` heading test (it required PDFium — earlier snapshots ran without the
 library bound and misread the fallback as a pre-existing failure); the two
 `stirling-ai-engine` `process_smoke` timeouts (root-caused, not environmental:
