@@ -2355,6 +2355,22 @@ impl RuntimeConfig {
     }
 
     fn from_paths(settings_path: PathBuf, custom_settings_path: &Path) -> Self {
+        Self::from_paths_with_desktop_login_override(
+            settings_path,
+            custom_settings_path,
+            desktop_mode_from_environment(),
+        )
+    }
+
+    /// `force_login_disabled` carries the desktop launcher's login override
+    /// (see [`disable_login_setting`]); [`Self::from_paths`] derives it from
+    /// `STIRLING_PDF_TAURI_MODE`, and taking it as a parameter keeps the
+    /// override unit-testable without mutating process environment.
+    fn from_paths_with_desktop_login_override(
+        settings_path: PathBuf,
+        custom_settings_path: &Path,
+        force_login_disabled: bool,
+    ) -> Self {
         let custom_files_dir = custom_files_dir(&settings_path);
         let mut settings = Value::Object(Map::new());
         let mut errors = Vec::new();
@@ -2364,6 +2380,9 @@ impl RuntimeConfig {
                 Ok(None) => {}
                 Err(error) => errors.push(error),
             }
+        }
+        if force_login_disabled {
+            disable_login_setting(&mut settings);
         }
         Self {
             settings,
@@ -2755,8 +2774,18 @@ fn read_yaml_file(path: &Path) -> Result<Option<Value>, String> {
     }
     let contents = fs::read_to_string(path)
         .map_err(|error| format!("could not read {}: {error}", path.display()))?;
+    // An empty document — zero bytes, whitespace, or comments only — parses to
+    // YAML `null`. Treat it as an absent file rather than a value: desktop
+    // startup always creates a zero-byte `custom_settings.yml`, and merging a
+    // `Null` overlay would replace the ENTIRE settings snapshot, blanking every
+    // configured value (and re-rolling the install identity) on every boot.
+    // Java parity: Spring's YAML loader yields no properties for an empty
+    // document, so `settings.yml` keeps full effect.
     serde_yaml::from_str(&contents)
-        .map(Some)
+        .map(|value| match value {
+            Value::Null => None,
+            value => Some(value),
+        })
         .map_err(|error| format!("could not parse {}: {error}", path.display()))
 }
 
@@ -2835,6 +2864,34 @@ pub(crate) fn is_valid_locale(locale: &str) -> bool {
     parts.all(|part| {
         (2..=8).contains(&part.len()) && part.bytes().all(|byte| byte.is_ascii_alphanumeric())
     })
+}
+
+/// Whether this process is the native desktop (Tauri) sidecar, signalled by
+/// the launcher through `STIRLING_PDF_TAURI_MODE=true` (Java reads the same
+/// flag with `Boolean.parseBoolean`).
+fn desktop_mode_from_environment() -> bool {
+    env::var("STIRLING_PDF_TAURI_MODE").is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
+}
+
+/// Java desktop parity: the Tauri launcher always passes
+/// `-Dsecurity.enableLogin=false` ("Disable login for desktop mode"), a
+/// system property that outranks every YAML source under Spring's property
+/// precedence — so on desktop the bundled template's
+/// `security.enableLogin: true` never takes effect: not for the secured-mode
+/// startup guard, the login disclaimer, or app-config. The Rust sidecar bakes
+/// the same override into the loaded snapshot; without it, the very template
+/// that desktop startup writes would trip the secured-mode refusal and the
+/// desktop could never boot.
+fn disable_login_setting(settings: &mut Value) {
+    let Value::Object(root) = settings else {
+        return;
+    };
+    let security = root
+        .entry("security")
+        .or_insert_with(|| Value::Object(Map::new()));
+    if let Value::Object(security) = security {
+        security.insert("enableLogin".to_owned(), Value::Bool(false));
+    }
 }
 
 fn merge_json(target: &mut Value, overlay: Value) {
@@ -4043,6 +4100,90 @@ mod tests {
         assert_eq!(second.key, identity.key);
         assert!(!second.is_new_server);
         assert_eq!(fs::read_to_string(&settings)?, before);
+        Ok(())
+    }
+
+    /// Regression for the every-boot identity reroll: desktop startup always
+    /// creates a zero-byte `configs/custom_settings.yml` next to
+    /// `settings.yml`. An empty document parses to YAML `null`, and merging it
+    /// used to replace the ENTIRE settings snapshot with `Null` — blanking
+    /// every configured value and regenerating key/UUID
+    /// (`is_new_server=true`) on every single boot. An empty (or
+    /// comments-only) custom settings document must merge as a no-op.
+    #[test]
+    fn generated_identity_survives_an_empty_custom_settings_sibling()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let config_directory = directory.path().join("configs");
+        fs::create_dir_all(&config_directory)?;
+        let settings = config_directory.join("settings.yml");
+        let persisted = format!(
+            "system:\n  defaultLocale: vi-VN\nAutomaticallyGenerated:\n  key: 123e4567-e89b-12d3-a456-426614174000\n  UUID: 223e4567-e89b-12d3-a456-426614174000\n  appVersion: {}\n",
+            crate::runtime_metrics::application_version()
+        );
+        fs::write(&settings, &persisted)?;
+        let custom_settings = config_directory.join("custom_settings.yml");
+
+        for custom_contents in ["", "\n  \n", "# comments only\n"] {
+            fs::write(&custom_settings, custom_contents)?;
+            let config = RuntimeConfig::from_files(&settings, &custom_settings);
+            assert_eq!(config.load_error, None);
+            // The empty overlay must not blank the snapshot: every
+            // settings.yml-backed value stays readable.
+            assert_eq!(
+                super::value_at(&config.settings, &["system", "defaultLocale"]),
+                Some(&json!("vi-VN"))
+            );
+            let identity = config.initialize_generated_identity()?;
+            assert_eq!(identity.uuid, "223e4567-e89b-12d3-a456-426614174000");
+            assert_eq!(identity.key, "123e4567-e89b-12d3-a456-426614174000");
+            assert!(!identity.is_new_server);
+            // Reboot idempotence: nothing to rewrite, the file stays
+            // byte-stable.
+            assert_eq!(fs::read_to_string(&settings)?, persisted);
+        }
+        Ok(())
+    }
+
+    /// Desktop (Tauri) parity: the launcher force-disables login — the Java
+    /// shell passes `-Dsecurity.enableLogin=false`, outranking the bundled
+    /// template's `security.enableLogin: true` under Spring's property
+    /// precedence — so the desktop snapshot must carry `enableLogin: false`
+    /// (or the template the desktop itself writes would trip the secured-mode
+    /// startup refusal), while server mode keeps the file's value.
+    #[test]
+    fn desktop_mode_forces_the_template_login_setting_off() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "security:\n  enableLogin: true # template\n")?;
+        let missing = directory.path().join("missing.yml");
+
+        let server = RuntimeConfig::from_paths_with_desktop_login_override(
+            settings.clone(),
+            &missing,
+            false,
+        );
+        assert_eq!(
+            super::value_at(&server.settings, &["security", "enableLogin"]),
+            Some(&json!(true))
+        );
+
+        let desktop =
+            RuntimeConfig::from_paths_with_desktop_login_override(settings.clone(), &missing, true);
+        assert_eq!(
+            super::value_at(&desktop.settings, &["security", "enableLogin"]),
+            Some(&json!(false))
+        );
+
+        // With no security section at all, the override is still explicit.
+        fs::write(&settings, "system:\n  defaultLocale: en-US\n")?;
+        let desktop =
+            RuntimeConfig::from_paths_with_desktop_login_override(settings, &missing, true);
+        assert_eq!(
+            super::value_at(&desktop.settings, &["security", "enableLogin"]),
+            Some(&json!(false))
+        );
         Ok(())
     }
 

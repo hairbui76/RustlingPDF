@@ -209,7 +209,7 @@ fn next_structural_indent(lines: &[Line<'_>], from: usize) -> Option<usize> {
 /// existing top-level section, and a missing section is appended at the end.
 /// Section and key lookups are ASCII-case-insensitive, so an existing relaxed
 /// spelling (`automaticallyGenerated:`) is reused rather than duplicated. A
-/// top-level `section:` line carrying a non-mapping inline value is repaired
+/// top-level `section:` line carrying an inline scalar value is repaired
 /// into a section opener (its value is dropped, matching the serde writer this
 /// replaces), keeping any inline comment.
 ///
@@ -217,7 +217,9 @@ fn next_structural_indent(lines: &[Line<'_>], from: usize) -> Option<usize> {
 ///
 /// Returns a description when a value cannot be rendered as a single-line
 /// inline YAML scalar/flow sequence (e.g. a nested mapping or a multi-line
-/// string).
+/// string), or when the target section holds an inline flow collection
+/// (`section: {…}` / `section: […]`) — real data that inserting block children
+/// would silently destroy.
 pub(crate) fn upsert_section_values(
     document: &str,
     section: &str,
@@ -258,18 +260,19 @@ pub(crate) fn upsert_section_values(
     if missing.is_empty() {
         return Ok(rewrite.content);
     }
-    Ok(insert_into_section(&rewrite.content, section, &missing))
+    insert_into_section(&rewrite.content, section, &missing)
 }
 
 /// Inserts `key: value` lines for `entries` at the end of the top-level
 /// `section` block (creating the section at the end of the document when it
 /// does not exist), preserving every existing byte apart from a repaired
-/// non-mapping section value.
+/// scalar section value. A section holding an inline flow collection is
+/// refused (see [`upsert_section_values`]).
 fn insert_into_section(
     document: &str,
     section: &str,
     entries: &[&(&str, serde_yaml::Value)],
-) -> String {
+) -> Result<String, String> {
     let lines = parse_lines(document);
     let header = lines.iter().position(|line| {
         line.indent == Some(0)
@@ -288,8 +291,20 @@ fn insert_into_section(
         for (key, value) in entries {
             push_entry_line(&mut output, "  ", key, value);
         }
-        return output;
+        return Ok(output);
     };
+    // A flow collection (`{…}` / `[…]`) on the header line is valid section
+    // content, not a repairable stray scalar: dropping it to make room for
+    // block children would silently destroy the user's data, so refuse — the
+    // caller then leaves the document untouched.
+    if inline_section_value(lines[header].content)
+        .is_some_and(|value| value.starts_with('{') || value.starts_with('['))
+    {
+        return Err(format!(
+            "{section} holds an inline flow collection and cannot accept inserted keys without \
+             destroying it"
+        ));
+    }
 
     // The section's children are the structurally deeper lines that follow the
     // header, up to the next top-level structural line. Insertion goes right
@@ -330,12 +345,22 @@ fn insert_into_section(
             output.push_str(line.terminator);
         }
     }
-    output
+    Ok(output)
 }
 
-/// Drops a non-mapping inline value from a `section: value` header line so the
-/// inserted children form a mapping, keeping any inline comment. A header that
-/// already opens a mapping is returned unchanged.
+/// The inline value text on a `section: value` header line, or `None` when the
+/// header opens a mapping (nothing but whitespace/a comment after the colon).
+fn inline_section_value(content: &str) -> Option<&str> {
+    let colon = content.find(':')?;
+    let after_colon = &content[colon + 1..];
+    let (value_start, value_end) = value_span(after_colon)?;
+    Some(&after_colon[value_start..value_end])
+}
+
+/// Drops a stray scalar inline value from a `section: value` header line so
+/// the inserted children form a mapping, keeping any inline comment. A header
+/// that already opens a mapping is returned unchanged. Flow collections never
+/// reach this repair — [`insert_into_section`] refuses them first.
 fn repaired_section_opener(content: &str) -> String {
     let Some(colon) = content.find(':') else {
         return content.to_owned();
@@ -571,6 +596,18 @@ mod tests {
         let parsed: serde_yaml::Value = serde_yaml::from_str(&updated)?;
         assert_eq!(parsed["section"]["key"], string_value("v"));
         Ok(())
+    }
+
+    /// Regression: a section holding an inline FLOW mapping (`a: {b: 1}`)
+    /// used to be treated as a repairable stray scalar — the whole `{b: 1}`
+    /// value was dropped before inserting the new key, silently losing `b`.
+    /// Such a section (and its flow-sequence sibling) must be refused instead.
+    #[test]
+    fn upsert_refuses_to_destroy_a_flow_collection_section() {
+        for document in ["a: {b: 1}\n", "a: [1, 2] # keep\n"] {
+            let result = upsert_section_values(document, "a", &[("key", string_value("v"))]);
+            assert!(result.is_err(), "must refuse {document:?}");
+        }
     }
 
     #[test]

@@ -97,10 +97,36 @@ fn reports_desktop_port_without_rust_log_and_serves_app_config() -> Result<(), B
 #[test]
 fn initializes_missing_desktop_settings_before_reporting_ready() -> Result<(), Box<dyn Error>> {
     let working_directory = tempfile::tempdir()?;
+    boot_desktop_until_ready(working_directory.path())?;
+
+    let config_directory = working_directory.path().join("configs");
+    let settings = fs::read_to_string(config_directory.join("settings.yml"))?;
+    assert_settings_is_template_with_generated_identity(&settings)?;
+    assert_eq!(fs::read(config_directory.join("custom_settings.yml"))?, b"");
+
+    // Second boot against the SAME base path: the install identity must
+    // persist. Regression for the empty `custom_settings.yml` (always created
+    // by desktop startup) parsing to YAML `null` and blanking the merged
+    // settings snapshot, which re-rolled key/UUID on every boot — after a
+    // reboot `settings.yml` must be byte-identical to the first boot's output.
+    boot_desktop_until_ready(working_directory.path())?;
+    assert_eq!(
+        fs::read_to_string(config_directory.join("settings.yml"))?,
+        settings,
+        "settings.yml must be byte-stable across desktop reboots"
+    );
+    assert_eq!(fs::read(config_directory.join("custom_settings.yml"))?, b"");
+    Ok(())
+}
+
+/// Boots the desktop-mode binary against `working_directory` as its base path,
+/// waits until it reports ready (the port handshake line, printed only after
+/// settings initialization), then shuts it down.
+fn boot_desktop_until_ready(working_directory: &std::path::Path) -> Result<(), Box<dyn Error>> {
     let child = Command::new(env!("CARGO_BIN_EXE_stirling-processing"))
-        .current_dir(working_directory.path())
+        .current_dir(working_directory)
         .env("STIRLING_PORT", "0")
-        .env("STIRLING_BASE_PATH", working_directory.path())
+        .env("STIRLING_BASE_PATH", working_directory)
         .env("STIRLING_PDF_TAURI_MODE", "true")
         .env_remove("SERVER_PORT")
         .env_remove("RUST_LOG")
@@ -120,11 +146,6 @@ fn initializes_missing_desktop_settings_before_reporting_ready() -> Result<(), B
         .map_while(Result::ok)
         .any(|line| line.contains(HANDSHAKE_PREFIX));
     assert!(reported_ready, "processing child did not report ready");
-
-    let config_directory = working_directory.path().join("configs");
-    let settings = fs::read_to_string(config_directory.join("settings.yml"))?;
-    assert_settings_is_template_with_generated_identity(&settings)?;
-    assert_eq!(fs::read(config_directory.join("custom_settings.yml"))?, b"");
     Ok(())
 }
 
