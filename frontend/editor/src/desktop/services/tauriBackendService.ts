@@ -18,6 +18,12 @@ export class TauriBackendService {
   private isRecovering = false;
   private restartAttempts = 0;
   private static readonly MAX_RESTART_ATTEMPTS = 3;
+  /**
+   * The Rust launcher's start_backend command resolves or rejects within its
+   * own bounded 90s startup window, so polling for the port is bounded too
+   * (with margin) instead of spinning forever when the backend never comes up.
+   */
+  private static readonly PORT_POLL_TIMEOUT_MS = 120_000;
 
   static getInstance(): TauriBackendService {
     if (!TauriBackendService.instance) {
@@ -162,7 +168,9 @@ export class TauriBackendService {
     // Discover the local bundled backend port in the background.
     // The Rust side always starts the local backend, so we can poll for its port
     // even in self-hosted mode. This allows local fallback when the server is offline.
-    void this.waitForPort();
+    // Best-effort: when the local backend never starts, the bounded poll times
+    // out and local fallback simply stays unavailable.
+    void this.waitForPort().catch(() => {});
   }
 
   async startBackend(backendUrl?: string): Promise<void> {
@@ -200,7 +208,8 @@ export class TauriBackendService {
   }
 
   private async waitForPort(): Promise<void> {
-    while (true) {
+    const deadline = Date.now() + TauriBackendService.PORT_POLL_TIMEOUT_MS;
+    while (Date.now() < deadline) {
       try {
         const port = await invoke<number | null>("get_backend_port");
         if (port) {
@@ -216,6 +225,9 @@ export class TauriBackendService {
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
+    throw new Error(
+      "Timed out waiting for the local backend port to be reported",
+    );
   }
 
   private beginHealthMonitoring() {
