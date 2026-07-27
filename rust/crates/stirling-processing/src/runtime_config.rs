@@ -506,6 +506,108 @@ impl RuntimeConfig {
         Duration::from_secs(seconds)
     }
 
+    /// Resolves the engine-relevant `aiEngine.*` configuration pushed to the
+    /// engine's `POST /api/v1/config` on startup and after admin saves.
+    ///
+    /// Environment names mirror Spring's relaxed binding for `aiEngine.*`
+    /// (e.g. `AIENGINE_MODELS_SMARTMODEL`); YAML values keep the same
+    /// compatibility when no override is set, and defaults match Java's
+    /// `ApplicationProperties.AiEngine`.
+    #[must_use]
+    pub fn ai_engine_push_settings(&self) -> AiEnginePushSettings {
+        let (enabled, _, _) = self.ai_engine_settings();
+        AiEnginePushSettings {
+            enabled,
+            push_config_to_engine: self.boolean(
+                &["aiEngine", "pushConfigToEngine"],
+                "AIENGINE_PUSHCONFIGTOENGINE",
+                true,
+            ),
+            models: AiEngineModelsPush {
+                provider: self.string(
+                    &["aiEngine", "models", "provider"],
+                    "AIENGINE_MODELS_PROVIDER",
+                    DEFAULT_AI_MODEL_PROVIDER,
+                ),
+                smart_model: self.string(
+                    &["aiEngine", "models", "smartModel"],
+                    "AIENGINE_MODELS_SMARTMODEL",
+                    DEFAULT_AI_SMART_MODEL,
+                ),
+                fast_model: self.string(
+                    &["aiEngine", "models", "fastModel"],
+                    "AIENGINE_MODELS_FASTMODEL",
+                    DEFAULT_AI_FAST_MODEL,
+                ),
+                smart_max_tokens: self.signed_integer(
+                    &["aiEngine", "models", "smartMaxTokens"],
+                    "AIENGINE_MODELS_SMARTMAXTOKENS",
+                    8_192,
+                ),
+                fast_max_tokens: self.signed_integer(
+                    &["aiEngine", "models", "fastMaxTokens"],
+                    "AIENGINE_MODELS_FASTMAXTOKENS",
+                    2_048,
+                ),
+                api_key: self.string(
+                    &["aiEngine", "models", "apiKey"],
+                    "AIENGINE_MODELS_APIKEY",
+                    "",
+                ),
+                base_url: self.string(
+                    &["aiEngine", "models", "baseUrl"],
+                    "AIENGINE_MODELS_BASEURL",
+                    "",
+                ),
+            },
+            rag: AiEngineRagPush {
+                embedding_provider: self.string(
+                    &["aiEngine", "rag", "embeddingProvider"],
+                    "AIENGINE_RAG_EMBEDDINGPROVIDER",
+                    DEFAULT_AI_EMBEDDING_PROVIDER,
+                ),
+                embedding_model: self.string(
+                    &["aiEngine", "rag", "embeddingModel"],
+                    "AIENGINE_RAG_EMBEDDINGMODEL",
+                    DEFAULT_AI_EMBEDDING_MODEL,
+                ),
+                embedding_api_key: self.string(
+                    &["aiEngine", "rag", "embeddingApiKey"],
+                    "AIENGINE_RAG_EMBEDDINGAPIKEY",
+                    "",
+                ),
+                embedding_base_url: self.string(
+                    &["aiEngine", "rag", "embeddingBaseUrl"],
+                    "AIENGINE_RAG_EMBEDDINGBASEURL",
+                    "",
+                ),
+                top_k: self.signed_integer(&["aiEngine", "rag", "topK"], "AIENGINE_RAG_TOPK", 20),
+                max_searches: self.signed_integer(
+                    &["aiEngine", "rag", "maxSearches"],
+                    "AIENGINE_RAG_MAXSEARCHES",
+                    5,
+                ),
+            },
+            limits: AiEngineLimitsPush {
+                max_pages: self.signed_integer(
+                    &["aiEngine", "limits", "maxPages"],
+                    "AIENGINE_LIMITS_MAXPAGES",
+                    200,
+                ),
+                max_characters: self.signed_integer(
+                    &["aiEngine", "limits", "maxCharacters"],
+                    "AIENGINE_LIMITS_MAXCHARACTERS",
+                    200_000,
+                ),
+                model_max_concurrency: self.signed_integer(
+                    &["aiEngine", "limits", "modelMaxConcurrency"],
+                    "AIENGINE_LIMITS_MODELMAXCONCURRENCY",
+                    32,
+                ),
+            },
+        }
+    }
+
     #[must_use]
     pub(crate) fn ai_workflow_stream_timeout(&self) -> Duration {
         let milliseconds = env::var("STIRLING_AI_STREAMTIMEOUTMS")
@@ -1745,6 +1847,73 @@ impl RuntimeConfig {
         &self.settings_path
     }
 
+    /// Ensures the persisted install identity, mirroring Java `InitialSetup`:
+    /// on first boot a random UUID and machine key are generated and written
+    /// into `AutomaticallyGenerated.*` in the settings file, and the current
+    /// application version is persisted (its previous absence — empty or the
+    /// `0.0.0` placeholder — marks a new server). Identity supplied through the
+    /// environment (relaxed-binding `AUTOMATICALLYGENERATED_*`) is honored
+    /// without being written back, exactly like Java's property binding.
+    ///
+    /// Unlike Java, an unchanged boot writes nothing (Java rewrites the same
+    /// values every start); the at-rest result is identical and the settings
+    /// file stays byte-stable, preserving template-merge idempotence.
+    ///
+    /// # Errors
+    ///
+    /// Returns a description when the settings file cannot be read, parsed, or
+    /// written; the returned identity is then only valid for this process.
+    pub fn initialize_generated_identity(&self) -> Result<GeneratedIdentity, String> {
+        let existing_uuid = self.generated_setting("UUID", "AUTOMATICALLYGENERATED_UUID");
+        let existing_key = self.generated_setting("key", "AUTOMATICALLYGENERATED_KEY");
+        let existing_version =
+            self.generated_setting("appVersion", "AUTOMATICALLYGENERATED_APPVERSION");
+        let is_new_server =
+            existing_version.trim().is_empty() || existing_version.trim() == "0.0.0";
+        let app_version = env!("CARGO_PKG_VERSION").to_owned();
+
+        let mut writes: Vec<(&str, serde_yaml::Value)> = Vec::new();
+        let uuid = if is_valid_settings_uuid(&existing_uuid) {
+            existing_uuid
+        } else {
+            let generated = random_uuid_v4();
+            writes.push(("UUID", serde_yaml::Value::String(generated.clone())));
+            generated
+        };
+        let key = if is_valid_settings_uuid(&existing_key) {
+            existing_key
+        } else {
+            let generated = random_uuid_v4();
+            writes.push(("key", serde_yaml::Value::String(generated.clone())));
+            generated
+        };
+        if existing_version.trim() != app_version {
+            writes.push(("appVersion", serde_yaml::Value::String(app_version.clone())));
+        }
+        if !writes.is_empty() {
+            update_settings_file_values(&self.settings_path, "AutomaticallyGenerated", &writes)?;
+        }
+        Ok(GeneratedIdentity {
+            uuid,
+            key,
+            app_version,
+            is_new_server,
+        })
+    }
+
+    fn generated_setting(&self, field: &str, environment: &str) -> String {
+        env::var(environment)
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                value_at(&self.settings, &["AutomaticallyGenerated", field])
+                    .or_else(|| value_at(&self.settings, &["automaticallyGenerated", field]))
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .unwrap_or_default()
+    }
+
     #[must_use]
     pub(crate) fn settings_snapshot(&self) -> Value {
         self.settings.clone()
@@ -2368,7 +2537,124 @@ impl RuntimeConfig {
     }
 }
 
+// Java `ApplicationProperties.AiEngine` model/RAG identity defaults, shared
+// with the config-push "was this section configured?" detection.
+pub(crate) const DEFAULT_AI_MODEL_PROVIDER: &str = "anthropic";
+pub(crate) const DEFAULT_AI_SMART_MODEL: &str = "claude-haiku-4-5";
+pub(crate) const DEFAULT_AI_FAST_MODEL: &str = "claude-haiku-4-5";
+pub(crate) const DEFAULT_AI_EMBEDDING_PROVIDER: &str = "voyageai";
+pub(crate) const DEFAULT_AI_EMBEDDING_MODEL: &str = "voyage-4";
+
+/// Model + provider selection pushed to the engine (Java `AiEngine.Models`).
+#[derive(Clone, Debug)]
+pub struct AiEngineModelsPush {
+    pub provider: String,
+    pub smart_model: String,
+    pub fast_model: String,
+    pub smart_max_tokens: i64,
+    pub fast_max_tokens: i64,
+    pub api_key: String,
+    pub base_url: String,
+}
+
+/// Retrieval settings pushed to the engine (Java `AiEngine.Rag`).
+#[derive(Clone, Debug)]
+pub struct AiEngineRagPush {
+    pub embedding_provider: String,
+    pub embedding_model: String,
+    pub embedding_api_key: String,
+    pub embedding_base_url: String,
+    pub top_k: i64,
+    pub max_searches: i64,
+}
+
+/// Request size / cost guardrails pushed to the engine (Java `AiEngine.Limits`).
+#[derive(Clone, Debug)]
+pub struct AiEngineLimitsPush {
+    pub max_pages: i64,
+    pub max_characters: i64,
+    pub model_max_concurrency: i64,
+}
+
+/// The engine-relevant `aiEngine.*` configuration slice, with Java's built-in
+/// defaults as the `Default` value.
+#[derive(Clone, Debug)]
+pub struct AiEnginePushSettings {
+    pub enabled: bool,
+    /// Whether the processor pushes settings-derived AI config to the engine on
+    /// startup/save. Pinned false for env-driven deployments so the engine
+    /// stays env-controlled (Java `aiEngine.pushConfigToEngine`).
+    pub push_config_to_engine: bool,
+    pub models: AiEngineModelsPush,
+    pub rag: AiEngineRagPush,
+    pub limits: AiEngineLimitsPush,
+}
+
+impl Default for AiEnginePushSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            push_config_to_engine: true,
+            models: AiEngineModelsPush {
+                provider: DEFAULT_AI_MODEL_PROVIDER.to_owned(),
+                smart_model: DEFAULT_AI_SMART_MODEL.to_owned(),
+                fast_model: DEFAULT_AI_FAST_MODEL.to_owned(),
+                smart_max_tokens: 8_192,
+                fast_max_tokens: 2_048,
+                api_key: String::new(),
+                base_url: String::new(),
+            },
+            rag: AiEngineRagPush {
+                embedding_provider: DEFAULT_AI_EMBEDDING_PROVIDER.to_owned(),
+                embedding_model: DEFAULT_AI_EMBEDDING_MODEL.to_owned(),
+                embedding_api_key: String::new(),
+                embedding_base_url: String::new(),
+                top_k: 20,
+                max_searches: 5,
+            },
+            limits: AiEngineLimitsPush {
+                max_pages: 200,
+                max_characters: 200_000,
+                model_max_concurrency: 32,
+            },
+        }
+    }
+}
+
+/// Persisted install identity mirroring Java's
+/// `ApplicationProperties.AutomaticallyGenerated` section.
+#[derive(Clone, Debug)]
+pub struct GeneratedIdentity {
+    /// Stable installation UUID (`AutomaticallyGenerated.UUID`).
+    pub uuid: String,
+    /// Machine secret key (`AutomaticallyGenerated.key`).
+    pub key: String,
+    /// The version persisted for this boot (`AutomaticallyGenerated.appVersion`).
+    pub app_version: String,
+    /// Whether the settings file carried no prior version (Java
+    /// `InitialSetup.isNewServer`): empty or the `0.0.0` placeholder.
+    pub is_new_server: bool,
+}
+
 fn write_analytics_setting(settings_path: &Path, enabled: bool) -> Result<(), String> {
+    update_settings_file_values(
+        settings_path,
+        "system",
+        &[("enableAnalytics", serde_yaml::Value::Bool(enabled))],
+    )
+}
+
+/// Read-modify-write of `section.key` values in `settings.yml`, preserving
+/// every other key in the file (the Rust settings writers rewrite the YAML via
+/// `serde_yaml`, so comments do not survive — same as the admin settings API).
+/// An existing section or key whose spelling differs only by ASCII case is
+/// reused rather than duplicated, matching Java's relaxed binding reading
+/// either spelling back.
+fn update_settings_file_values(
+    settings_path: &Path,
+    section: &str,
+    entries: &[(&str, serde_yaml::Value)],
+) -> Result<(), String> {
     let contents = match fs::read_to_string(settings_path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
@@ -2384,7 +2670,7 @@ fn write_analytics_setting(settings_path: &Path, enabled: bool) -> Result<(), St
     } else {
         serde_yaml::from_str::<serde_yaml::Value>(&contents).map_err(|error| {
             format!(
-                "could not parse {} for analytics update: {error}",
+                "could not parse {} for a settings update: {error}",
                 settings_path.display()
             )
         })?
@@ -2395,34 +2681,102 @@ fn write_analytics_setting(settings_path: &Path, enabled: bool) -> Result<(), St
             settings_path.display()
         ));
     };
-    let system_key = serde_yaml::Value::String("system".to_owned());
-    if !root.contains_key(&system_key) {
+    let section_key = existing_yaml_key(root, section)
+        .unwrap_or_else(|| serde_yaml::Value::String(section.to_owned()));
+    if !root
+        .get(&section_key)
+        .is_some_and(serde_yaml::Value::is_mapping)
+    {
         root.insert(
-            system_key.clone(),
+            section_key.clone(),
             serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
         );
     }
-    let Some(system) = root
-        .get_mut(&system_key)
+    let Some(section_map) = root
+        .get_mut(&section_key)
         .and_then(serde_yaml::Value::as_mapping_mut)
     else {
         return Err(format!(
-            "could not update {} because system is not a mapping",
+            "could not update {} because {section} is not a mapping",
             settings_path.display()
         ));
     };
-    system.insert(
-        serde_yaml::Value::String("enableAnalytics".to_owned()),
-        serde_yaml::Value::Bool(enabled),
-    );
+    for (key, value) in entries {
+        let entry_key = existing_yaml_key(section_map, key)
+            .unwrap_or_else(|| serde_yaml::Value::String((*key).to_owned()));
+        section_map.insert(entry_key, value.clone());
+    }
     let serialized = serde_yaml::to_string(&settings).map_err(|error| {
         format!(
-            "could not serialize analytics update for {}: {error}",
+            "could not serialize a settings update for {}: {error}",
             settings_path.display()
         )
     })?;
+    if let Some(parent) = settings_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("could not create {}: {error}", parent.display()))?;
+    }
     fs::write(settings_path, serialized)
         .map_err(|error| format!("could not write {}: {error}", settings_path.display()))
+}
+
+fn existing_yaml_key(mapping: &serde_yaml::Mapping, name: &str) -> Option<serde_yaml::Value> {
+    mapping
+        .keys()
+        .find(|key| {
+            key.as_str()
+                .is_some_and(|key| key.eq_ignore_ascii_case(name))
+        })
+        .cloned()
+}
+
+/// Whether a persisted identity value passes Java's `GeneralUtils.isValidUUID`
+/// (`UUID.fromString`): five non-empty hyphen-separated hex groups within the
+/// canonical length. Java additionally tolerates over-long groups up to a
+/// signed-long overflow; those exotic spellings are regenerated once here into
+/// canonical form and stay stable afterwards.
+fn is_valid_settings_uuid(value: &str) -> bool {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 36 {
+        return false;
+    }
+    let groups: Vec<&str> = value.split('-').collect();
+    groups.len() == 5
+        && groups.iter().all(|group| {
+            !group.is_empty()
+                && group.len() <= 12
+                && group.bytes().all(|byte| byte.is_ascii_hexdigit())
+        })
+}
+
+fn random_uuid_v4() -> String {
+    use rand::RngExt as _;
+    let mut bytes = [0_u8; 16];
+    rand::rng().fill(&mut bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    format!(
+        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+        bytes[12],
+        bytes[13],
+        bytes[14],
+        bytes[15]
+    )
 }
 
 fn read_yaml_file(path: &Path) -> Result<Option<Value>, String> {
@@ -3623,5 +3977,209 @@ mod tests {
             Some("pdf-to-img".to_owned())
         );
         assert_eq!(endpoint_key_for_uri("/api/v1/general"), None);
+    }
+
+    #[test]
+    fn ai_engine_push_settings_carry_java_defaults_and_yaml_overrides()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let push = config.ai_engine_push_settings();
+        assert!(!push.enabled);
+        assert!(push.push_config_to_engine);
+        assert_eq!(push.models.provider, "anthropic");
+        assert_eq!(push.models.smart_model, "claude-haiku-4-5");
+        assert_eq!(push.models.fast_model, "claude-haiku-4-5");
+        assert_eq!(push.models.smart_max_tokens, 8_192);
+        assert_eq!(push.models.fast_max_tokens, 2_048);
+        assert_eq!(push.models.api_key, "");
+        assert_eq!(push.models.base_url, "");
+        assert_eq!(push.rag.embedding_provider, "voyageai");
+        assert_eq!(push.rag.embedding_model, "voyage-4");
+        assert_eq!(push.rag.top_k, 20);
+        assert_eq!(push.rag.max_searches, 5);
+        assert_eq!(push.limits.max_pages, 200);
+        assert_eq!(push.limits.max_characters, 200_000);
+        assert_eq!(push.limits.model_max_concurrency, 32);
+
+        fs::write(
+            &settings,
+            "aiEngine:\n  enabled: true\n  pushConfigToEngine: false\n  models:\n    provider: ollama\n    smartModel: qwen3\n    apiKey: sk-yaml\n  rag:\n    topK: 7\n  limits:\n    maxPages: 42\n",
+        )?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let push = config.ai_engine_push_settings();
+        assert!(push.enabled);
+        assert!(!push.push_config_to_engine);
+        assert_eq!(push.models.provider, "ollama");
+        assert_eq!(push.models.smart_model, "qwen3");
+        // Unset keys inside a configured section keep their Java defaults.
+        assert_eq!(push.models.fast_model, "claude-haiku-4-5");
+        assert_eq!(push.models.api_key, "sk-yaml");
+        assert_eq!(push.rag.top_k, 7);
+        assert_eq!(push.rag.max_searches, 5);
+        assert_eq!(push.limits.max_pages, 42);
+        Ok(())
+    }
+
+    #[test]
+    fn generated_identity_persists_once_and_is_stable_across_boots()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("configs").join("settings.yml");
+        fs::create_dir_all(settings.parent().ok_or("parent")?)?;
+        // Template-shaped file: placeholder identity plus an unrelated section
+        // that must survive the rewrite.
+        fs::write(
+            &settings,
+            "system:\n  defaultLocale: vi-VN\nAutomaticallyGenerated:\n  key: example\n  UUID: example\n  appVersion: 0.35.0\n",
+        )?;
+
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let identity = config.initialize_generated_identity()?;
+        assert!(super::is_valid_settings_uuid(&identity.uuid));
+        assert!(super::is_valid_settings_uuid(&identity.key));
+        assert_ne!(identity.uuid, identity.key);
+        assert_eq!(identity.app_version, env!("CARGO_PKG_VERSION"));
+        // Java parity: any pre-existing non-placeholder version (the template
+        // ships one) means this is not a brand-new server.
+        assert!(!identity.is_new_server);
+
+        let persisted: serde_json::Value = serde_yaml::from_str(&fs::read_to_string(&settings)?)?;
+        assert_eq!(
+            persisted["AutomaticallyGenerated"]["UUID"],
+            json!(identity.uuid)
+        );
+        assert_eq!(
+            persisted["AutomaticallyGenerated"]["key"],
+            json!(identity.key)
+        );
+        assert_eq!(
+            persisted["AutomaticallyGenerated"]["appVersion"],
+            json!(identity.app_version)
+        );
+        assert_eq!(persisted["system"]["defaultLocale"], json!("vi-VN"));
+
+        // Second boot: same identity, byte-identical file (idempotent — the
+        // template merge and repeated boots never churn the settings file).
+        let before = fs::read_to_string(&settings)?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let second = config.initialize_generated_identity()?;
+        assert_eq!(second.uuid, identity.uuid);
+        assert_eq!(second.key, identity.key);
+        assert!(!second.is_new_server);
+        assert_eq!(fs::read_to_string(&settings)?, before);
+        Ok(())
+    }
+
+    #[test]
+    fn generated_identity_marks_new_servers_and_creates_missing_files()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("configs").join("settings.yml");
+        // No settings file at all: identity is generated and the file created.
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let identity = config.initialize_generated_identity()?;
+        assert!(identity.is_new_server);
+        let persisted: serde_json::Value = serde_yaml::from_str(&fs::read_to_string(&settings)?)?;
+        assert_eq!(
+            persisted["AutomaticallyGenerated"]["UUID"],
+            json!(identity.uuid)
+        );
+
+        // A '0.0.0' placeholder version also marks a new server (Java rule).
+        let placeholder = directory.path().join("placeholder.yml");
+        fs::write(
+            &placeholder,
+            "AutomaticallyGenerated:\n  appVersion: 0.0.0\n",
+        )?;
+        let config = RuntimeConfig::from_files(&placeholder, directory.path().join("missing.yml"));
+        assert!(config.initialize_generated_identity()?.is_new_server);
+        Ok(())
+    }
+
+    #[test]
+    fn generated_identity_reuses_a_lowercase_section_spelling()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(
+            &settings,
+            "automaticallyGenerated:\n  UUID: 123e4567-e89b-12d3-a456-426614174000\n",
+        )?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let identity = config.initialize_generated_identity()?;
+        // The valid existing UUID is kept even under the relaxed spelling.
+        assert_eq!(identity.uuid, "123e4567-e89b-12d3-a456-426614174000");
+        let contents = fs::read_to_string(&settings)?;
+        // The writer reuses the existing section instead of duplicating it.
+        assert!(!contents.contains("AutomaticallyGenerated:"));
+        let persisted: serde_json::Value = serde_yaml::from_str(&contents)?;
+        assert_eq!(
+            persisted["automaticallyGenerated"]["UUID"],
+            json!("123e4567-e89b-12d3-a456-426614174000")
+        );
+        assert_eq!(
+            persisted["automaticallyGenerated"]["key"],
+            json!(identity.key)
+        );
+        Ok(())
+    }
+
+    // TESTER: hostile settings shapes must never panic or corrupt sibling
+    // sections — a malformed `AutomaticallyGenerated` node is repaired, and a
+    // non-mapping document fails cleanly so the caller stays fail-open.
+    #[test]
+    fn generated_identity_survives_hostile_settings_shapes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+
+        // Section present but a scalar: repaired into a mapping, siblings kept.
+        let scalar_section = directory.path().join("scalar.yml");
+        fs::write(
+            &scalar_section,
+            "system:\n  defaultLocale: en-GB\nAutomaticallyGenerated: 42\n",
+        )?;
+        let config =
+            RuntimeConfig::from_files(&scalar_section, directory.path().join("missing.yml"));
+        let identity = config.initialize_generated_identity()?;
+        assert!(super::is_valid_settings_uuid(&identity.uuid));
+        let persisted: serde_json::Value =
+            serde_yaml::from_str(&fs::read_to_string(&scalar_section)?)?;
+        assert_eq!(
+            persisted["AutomaticallyGenerated"]["UUID"],
+            json!(identity.uuid)
+        );
+        assert_eq!(persisted["system"]["defaultLocale"], json!("en-GB"));
+
+        // Whole document is not a mapping: a clean error, no partial write.
+        let sequence_root = directory.path().join("sequence.yml");
+        fs::write(&sequence_root, "- not\n- a\n- mapping\n")?;
+        let before = fs::read_to_string(&sequence_root)?;
+        let config =
+            RuntimeConfig::from_files(&sequence_root, directory.path().join("missing.yml"));
+        assert!(config.initialize_generated_identity().is_err());
+        assert_eq!(fs::read_to_string(&sequence_root)?, before);
+        Ok(())
+    }
+
+    #[test]
+    fn settings_uuid_validation_matches_java_shapes() {
+        assert!(super::is_valid_settings_uuid(
+            "123e4567-e89b-12d3-a456-426614174000"
+        ));
+        // Java's UUID.fromString accepts short hex groups.
+        assert!(super::is_valid_settings_uuid("1-1-1-1-1"));
+        for invalid in [
+            "",
+            "example",
+            "123e4567e89b12d3a456426614174000",
+            "123e4567-e89b-12d3-a456",
+            "123e4567-e89b-12d3-a456-42661417400g",
+            "123e4567-e89b-12d3-a456-426614174000-extra",
+        ] {
+            assert!(!super::is_valid_settings_uuid(invalid), "{invalid:?}");
+        }
     }
 }

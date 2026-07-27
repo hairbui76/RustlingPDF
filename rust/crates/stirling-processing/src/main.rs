@@ -19,11 +19,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     desktop_settings::initialize_from_environment()?;
-    if RuntimeConfig::from_environment().security_mode_is_requested()? {
+    let bootstrap_config = RuntimeConfig::from_environment();
+    if bootstrap_config.security_mode_is_requested()? {
         return Err(std::io::Error::other(
             "secured login mode is not supported by the Rust runtime yet; refusing to start without authentication and authorization middleware",
         )
         .into());
+    }
+    // Persist the install identity (Java `InitialSetup`): a stable UUID and
+    // machine key in AutomaticallyGenerated.* plus the running app version.
+    // Unlike Java this is fail-open — a read-only settings file only costs
+    // identity stability across restarts, never startup.
+    match bootstrap_config.initialize_generated_identity() {
+        Ok(identity) => info!(
+            uuid = %identity.uuid,
+            app_version = %identity.app_version,
+            is_new_server = identity.is_new_server,
+            "install identity ready"
+        ),
+        Err(error) => tracing::warn!(
+            %error,
+            "could not persist the generated install identity; continuing with an ephemeral one"
+        ),
     }
     let parent_process = parent_process::ParentProcessWatcher::from_environment()?;
 

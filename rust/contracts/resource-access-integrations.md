@@ -49,6 +49,17 @@ with Java's AES-256-GCM row format: standard Base64 of `12-byte IV || ciphertext
 without AAD or a version prefix. This is deliberately separate from Rust's purpose-bound
 `enc:v1:` security-secret format.
 
+Legacy plaintext rows are handled in two layers, never destructively. A one-time lazy migration at
+store open (`migrate_plaintext_secret_rows`) re-encrypts any row in
+`integration_configs.config_encrypted`, `policy_sources.source_json`, or `policies.policy_json`
+that is valid plaintext JSON (`{`/`[` can never begin our Base64 ciphertext); rows that are neither
+our ciphertext nor parseable JSON — foreign ciphertext from a key we don't hold, or truncated
+JSON — are left byte-for-byte untouched, exactly as Java's `LegacyDecryptStringConverter` leaves
+them for the caller to reject. During the transition (an older build writing while a newer one
+reads the same database) the integration read path also passes plaintext-JSON rows through instead
+of erroring, so no data is ever lost to the upgrade; undecryptable non-JSON still fails the read,
+matching Java's `EncryptedStringConverter`.
+
 Sensitive key names are masked recursively as exactly `********`. A masked/blank sensitive update
 preserves the stored value; absent keys are removed under PUT replacement semantics; nested
 non-sensitive maps merge. Payload size and depth are bounded. S3 save validation is enabled only

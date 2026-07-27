@@ -31,6 +31,17 @@ restart. This matches Java's restart-pending semantics.
 | `PUT` | `/api/v1/admin/settings/key/{key}` | `AdminSettingsController.updateSettingValue` | JSON `{ value }`; plain-text success message. |
 | `POST` | `/api/v1/admin/settings/restart` | `AdminSettingsController.restartApplication` | See divergence below. |
 
+After a **successful bulk save** (`PUT /api/v1/admin/settings`) that touched
+any `aiEngine.*` key, the processor forwards the accumulated pending
+`aiEngine.*` changes to the engine's `POST /api/v1/config` — Java
+`AdminSettingsController.maybePushAiEngineLive` → `AiEngineConfigSync.pushLiveAfterSave`.
+Exactly like Java, section (`PUT …/section/{section}`) and single-key
+(`PUT …/key/{key}`) saves do **not** trigger the push; their values still ride
+along on the next bulk save because the accumulated pending delta is sent.
+The push is best-effort and asynchronous: it can never fail or delay the save
+response. See `contracts/ai-proxy.md` ("Processor→engine config push") for the
+payload rules and the startup push.
+
 That is 5 `.route()` registrations / 8 method+path pairs (PORT_STATUS's
 "delta/section/key (5)" counts the same five registrations, `restart`
 included). The sibling read-only
