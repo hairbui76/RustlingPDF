@@ -430,7 +430,9 @@ systems.
       `Location` a protocol-relative path would be an attacker-settable open
       redirect; Java's failure path has that hole). Every callback redirect —
       success or failure — clears the cookie with Java's exact clearing
-      attributes: `stirling_redirect_path=; Path=/; Max-Age=0; SameSite=Lax`.
+      attributes (Spring's `ResponseCookie#toString` emits `Expires` directly
+      after a non-negative `Max-Age`): `stirling_redirect_path=; Path=/;
+      Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`.
     - **`origin`** is resolved context-aware with Java's exact precedence
       (`buildContextAwareRedirectUrl`): `X-Forwarded-Host` (first
       comma-separated entry; scheme from the first `X-Forwarded-Proto` entry,

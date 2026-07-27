@@ -27,10 +27,11 @@ async fn administrator_manages_the_live_license_lifecycle() -> Result<(), Box<dy
     let config_directory = directory.path().join("configs");
     fs::create_dir_all(&config_directory)?;
     let settings_path = config_directory.join("settings.yml");
-    fs::write(
-        &settings_path,
-        "premium:\n  enabled: false\n  key: ''\n  maxUsers: 5\n",
-    )?;
+    // Comments seed the file so the byte-identity assertions below prove the
+    // license writer goes through the comment-preserving settings editor.
+    let seeded_settings = "# license banner\npremium:\n  enabled: false # keep this comment\n  \
+key: '' # key comment\n  maxUsers: 5\n";
+    fs::write(&settings_path, seeded_settings)?;
 
     let store = SecurityStore::open(&config_directory.join("security.db"))?;
     assert!(store.bootstrap_admin("admin@example.test", "test-only-password")?);
@@ -162,9 +163,13 @@ async fn administrator_manages_the_live_license_lifecycle() -> Result<(), Box<dy
             "message": "License key saved and activated",
         })
     );
-    let persisted: Value = serde_yaml::from_str(&fs::read_to_string(&settings_path)?)?;
+    let persisted_text = fs::read_to_string(&settings_path)?;
+    let persisted: Value = serde_yaml::from_str(&persisted_text)?;
     assert_eq!(persisted["premium"]["key"], "");
     assert_eq!(persisted["premium"]["enabled"], false);
+    // The cleared save rewrote `key`/`enabled` to their existing values, so
+    // the file — comments included — must be byte-identical to the seed.
+    assert_eq!(persisted_text, seeded_settings);
 
     let no_key_resync = send(
         &app,
@@ -265,6 +270,13 @@ async fn administrator_manages_the_live_license_lifecycle() -> Result<(), Box<dy
     assert_eq!(after_upload["enabled"], true);
     assert_eq!(after_upload["hasKey"], true);
     assert_eq!(after_upload["licenseKey"], "file:configs/offline.lic");
+    // The uploads rewrote only the `key` value span (in the file's own quoting
+    // style); every comment and untouched line keeps its exact bytes.
+    assert_eq!(
+        fs::read_to_string(&settings_path)?,
+        "# license banner\npremium:\n  enabled: false # keep this comment\n  \
+key: 'file:configs/offline.lic' # key comment\n  maxUsers: 5\n"
+    );
 
     let app_config = response_json(
         send(

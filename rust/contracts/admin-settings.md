@@ -73,6 +73,54 @@ recorded in the in-memory pending map. `persist_immediate` is an internal
 variant used by license activation to write without joining the
 pending-restart delta, matching Java's immediate application of those values.
 
+**Comment preservation.** The file write goes through the shared
+comment-preserving settings editor (`settings_yaml`, the same machinery the
+install-identity writer uses), not a serde round-trip: only the targeted
+value lines change and every other byte — comments, blank lines, key order,
+quoting style — survives each save, matching Java's snakeyaml
+`parseComments`/`dumpComments` persistence (`GeneralUtils.
+updateSettingsTransactional` via `YamlHelper`). Consequences, each pinned by
+tests:
+
+- Existing keys are rewritten in place (ASCII-case-insensitively); missing
+  keys — at any dotted depth — are inserted at the end of their nearest
+  existing ancestor mapping, creating intermediate openers as needed. (Java
+  only updates keys already present in the file; inserting missing ones is a
+  deliberate, kept Rust improvement.)
+- A JSON **object** value is decomposed into one nested leaf per scalar with
+  **merge** semantics: sibling keys already in the file survive (the serde
+  writer used to replace the whole subtree). This is a deliberate, documented
+  divergence from Java's `YamlHelper.updateValue`, which replaces the whole
+  subtree with a freshly built block `MappingNode`. Object keys must be
+  plain-safe path segments (ASCII alphanumeric/`_`/`-`, no `.`).
+- Values with no single-line inline YAML rendering — multi-line strings,
+  empty objects, arrays containing objects — are rejected `400 Invalid`, the
+  same refusal `settings_yaml` applies everywhere.
+- A settings file whose root is a populated flow collection (`{a: 1}` /
+  `[…]`) or not a mapping at all cannot be edited in place: the save fails
+  `500 { "error": "the settings file cannot be updated in place: …" }` and
+  the file is left byte-for-byte untouched (the serde writer used to corrupt
+  or silently replace such files). A file that is exactly `{}` — the old
+  serde writer's empty output — is treated as empty and rebuilt as a block
+  mapping. Replacing an existing nested block mapping with a scalar leaf is
+  refused the same way.
+- Hand-edited block shapes the inline editor cannot rewrite refuse the same
+  `500` way with the file untouched: a targeted leaf (or any key on the
+  path) holding a **block scalar** (`key: |` / `key: >` — rewriting only the
+  indicator would fold the continuation lines into the new value, silently
+  persisting the wrong data; Java's snakeyaml replaces the whole scalar node,
+  so refusal is a deliberate conservative divergence), and a mapping on the
+  path holding **block-sequence** children (`- item` lines that inserted
+  mapping keys cannot join). The stock settings template contains neither
+  shape.
+- Before any byte reaches disk the edited text is reparsed: it must still be
+  a YAML mapping **and every targeted leaf must read back as exactly the
+  requested value** (a final proof against silent wrong-value persistence);
+  a failed proof is the same `500` with the file untouched. The write itself
+  keeps all prior hardening (symlink refusal, 2 MiB cap, `0o600` mode,
+  fsync, serialized write lock). Lines inserted into a CRLF file use CRLF,
+  so a save never introduces mixed line endings.
+
 **Restart divergence.** `POST /restart` intentionally returns
 `503 { "error": "In-process restart is unavailable…" }` instead of Java's
 Spring-context restart: the Rust process expects its supervisor (container

@@ -101,7 +101,10 @@ routes:
 Key saves trim with Java `String.trim` semantics, persist `premium.key` before
 verification, update dynamic status immediately, and persist the resulting
 `premium.enabled` plus valid `premium.maxUsers` values through the same serialized
-settings writer as administrator configuration. Empty input clears a key. The
+settings writer as administrator configuration — the comment-preserving
+editor (`contracts/admin-settings.md`, "Comment preservation"), so a license
+save rewrites only the targeted `premium.*` value spans and every comment and
+untouched line in `settings.yml` keeps its exact bytes. Empty input clears a key. The
 response preserves Java's live-property quirk: an invalid key writes
 `premium.enabled=false` while the current response still reports `enabled=true`.
 `license-info` deliberately returns the configured key because the entire route

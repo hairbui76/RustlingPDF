@@ -299,8 +299,11 @@ fn query_param(url: &str, key: &str) -> Option<String> {
 const FAILURE_LOCATION: &str = "/auth/callback?errorOAuth=oauth2AuthenticationError";
 
 /// The `Set-Cookie` clearing the SPA redirect-path cookie, sent on every
-/// browser redirect (success and failure) with Java's exact attributes.
-const CLEARED_REDIRECT_COOKIE: &str = "stirling_redirect_path=; Path=/; Max-Age=0; SameSite=Lax";
+/// browser redirect (success and failure) with Java's exact attributes —
+/// including the `Expires` segment Spring's `ResponseCookie#toString` emits
+/// right after a non-negative `Max-Age`.
+const CLEARED_REDIRECT_COOKIE: &str = "stirling_redirect_path=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; \
+     SameSite=Lax";
 
 fn location_header(response: &axum::response::Response) -> Option<String> {
     Some(

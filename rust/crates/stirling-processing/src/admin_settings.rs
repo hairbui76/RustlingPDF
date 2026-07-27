@@ -88,6 +88,8 @@ pub(crate) enum AdminSettingsError {
     Io(#[from] std::io::Error),
     #[error("failed to parse or serialize settings")]
     Serialization,
+    #[error("the settings file cannot be updated in place: {0}")]
+    Unwritable(String),
 }
 
 #[derive(Debug, Deserialize)]
@@ -293,16 +295,62 @@ impl AdminSettingsService {
         self.update_many(updates).map(|applied| applied.len())
     }
 
+    /// Read-modify-write of the settings file through the comment-preserving
+    /// editor ([`crate::settings_yaml`]): only the targeted value lines
+    /// change, every other byte — comments, blank lines, key order — is
+    /// preserved, matching Java's snakeyaml writer
+    /// (`GeneralUtils.updateSettingsTransactional` via `YamlHelper`, which
+    /// round-trips comments). The serde round-trip this replaces destroyed
+    /// every comment on each administrator save.
     fn persist_updates(&self, updates: &BTreeMap<String, Value>) -> Result<(), AdminSettingsError> {
         let _guard = self
             .write_lock
             .lock()
             .map_err(|_| AdminSettingsError::Poisoned)?;
-        let mut settings = read_settings(&self.settings_path)?;
-        for (key, value) in updates {
-            set_dot_value(&mut settings, key, value.clone())?;
+        let contents = read_settings_text(&self.settings_path)?;
+        if !contents.trim().is_empty() {
+            let parsed: serde_yaml::Value =
+                serde_yaml::from_str(&contents).map_err(|_| AdminSettingsError::Serialization)?;
+            if !parsed.is_mapping() {
+                return Err(AdminSettingsError::Unwritable(
+                    "the settings file root is not a mapping".to_owned(),
+                ));
+            }
         }
-        write_settings(&self.settings_path, &settings)
+        let dotted = flatten_dotted_updates(updates)?;
+        let edited = crate::settings_yaml::upsert_dotted_values(&contents, &dotted)
+            .map_err(AdminSettingsError::Unwritable)?;
+        if edited == contents {
+            return Ok(());
+        }
+        // Prove the edited text still reparses as a YAML mapping AND that
+        // every targeted leaf reads back as the requested value before any
+        // byte reaches disk: an editor defect must fail the save, never
+        // corrupt the file — and never report success while persisting a
+        // different value (e.g. surrounding block structure absorbing a
+        // rewritten leaf into a folded multiline scalar).
+        let reparsed: serde_yaml::Value = serde_yaml::from_str(&edited).map_err(|_| {
+            AdminSettingsError::Unwritable(
+                "the edited settings would no longer parse as YAML; the file was left untouched"
+                    .to_owned(),
+            )
+        })?;
+        if !reparsed.is_mapping() {
+            return Err(AdminSettingsError::Unwritable(
+                "the edited settings root would no longer be a mapping; the file was left \
+                 untouched"
+                    .to_owned(),
+            ));
+        }
+        for (path, expected) in &dotted {
+            if yaml_leaf_at(&reparsed, path) != Some(expected) {
+                return Err(AdminSettingsError::Unwritable(format!(
+                    "the edited settings would not read back the requested value for {path}; the \
+                     file was left untouched"
+                )));
+            }
+        }
+        write_settings_text(&self.settings_path, &edited)
     }
 
     fn pending(
@@ -437,7 +485,8 @@ fn settings_error_response(error: &AdminSettingsError) -> Response {
         AdminSettingsError::Invalid | AdminSettingsError::Missing => StatusCode::BAD_REQUEST,
         AdminSettingsError::Poisoned
         | AdminSettingsError::Io(_)
-        | AdminSettingsError::Serialization => StatusCode::INTERNAL_SERVER_ERROR,
+        | AdminSettingsError::Serialization
+        | AdminSettingsError::Unwritable(_) => StatusCode::INTERNAL_SERVER_ERROR,
     };
     (status, Json(json!({ "error": error.to_string() }))).into_response()
 }
@@ -536,7 +585,80 @@ fn validate_pipeline_paths(value: &Value) -> Result<(), AdminSettingsError> {
     Ok(())
 }
 
-fn read_settings(path: &Path) -> Result<Value, AdminSettingsError> {
+/// Decomposes update values into inline-renderable dotted leaves for the
+/// comment-preserving writer: a JSON object value becomes one leaf per nested
+/// scalar with MERGE semantics — sibling keys already in the file survive.
+/// This is a documented divergence from Java's `YamlHelper.updateValue`,
+/// which REPLACES the whole subtree with a freshly built block `MappingNode`
+/// (see `contracts/admin-settings.md`). Scalars and arrays stay one leaf
+/// each. Object keys must be plain-safe path segments and every leaf must
+/// render as inline YAML; violations are `Invalid`, the same refusal the
+/// editor applies to values with no inline rendering.
+fn flatten_dotted_updates(
+    updates: &BTreeMap<String, Value>,
+) -> Result<Vec<(String, serde_yaml::Value)>, AdminSettingsError> {
+    let mut leaves = Vec::new();
+    for (key, value) in updates {
+        flatten_dotted_value(key, value, &mut leaves)?;
+    }
+    Ok(leaves)
+}
+
+fn flatten_dotted_value(
+    path: &str,
+    value: &Value,
+    leaves: &mut Vec<(String, serde_yaml::Value)>,
+) -> Result<(), AdminSettingsError> {
+    if let Value::Object(entries) = value {
+        // An empty object carries no leaves the inline editor could write.
+        if entries.is_empty() {
+            return Err(AdminSettingsError::Invalid);
+        }
+        for (key, value) in entries {
+            if !is_plain_path_segment(key) {
+                return Err(AdminSettingsError::Invalid);
+            }
+            flatten_dotted_value(&format!("{path}.{key}"), value, leaves)?;
+        }
+        return Ok(());
+    }
+    let value = serde_yaml::to_value(value).map_err(|_| AdminSettingsError::Serialization)?;
+    if !crate::settings_yaml::renders_inline(&value) {
+        return Err(AdminSettingsError::Invalid);
+    }
+    leaves.push((path.to_owned(), value));
+    Ok(())
+}
+
+/// Case-insensitive dotted-path lookup in a parsed YAML document, mirroring
+/// the editor's relaxed key matching. Used to prove each targeted leaf reads
+/// back as exactly the requested value before the edited text reaches disk.
+fn yaml_leaf_at<'a>(root: &'a serde_yaml::Value, path: &str) -> Option<&'a serde_yaml::Value> {
+    path.split('.').try_fold(root, |current, segment| {
+        current.as_mapping().and_then(|map| {
+            map.iter().find_map(|(key, value)| {
+                key.as_str()
+                    .is_some_and(|key| key.eq_ignore_ascii_case(segment))
+                    .then_some(value)
+            })
+        })
+    })
+}
+
+/// Whether an object key can join a dotted settings path verbatim: non-empty
+/// ASCII alphanumerics plus `_`/`-` (notably no `.`, which would silently
+/// change the path structure).
+fn is_plain_path_segment(segment: &str) -> bool {
+    !segment.is_empty()
+        && segment
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
+/// Reads the settings file as text with the write-path hardening: symlinks and
+/// non-regular files are refused, the size cap applies, and a missing file
+/// reads as empty.
+fn read_settings_text(path: &Path) -> Result<String, AdminSettingsError> {
     match fs::symlink_metadata(path) {
         Ok(metadata) => {
             if metadata.file_type().is_symlink()
@@ -545,21 +667,14 @@ fn read_settings(path: &Path) -> Result<Value, AdminSettingsError> {
             {
                 return Err(AdminSettingsError::Invalid);
             }
-            let contents = fs::read_to_string(path)?;
-            if contents.trim().is_empty() {
-                Ok(Value::Object(Map::new()))
-            } else {
-                serde_yaml::from_str(&contents).map_err(|_| AdminSettingsError::Serialization)
-            }
+            Ok(fs::read_to_string(path)?)
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Value::Object(Map::new())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
         Err(error) => Err(AdminSettingsError::Io(error)),
     }
 }
 
-fn write_settings(path: &Path, settings: &Value) -> Result<(), AdminSettingsError> {
-    let contents =
-        serde_yaml::to_string(settings).map_err(|_| AdminSettingsError::Serialization)?;
+fn write_settings_text(path: &Path, contents: &str) -> Result<(), AdminSettingsError> {
     if u64::try_from(contents.len()).unwrap_or(u64::MAX) > SETTINGS_FILE_LIMIT {
         return Err(AdminSettingsError::Invalid);
     }
@@ -752,6 +867,139 @@ mod tests {
             )])),
             Err(AdminSettingsError::Invalid)
         ));
+        Ok(())
+    }
+
+    // TESTER: the writer must behave like Java's snakeyaml persistence — a
+    // save touches only the targeted value lines and every comment, blank
+    // line, and untouched key keeps its exact bytes.
+    #[test]
+    fn saves_preserve_comments_and_insert_deep_paths_in_place()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let path = directory.path().join("settings.yml");
+        let seed = "# main banner\nui:\n  appName: Old # inline note\n\n# security banner\n\
+security:\n  oauth2:\n    clientSecret: old-secret\n";
+        fs::write(&path, seed)?;
+        let loaded = serde_yaml::from_str(&fs::read_to_string(&path)?)?;
+        let service = AdminSettingsService::new(path.clone(), loaded);
+        service.update_many(BTreeMap::from([
+            ("ui.appName".to_owned(), json!("New")),
+            // A deep path absent from the file: inserted under the existing
+            // ancestor with intermediate openers, comments untouched.
+            ("security.oauth2.client.scope".to_owned(), json!("openid")),
+        ]))?;
+        assert_eq!(
+            fs::read_to_string(&path)?,
+            "# main banner\nui:\n  appName: New # inline note\n\n# security banner\n\
+security:\n  oauth2:\n    clientSecret: old-secret\n    client:\n      scope: openid\n"
+        );
+
+        // An object value flattens into nested leaves (merge semantics):
+        // clientSecret survives a sibling-only object update.
+        service.update_many(BTreeMap::from([(
+            "security.oauth2".to_owned(),
+            json!({ "issuer": "https://idp.example" }),
+        )]))?;
+        let persisted: serde_json::Value = serde_yaml::from_str(&fs::read_to_string(&path)?)?;
+        assert_eq!(
+            persisted["security"]["oauth2"]["clientSecret"],
+            "old-secret"
+        );
+        assert_eq!(
+            persisted["security"]["oauth2"]["issuer"],
+            "https://idp.example"
+        );
+        Ok(())
+    }
+
+    // TESTER: a settings file whose root is a populated flow collection has no
+    // block structure the comment-preserving editor can extend; the save must
+    // refuse (500 surface) and leave the file bytes untouched.
+    #[test]
+    fn saves_refuse_a_flow_root_settings_file_without_touching_it()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let path = directory.path().join("settings.yml");
+        let seed = "{ui: {appName: Old}}\n";
+        fs::write(&path, seed)?;
+        let loaded = serde_yaml::from_str(&fs::read_to_string(&path)?)?;
+        let service = AdminSettingsService::new(path.clone(), loaded);
+        assert!(matches!(
+            service.update_many(BTreeMap::from([("ui.appName".to_owned(), json!("New"))])),
+            Err(AdminSettingsError::Unwritable(_))
+        ));
+        assert_eq!(fs::read_to_string(&path)?, seed);
+
+        // A non-mapping root (block sequence) refuses the same way instead of
+        // being silently replaced, as the serde writer used to do.
+        fs::write(&path, "- not\n- a\n- mapping\n")?;
+        assert!(matches!(
+            service.update_many(BTreeMap::from([("ui.appName".to_owned(), json!("New"))])),
+            Err(AdminSettingsError::Unwritable(_))
+        ));
+        assert_eq!(fs::read_to_string(&path)?, "- not\n- a\n- mapping\n");
+        Ok(())
+    }
+
+    // TESTER: a leaf holding a block scalar must refuse the save (500
+    // Unwritable) with the file untouched. Rewriting only the `|` indicator
+    // used to report success while the continuation lines folded into the new
+    // value — valid YAML silently carrying the WRONG data. (Java's snakeyaml
+    // replaces the whole scalar node; refusing this hand-edited shape is the
+    // documented conservative divergence.) A section holding a block sequence
+    // refuses the same way: mapping keys cannot join `- item` children.
+    #[test]
+    fn saves_refuse_block_scalar_leaves_and_block_sequence_sections()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let path = directory.path().join("settings.yml");
+        let block_scalar = "ui:\n  appName: |\n    abc\n    def\n";
+        fs::write(&path, block_scalar)?;
+        let loaded = serde_yaml::from_str(&fs::read_to_string(&path)?)?;
+        let service = AdminSettingsService::new(path.clone(), loaded);
+        assert!(matches!(
+            service.update_many(BTreeMap::from([("ui.appName".to_owned(), json!("New"))])),
+            Err(AdminSettingsError::Unwritable(_))
+        ));
+        assert_eq!(fs::read_to_string(&path)?, block_scalar);
+
+        let block_sequence = "ui:\n  - 1\n  - 2\n";
+        fs::write(&path, block_sequence)?;
+        assert!(matches!(
+            service.update_many(BTreeMap::from([("ui.appName".to_owned(), json!("New"))])),
+            Err(AdminSettingsError::Unwritable(_))
+        ));
+        assert_eq!(fs::read_to_string(&path)?, block_sequence);
+        Ok(())
+    }
+
+    // TESTER: values outside the inline-writable scope are refused as Invalid
+    // (400) before any byte reaches disk.
+    #[test]
+    fn saves_reject_values_the_inline_editor_cannot_write() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempdir()?;
+        let path = directory.path().join("settings.yml");
+        fs::write(&path, "ui:\n  appName: Old\n")?;
+        let seed = fs::read_to_string(&path)?;
+        let service = AdminSettingsService::new(path.clone(), json!({}));
+        for value in [
+            json!("two\nlines"),         // multi-line string
+            json!({}),                   // empty object: no leaves to write
+            json!({ "a.b": 1 }),         // dotted object key would change structure
+            json!({ "bad key": 1 }),     // not a plain-safe YAML key
+            json!([{ "nested": true }]), // array of objects has no inline form
+        ] {
+            assert!(
+                matches!(
+                    service.update_many(BTreeMap::from([("ui.appName".to_owned(), value.clone())])),
+                    Err(AdminSettingsError::Invalid)
+                ),
+                "must reject {value}"
+            );
+        }
+        assert_eq!(fs::read_to_string(&path)?, seed);
         Ok(())
     }
 
