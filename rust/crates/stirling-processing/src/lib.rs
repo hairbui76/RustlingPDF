@@ -129,6 +129,7 @@ pub mod security_http;
 pub mod security_jwt;
 pub mod security_policy;
 mod server_certificate;
+pub mod settings_yaml;
 pub mod signature_assets;
 pub mod signing_key;
 mod smtp_mail;

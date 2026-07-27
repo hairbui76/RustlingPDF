@@ -1870,7 +1870,10 @@ impl RuntimeConfig {
             self.generated_setting("appVersion", "AUTOMATICALLYGENERATED_APPVERSION");
         let is_new_server =
             existing_version.trim().is_empty() || existing_version.trim() == "0.0.0";
-        let app_version = env!("CARGO_PKG_VERSION").to_owned();
+        // Java persists the application version from `version.properties`; the
+        // Rust equivalent is `application_version()` (backed by the repo VERSION
+        // file), NOT the crate version.
+        let app_version = crate::runtime_metrics::application_version().to_owned();
 
         let mut writes: Vec<(&str, serde_yaml::Value)> = Vec::new();
         let uuid = if is_valid_settings_uuid(&existing_uuid) {
@@ -2352,6 +2355,22 @@ impl RuntimeConfig {
     }
 
     fn from_paths(settings_path: PathBuf, custom_settings_path: &Path) -> Self {
+        Self::from_paths_with_desktop_login_override(
+            settings_path,
+            custom_settings_path,
+            desktop_mode_from_environment(),
+        )
+    }
+
+    /// `force_login_disabled` carries the desktop launcher's login override
+    /// (see [`disable_login_setting`]); [`Self::from_paths`] derives it from
+    /// `STIRLING_PDF_TAURI_MODE`, and taking it as a parameter keeps the
+    /// override unit-testable without mutating process environment.
+    fn from_paths_with_desktop_login_override(
+        settings_path: PathBuf,
+        custom_settings_path: &Path,
+        force_login_disabled: bool,
+    ) -> Self {
         let custom_files_dir = custom_files_dir(&settings_path);
         let mut settings = Value::Object(Map::new());
         let mut errors = Vec::new();
@@ -2361,6 +2380,9 @@ impl RuntimeConfig {
                 Ok(None) => {}
                 Err(error) => errors.push(error),
             }
+        }
+        if force_login_disabled {
+            disable_login_setting(&mut settings);
         }
         Self {
             settings,
@@ -2644,12 +2666,17 @@ fn write_analytics_setting(settings_path: &Path, enabled: bool) -> Result<(), St
     )
 }
 
-/// Read-modify-write of `section.key` values in `settings.yml`, preserving
-/// every other key in the file (the Rust settings writers rewrite the YAML via
-/// `serde_yaml`, so comments do not survive — same as the admin settings API).
-/// An existing section or key whose spelling differs only by ASCII case is
-/// reused rather than duplicated, matching Java's relaxed binding reading
-/// either spelling back.
+/// Read-modify-write of `section.key` values in `settings.yml` that preserves
+/// every other byte of the file — comments, blank lines, key order and
+/// formatting — by rewriting only the targeted value lines through the shared
+/// comment-preserving editor ([`crate::settings_yaml`]). This matches Java's
+/// writer (`GeneralUtils.saveKeyToSettings` via `YamlHelper`, whose snakeyaml
+/// round-trips comments): a first boot rewrites just the value portion of the
+/// template's `AutomaticallyGenerated` lines and keeps the banner and every
+/// comment intact. An existing section or key whose spelling differs only by
+/// ASCII case is reused rather than duplicated, matching Java's relaxed
+/// binding reading either spelling back; keys the file lacks are inserted into
+/// the section, and a missing section (or file) is created.
 fn update_settings_file_values(
     settings_path: &Path,
     section: &str,
@@ -2665,53 +2692,25 @@ fn update_settings_file_values(
             ));
         }
     };
-    let mut settings = if contents.trim().is_empty() {
-        serde_yaml::Value::Mapping(serde_yaml::Mapping::new())
-    } else {
-        serde_yaml::from_str::<serde_yaml::Value>(&contents).map_err(|error| {
+    if !contents.trim().is_empty() {
+        let parsed = serde_yaml::from_str::<serde_yaml::Value>(&contents).map_err(|error| {
             format!(
                 "could not parse {} for a settings update: {error}",
                 settings_path.display()
             )
-        })?
-    };
-    let Some(root) = settings.as_mapping_mut() else {
-        return Err(format!(
-            "could not update {} because its root is not a mapping",
-            settings_path.display()
-        ));
-    };
-    let section_key = existing_yaml_key(root, section)
-        .unwrap_or_else(|| serde_yaml::Value::String(section.to_owned()));
-    if !root
-        .get(&section_key)
-        .is_some_and(serde_yaml::Value::is_mapping)
-    {
-        root.insert(
-            section_key.clone(),
-            serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
-        );
+        })?;
+        if !parsed.is_mapping() {
+            return Err(format!(
+                "could not update {} because its root is not a mapping",
+                settings_path.display()
+            ));
+        }
     }
-    let Some(section_map) = root
-        .get_mut(&section_key)
-        .and_then(serde_yaml::Value::as_mapping_mut)
-    else {
-        return Err(format!(
-            "could not update {} because {section} is not a mapping",
-            settings_path.display()
-        ));
-    };
-    for (key, value) in entries {
-        let entry_key = existing_yaml_key(section_map, key)
-            .unwrap_or_else(|| serde_yaml::Value::String((*key).to_owned()));
-        section_map.insert(entry_key, value.clone());
+    let updated = crate::settings_yaml::upsert_section_values(&contents, section, entries)
+        .map_err(|error| format!("could not update {}: {error}", settings_path.display()))?;
+    if updated == contents {
+        return Ok(());
     }
-    let serialized = serde_yaml::to_string(&settings).map_err(|error| {
-        format!(
-            "could not serialize a settings update for {}: {error}",
-            settings_path.display()
-        )
-    })?;
     if let Some(parent) = settings_path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -2719,18 +2718,8 @@ fn update_settings_file_values(
         fs::create_dir_all(parent)
             .map_err(|error| format!("could not create {}: {error}", parent.display()))?;
     }
-    fs::write(settings_path, serialized)
+    fs::write(settings_path, updated)
         .map_err(|error| format!("could not write {}: {error}", settings_path.display()))
-}
-
-fn existing_yaml_key(mapping: &serde_yaml::Mapping, name: &str) -> Option<serde_yaml::Value> {
-    mapping
-        .keys()
-        .find(|key| {
-            key.as_str()
-                .is_some_and(|key| key.eq_ignore_ascii_case(name))
-        })
-        .cloned()
 }
 
 /// Whether a persisted identity value passes Java's `GeneralUtils.isValidUUID`
@@ -2785,8 +2774,18 @@ fn read_yaml_file(path: &Path) -> Result<Option<Value>, String> {
     }
     let contents = fs::read_to_string(path)
         .map_err(|error| format!("could not read {}: {error}", path.display()))?;
+    // An empty document — zero bytes, whitespace, or comments only — parses to
+    // YAML `null`. Treat it as an absent file rather than a value: desktop
+    // startup always creates a zero-byte `custom_settings.yml`, and merging a
+    // `Null` overlay would replace the ENTIRE settings snapshot, blanking every
+    // configured value (and re-rolling the install identity) on every boot.
+    // Java parity: Spring's YAML loader yields no properties for an empty
+    // document, so `settings.yml` keeps full effect.
     serde_yaml::from_str(&contents)
-        .map(Some)
+        .map(|value| match value {
+            Value::Null => None,
+            value => Some(value),
+        })
         .map_err(|error| format!("could not parse {}: {error}", path.display()))
 }
 
@@ -2865,6 +2864,34 @@ pub(crate) fn is_valid_locale(locale: &str) -> bool {
     parts.all(|part| {
         (2..=8).contains(&part.len()) && part.bytes().all(|byte| byte.is_ascii_alphanumeric())
     })
+}
+
+/// Whether this process is the native desktop (Tauri) sidecar, signalled by
+/// the launcher through `STIRLING_PDF_TAURI_MODE=true` (Java reads the same
+/// flag with `Boolean.parseBoolean`).
+fn desktop_mode_from_environment() -> bool {
+    env::var("STIRLING_PDF_TAURI_MODE").is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
+}
+
+/// Java desktop parity: the Tauri launcher always passes
+/// `-Dsecurity.enableLogin=false` ("Disable login for desktop mode"), a
+/// system property that outranks every YAML source under Spring's property
+/// precedence — so on desktop the bundled template's
+/// `security.enableLogin: true` never takes effect: not for the secured-mode
+/// startup guard, the login disclaimer, or app-config. The Rust sidecar bakes
+/// the same override into the loaded snapshot; without it, the very template
+/// that desktop startup writes would trip the secured-mode refusal and the
+/// desktop could never boot.
+fn disable_login_setting(settings: &mut Value) {
+    let Value::Object(root) = settings else {
+        return;
+    };
+    let security = root
+        .entry("security")
+        .or_insert_with(|| Value::Object(Map::new()));
+    if let Value::Object(security) = security {
+        security.insert("enableLogin".to_owned(), Value::Bool(false));
+    }
 }
 
 fn merge_json(target: &mut Value, overlay: Value) {
@@ -4041,7 +4068,10 @@ mod tests {
         assert!(super::is_valid_settings_uuid(&identity.uuid));
         assert!(super::is_valid_settings_uuid(&identity.key));
         assert_ne!(identity.uuid, identity.key);
-        assert_eq!(identity.app_version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(
+            identity.app_version,
+            crate::runtime_metrics::application_version()
+        );
         // Java parity: any pre-existing non-placeholder version (the template
         // ships one) means this is not a brand-new server.
         assert!(!identity.is_new_server);
@@ -4070,6 +4100,150 @@ mod tests {
         assert_eq!(second.key, identity.key);
         assert!(!second.is_new_server);
         assert_eq!(fs::read_to_string(&settings)?, before);
+        Ok(())
+    }
+
+    /// Regression for the every-boot identity reroll: desktop startup always
+    /// creates a zero-byte `configs/custom_settings.yml` next to
+    /// `settings.yml`. An empty document parses to YAML `null`, and merging it
+    /// used to replace the ENTIRE settings snapshot with `Null` — blanking
+    /// every configured value and regenerating key/UUID
+    /// (`is_new_server=true`) on every single boot. An empty (or
+    /// comments-only) custom settings document must merge as a no-op.
+    #[test]
+    fn generated_identity_survives_an_empty_custom_settings_sibling()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let config_directory = directory.path().join("configs");
+        fs::create_dir_all(&config_directory)?;
+        let settings = config_directory.join("settings.yml");
+        let persisted = format!(
+            "system:\n  defaultLocale: vi-VN\nAutomaticallyGenerated:\n  key: 123e4567-e89b-12d3-a456-426614174000\n  UUID: 223e4567-e89b-12d3-a456-426614174000\n  appVersion: {}\n",
+            crate::runtime_metrics::application_version()
+        );
+        fs::write(&settings, &persisted)?;
+        let custom_settings = config_directory.join("custom_settings.yml");
+
+        for custom_contents in ["", "\n  \n", "# comments only\n"] {
+            fs::write(&custom_settings, custom_contents)?;
+            let config = RuntimeConfig::from_files(&settings, &custom_settings);
+            assert_eq!(config.load_error, None);
+            // The empty overlay must not blank the snapshot: every
+            // settings.yml-backed value stays readable.
+            assert_eq!(
+                super::value_at(&config.settings, &["system", "defaultLocale"]),
+                Some(&json!("vi-VN"))
+            );
+            let identity = config.initialize_generated_identity()?;
+            assert_eq!(identity.uuid, "223e4567-e89b-12d3-a456-426614174000");
+            assert_eq!(identity.key, "123e4567-e89b-12d3-a456-426614174000");
+            assert!(!identity.is_new_server);
+            // Reboot idempotence: nothing to rewrite, the file stays
+            // byte-stable.
+            assert_eq!(fs::read_to_string(&settings)?, persisted);
+        }
+        Ok(())
+    }
+
+    /// Desktop (Tauri) parity: the launcher force-disables login — the Java
+    /// shell passes `-Dsecurity.enableLogin=false`, outranking the bundled
+    /// template's `security.enableLogin: true` under Spring's property
+    /// precedence — so the desktop snapshot must carry `enableLogin: false`
+    /// (or the template the desktop itself writes would trip the secured-mode
+    /// startup refusal), while server mode keeps the file's value.
+    #[test]
+    fn desktop_mode_forces_the_template_login_setting_off() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "security:\n  enableLogin: true # template\n")?;
+        let missing = directory.path().join("missing.yml");
+
+        let server = RuntimeConfig::from_paths_with_desktop_login_override(
+            settings.clone(),
+            &missing,
+            false,
+        );
+        assert_eq!(
+            super::value_at(&server.settings, &["security", "enableLogin"]),
+            Some(&json!(true))
+        );
+
+        let desktop =
+            RuntimeConfig::from_paths_with_desktop_login_override(settings.clone(), &missing, true);
+        assert_eq!(
+            super::value_at(&desktop.settings, &["security", "enableLogin"]),
+            Some(&json!(false))
+        );
+
+        // With no security section at all, the override is still explicit.
+        fs::write(&settings, "system:\n  defaultLocale: en-US\n")?;
+        let desktop =
+            RuntimeConfig::from_paths_with_desktop_login_override(settings, &missing, true);
+        assert_eq!(
+            super::value_at(&desktop.settings, &["security", "enableLogin"]),
+            Some(&json!(false))
+        );
+        Ok(())
+    }
+
+    /// Regression for the comment-destruction defect: the identity write must
+    /// preserve every non-identity byte of the settings file — banner comments,
+    /// inline comments, blank lines, unrelated sections — changing ONLY the
+    /// three `AutomaticallyGenerated` value lines (Java's snakeyaml writer
+    /// keeps comments via `parseComments`/`dumpComments`).
+    #[test]
+    fn generated_identity_write_preserves_comments_and_every_other_byte()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        let original = "# banner line one\n# banner line two\nsecurity:\n  enableLogin: false # keep me\n\n# Automatically Generated Settings (Do Not Edit Directly)\nAutomaticallyGenerated:\n  key: example # inline key comment\n  UUID: example\n  appVersion: 0.35.0\n\nsystem:\n  defaultLocale: en-GB # locale comment\n";
+        fs::write(&settings, original)?;
+
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let identity = config.initialize_generated_identity()?;
+
+        let expected = original
+            .replace(
+                "  key: example # inline key comment",
+                &format!("  key: {} # inline key comment", identity.key),
+            )
+            .replace("  UUID: example", &format!("  UUID: {}", identity.uuid))
+            .replace(
+                "  appVersion: 0.35.0",
+                &format!("  appVersion: {}", identity.app_version),
+            );
+        assert_eq!(fs::read_to_string(&settings)?, expected);
+        Ok(())
+    }
+
+    /// Regression for the wrong-version-source defect: the persisted
+    /// `appVersion` is the canonical application version (Java writes its
+    /// `version.properties` version), never the Rust crate version.
+    #[test]
+    fn generated_identity_persists_the_application_version_not_the_crate_version()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        // Valid persisted identity, so only the version line changes.
+        fs::write(
+            &settings,
+            "AutomaticallyGenerated:\n  key: 123e4567-e89b-12d3-a456-426614174000\n  UUID: 223e4567-e89b-12d3-a456-426614174000\n  appVersion: 0.35.0\n",
+        )?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let identity = config.initialize_generated_identity()?;
+
+        let expected_version = crate::runtime_metrics::application_version();
+        // Guard that this assertion is meaningful: the crate version differs
+        // from the application version, so writing the wrong source would fail.
+        assert_ne!(expected_version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(identity.app_version, expected_version);
+        let contents = fs::read_to_string(&settings)?;
+        assert!(
+            contents.contains(&format!("  appVersion: {expected_version}")),
+            "{contents}"
+        );
+        assert!(!contents.contains(env!("CARGO_PKG_VERSION")), "{contents}");
         Ok(())
     }
 
