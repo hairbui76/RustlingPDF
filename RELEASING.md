@@ -33,7 +33,8 @@ may drift; the content anchors are stable):
 | 6 | `frontend/editor/src/proprietary/testing/serverExperienceSimulations.ts` | Fixture: `appVersion: "2.14.2"` in `BASE_NO_LOGIN_CONFIG` (~line 51). |
 
 Quick audit for stragglers before committing the bump (should list exactly
-the files above and nothing else):
+sites 2–6 and nothing else; site 1, `rust/VERSION`, is extensionless and
+invisible to the `--include` globs — check it by hand):
 
 ```bash
 grep -rn "2\.14\.2" --include="*.rs" --include="*.ts" --include="*.json" \
@@ -74,7 +75,10 @@ grep -rn "2\.14\.2" --include="*.rs" --include="*.ts" --include="*.json" \
 
    A failed run can be retried by re-running the workflow (or dispatching it
    from the tag ref): image pushes overwrite the same tags and the release
-   step is idempotent when the release already exists.
+   step is idempotent when the release already exists. **Only re-dispatch
+   from the newest release tag**: dispatching from an older tag passes the
+   version guard (the old tree matches the old tag) and would move both
+   images' `latest` tags backwards to that older release.
 
 ## Notes
 

@@ -120,6 +120,15 @@ tests:
   keeps all prior hardening (symlink refusal, 2 MiB cap, `0o600` mode,
   fsync, serialized write lock). Lines inserted into a CRLF file use CRLF,
   so a save never introduces mixed line endings.
+- A single batch whose entries target the **same leaf with conflicting
+  values** (e.g. an object value `security.oauth2: {clientSecret: X}`
+  alongside the dotted key `security.oauth2.clientSecret: Y`) fails the
+  read-back proof — the same `500` with the file untouched — because both
+  values are applied and at most one can read back. Java's
+  `YamlHelper.updateValue` applies updates sequentially so the last one wins;
+  the Rust behavior is a deliberate fail-closed divergence (a conflicting
+  batch is a caller bug, and refusing beats persisting an
+  order-dependent winner).
 
 **Restart divergence.** `POST /restart` intentionally returns
 `503 { "error": "In-process restart is unavailable…" }` instead of Java's

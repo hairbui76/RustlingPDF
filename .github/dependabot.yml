@@ -10,6 +10,9 @@
 #   cargo /rust                       — the backend workspace (Cargo.lock committed,
 #                                       gates run with --locked)
 #   cargo /frontend/editor/src-tauri  — the Tauri desktop shell (its own lockfile)
+#   cargo /frontend/editor/src-tauri/provisioner        — standalone Windows MSI
+#   cargo /frontend/editor/src-tauri/thumbnail-handler    helper crates (own lockfiles,
+#                                                         not workspace members)
 #   npm   /frontend                   — the npm workspace root (frontend/package-lock.json)
 #   github-actions /                  — workflow actions; Dependabot natively updates
 #                                       full-SHA pins and their "# vX.Y.Z" comments,
@@ -44,6 +47,32 @@ updates:
       prefix: "build"
     groups:
       tauri-shell-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "cargo"
+    directory: "/frontend/editor/src-tauri/provisioner"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "build"
+    groups:
+      provisioner-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "cargo"
+    directory: "/frontend/editor/src-tauri/thumbnail-handler"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "build"
+    groups:
+      thumbnail-handler-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 

@@ -339,7 +339,10 @@ fn empty_flow_mapping_as_blank(document: &str) -> &str {
 /// second YAML document that fails reparse — so the upserts refuse it and the
 /// callers leave the file untouched. No settings key can start with `{` or
 /// `[` (a plain YAML scalar cannot begin with a flow indicator), so this
-/// never misfires on a block mapping.
+/// never misfires on a block mapping. Only the first structural line is
+/// inspected: a document-start marker (`---`) preceding the flow node defeats
+/// this check, and those shapes are caught instead by both callers' pre-write
+/// reparse proofs (admin leaf read-back / identity reparse-as-mapping guard).
 fn root_is_flow_collection(document: &str) -> bool {
     parse_lines(document)
         .iter()
@@ -355,7 +358,9 @@ fn root_is_flow_collection(document: &str) -> bool {
 /// extend — appending `key: value` lines after sequence items produces
 /// unparseable YAML — so it is refused and the callers leave the file
 /// untouched. (Both callers also pre-check that the parsed root is a mapping;
-/// this keeps the editor safe on its own.)
+/// this keeps the editor safe on its own.) As with the flow-root check, only
+/// the first structural line is inspected — a `---` document-start marker
+/// defeats it, and the callers' pre-write reparse proofs catch those shapes.
 fn root_is_block_sequence(document: &str) -> bool {
     parse_lines(document)
         .iter()
