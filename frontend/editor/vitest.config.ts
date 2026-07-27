@@ -52,6 +52,11 @@ export default defineConfig({
           environment: "jsdom",
           globals: true,
           setupFiles: ["./src/portal/setupTests.ts"],
+          // Projects do not inherit the top-level testTimeout; the vitest
+          // default (5s) flakes on loaded machines when the demo-data seam
+          // dynamically imports its fixture handlers.
+          testTimeout: 30000,
+          hookTimeout: 30000,
         },
         plugins: [
           react(),
