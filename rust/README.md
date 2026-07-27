@@ -60,19 +60,21 @@ The binary remains loopback-only unless `STIRLING_HOST` or the Spring-compatible
 `SERVER_ADDRESS` is set to an explicit IP address. Container-shaped runs use
 `STIRLING_HOST=0.0.0.0`; malformed or non-Unicode host/port values fail startup.
 
-For desktop migration validation only, set `STIRLING_NATIVE_BACKEND_PATH` to an
-absolute path for a Rust processing executable. The Tauri host then starts it
-with an ephemeral port and explicit desktop/base-path settings, migrates the
-legacy workspace, accepts the stable startup handshake from either output
-stream, and fails a bounded startup on early process exit. The processing binary
-prints that handshake even when `RUST_LOG` is unset, exits when the PID/start-time
-identity of its Tauri parent disappears, and atomically initializes the packaged
-settings template plus empty override only on a fresh install. When the variable
-is absent the Tauri host still attempts its legacy bundled-JRE launch path — a
-leftover from the upstream Java desktop app that this repository does not build
-artifacts for — so desktop builds do not yet ship a working backend. Rust
-sidecar/PDFium packaging, upgrade-time settings migration, cross-platform bundle
-proof, and making the Rust path the default are tracked roadmap items. See
+The Tauri desktop app launches this Rust processing binary as its bundled
+sidecar by default: `task desktop:stage-sidecar` builds the release binary plus
+the pinned PDFium runtime and stages both into the desktop bundle. The launcher
+starts the sidecar with an ephemeral port and explicit desktop/base-path
+settings, migrates the legacy workspace, accepts the stable startup handshake
+from either output stream, and fails a bounded startup on early process exit.
+The processing binary prints that handshake even when `RUST_LOG` is unset,
+exits when the PID/start-time identity of its Tauri parent disappears, and
+atomically initializes the packaged settings template plus empty override only
+on a fresh install. The launcher points `STIRLING_PDFIUM_LIBRARY_PATH` at the
+bundled PDFium resource directory unless the environment already provides one.
+`STIRLING_NATIVE_BACKEND_PATH` is a development-only override that swaps the
+bundled sidecar for any locally built processing executable; there is no other
+launch fallback (the upstream Java JRE/JAR path has been removed).
+Cross-platform signed-bundle upgrade proof is a tracked roadmap item. See
 `contracts/desktop-native-startup.md`.
 
 `task rust:install` downloads PDFium revision 7543 for the current platform, verifies

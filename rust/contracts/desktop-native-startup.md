@@ -1,17 +1,33 @@
 # Native desktop processing startup
 
-The Tauri launcher can opt into a Rust processing executable with
-`STIRLING_NATIVE_BACKEND_PATH`. Its default launch path is still the upstream
-Java-sidecar wiring (a JRE + JAR this repository does not build or bundle), so
-desktop builds have no working backend until the Rust sidecar becomes the
-packaged default — a tracked roadmap item.
+The Tauri desktop launcher starts the Rust processing backend as its bundled
+sidecar by default. `task desktop:stage-sidecar` builds the release
+`stirling-processing` binary plus the pinned PDFium runtime and stages them
+into `src-tauri/` (`bundle.externalBin` entry `binaries/stirling-processing`,
+`bundle.resources` entry `resources/pdfium`); the bundler installs the sidecar
+next to the app executable, where the launcher resolves it via the shell
+plugin's sidecar API. `STIRLING_NATIVE_BACKEND_PATH` is a development-only
+override that points the launcher at an arbitrary processing executable
+instead. There is no further fallback: the upstream Java JRE/JAR launch path
+has been removed, and a bundle without the sidecar fails startup with a
+reported error.
 
-The native path now provides:
+The native path provides:
 
 - an unconditional `Stirling-PDF running on port: <port>` handshake even without `RUST_LOG`;
 - an ephemeral loopback port, bounded 90-second launcher wait, stderr/stdout handshake parsing,
   early-exit reporting, stale-process protection, and stale-port cleanup;
-- desktop/base/config/log/work environment parity and legacy-workspace migration;
+- desktop/base/config/log/work environment parity and legacy-workspace migration
+  (the backend itself reads only `STIRLING_BASE_PATH` and
+  `STIRLING_PDF_TAURI_MODE` from this set; the Java-era
+  `STIRLING_PDF_CONFIG_DIR`/`LOG_DIR`/`WORK_DIR` variables are still passed for
+  contract parity and are harmless);
+- PDFium wiring: when the launcher's own environment does not already carry
+  `STIRLING_PDFIUM_LIBRARY_PATH` (an operator-set value is inherited untouched)
+  and the bundle ships `resources/pdfium`, the launcher sets
+  `STIRLING_PDFIUM_LIBRARY_PATH` to that directory — the backend resolves the
+  platform library filename inside it. In unpackaged development runs the
+  variable stays unset (logged) and the backend falls back to a system PDFium;
 - PID-plus-start-time parent monitoring through `TAURI_PARENT_PID`, with orphan shutdown normally
   observed within one 250 ms poll interval;
 - fresh-install configuration initialization in Tauri mode: the packaged Java
@@ -61,5 +77,9 @@ template default. A `settings.yml` that is long enough to reach the merge path b
 as YAML is left untouched (a warning is logged) rather than failing desktop startup — Java throws
 here; the Rust port prefers not to regress a previously-tolerated file into a hard boot failure.
 
-Production sidecar/PDFium packaging, cross-platform signed-bundle upgrade proof, and switching the
-default away from Java remain.
+The desktop updater endpoint points at RustlingPDF's own releases
+(`https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`). The committed
+`updater.pubkey` is inherited from the upstream desktop app and must be regenerated before the
+first signed release (see `frontend/scripts/dev-update-test/README.md`).
+
+Cross-platform signed-bundle upgrade proof remains.

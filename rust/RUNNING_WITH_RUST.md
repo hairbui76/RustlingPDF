@@ -300,12 +300,13 @@ These are deliberate, documented limits — the authoritative list with rational
 - **PDF → video** route: implemented but an explicit opt-in
   (`STIRLING_PROCESSING_FFMPEG_COMMAND`) while upstream FFmpeg CVEs are assessed —
   upstream's own Java route is itself commented out.
-- **Desktop packaging**: the Tauri desktop app can *validate* against a Rust
-  backend via `STIRLING_NATIVE_BACKEND_PATH` (ephemeral-port handshake, workspace
-  migration), but the Rust binary and PDFium are not yet bundled into the desktop
-  build — the Tauri host's default launch path is a leftover from the upstream
-  Java desktop app whose artifacts this repository does not produce, so desktop
-  builds do not currently ship a working backend.
+- **Desktop packaging**: the Tauri desktop app bundles the Rust backend as its
+  default sidecar (`task desktop:stage-sidecar` stages the release
+  `stirling-processing` binary and the pinned PDFium runtime into the bundle;
+  ephemeral-port handshake, workspace migration, bundled-PDFium wiring via
+  `STIRLING_PDFIUM_LIBRARY_PATH`). `STIRLING_NATIVE_BACKEND_PATH` remains as a
+  development-only override. Cross-platform signed-bundle upgrade proof is
+  still outstanding — see `contracts/desktop-native-startup.md`.
 - **Deep PDF-fidelity edges** in the PDF↔JSON editor model (e.g. Type3 glyph
   synthesis, Type0/Type3 byte-parity, >4-component DeviceN JPEGs): see the
   "Remaining" section of `PORT_STATUS.md`.
@@ -316,7 +317,8 @@ The Rust service is the only backend in this repository and open mode is
 production-usable today; the [Docker image](#5-docker) is the supported packaged
 form. The remaining gates before secured mode and full packaged distribution
 are: independent security review of the secured router and signing subsystem,
-desktop bundling of the Rust binary + PDFium, and the residual fidelity gaps
+cross-platform proof of the signed desktop bundles (the Rust binary + PDFium
+are now bundled as the desktop sidecar), and the residual fidelity gaps
 above. Follow `PORT_STATUS.md`,
 `SECURITY_MIGRATION_DESIGN.md`, and `SIGNING_MIGRATION_DESIGN.md` for the live
 state of each gate.
