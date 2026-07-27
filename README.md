@@ -59,7 +59,8 @@ Full operator guide, ports/binding, configuration and environment reference:
   extensively tested behind an opt-in review gate, but the binary deliberately
   refuses to start with `SECURITY_ENABLELOGIN=true` until an independent human
   security review signs off (fail-closed, including malformed values).
-- Test suite: 1395 + 147 tests, 0 failed, plus a differential harness with a
+- Test suite: 1535 + 144 backend tests, 0 failed (plus 1647 frontend vitest
+  and an 11-test desktop-shell gate), plus a differential harness with a
   pinned known-difference registry.
 - The authoritative feature/parity ledger is
   [`rust/PORT_STATUS.md`](rust/PORT_STATUS.md); per-surface details live in
@@ -69,10 +70,11 @@ Full operator guide, ports/binding, configuration and environment reference:
 
 The detailed, living plan — current batch, queue, deferred items with unblock
 conditions, and session hand-off instructions — is in [ROADMAP.md](ROADMAP.md).
-Headlines: GitHub CI, single-binary SPA serving + Docker packaging, and three
-small upstream-parity items (in flight); then release pipeline, the Tauri
-Rust-sidecar desktop port, the coordinated `Stirling` → `Rustling` rename, and
-the independent security review that unlocks secured mode.
+Headlines: GitHub CI, single-binary SPA serving, Docker packaging, the
+tag-driven GHCR release pipeline, and the Tauri Rust-sidecar desktop port have
+landed; next up are desktop release completion (updater signing + Windows
+staging), the coordinated `Stirling` → `Rustling` rename, and the independent
+security review that unlocks secured mode.
 
 ## Relationship to Stirling-PDF
 

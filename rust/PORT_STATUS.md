@@ -468,7 +468,13 @@ auto-rename/auto-split, plus:
   through their bounded embedded profile to sRGB instead of silently keeping the decoder's device
   projection, and DCT CMYK color-key `/Mask` ranges are applied against the pre-`/Decode` decoder
   output per PDF 32000-1 §8.9.6.4; rasters above the editor byte bound deliberately keep the
-  bounded device fallback. Complex inline filter parameters remain. Device-alternate Separation and one-to-eight-component DeviceN XObjects
+  bounded device fallback. Real-valued numeric `DecodeParms` entries (e.g.
+  `/Predictor 2.0`) now truncate to integers with PDFBox
+  `COSNumber.intValue` semantics (toward zero, NaN→0, saturating at `i32`
+  bounds); the DCT `/ColorTransform` read deliberately stays on the PDF.js
+  oracle's integer-only check, a documented divergence in
+  `contracts/pdf-json.md`. Complex inline filter decoders
+  (CCITTFax/JBIG2/JPX) remain. Device-alternate Separation and one-to-eight-component DeviceN XObjects
   with bounded order-1 sampled Type 0, single-input exponential Type 2, recursively bounded
   single-input stitching Type 3, or bounded PostScript calculator Type 4 tint transforms are
   evaluated into Gray/RGB/CMYK, including
@@ -569,14 +575,23 @@ a Rust-specific limitation. Job/control routes (`general/job/*` plus the admin j
 stats/queue/cleanup trio), the mobile-scanner API, and admin settings mutation are all wired in
 the production routers today (an earlier revision of this paragraph predated them).
 Generic SAML/desktop identity remain (OIDC is ported — see below). The
-opt-in Tauri native-launch path now receives an unconditional ephemeral-port
-handshake, desktop/base-path/login-agreement environment, legacy-workspace
-migration, a bounded startup wait, early-exit reporting, stale-port cleanup,
-PID/start-time parent-death enforcement, and atomic fresh-install settings/template
-initialization. Open-mode local `backend:dev`, `dev`, and default `dev:all` now
+Tauri desktop shell now launches the Rust binary as its **packaged sidecar by
+default** (batch 4): the Java JRE/JAR launch path is deleted,
+`STIRLING_NATIVE_BACKEND_PATH` is demoted to a dev-only override, and the
+launcher wires bundled PDFium (`STIRLING_PDFIUM_LIBRARY_PATH` pointed at the
+bundle's `resources/pdfium` unless the operator already set it) alongside the
+unconditional ephemeral-port handshake, desktop/base-path/login-agreement
+environment, legacy-workspace migration, a bounded startup wait, early-exit
+reporting, stale-port cleanup, PID/start-time parent-death enforcement, and
+atomic fresh-install settings/template initialization. Open-mode local `backend:dev`, `dev`, and default `dev:all` now
 launch `stirling-processing` (in this repository they are the only backend entry
 points; the Java-oracle and SaaS Task paths existed in the upstream monorepo).
-Packaged desktop/container distribution of the Rust binary remains a roadmap item.
+Container distribution shipped in batch 3 (Docker image; batch 4 added the
+tag-driven GHCR release pipeline) and the desktop bundle ships the Rust
+sidecar since batch 4 (`task desktop:stage-sidecar` stages the release binary
+plus PDFium; a desktop CI workflow compiles and tests the shell). Windows
+PDFium staging (`install-pdfium.ps1` wiring) and a repo-controlled updater
+signing key remain follow-ups.
 Java-compatible short-file recovery is now ported: a `settings.yml` with fewer than
 `MIN_SETTINGS_FILE_LINES` (31, matching `ConfigInitializer`) lines is treated as truncated by an
 interrupted write, backed up to `settings.yml.<epoch-millis>.bak`, and recreated from the template,
@@ -591,9 +606,16 @@ value containing `#`/`:`/`*` (e.g. a DB password) is correctly quoted and round-
 instead of being silently truncated or corrupting the file — a corruption bug an adversarial review
 caught and fixed before merge. A user override of a block/nested-map value (the template currently
 has no block sequences) falls back to the template default, a documented scalar/inline-scope
-limitation. PDFium/sidecar packaging, cross-platform upgrade
-proof, and the production default switch have no Rust source-code surface at all — they are
-CI/release-pipeline and deployment-decision concerns, not outstanding coding work. See
+limitation. Hostile hand-authored settings shapes (flow-collection roots and
+sections, block-sequence roots and sections, block-scalar leaves) are refused
+with the file left byte-for-byte untouched — identity initialization degrades
+to a clean fail-open ephemeral identity — and admin/license settings
+persistence goes through the same comment-preserving editor with a pre-write
+reparse-plus-leaf-read-back proof instead of a comment-destroying serde
+round-trip (see `contracts/admin-settings.md`). Sidecar/PDFium packaging and
+the production default switch landed with batch 4; cross-platform
+signed-bundle upgrade proof and updater-keypair regeneration remain
+release-pipeline follow-ups. See
 `contracts/desktop-native-startup.md`. The
 hardware-signing capability route reports desktop mode
 and safely discovers on-disk PKCS#11 libraries without loading them. Windows desktop builds can
@@ -709,9 +731,12 @@ Spring's public-client-only PKCE. Durable cross-process login-flow state would b
 beyond-Java-parity, not a gap: Java keeps its OAuth2 authorization-request state in per-process
 in-memory HTTP sessions (no persistent session repository is configured), so the Rust in-memory
 single-use TTL store is equivalent; a SQLite-backed store remains an optional enhancement for
-multi-process deployment. The browser-facing callback UX (Java's success handler 302-redirects
-to the SPA with the token in the URL fragment and honors the redirect-path cookie; Rust still
-returns raw JSON) is genuine remaining backend work. The discovery document's own returned endpoint URLs
+multi-process deployment. The browser-facing callback UX is ported: browser flows get
+Java's exact 302-to-SPA redirect with the token in the URL fragment, honoring
+and then clearing the `stirling_redirect_path` cookie — since batch 4 with
+Spring's byte-exact clearing attributes including the
+`Expires=Thu, 01 Jan 1970 00:00:00 GMT` segment `ResponseCookie#toString`
+emits after a non-negative `Max-Age` (see `contracts/account-lifecycle.md`). The discovery document's own returned endpoint URLs
 (`authorization_endpoint`/`token_endpoint`/`jwks_uri` — untrusted, provider-controlled values,
 unlike the admin-configured issuer itself) are now hardened against SSRF: rejected when the literal
 host is a private/reserved IPv4 or IPv6 address, including RFC 1918/loopback/link-local, CGNAT,

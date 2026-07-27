@@ -10,16 +10,76 @@ lands or the queue changes.
 - Repo: standalone product based on Stirling-PDF; **no Java anywhere** — the
   upstream checkout (if present at `../Stirling-PDF`) is a read-only reference
   oracle only.
-- `main` — full quality gate green after batch 3:
-  `cargo fmt`/`clippy -D warnings` clean, **stirling-processing 1508 passed /
-  0 failed** (1 ignored), **stirling-ai-engine 144 / 0**; frontend
+- `main` — full quality gate green after batch 4:
+  `cargo fmt`/`clippy -D warnings` clean, **stirling-processing 1535 passed /
+  0 failed** (1 ignored), **stirling-ai-engine 144 / 0**; Tauri desktop-shell
+  gate (containerized webkit build: fmt/clippy/tests) **11 / 0**; frontend
   typecheck/eslint clean, **1647 vitest passed**, `vite build` (core) succeeds;
-  differential rust-only smoke **13/13**. Ships GitHub CI, single-binary SPA
-  serving, and a Docker image.
+  differential rust-only smoke **13/13**; actionlint clean across all five
+  workflows. Ships GitHub CI, single-binary SPA serving, a Docker image, a
+  tag-driven GHCR release pipeline, and a Rust-sidecar desktop shell.
 - Open mode is the supported runtime; secured mode is implemented + tested but
   **fail-closed** pending independent human security review.
 - Canonical app version lives in `rust/VERSION` (consumed by `build.rs`).
 - Verified quick start: `task rust:install && task dev`.
+
+## Landed — Batch 4 (2026-07-28, all tester-signed, merged to `main`)
+
+Three dev+tester pairs (release pipeline, Tauri Rust sidecar, recorded-minors
+bundle); release and tauri signed off round 0, minors after one fix round.
+
+- **Release pipeline** (`.github/workflows/release.yml`, `RELEASING.md`,
+  `.github/dependabot.yml`): tag-driven (`v<version>`, exact-match guard
+  against `rust/VERSION` + `tauri.conf.json` cross-check), publishes both
+  Docker targets to GHCR (`ghcr.io/hairbui76/rustlingpdf{,-ai-engine}`,
+  `v<version>` + `latest`, OCI version/source/revision/created labels via
+  Dockerfile ARGs, buildx `type=gha` cache), `gh release create` with pull
+  commands — no new third-party actions beyond three SHA-pinned docker/*
+  ones (pins verified against upstream tags by dev and tester
+  independently). Dependabot: weekly grouped minor+patch for six ecosystems
+  (backend cargo, three src-tauri cargo roots, npm, github-actions).
+  VERSION-bump checklist documents all six hard-coded `2.14.2` sites.
+- **Tauri desktop → Rust sidecar**: the Rust backend is the packaged
+  `externalBin` sidecar and the Java JRE/JAR launch path is deleted;
+  `STIRLING_NATIVE_BACKEND_PATH` demoted to dev override; bundled-PDFium
+  wiring via `STIRLING_PDFIUM_LIBRARY_PATH` (operator override respected);
+  env contract otherwise preserved verbatim; `task desktop:stage-sidecar`
+  stages binary + PDFium; new house-style desktop CI gate
+  (fmt/clippy/test with webkit deps); dev-update-test scripts reworked to
+  the Rust flow (dead jlink/JRE scripts deleted); updater endpoint
+  repointed off upstream Stirling-Tools releases to this repo;
+  `waitForPort` bounded (120 s). Proven on this host: staged sidecar
+  handshake + real PDFium rotate through the bundle layout, and the full
+  src-tauri gate compiled/tested in a webkit container.
+- **Recorded-minors bundle** (all upstream-verified to bytecode level by
+  the tester): flow-styled-root `settings.yml` refused like flow sections
+  (file untouched, identity fails open ephemeral); admin/license settings
+  persistence migrated off the serde round-trip onto the comment-preserving
+  `settings_yaml` editor with a new nested dotted-path upsert + pre-write
+  reparse-and-leaf-read-back proof (block-scalar/block-sequence shapes
+  refused; CRLF-safe; Java-subtree-replace divergences documented in
+  `contracts/admin-settings.md`); OIDC cookie-clear now byte-exact to
+  Spring `ResponseCookie#toString` including `Expires=Thu, 01 Jan 1970
+  00:00:00 GMT` (verified against disassembled spring-web 7.0.7); inline
+  `DecodeParms` Real values truncate with PDFBox `COSNumber.intValue`
+  `f2i` semantics (DCT `/ColorTransform` deliberately stays on the PDF.js
+  integer-only oracle — divergence documented in `contracts/pdf-json.md`).
+- **PM integration pass**: dependabot coverage widened to the standalone
+  `provisioner`/`thumbnail-handler` crates; RELEASING.md grep-audit wording
+  fixed + old-tag re-dispatch `latest`-regression warning added;
+  root-detector doc comments state the `---` document-start limitation
+  (callers' reparse proofs cover it — verified no corruption reachable);
+  conflicting duplicate-leaf admin batches documented as fail-closed
+  divergence in `contracts/admin-settings.md`; stale OIDC-callback-UX
+  paragraph in PORT_STATUS corrected.
+
+Recorded follow-ups (see queue item 1): repo-controlled Tauri updater
+keypair must replace the upstream pubkey before the first signed desktop
+release; `install-pdfium.ps1` is not yet wired into `desktop:stage-sidecar`
+(no Windows bundle until it is). Recorded for a human: root `LICENSE` (MIT)
+vs `rust/Cargo.toml` workspace `AGPL-3.0-or-later` conflict, and the
+missing proprietary-dir carve-out LICENSE files the image label
+simplification rests on.
 
 ## Landed — Batch 3 (2026-07-28, all tester-signed, merged to `main`)
 
@@ -50,51 +110,41 @@ gate then caught a cross-item defect that a follow-up fix pair closed.
   `rust/VERSION`, flow-collection sections are refused rather than destroyed,
   and the desktop smoke test now asserts byte-stable settings across two boots.
 
-One recorded minor (follow-up candidate): a hand-authored **flow-styled root**
-settings.yml (`{a: 1}`) would get an appended block section, producing a
-two-document YAML that fails to reparse — refuse it like flow sections. Also
-noted: the admin license-persist path still uses serde round-trip (drops
-comments) — migrate onto `settings_yaml`.
+Both minors recorded here (flow-styled-root settings.yml corruption; admin
+license-persist serde round-trip dropping comments) were fixed in batch 4.
 
 ## Near-term queue (next batches, in rough priority order)
 
-1. **Release pipeline** (CI base landed in batch 3): release workflow
-   (tagged builds, `rust/VERSION` bump discipline), Docker image publish
-   (GHCR), dependabot/renovate for Cargo + npm.
-2. **Tauri desktop → Rust sidecar**: `src-tauri` still declares JRE/JAR
-   resources and launches a Java bundle by default
-   (`frontend/editor/src-tauri/tauri.conf.json`, `src/commands/backend.rs`);
-   port to spawning the Rust binary (the backend already implements the
-   ephemeral-port handshake + parent-death watchdog — see
-   `rust/contracts/desktop-native-startup.md`). Also rework
-   `frontend/scripts/dev-update-test/*.sh` (annotated non-functional).
-3. **Coordinated rename** `Stirling` → `Rustling` (crates, `STIRLING_*` env
+1. **Desktop release completion** (unblocks shipping the desktop app):
+   generate a repo-controlled Tauri updater keypair and replace the upstream
+   pubkey in `tauri.conf.json`; add the updater-signing step to `release.yml`
+   (extend `RELEASING.md` in the same change); wire `install-pdfium.ps1` into
+   `desktop:stage-sidecar` for Windows bundles; cross-platform signed-bundle
+   upgrade proof (the reworked `dev-update-test` e2e run on a webkit-capable
+   host).
+2. **Coordinated rename** `Stirling` → `Rustling` (crates, `STIRLING_*` env
    vars with back-compat aliases, config keys, UI strings, startup handshake
    line) — one deliberate pass with a compatibility window; do not rename
    piecemeal.
-4. **Independent security review** of the secured router + signing subsystem —
+3. **Independent security review** of the secured router + signing subsystem —
    the only gate for enabling `SECURITY_ENABLELOGIN=true` in production. Human
    task; `rust/SECURITY_MIGRATION_DESIGN.md` + `rust/SIGNING_MIGRATION_DESIGN.md`
    are the briefing docs.
-5. **ResourceMonitor-style dynamic job-queue capacity** (memory/CPU sampling
+4. **ResourceMonitor-style dynamic job-queue capacity** (memory/CPU sampling
    feeding `JobQueueConfig`) — needs a design decision first: is the current
    static budget a deliberate divergence? Upstream reference:
    `ResourceMonitor`/`DynamicJobQueue` in Stirling-PDF `app/common`.
-6. **Optional SQLite-backed OIDC pending-login store** — beyond-upstream-parity
+5. **Optional SQLite-backed OIDC pending-login store** — beyond-upstream-parity
    (upstream keeps this state in per-process HTTP sessions); only needed for
    multi-process deployment. Needs wall-clock expiry + at-rest protection for
    `code_verifier`/`client_secret`.
-7. **PDF-JSON deep-fidelity program** (multi-session, pick slices):
+6. **PDF-JSON deep-fidelity program** (multi-session, pick slices):
    - DeviceN DCT > 4 components — **probe first** whether PDFBox itself decodes
      5+-component JPEGs; if not, reclassify as parity-not-a-gap in the ledger.
    - CCITTFax/JBIG2/JPX inline-image decoding (needs new bounded decoders).
    - Type0/Type3 byte-parity + interior-kerning-run rewrite + true Type3 glyph
      synthesis (upstream's own oracle is partially poisoned here — see
      PORT_STATUS "Remaining"; treat as beyond-parity work).
-   - Recorded minor: Real-valued inline `DecodeParms` (`/Predictor 2.0`) are
-     treated as absent where PDFBox truncates to int — cheap fix.
-8. **Recorded minor from batch 2**: OIDC cookie-clear `Set-Cookie` is not
-   byte-identical to Spring's `Expires` spelling — cosmetic, fix opportunistically.
 
 ## Explicitly deferred / not planned (with unblock conditions)
 
