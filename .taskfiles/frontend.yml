@@ -418,9 +418,11 @@ tasks:
   # Code Generation
   # ============================================================
 
+  # The OpenAPI spec (SwaggerDoc.json) is committed at the repo root; the
+  # generator reads it directly.
   tool-models:
-    desc: "Generate tool API types from the Java OpenAPI spec"
-    deps: [install, ":backend:swagger"]
+    desc: "Generate tool API types from the OpenAPI spec"
+    deps: [install]
     cmds:
       - npx tsx editor/scripts/generate-tool-api-types.mts --spec ../SwaggerDoc.json --output editor/src/core/types/toolApiTypes.ts
     sources:
@@ -431,7 +433,7 @@ tasks:
 
   tool-models:check:
     desc: "Fail if committed tool API types are out of date"
-    deps: [install, ":backend:swagger"]
+    deps: [install]
     cmds:
       - npx tsx editor/scripts/generate-tool-api-types.mts --spec ../SwaggerDoc.json --output editor/src/core/types/toolApiTypes.ts --check
 

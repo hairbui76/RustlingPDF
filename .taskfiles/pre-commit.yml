@@ -8,8 +8,6 @@ vars:
   # there is no grep/xargs and it behaves identically on every platform.
   PY_FILES: >-
     'scripts/*.py'
-    '.github/scripts/*.py'
-    'app/core/src/main/resources/static/python/*.py'
     ':(exclude)*split_photos.py'
   SPELL_FILES: >-
     '*.html'
@@ -19,8 +17,6 @@ vars:
     '*.md'
     ':(exclude).vscode/*'
     ':(exclude).devcontainer/*'
-    ':(exclude)app/core/src/main/resources/*'
-    ':(exclude)app/proprietary/src/main/resources/*'
     ':(exclude)frontend/editor/public/vendor/*'
     ':(exclude)*Dockerfile*'
     ':(exclude)*pdfjs*'
@@ -30,7 +26,6 @@ vars:
     ':(exclude)*diff.js'
   WS_FILES: >-
     '*.js'
-    '*.java'
     '*.py'
     '*.yml'
     ':(exclude)*pdfjs*'

@@ -19,9 +19,6 @@ includes:
   rust:
     taskfile: .taskfiles/rust.yml
     dir: rust
-  docker:
-    taskfile: .taskfiles/docker.yml
-    dir: .
   desktop:
     taskfile: .taskfiles/desktop.yml
     dir: frontend
@@ -58,7 +55,7 @@ tasks:
     desc: "Install all project dependencies"
     cmds:
       - task: frontend:install
-      - task: rust:install
+      - task: backend:install
 
   # ============================================================
   # Development
@@ -89,7 +86,7 @@ tasks:
       BACKEND_PORT: '{{index (splitList "\n" .PORTS) 0}}'
       EDITOR_PORT: '{{index (splitList "\n" .PORTS) 1}}'
     deps:
-      - task: backend:dev:proprietary
+      - task: backend:dev
         vars:
           PORT: '{{.BACKEND_PORT}}'
           SECURITY_ENABLELOGIN: "true"
@@ -98,12 +95,6 @@ tasks:
           PORT: '{{.EDITOR_PORT}}'
           BACKEND_URL: 'http://localhost:{{.BACKEND_PORT}}'
           OPEN: "true"
-
-  dev:saas:
-    desc: "Start SaaS backend + frontend concurrently on free ports"
-    cmds:
-      - task: dev:_all
-        vars: { FRONTEND: saas, BACKEND: saas }
 
   dev:all:
     desc: "Start backend + frontend + engine concurrently on free ports"
@@ -114,7 +105,6 @@ tasks:
     internal: true
     vars:
       FRONTEND: '{{.FRONTEND | default "proprietary"}}'
-      BACKEND: '{{.BACKEND | default "rust"}}'
       PORTS:
         sh: '{{if eq OS "windows"}}{{.FIND_FREE_PORT_PS}} 8080 5173 5001{{else}}{{.FIND_FREE_PORT_SH}} 8080 5173 5001{{end}}'
       BACKEND_PORT: '{{index (splitList "\n" .PORTS) 0}}'
@@ -124,7 +114,7 @@ tasks:
       - task: engine:dev
         vars:
           PORT: '{{.ENGINE_PORT}}'
-      - task: 'backend:dev:{{.BACKEND}}'
+      - task: backend:dev
         vars:
           PORT: '{{.BACKEND_PORT}}'
           AIENGINE_URL: 'http://localhost:{{.ENGINE_PORT}}'
@@ -144,7 +134,6 @@ tasks:
     cmds:
       - task: backend:build
       - task: frontend:build
-      - task: rust:build
 
   # ============================================================
   # Test
@@ -155,7 +144,6 @@ tasks:
     cmds:
       - task: backend:test
       - task: frontend:test
-      - task: rust:test
 
   # ============================================================
   # Lint & Format
@@ -165,39 +153,35 @@ tasks:
     desc: "Run all linters"
     cmds:
       - task: frontend:lint
-      - task: rust:lint
+      - task: backend:lint
 
   fix:
     desc: "Auto-fix all components"
     cmds:
       - task: backend:fix
       - task: frontend:fix
-      - task: rust:format
 
   format:
     desc: "Auto-fix formatting across all components"
     cmds:
       - task: backend:format
       - task: frontend:format
-      - task: rust:format
 
   format:check:
     desc: "Check formatting across all components"
     cmds:
       - task: backend:format:check
       - task: frontend:format:check
-      - task: rust:format:check
 
   # ============================================================
   # Code generation
   # ============================================================
 
   tool-models:
-    desc: "Generate all API models from the Java OpenAPI spec"
+    desc: "Generate all API models from the OpenAPI spec"
     cmds:
       - task: frontend:tool-models
       - task: engine:tool-models
-      - task: engine:legacy:tool-models
 
   # ============================================================
   # Quality Gate
@@ -208,14 +192,12 @@ tasks:
     cmds:
       - task: backend:check
       - task: frontend:check
-      - task: rust:check
 
   check:all:
     desc: "Full CI quality gate"
     cmds:
       - task: backend:check
       - task: frontend:check:all
-      - task: rust:check
 
   # ============================================================
   # Clean
@@ -226,5 +208,4 @@ tasks:
     cmds:
       - task: backend:clean
       - task: frontend:clean
-      - task: rust:clean
       - task: pre-commit:clean

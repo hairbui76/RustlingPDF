@@ -22,7 +22,6 @@ tasks:
     desc: "Run the AI engine server"
     deps: [":rust:clean:deps"]
     ignore_error: true
-    dotenv: ["engine/.env.local", "engine/.env"]
     vars:
       HOST: '{{.HOST | default "127.0.0.1"}}'
       PORT: '{{.PORT | default "5001"}}'
@@ -36,7 +35,6 @@ tasks:
     desc: "Start the AI engine for development"
     deps: [":rust:clean:deps"]
     ignore_error: true
-    dotenv: ["engine/.env.local", "engine/.env"]
     vars:
       HOST: '{{.HOST | default "127.0.0.1"}}'
       PORT: '{{.PORT | default "5001"}}'
@@ -101,9 +99,10 @@ tasks:
       - task: lint
       - task: test
 
+  # The OpenAPI spec (SwaggerDoc.json) is committed at the repo root; the
+  # catalog generator reads it directly.
   tool-models:
-    desc: "Generate the Rust AI operation catalog from the Java OpenAPI spec"
-    deps: [":backend:swagger"]
+    desc: "Generate the Rust AI operation catalog from the OpenAPI spec"
     cmds:
       - >
         cargo run --manifest-path rust/Cargo.toml
@@ -123,7 +122,6 @@ tasks:
 
   tool-models:check:
     desc: "Fail if the Rust AI operation catalog is out of date"
-    deps: [":backend:swagger"]
     cmds:
       - >
         cargo run --manifest-path rust/Cargo.toml
@@ -137,140 +135,3 @@ tasks:
     desc: "Clean AI engine build artifacts"
     cmds:
       - cargo clean --manifest-path rust/Cargo.toml -p stirling-ai-engine
-
-  legacy:install:
-    desc: "Install legacy Python engine dependencies"
-    run: once
-    dir: engine
-    cmds:
-      - uv python install 3.13.8
-      - uv sync
-    sources:
-      - engine/uv.lock
-      - engine/pyproject.toml
-    status:
-      - test -d .venv
-
-  legacy:prepare:
-    desc: "Set up the legacy Python engine environment"
-    deps: [legacy:install]
-    dir: engine
-    cmds:
-      - uv run scripts/setup_env.py
-    sources:
-      - engine/scripts/setup_env.py
-    generates:
-      - engine/.env.local
-
-  legacy:run:
-    desc: "Run the legacy Python engine oracle"
-    deps: [legacy:prepare]
-    ignore_error: true
-    dir: engine/src
-    vars:
-      PORT: '{{.PORT | default "5001"}}'
-    env:
-      PYTHONUNBUFFERED: "1"
-    cmds:
-      - uv run uvicorn stirling.api.app:app --host 0.0.0.0 --port {{.PORT}} --workers "${STIRLING_ENGINE_WORKERS:-4}"
-
-  legacy:dev:
-    desc: "Start the legacy Python engine oracle for development"
-    deps: [legacy:prepare]
-    ignore_error: true
-    dir: engine/src
-    vars:
-      PORT: '{{.PORT | default "5001"}}'
-    env:
-      PYTHONUNBUFFERED: "1"
-    cmds:
-      - uv run uvicorn stirling.api.app:app --host 0.0.0.0 --port {{.PORT}} --reload
-
-  legacy:lint:
-    desc: "Run legacy Python engine linting"
-    deps: [legacy:install]
-    dir: engine
-    cmds:
-      - uv run ruff check .
-
-  legacy:lint:fix:
-    desc: "Auto-fix legacy Python engine lint issues"
-    deps: [legacy:install]
-    dir: engine
-    cmds:
-      - uv run ruff check . --fix
-
-  legacy:format:
-    desc: "Auto-fix legacy Python engine formatting"
-    deps: [legacy:install]
-    dir: engine
-    cmds:
-      - uv run ruff format .
-
-  legacy:format:check:
-    desc: "Check legacy Python engine formatting"
-    deps: [legacy:install]
-    dir: engine
-    cmds:
-      - uv run ruff format . --diff
-
-  legacy:typecheck:
-    desc: "Run legacy Python engine type checking"
-    deps: [legacy:install]
-    dir: engine
-    cmds:
-      - uv run pyright . --warnings
-
-  legacy:test:
-    desc: "Run legacy Python engine oracle tests"
-    deps: [legacy:prepare]
-    dir: engine
-    cmds:
-      - uv run pytest tests
-
-  legacy:fix:
-    desc: "Auto-fix legacy Python engine source"
-    cmds:
-      - task: legacy:format
-      - task: legacy:lint:fix
-      - task: legacy:format
-
-  legacy:check:
-    desc: "Run the legacy Python engine oracle quality gate"
-    cmds:
-      - task: legacy:typecheck
-      - task: legacy:lint
-      - task: legacy:format:check
-      - task: legacy:test
-
-  legacy:tool-models:
-    desc: "Generate legacy Python engine models from the Java OpenAPI spec"
-    deps: [legacy:install, ":backend:swagger"]
-    cmds:
-      - uv run --project engine python engine/scripts/generate_tool_models.py --spec SwaggerDoc.json --output engine/src/stirling/models/tool_models.py
-    sources:
-      - SwaggerDoc.json
-      - engine/scripts/generate_tool_models.py
-    generates:
-      - engine/src/stirling/models/tool_models.py
-
-  legacy:clean:
-    desc: "Clean legacy Python engine build artifacts"
-    cmds:
-      - task: '{{if eq .OS "Windows_NT"}}legacy:clean:windows{{else}}legacy:clean:unix{{end}}'
-
-  legacy:clean:unix:
-    internal: true
-    dir: engine
-    cmds:
-      - rm -rf .venv data logs output
-
-  legacy:clean:windows:
-    internal: true
-    ignore_error: true
-    dir: engine
-    cmds:
-      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue .venv
-      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue data
-      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue logs
-      - powershell rm -Recurse -Force -ErrorAction SilentlyContinue output
