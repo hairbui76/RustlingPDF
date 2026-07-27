@@ -54,6 +54,9 @@ npx tsx scripts/setup-env.mts --desktop && node scripts/generate-icons.js
 # Build the Windows installer provisioner + thumbnail-handler (no-op on macOS/Linux).
 # The WiX fragment references these binaries, so light.exe fails to bind without them.
 node scripts/build-provisioner.mjs
+# Build + stage the Rust backend sidecar and PDFium runtime; tauri build fails
+# without the externalBin/resources staged in src-tauri.
+(cd "$FRONTEND_DIR/.." && task desktop:stage-sidecar)
 
 TAURI_SIGNING_PRIVATE_KEY="$PRIVATE_KEY" \
 TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" \

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end auto-update test for macOS/Linux.
 #
-# Builds JRE + JAR + signed update bundle, starts server + app,
+# Builds the Rust backend sidecar + signed update bundle, starts server + app,
 # runs CDP tests against the WebView, then cleans up.
 #
 # Usage:
@@ -10,7 +10,8 @@
 #   bash scripts/dev-update-test/test-update-e2e.sh --skip-build  # reuse existing MSI
 #
 # Prerequisites:
-#   - Java 21+ JDK (with jlink)
+#   - Rust toolchain (cargo/rustc) + Task (https://taskfile.dev)
+#   - On Linux: Tauri system libraries (libwebkit2gtk-4.1-dev and friends)
 #   - Node.js + npm
 #   - Python 3 (for HTTP server + CDP tests)
 #   - First-time: bash scripts/dev-update-test/setup-dev-updater.sh
@@ -44,6 +45,7 @@ cleanup() {
   [ -n "$APP_PID" ] && kill "$APP_PID" 2>/dev/null || true
   [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null || true
   pkill -f "stirling-pdf" 2>/dev/null || true
+  pkill -f "stirling-processing" 2>/dev/null || true
   echo "  Done"
 }
 trap cleanup EXIT
@@ -58,12 +60,10 @@ if [ ! -f "$KEYS_DIR/dev-update-key" ]; then
 fi
 echo "  Signing keys: OK"
 
-JAVA_VER=$(java -version 2>&1 | head -1 | tr -d '\r"' | awk '{print $3}' | cut -d. -f1)
-if [ -z "$JAVA_VER" ] || [ "$JAVA_VER" -lt 21 ]; then
-  echo "  Error: Java 21+ required, found Java $JAVA_VER"
-  exit 1
-fi
-echo "  Java $JAVA_VER: OK"
+command -v cargo >/dev/null 2>&1 || { echo "  Error: Rust toolchain (cargo) required"; exit 1; }
+command -v rustc >/dev/null 2>&1 || { echo "  Error: Rust toolchain (rustc) required"; exit 1; }
+command -v task >/dev/null 2>&1 || { echo "  Error: Task (taskfile.dev) required"; exit 1; }
+echo "  Rust toolchain + Task: OK"
 
 # Detect python command (python3 on macOS/Linux, python on Windows Git Bash)
 PYTHON="python3"
@@ -103,41 +103,23 @@ case "$OS" in
     ;;
 esac
 
-# ── Step 1: Build JRE + JAR ──────────────────────────────────────────────────
-JRE_JAVA="$TAURI_DIR/runtime/jre/bin/java"
-JAR_GLOB="$TAURI_DIR/libs/stirling-pdf-*.jar"
+# ── Step 1: Build + stage the Rust backend sidecar ───────────────────────────
+HOST_TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
+EXE_SUFFIX=""
+case "$HOST_TRIPLE" in
+  *windows*) EXE_SUFFIX=".exe" ;;
+esac
+SIDECAR="$TAURI_DIR/binaries/stirling-processing-$HOST_TRIPLE$EXE_SUFFIX"
+PDFIUM_DIR="$TAURI_DIR/resources/pdfium"
 
-if [ "$SKIP_BUILD" = false ] || ! ls $JAR_GLOB >/dev/null 2>&1 || [ ! -f "$JRE_JAVA" ]; then
+if [ "$SKIP_BUILD" = false ] || [ ! -f "$SIDECAR" ] || [ ! -d "$PDFIUM_DIR" ]; then
   echo ""
-  echo "=== Building backend JAR ==="
-  cd "$REPO_ROOT"
-  DISABLE_ADDITIONAL_FEATURES=true ./gradlew bootJar -x test --no-daemon 2>&1 | tail -3
-
-  BUILT_JAR=$(ls -t app/core/build/libs/stirling-pdf-*.jar 2>/dev/null | head -1 || true)
-  if [ -z "$BUILT_JAR" ]; then echo "Error: JAR not found"; exit 1; fi
-
-  mkdir -p "$TAURI_DIR/libs"
-  # Remove any dummy jars
-  find "$TAURI_DIR/libs" -name "*.jar" -size -1k -delete 2>/dev/null || true
-  cp "$BUILT_JAR" "$TAURI_DIR/libs/"
-  echo "  JAR: $(basename "$BUILT_JAR") ($(du -h "$BUILT_JAR" | cut -f1))"
-
-  if [ ! -f "$JRE_JAVA" ]; then
-    echo ""
-    echo "=== Building JRE with jlink ==="
-    rm -rf "$TAURI_DIR/runtime/jre"
-    MODULES="java.base,java.compiler,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.transaction.xa,java.xml,java.xml.crypto,jdk.crypto.ec,jdk.crypto.cryptoki,jdk.unsupported"
-    jlink \
-      --add-modules "$MODULES" \
-      --strip-debug \
-      --no-header-files \
-      --no-man-pages \
-      --output "$TAURI_DIR/runtime/jre"
-    echo "  JRE: OK"
-  else
-    echo "  JRE: already exists"
-  fi
+  echo "=== Building + staging Rust backend sidecar ==="
+  echo "  (release build of stirling-processing + pinned PDFium)"
+  (cd "$REPO_ROOT" && task desktop:stage-sidecar)
 fi
+[ -f "$SIDECAR" ] || { echo "Error: staged sidecar not found: $SIDECAR"; exit 1; }
+echo "  Sidecar: $(basename "$SIDECAR") ($(du -h "$SIDECAR" | cut -f1))"
 
 # ── Step 2: Build signed update bundle ────────────────────────────────────────
 mkdir -p "$OUTPUT_DIR"
@@ -191,7 +173,7 @@ if [ "$SKIP_BUILD" = false ] || [ -z "$BUNDLE_FILE" ]; then
   cat > "$OUTPUT_DIR/latest.json" << EOF
 {
   "version": "99.0.0",
-  "notes": "Test update v99.0.0 - built with real JRE + backend",
+  "notes": "Test update v99.0.0 - built with the real Rust backend sidecar",
   "pub_date": "$PUB_DATE",
   "platforms": {
     "$TAURI_PLATFORM": {

@@ -4,6 +4,10 @@
 # its own Cargo workspace under src-tauri/.
 target/
 /gen/schemas
-/runtime/
+
+# Staged sidecar + PDFium runtime (task desktop:stage-sidecar) — build inputs,
+# never committed.
+/binaries/
+/resources/pdfium/
 
 **/stirling_thumbnail_handler.dll

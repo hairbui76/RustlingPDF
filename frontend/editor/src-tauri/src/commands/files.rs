@@ -39,6 +39,9 @@ pub async fn pop_opened_files() -> Result<Vec<String>, String> {
     let mut opened_files = OPENED_FILES.lock().unwrap();
     let all_files = opened_files.clone();
     opened_files.clear();
-    add_log(format!("📂 Returning and clearing {} opened file(s)", all_files.len()));
+    add_log(format!(
+        "📂 Returning and clearing {} opened file(s)",
+        all_files.len()
+    ));
     Ok(all_files)
 }

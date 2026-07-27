@@ -1,0 +1,100 @@
+name: Desktop CI (Tauri)
+
+# Quality gate for the Tauri desktop shell (frontend/editor/src-tauri):
+# rustfmt, clippy with -D warnings (the crate itself also sets
+# [lints.rust] warnings = "deny"), and the Rust unit/integration tests.
+#
+# The crate's build script (tauri-build) hard-requires the artifacts that
+# `task desktop:stage-sidecar` normally stages — the externalBin sidecar at
+# binaries/stirling-processing-<triple> plus the resources/pdfium directory —
+# and the frontend dist directory. Building the real backend here would drag
+# the whole rust/ workspace into this job for no extra signal, so the job
+# stubs all three: this is a compile/lint/test gate for the desktop shell,
+# not a packaging job.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/editor/src-tauri/**"
+      - ".taskfiles/desktop.yml"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    paths:
+      - "frontend/editor/src-tauri/**"
+      - ".taskfiles/desktop.yml"
+      - ".github/workflows/desktop.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    # Cold-cache runs compile the full Tauri dependency graph (~600 crates)
+    # for check + clippy + test; cache-warmed runs finish well under this.
+    timeout-minutes: 60
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # webkit2gtk/gtk/soup/rsvg/appindicator are the Linux system libraries
+      # tauri (wry/gtk) links against; xdo backs tauri's global shortcut input
+      # handling. Without them the crate does not compile at all.
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+        with:
+          # Matches the toolchain used by the backend gate; the crate's own
+          # rust-version floor is far lower.
+          toolchain: 1.94.0
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: frontend/editor/src-tauri -> target
+
+      # tauri-build fails the compile when bundle.externalBin /
+      # bundle.resources sources or the frontend dist are missing, so stub
+      # them (see the header comment for why the real artifacts are not
+      # built here).
+      - name: Stub frontend dist and sidecar staging (compile gate only)
+        working-directory: frontend/editor
+        run: |
+          mkdir -p dist src-tauri/binaries src-tauri/resources/pdfium
+          host_triple=$(rustc -vV | sed -n 's/^host: //p')
+          install -m 755 /usr/bin/true "src-tauri/binaries/stirling-processing-${host_triple}"
+          touch src-tauri/resources/pdfium/ci-stub
+
+      - name: Check formatting
+        working-directory: frontend/editor/src-tauri
+        run: cargo fmt --check
+
+      - name: Clippy (deny warnings)
+        working-directory: frontend/editor/src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Run tests
+        working-directory: frontend/editor/src-tauri
+        run: cargo test --locked

@@ -1,10 +1,17 @@
 # Auto-Update Testing
 
-> **Currently non-functional in this repository.** These scripts date from the
-> upstream Stirling-PDF desktop app and build a JRE + backend JAR from the Java
-> sources (`app/core`), which do not exist in RustlingPDF. They will be
-> reworked when the Rust backend is bundled as the Tauri sidecar (tracked
-> roadmap item); until then the flows below cannot complete here.
+Tests the Tauri desktop auto-updater against a locally served, locally signed
+update bundle. The desktop app bundles the Rust processing backend as a Tauri
+sidecar (`task desktop:stage-sidecar` builds `rust/crates/stirling-processing`
+in release mode, installs the pinned PDFium runtime, and stages both into
+`src-tauri/`); the flows below build that sidecar automatically.
+
+> **Signing note:** the `updater.pubkey` committed in `tauri.conf.json` is
+> inherited from the upstream desktop app and does **not** match any key this
+> repository controls. Before the first signed RustlingPDF release, generate a
+> new key pair (`npx tauri signer generate`) and replace the committed pubkey;
+> production updates are unverifiable until then. The dev flows below are
+> unaffected — they generate and use a local throwaway key pair.
 
 ## One command (automated)
 
@@ -12,7 +19,7 @@
 # First time only:
 npm run tauri:setup-dev-update
 
-# Run tests (builds JRE + JAR + signed bundle, starts server + app, runs checks):
+# Run tests (builds sidecar + signed bundle, starts server + app, runs checks):
 npm run tauri:test-update-e2e
 
 # Full install test (downloads + installs the update):
@@ -36,6 +43,10 @@ Go to Settings > General > Software Updates. Click "Check for Updates" then "Ins
 
 ## Requires
 
-- Java 21+ JDK (with `jlink`)
+- Rust toolchain (`rustc`, `cargo`) plus the Tauri Linux system libraries on
+  Linux hosts (`libwebkit2gtk-4.1-dev`, `libjavascriptcoregtk-4.1-dev`,
+  `libgtk-3-dev`, `libsoup-3.0-dev`, `librsvg2-dev`,
+  `libayatana-appindicator3-dev`, `libxdo-dev`)
+- [Task](https://taskfile.dev) (`task desktop:stage-sidecar` stages the sidecar)
 - Node.js, Python 3 (with `pip install websockets`)
 - First-time setup generates signing keys + config override
