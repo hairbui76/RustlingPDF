@@ -70,32 +70,46 @@ echo "=== [3/7] Stage Rust backend sidecar + PDFium ==="
 
 echo ""
 echo "=== [4/7] Build signed v99.0.0 updater artifact ==="
+# The driver rewrites the SERVED manifest ($DIST_DIR/latest.json) per test
+# phase (same-version, downgrade, wrong-key signature, tampered url), so a
+# run killed mid-driver leaves a poisoned manifest behind. The PRISTINE copy
+# below is written exactly once per build and never touched by the driver:
+# it is the sole authority for resolving the v99 artifact on reuse runs, and
+# the served manifest is restored from it before every run.
+PRISTINE_MANIFEST="$WORK_DIR/latest-good.pristine.json"
 V99_ARTIFACT=""
 find_v99_artifact() {
-  # The authoritative artifact is the one latest.json points to — the driver
-  # asserts the installed AppImage's sha against it, so resolving it any
-  # other way (e.g. globbing the dist dir) can drift from the served manifest
-  # when stale artifacts from earlier runs sit next to the fresh one.
+  # The authoritative artifact is the one the pristine manifest points to —
+  # the driver asserts the installed AppImage's sha against it, so resolving
+  # it any other way (e.g. globbing the dist dir, or trusting the served
+  # latest.json a killed run may have tampered) can drift from what a green
+  # run must serve.
   V99_ARTIFACT=""
-  [ -f "$DIST_DIR/latest.json" ] || return 0
+  [ -f "$PRISTINE_MANIFEST" ] || return 0
   local fname
   fname="$(python3 -c '
 import json, sys, urllib.parse
 url = json.load(open(sys.argv[1]))["platforms"]["linux-x86_64"]["url"]
 print(urllib.parse.unquote(url.rsplit("/", 1)[-1]))
-' "$DIST_DIR/latest.json" 2>/dev/null)" || return 0
+' "$PRISTINE_MANIFEST" 2>/dev/null)" || return 0
   [ -n "$fname" ] && [ -f "$DIST_DIR/$fname" ] && V99_ARTIFACT="$DIST_DIR/$fname"
   return 0
 }
-find_v99_artifact
-if [ "$SKIP_BUILD" = true ] && [ -n "$V99_ARTIFACT" ]; then
+if [ "$SKIP_BUILD" = true ]; then
+  find_v99_artifact
+fi
+if [ -n "$V99_ARTIFACT" ]; then
   echo "  Reusing: $V99_ARTIFACT"
 else
   bash "$SCRIPT_DIR/build-dev-update.sh" 2>&1 | tail -8
+  cp "$DIST_DIR/latest.json" "$PRISTINE_MANIFEST"
   find_v99_artifact
 fi
-[ -n "$V99_ARTIFACT" ] || { echo "Error: v99 updater artifact (per latest.json) not found in $DIST_DIR"; exit 1; }
-cp "$DIST_DIR/latest.json" "$WORK_DIR/latest-good.json"
+[ -n "$V99_ARTIFACT" ] || { echo "Error: v99 updater artifact (per the pristine manifest) not found in $DIST_DIR"; exit 1; }
+# Restore the served manifest from the pristine copy (a killed previous run
+# may have left a phase manifest in place) and hand the driver its own copy.
+cp "$PRISTINE_MANIFEST" "$DIST_DIR/latest.json"
+cp "$PRISTINE_MANIFEST" "$WORK_DIR/latest-good.json"
 
 echo ""
 echo "=== [5/7] Build v0.0.1 base AppImage (dev pubkey + localhost endpoint) ==="
@@ -154,7 +168,10 @@ echo "  tampered artifact: $TAMPERED_NAME"
 SERVER_PID=$!
 cleanup() {
   kill "$SERVER_PID" 2>/dev/null || true
-  pkill -f "Stirling-PDF" 2>/dev/null || true
+  # productName is "Stirling PDF" (space); the working-copy AppImage is
+  # RustlingPDF-0.0.1.AppImage — match both process shapes.
+  pkill -f "Stirling PDF" 2>/dev/null || true
+  pkill -f "RustlingPDF-0.0.1" 2>/dev/null || true
   pkill -f "stirling-processing" 2>/dev/null || true
   pkill Xvfb 2>/dev/null || true
 }

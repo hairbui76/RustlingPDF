@@ -91,13 +91,17 @@ caches (`rust/target`, `rust/.pdfium`, `frontend/node_modules`, `.keys/`,
 next run rebuilds them. The runner restores worktree file ownership on exit
 (the container runs as root over a bind mount).
 
-`--skip-build` reuse is idempotent across install runs: the cached v0.0.1
-build product is kept as `.e2e-work/base/RustlingPDF-0.0.1.pristine.AppImage`
-and every run drives a fresh working copy of it (the install test replaces
-the working copy in place — that is the install proof). The v99 artifact is
-resolved from the `latest.json` being served, so the sha the install test
-asserts always matches the manifest. The container toolchain downloads
-(Node.js, Task) are version- and sha256-pinned in `container/Dockerfile`.
+`--skip-build` reuse is idempotent across install runs — and across runs
+killed at any point: the cached v0.0.1 build product is kept as
+`.e2e-work/base/RustlingPDF-0.0.1.pristine.AppImage` and every run drives a
+fresh working copy of it (the install test replaces the working copy in
+place — that is the install proof). Likewise the good manifest is kept as
+`.e2e-work/latest-good.pristine.json`, written once per build and never
+touched by the driver: the v99 artifact is resolved from it and the served
+`latest.json` is restored from it before every run, so a run killed while a
+phase manifest (wrong key / tampered url / same-version) was being served
+cannot poison the next one. The container toolchain downloads (Node.js,
+Task) are version- and sha256-pinned in `container/Dockerfile`.
 
 Container quirks handled for you: AppImage tooling and the built AppImage run
 with `APPIMAGE_EXTRACT_AND_RUN=1` (no FUSE in containers), `NO_STRIP=1` for

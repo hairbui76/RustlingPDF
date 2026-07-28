@@ -44,7 +44,8 @@ cleanup() {
   echo "=== Cleanup ==="
   [ -n "$APP_PID" ] && kill "$APP_PID" 2>/dev/null || true
   [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null || true
-  pkill -f "stirling-pdf" 2>/dev/null || true
+  # productName is "Stirling PDF" (space) — match the actual process name.
+  pkill -f "Stirling PDF" 2>/dev/null || true
   pkill -f "stirling-processing" 2>/dev/null || true
   echo "  Done"
 }

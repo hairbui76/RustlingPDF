@@ -555,6 +555,12 @@ async def main():
         await insp.close()
     finally:
         app.terminate()
+        # Leave the served manifest in the good state even when a phase test
+        # fails or raises mid-run: a leftover phase manifest (wrong key /
+        # tampered url / same-version) must not poison a later run. The shell
+        # harness also restores from its pristine copy before every run —
+        # this covers the in-process failure paths, that covers SIGKILL.
+        write_manifest(args.dist_dir, good_manifest)
 
     if args.install and not failures:
         log("\n  T6: relaunch the replaced AppImage -> reports 99.0.0")
