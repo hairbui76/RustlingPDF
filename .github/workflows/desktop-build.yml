@@ -212,7 +212,7 @@ jobs:
       - name: Build Tauri bundles (${{ matrix.bundles }})
         working-directory: frontend/editor
         env:
-          SIGN: ${{ inputs.sign }}
+          UPDATER_SIGN: ${{ inputs.sign }}
           BUNDLES: ${{ matrix.bundles }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -229,7 +229,7 @@ jobs:
           # WiX, hdiutil) in the log — without it a bundling failure surfaces
           # only as "failed to run <tool>" with the real error swallowed.
           args=(build --verbose --bundles "${BUNDLES}")
-          if [ "${SIGN}" != "true" ]; then
+          if [ "${UPDATER_SIGN}" != "true" ]; then
             args+=(--no-sign)
           fi
           npx tauri "${args[@]}"
@@ -239,7 +239,7 @@ jobs:
       # updater artifact when signing was requested.
       - name: Collect bundles and signatures
         env:
-          SIGN: ${{ inputs.sign }}
+          UPDATER_SIGN: ${{ inputs.sign }}
         run: |
           set -euo pipefail
           bundle_root="frontend/editor/src-tauri/target/release/bundle"
@@ -266,7 +266,7 @@ jobs:
             exit 1
           fi
 
-          if [ "${SIGN}" = "true" ]; then
+          if [ "${UPDATER_SIGN}" = "true" ]; then
             for f in "${stage}"/*.AppImage "${stage}"/*.deb "${stage}"/*.rpm \
                      "${stage}"/*.msi "${stage}"/*-setup.exe "${stage}"/*.app.tar.gz; do
               if [ ! -f "${f}.sig" ]; then
