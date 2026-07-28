@@ -40,7 +40,7 @@ export APPIMAGE_EXTRACT_AND_RUN=1
 export NO_STRIP=1
 export CI=true
 
-mkdir -p "$WORK_DIR" "$LOG_DIR" "$EVIDENCE_DIR"
+mkdir -p "$WORK_DIR" "$LOG_DIR" "$EVIDENCE_DIR" "$DIST_DIR"
 
 echo ""
 echo "=== [1/7] npm dependencies ==="
@@ -52,9 +52,9 @@ fi
 
 echo ""
 echo "=== [2/7] Dev updater keys ==="
-if [ ! -f "$KEYS_DIR/dev-update-key" ] || [ ! -f "$TAURI_DIR/tauri.conf.dev-update.json" ]; then
-  bash "$SCRIPT_DIR/setup-dev-updater.sh"
-fi
+# Idempotent: reuses an existing key pair, always rewrites the config
+# override (so config-shape fixes propagate to stale generated files).
+bash "$SCRIPT_DIR/setup-dev-updater.sh"
 echo "  dev key:   $KEYS_DIR/dev-update-key"
 # A second throwaway key that signs the negative-test manifest. It is a
 # perfectly valid minisign key — just NOT the one pinned in the app config —
@@ -74,9 +74,10 @@ V99_ARTIFACT=""
 find_v99_artifact() {
   # Tauri v2 `createUpdaterArtifacts: true` signs the AppImage itself
   # (foo.AppImage + foo.AppImage.sig); the legacy v1-compatible mode wraps it
-  # (foo.AppImage.tar.gz + .sig). Accept either.
-  V99_ARTIFACT="$(find "$DIST_DIR" -maxdepth 1 -name "*.AppImage.tar.gz" | sort | tail -1)"
-  [ -n "$V99_ARTIFACT" ] || V99_ARTIFACT="$(find "$DIST_DIR" -maxdepth 1 -name "*.AppImage" | sort | tail -1)"
+  # (foo.AppImage.tar.gz + .sig). Accept either; never pick up a stale
+  # tampered-* negative-test artifact from an earlier run.
+  V99_ARTIFACT="$(find "$DIST_DIR" -maxdepth 1 -name "*.AppImage.tar.gz" -not -name "tampered-*" | sort | tail -1)"
+  [ -n "$V99_ARTIFACT" ] || V99_ARTIFACT="$(find "$DIST_DIR" -maxdepth 1 -name "*.AppImage" -not -name "tampered-*" | sort | tail -1)"
 }
 find_v99_artifact
 if [ "$SKIP_BUILD" = true ] && [ -n "$V99_ARTIFACT" ] && [ -f "$DIST_DIR/latest.json" ]; then
@@ -123,6 +124,7 @@ rm -f "$WORK_DIR/artifact-for-wrong-sig"
 
 # Tampered artifact (one byte flipped mid-file) served next to the good one,
 # with the GOOD signature — proves content binding.
+rm -f "$DIST_DIR"/tampered-*
 TAMPERED_NAME="tampered-$(basename "$V99_ARTIFACT")"
 python3 - "$V99_ARTIFACT" "$DIST_DIR/$TAMPERED_NAME" <<'PYEOF'
 import sys

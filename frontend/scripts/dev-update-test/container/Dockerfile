@@ -35,10 +35,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 # Task — the sidecar staging path is `task desktop:stage-sidecar`
 RUN curl -sSL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin
 
-# AppImage bundling helpers: linuxdeploy validates the .desktop file and
-# appimagetool can call zsyncmake for embedded update info.
+# AppImage bundling helpers: linuxdeploy validates the .desktop file,
+# appimagetool can call zsyncmake for embedded update info, and the tauri
+# bundler shells out to xdg-mime for the PDF file association.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    desktop-file-utils zsync \
+    desktop-file-utils zsync xdg-utils shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 # AppImage tooling (linuxdeploy/appimagetool, downloaded by the tauri CLI at

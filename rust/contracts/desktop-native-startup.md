@@ -83,4 +83,14 @@ The desktop updater endpoint points at RustlingPDF's own releases
 outside the repository and as the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions secret (see
 `frontend/scripts/dev-update-test/README.md`).
 
-Cross-platform signed-bundle upgrade proof remains.
+**Signed-bundle upgrade proof — Linux leg proven** (2026-07-28, containerized e2e:
+`frontend/scripts/dev-update-test/run-e2e-container.sh --install`): a release v0.0.1 AppImage
+carrying the Rust sidecar, built against a throwaway dev signing key and a localhost update
+endpoint, detected a served signed v99.0.0 update (`check_for_update` → 99.0.0), **rejected** a
+manifest signed by a different valid key ("signature was created with a different key") and a
+byte-tampered artifact under the good signature ("signature verification failed") — both leaving
+the installed AppImage untouched — then downloaded, signature-verified, and installed the good
+update (on-disk AppImage byte-identical to the served artifact, sha256-asserted) and reported
+99.0.0 after relaunch. The verifying key was cryptographically confirmed to be the dev throwaway
+key (minisign id match between the served signature and the pubkey pinned in the app config).
+macOS and Windows legs remain — they are release-runner work, not runnable on this host.

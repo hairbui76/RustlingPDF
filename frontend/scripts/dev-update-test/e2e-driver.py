@@ -76,12 +76,22 @@ class Inspector:
 
     Exposes a single primitive: eval_sync(expression) -> str value of a
     synchronous JS expression evaluated in the page.
+
+    WebKitGTK flavor: the per-target WebSocket of the remote inspector HTTP
+    server speaks the WebKit inspector protocol *multiplexed through the
+    Target domain*: on connect the backend announces targets
+    (Target.targetCreated, type "page"), commands are wrapped as
+    Target.sendMessageToTarget {targetId, message: "<json-rpc>"} and replies
+    arrive as Target.dispatchMessageFromTarget events carrying the nested
+    JSON-RPC response.
     """
 
-    def __init__(self, ws, flavor):
+    def __init__(self, ws, flavor, target=None):
         self.ws = ws
         self.flavor = flavor
+        self.target = target
         self._id = 100
+        self._inner_id = 1000
 
     @classmethod
     async def attach(cls, port, timeout=180):
@@ -128,10 +138,26 @@ class Inspector:
             ws_url = f"ws://{ws_url}"
         dbg(f"connecting {ws_url}")
         ws = await websockets.connect(ws_url, max_size=50 * 1024 * 1024)
-        insp = cls(ws, "webkit")
-        await insp._send({"id": 1, "method": "Runtime.enable"})
-        await insp._drain()
-        log(f"  Attached (WebKit remote inspector): {ws_url}")
+        # The backend announces its targets right after connect; wait for the
+        # page target the Target-domain multiplexing needs.
+        target = None
+        deadline = time.time() + 10
+        while target is None and time.time() < deadline:
+            try:
+                msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=2))
+            except asyncio.TimeoutError:
+                continue
+            dbg(f"init event: {str(msg)[:200]}")
+            if (
+                msg.get("method") == "Target.targetCreated"
+                and msg["params"]["targetInfo"].get("type") == "page"
+            ):
+                target = msg["params"]["targetInfo"]["targetId"]
+        if target is None:
+            await ws.close()
+            raise RuntimeError("no page target announced on the inspector socket")
+        insp = cls(ws, "webkit", target=target)
+        log(f"  Attached (WebKit remote inspector): {ws_url} target={target}")
         return insp
 
     async def _send(self, msg):
@@ -145,18 +171,60 @@ class Inspector:
             except asyncio.TimeoutError:
                 return
 
+    @staticmethod
+    def _unpack_eval_result(msg):
+        if "error" in msg:
+            raise RuntimeError(f"protocol error: {msg['error']}")
+        result = msg.get("result", {})
+        if result.get("wasThrown") or "exceptionDetails" in result:
+            exc = result.get("result", {}).get("description") or str(
+                result.get("exceptionDetails", "")
+            )
+            raise RuntimeError(f"JS exception: {exc[:400]}")
+        inner = result.get("result", {})
+        if "value" in inner:
+            return inner["value"]
+        return inner.get("description", str(inner))
+
     async def eval_sync(self, expression, timeout=30):
         """Evaluate a synchronous expression; returns its string/JSON value."""
+        evaluate = {
+            "method": "Runtime.evaluate",
+            "params": {"expression": expression, "returnByValue": True},
+        }
+        deadline = time.time() + timeout
+        if self.flavor == "webkit":
+            self._inner_id += 1
+            inner_mid = self._inner_id
+            self._id += 1
+            await self._send(
+                {
+                    "id": self._id,
+                    "method": "Target.sendMessageToTarget",
+                    "params": {
+                        "targetId": self.target,
+                        "message": json.dumps({"id": inner_mid, **evaluate}),
+                    },
+                }
+            )
+            while True:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    raise TimeoutError(f"evaluate timed out: {expression[:120]}")
+                msg = json.loads(await asyncio.wait_for(self.ws.recv(), timeout=remaining))
+                if msg.get("method") != "Target.dispatchMessageFromTarget":
+                    dbg(f"skipped: {str(msg)[:200]}")
+                    continue
+                nested = json.loads(msg["params"]["message"])
+                if nested.get("id") != inner_mid:
+                    dbg(f"skipped nested: {str(nested)[:200]}")
+                    continue
+                return self._unpack_eval_result(nested)
+
+        # CDP flavor
         self._id += 1
         mid = self._id
-        await self._send(
-            {
-                "id": mid,
-                "method": "Runtime.evaluate",
-                "params": {"expression": expression, "returnByValue": True},
-            }
-        )
-        deadline = time.time() + timeout
+        await self._send({"id": mid, **evaluate})
         while True:
             remaining = deadline - time.time()
             if remaining <= 0:
@@ -165,18 +233,7 @@ class Inspector:
             if msg.get("id") != mid:
                 dbg(f"skipped event: {str(msg)[:200]}")
                 continue
-            if "error" in msg:
-                raise RuntimeError(f"protocol error: {msg['error']}")
-            result = msg.get("result", {})
-            if result.get("wasThrown") or "exceptionDetails" in result:
-                exc = result.get("result", {}).get("description") or str(
-                    result.get("exceptionDetails", "")
-                )
-                raise RuntimeError(f"JS exception: {exc[:400]}")
-            inner = result.get("result", {})
-            if "value" in inner:
-                return inner["value"]
-            return inner.get("description", str(inner))
+            return self._unpack_eval_result(msg)
 
     async def invoke_async(self, invoke_js, timeout=300, poll=1.0):
         """Run an async IPC invoke and poll for its stored outcome.

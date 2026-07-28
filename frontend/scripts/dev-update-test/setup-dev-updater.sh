@@ -10,10 +10,15 @@ TAURI_CONF_OVERRIDE="$FRONTEND_DIR/editor/src-tauri/tauri.conf.dev-update.json"
 
 mkdir -p "$KEYS_DIR"
 
-echo "Generating Tauri Ed25519 signing key pair for dev update testing..."
-
-# Generate key pair — private key goes to .keys/dev-update-key, public key to .keys/dev-update-key.pub
-(cd "$FRONTEND_DIR/editor" && npx tauri signer generate -w "$KEYS_DIR/dev-update-key" --ci -p "")
+# Generate key pair — private key goes to .keys/dev-update-key, public key to
+# .keys/dev-update-key.pub. Idempotent: an existing key pair is reused so
+# previously signed dev bundles stay valid; delete .keys/ to rotate.
+if [ -f "$KEYS_DIR/dev-update-key" ] && [ -f "$KEYS_DIR/dev-update-key.pub" ]; then
+    echo "Reusing existing dev signing key pair in $KEYS_DIR"
+else
+    echo "Generating Tauri Ed25519 signing key pair for dev update testing..."
+    (cd "$FRONTEND_DIR/editor" && npx tauri signer generate -w "$KEYS_DIR/dev-update-key" --ci -p "")
+fi
 
 PUBKEY=$(cat "$KEYS_DIR/dev-update-key.pub")
 echo ""
@@ -22,12 +27,16 @@ echo ""
 
 # Write the override config — sets version to 0.0.1 so any "available" version looks newer,
 # and points the updater endpoint to the local dev server on port 8090.
+# dangerousInsecureTransportProtocol: release builds refuse plain-http update
+# endpoints; this override is dev-only (gitignored) and never ships — the
+# committed tauri.conf.json keeps the https-only default.
 cat > "$TAURI_CONF_OVERRIDE" << EOF
 {
   "version": "0.0.1",
   "plugins": {
     "updater": {
       "pubkey": "$PUBKEY",
+      "dangerousInsecureTransportProtocol": true,
       "endpoints": [
         "http://localhost:8090/latest.json"
       ]
