@@ -39,6 +39,18 @@ persisted browser-storage keys, the `StirlingPDFClassification` PDF Info key,
 `StirlingSig*`/`StirlingPageNumber*` XObject names, `X-Stirling-*` HTTP
 headers, and the `stirling_*` MCP tool identifiers.
 
+**Batch-6 validation (2026-07-28, on the rename branch):** `cargo fmt --check`
+and strict locked all-target workspace Clippy are clean; the full workspace
+suite (`cargo test --workspace --locked` with PDFium bound via
+`RUSTLING_PDFIUM_LIBRARY_PATH`) reports **1692 passed / 0 failed / 1 ignored**
+across all 118 targets, including new targeted coverage for the alias
+mechanisms (env-spelling precedence unit tests, a legacy-`STIRLING_*`-only
+boot that must warn exactly once on stderr, a both-spellings boot where
+`RUSTLING_*` must win, and `rustling.*`-vs-`stirling.*` settings-root
+precedence). The frontend gate (typecheck/eslint/1647 vitest/`vite build` +
+`og:check`) and the containerized `src-tauri` gate (fmt + strict clippy +
+tests, with the renamed `rustling-processing` sidecar stub) are green.
+
 **Latest validation (2026-07-28, RustlingPDF `main` after batch 3 — GitHub CI,
 single-binary SPA serving, Docker packaging, the parity trio, and the identity-
 persistence fix pair):** `cargo fmt --check` and strict locked all-target workspace
