@@ -255,7 +255,7 @@ pub fn valid_totp_step(secret: &str, code: &str, now: i64) -> Option<i64> {
 pub fn totp_auth_uri(issuer: &str, username: &str, secret: &str) -> String {
     let issuer = issuer.trim();
     let issuer = if issuer.is_empty() {
-        "Stirling PDF"
+        "RustlingPDF"
     } else {
         issuer
     };
@@ -418,8 +418,8 @@ mod tests {
     fn creates_compatible_secret_and_provisioning_uri() {
         let secret = generate_totp_secret();
         assert_eq!(secret.len(), 32);
-        let uri = totp_auth_uri("Stirling PDF", "user+test@example.test", &secret);
-        assert!(uri.starts_with("otpauth://totp/Stirling%20PDF%3Auser%2Btest%40example.test?"));
+        let uri = totp_auth_uri("RustlingPDF", "user+test@example.test", &secret);
+        assert!(uri.starts_with("otpauth://totp/RustlingPDF%20PDF%3Auser%2Btest%40example.test?"));
         assert!(uri.contains("algorithm=SHA1&digits=6&period=30"));
     }
 }

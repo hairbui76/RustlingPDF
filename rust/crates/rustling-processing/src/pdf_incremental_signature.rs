@@ -139,7 +139,7 @@ impl PdfSignaturePlaceholder {
         }
         let mut field = dictionary! {
             "FT" => "Sig",
-            "T" => Object::string_literal(format!("Stirling Rust Signature {}", field_id.0)),
+            "T" => Object::string_literal(format!("RustlingPDF Signature {}", field_id.0)),
             "V" => Object::Reference(signature_id),
         };
         if let Some(appearance) = appearance {

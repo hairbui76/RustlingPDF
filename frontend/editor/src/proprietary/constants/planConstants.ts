@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { PlanFeature } from "@app/types/license";
 
 /**
- * Shared plan feature definitions for Stirling PDF Self-Hosted
+ * Shared plan feature definitions for RustlingPDF Self-Hosted
  * Used by both dynamic (Stripe) and static (fallback) plan displays.
  *
  * These are exposed as hooks so that every feature/highlight string can be

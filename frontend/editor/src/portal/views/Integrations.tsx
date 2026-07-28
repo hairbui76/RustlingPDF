@@ -27,7 +27,7 @@ import { COMING_SOON_SOURCE_TYPES } from "@portal/components/sources/sourceTypes
 import "@portal/views/Integrations.css";
 
 /**
- * The integrations catalogue: everything Stirling can talk to, in one place.
+ * The integrations catalogue: everything RustlingPDF can talk to, in one place.
  *
  * Three bands in one list. Connected first — stored connections grouped by
  * vendor, expandable when a vendor has several (two S3 buckets is normal, not

@@ -4,7 +4,7 @@ import type { Tier } from "@portal/contexts/TierContext";
 
 export type DocumentStatus = "processed" | "flagged" | "in-review" | "error";
 
-/** Which Stirling product ran the operation. "Automation" = a policy/pipeline run's tool step. */
+/** Which RustlingPDF product ran the operation. "Automation" = a policy/pipeline run's tool step. */
 export type ProductType = "API" | "Editor" | "Automation";
 
 /** A single field pulled out of the document by extraction. */

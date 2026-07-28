@@ -13,7 +13,7 @@ type Story = StoryObj<typeof SectionHeader>;
 export const Default: Story = {
   args: {
     title: "Regions",
-    sub: "Live health for every deployed Stirling region — latency, load, and rollout version.",
+    sub: "Live health for every deployed RustlingPDF region — latency, load, and rollout version.",
   },
 };
 

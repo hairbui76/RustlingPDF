@@ -1,5 +1,5 @@
 /**
- * Stirling File Storage Service
+ * RustlingPDF File Storage Service
  * Single-table architecture with typed query methods
  * Forces correct usage patterns through service API design
  */

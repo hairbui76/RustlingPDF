@@ -122,7 +122,7 @@ fn fetch_remote_html(url: &Url) -> Result<String, UrlToPdfError> {
         .redirect(Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT)
-        .user_agent("Stirling-PDF/URL-to-PDF")
+        .user_agent("RustlingPDF/URL-to-PDF")
         .resolve_to_addrs(host, &addresses)
         .build()
         .map_err(|error| UrlToPdfError::Unreachable(error.to_string()))?;

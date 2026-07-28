@@ -251,7 +251,7 @@ fn pdf_with_text_and_form(with_form: bool) -> Result<Vec<u8>, Box<dyn std::error
 
 fn assert_rebuilt_metadata(document: &Document) -> Result<(), Box<dyn std::error::Error>> {
     let info = info_dictionary(document)?;
-    let label = format!("Stirling-PDF v{}", application_version());
+    let label = format!("RustlingPDF v{}", application_version());
     assert_eq!(info.get(b"Title")?.as_str()?, b"Source title");
     assert_eq!(info.get(b"Creator")?.as_str()?, label.as_bytes());
     assert_eq!(info.get(b"Producer")?.as_str()?, label.as_bytes());
@@ -266,7 +266,7 @@ fn assert_rebuilt_metadata(document: &Document) -> Result<(), Box<dyn std::error
 
 fn assert_loaded_metadata(document: &Document) -> Result<(), Box<dyn std::error::Error>> {
     let info = info_dictionary(document)?;
-    let label = format!("Stirling-PDF v{}", application_version());
+    let label = format!("RustlingPDF v{}", application_version());
     assert_eq!(info.get(b"Title")?.as_str()?, b"Source title");
     assert_eq!(info.get(b"Creator")?.as_str()?, b"Source creator");
     assert_eq!(info.get(b"Producer")?.as_str()?, label.as_bytes());

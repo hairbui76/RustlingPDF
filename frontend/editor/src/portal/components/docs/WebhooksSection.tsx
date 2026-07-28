@@ -27,7 +27,7 @@ export function WebhooksSection() {
       />
       <Card className="portal-docs__callout" accent="warning" padding="loose">
         {t("portal.docs.webhooks.callout.beforeSignature")}{" "}
-        <code>Stirling-Signature</code>{" "}
+        <code>RustlingPDF-Signature</code>{" "}
         {t("portal.docs.webhooks.callout.beforeHelper")}{" "}
         <code>verifyWebhook()</code>{" "}
         {t("portal.docs.webhooks.callout.afterHelper")}

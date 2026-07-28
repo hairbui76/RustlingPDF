@@ -25,7 +25,7 @@ async fn returns_java_compatible_analysis_json() -> Result<(), Box<dyn std::erro
 
     let properties = post_json("/api/v1/analysis/document-properties", &pdf).await?;
     assert_eq!(properties["title"], "Analysis fixture");
-    assert_eq!(properties["author"], "Stirling");
+    assert_eq!(properties["author"], "RustlingPDF");
     assert_eq!(properties["subject"], Value::Null);
     assert_eq!(properties["creationDate"], "D:20260715123456+07'00'");
 
@@ -188,7 +188,7 @@ fn analysis_pdf() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     });
     let info_id = document.add_object(dictionary! {
         "Title" => Object::string_literal("Analysis fixture"),
-        "Author" => Object::string_literal("Stirling"),
+        "Author" => Object::string_literal("RustlingPDF"),
         "CreationDate" => Object::string_literal("D:20260715123456+07'00'"),
     });
     document.trailer.set("Root", catalog_id);

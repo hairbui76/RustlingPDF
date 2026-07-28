@@ -124,7 +124,7 @@ impl Pkcs11SigningRequest {
 
 #[derive(Debug, Error)]
 pub enum HardwareSigningError {
-    #[error("Hardware-backed signing is only available in the Stirling PDF desktop app")]
+    #[error("Hardware-backed signing is only available in the RustlingPDF desktop app")]
     DesktopOnly,
     #[error("The Windows certificate store is not available on this platform")]
     WindowsStoreUnavailable,

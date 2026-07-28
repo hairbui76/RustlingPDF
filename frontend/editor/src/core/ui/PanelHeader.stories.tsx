@@ -41,7 +41,7 @@ export const WithMenu: Story = {
 
 /** Loading state — pulsing status dot on the icon + a tinted border. */
 export const Loading: Story = {
-  args: { title: "Stirling", loading: true },
+  args: { title: "RustlingPDF", loading: true },
 };
 
 /** Right-aligned actions rendered before the close button. */

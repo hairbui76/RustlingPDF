@@ -4,7 +4,7 @@
  * ## Domains
  *
  *   apiClient.local           This instance's backend, via the localBackend seam.
- *                             Self-hosted: same-origin (vite proxy → local Stirling
+ *                             Self-hosted: same-origin (vite proxy → local RustlingPDF
  *                             backend on :8080), Spring admin bearer. SaaS: there is
  *                             no separate local instance, so it targets the one SaaS
  *                             backend with the Supabase JWT (same as .saas).

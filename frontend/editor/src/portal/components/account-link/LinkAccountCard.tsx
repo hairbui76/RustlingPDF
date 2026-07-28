@@ -29,7 +29,7 @@ export function LinkAccountCard({ link }: Props) {
           <h2 className="portal-link__title">
             {t(
               "portal.accountLink.card.title",
-              "Link this org to its Stirling account",
+              "Link this org to its RustlingPDF account",
             )}
           </h2>
         </div>
@@ -52,7 +52,7 @@ export function LinkAccountCard({ link }: Props) {
           <code>VITE_SUPABASE_URL</code>{" "}
           {t(
             "portal.accountLink.card.loginNotConfigured.after",
-            "to enable account linking against the hosted Stirling account. In dev you can simulate sign-in from the link dialog.",
+            "to enable account linking against the hosted RustlingPDF account. In dev you can simulate sign-in from the link dialog.",
           )}
         </Banner>
       )}
@@ -96,7 +96,7 @@ export function LinkAccountCard({ link }: Props) {
           <Button loading={linking} onClick={() => openLinkModal()}>
             {t(
               "portal.accountLink.card.linkButton",
-              "Link your Stirling account",
+              "Link your RustlingPDF account",
             )}
           </Button>
         </div>

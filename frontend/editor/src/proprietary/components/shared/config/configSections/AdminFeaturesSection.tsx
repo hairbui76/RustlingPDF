@@ -67,7 +67,7 @@ export default function AdminFeaturesSection() {
       } = {
         serverCertificate: systemData.serverCertificate || {
           enabled: true,
-          organizationName: "Stirling PDF Inc",
+          organizationName: "RustlingPDF",
           validity: 365,
           regenerateOnStartup: false,
         },
@@ -189,7 +189,7 @@ export default function AdminFeaturesSection() {
             <Text size="xs" c="dimmed">
               {t(
                 "admin.settings.features.serverCertificate.description",
-                'Configure server-side certificate generation for "Sign with Stirling-PDF" functionality',
+                'Configure server-side certificate generation for "Sign with RustlingPDF" functionality',
               )}
             </Text>
 
@@ -210,7 +210,7 @@ export default function AdminFeaturesSection() {
                 <Text size="xs" c="dimmed" mt={4}>
                   {t(
                     "admin.settings.features.serverCertificate.enabled.description",
-                    'Enable server-side certificate for "Sign with Stirling-PDF" option',
+                    'Enable server-side certificate for "Sign with RustlingPDF" option',
                   )}
                 </Text>
               </div>
@@ -259,7 +259,7 @@ export default function AdminFeaturesSection() {
                 )}
                 value={
                   settings.serverCertificate?.organizationName ||
-                  "Stirling PDF Inc"
+                  "RustlingPDF"
                 }
                 onChange={(e) =>
                   setSettings({
@@ -270,7 +270,7 @@ export default function AdminFeaturesSection() {
                     },
                   })
                 }
-                placeholder="Stirling-PDF"
+                placeholder="RustlingPDF"
                 disabled={!loginEnabled}
               />
             </div>

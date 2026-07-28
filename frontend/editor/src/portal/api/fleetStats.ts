@@ -3,7 +3,7 @@ import { apiClient } from "@portal/api/http";
 /**
  * Free-editor fleet usage for the {@link FreePdfEditorsCard}.
  *
- * Self-hosted (this module) reads the local Stirling backend — the figures come
+ * Self-hosted (this module) reads the local RustlingPDF backend — the figures come
  * from this instance's audit trail, filtered to free UI tool runs. The SaaS build
  * shadows this module (src/portal-saas/api/fleetStats.ts) to read the team-scoped
  * SaaS backend instead.

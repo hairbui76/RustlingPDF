@@ -391,7 +391,7 @@ function CapStep({
             {" — "}
             {t(
               "payg.upgrade.help.apiBody",
-              "programmatic access to any Stirling endpoint",
+              "programmatic access to any RustlingPDF endpoint",
             )}
           </li>
         </ul>
@@ -430,7 +430,7 @@ function CheckoutStep({
       <p className="upm-section-help">
         {t(
           "payg.upgrade.checkout.help",
-          "Stripe handles your card details. Stirling never sees them.",
+          "Stripe handles your card details. RustlingPDF never sees them.",
         )}
       </p>
 

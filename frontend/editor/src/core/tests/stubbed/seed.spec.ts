@@ -3,7 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 
 /**
- * Seed test for Stirling-PDF E2E tests.
+ * Seed test for RustlingPDF E2E tests.
  * This file is copied into generated tests by the Playwright Test Agents.
  * It provides the baseline environment: navigates to the app and verifies it loaded.
  */
@@ -53,9 +53,9 @@ export const TEST_FILES = {
   corrupted: resolveFixturePath("corrupted.pdf"),
 } as const;
 
-test.describe("Stirling-PDF seed", () => {
+test.describe("RustlingPDF seed", () => {
   test("seed - app loads", async ({ page }) => {
-    // Navigate to the Stirling-PDF frontend
+    // Navigate to the RustlingPDF frontend
     await page.goto("/");
 
     // The app may redirect to /login if authentication is enabled.
@@ -63,12 +63,12 @@ test.describe("Stirling-PDF seed", () => {
     await expect(
       page
         .locator(
-          '.h-screen, .mobile-layout, [data-testid="dashboard"], img[alt*="Stirling"]',
+          '.h-screen, .mobile-layout, [data-testid="dashboard"], img[alt*="RustlingPDF"]',
         )
         .first(),
     ).toBeVisible({ timeout: 15000 });
 
-    // Verify the title contains Stirling PDF
-    await expect(page).toHaveTitle(/Stirling/i);
+    // Verify the title contains RustlingPDF
+    await expect(page).toHaveTitle(/RustlingPDF/i);
   });
 });

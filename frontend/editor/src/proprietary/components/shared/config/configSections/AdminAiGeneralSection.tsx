@@ -175,7 +175,7 @@ export default function AdminAiGeneralSection() {
           <Text size="sm" c="dimmed">
             {t(
               "admin.settings.ai.general.description",
-              "Connect Stirling to the Python AI engine and choose which AI capabilities are exposed. Changes apply on restart.",
+              "Connect RustlingPDF to the Python AI engine and choose which AI capabilities are exposed. Changes apply on restart.",
             )}
           </Text>
         </div>

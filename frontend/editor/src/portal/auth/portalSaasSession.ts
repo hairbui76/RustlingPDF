@@ -3,7 +3,7 @@ import { ensureSaasSupabase } from "@portal/auth/saasSupabase";
 
 /**
  * SaaS access token for attended portal→SaaS reads. Reads the shared Supabase
- * client, which {@link ensureSaasSupabase} configures against the one Stirling
+ * client, which {@link ensureSaasSupabase} configures against the one RustlingPDF
  * Supabase project (VITE_SUPABASE_*) both flavors talk to: self-hosted mints a
  * SaaS JWT in-app for account-linking (alongside its own Spring session); SaaS is
  * already signed into that same project, so the editor session is inherited.

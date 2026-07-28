@@ -57,7 +57,7 @@ keepWorking = "Keep Working"
 loading = "Loading..."
 loginAgreementAccept = "Accept"
 loginAgreementDecline = "Decline"
-loginAgreementProvider = "This notice is provided by your administrator, not Stirling PDF Inc."
+loginAgreementProvider = "This notice is provided by your administrator, not RustlingPDF."
 loginAgreementTitle = "Login Agreement"
 logOut = "Log out"
 marginTooltip = "Distance between the page number and the edge of the page."
@@ -732,7 +732,7 @@ description = "Number of most-relevant chunks retrieved per search."
 label = "Top K"
 
 [admin.settings.ai.general]
-description = "Connect Stirling to the Python AI engine and choose which AI capabilities are exposed. Changes apply on restart."
+description = "Connect RustlingPDF to the Python AI engine and choose which AI capabilities are exposed. Changes apply on restart."
 title = "AI Engine"
 
 [admin.settings.ai.general.capabilities]
@@ -1080,11 +1080,11 @@ description = "Configure optional features and functionality."
 title = "Features"
 
 [admin.settings.features.serverCertificate]
-description = "Configure server-side certificate generation for \"Sign with Stirling-PDF\" functionality"
+description = "Configure server-side certificate generation for \"Sign with RustlingPDF\" functionality"
 label = "Server Certificate"
 
 [admin.settings.features.serverCertificate.enabled]
-description = "Enable server-side certificate for \"Sign with Stirling-PDF\" option"
+description = "Enable server-side certificate for \"Sign with RustlingPDF\" option"
 label = "Enable Server Certificate"
 
 [admin.settings.features.serverCertificate.organizationName]
@@ -1101,11 +1101,11 @@ label = "Certificate Validity (days)"
 
 [admin.settings.folderAccess]
 description = "Directories that folder sources and folder outputs are allowed to read from and write to. This is a security boundary: automations can never be pointed at a server path outside this list."
-securityNote = "Leave this empty to disable folder sources and outputs entirely. Stirling's own configuration directory is always off-limits."
+securityNote = "Leave this empty to disable folder sources and outputs entirely. RustlingPDF's own configuration directory is always off-limits."
 title = "Folder Access"
 
 [admin.settings.folderAccess.implied]
-description = "These Stirling-managed directories are always permitted and can't be changed here."
+description = "These RustlingPDF-managed directories are always permitted and can't be changed here."
 serverStorage = "Server file storage"
 title = "Always allowed"
 watchedFolder = "Pipeline watched folder"
@@ -1251,7 +1251,7 @@ description = "URL or filename to cookie policy"
 label = "Cookie Policy"
 
 [admin.settings.legal.disclaimer]
-message = "By customizing these legal documents, you assume full responsibility for ensuring compliance with all applicable laws and regulations, including but not limited to GDPR and other EU data protection requirements. Only modify these settings if: (1) you are operating a personal/private instance, (2) you are outside EU jurisdiction and understand your local legal obligations, or (3) you have obtained proper legal counsel and accept sole responsibility for all user data and legal compliance. Stirling-PDF and its developers assume no liability for your legal obligations."
+message = "By customizing these legal documents, you assume full responsibility for ensuring compliance with all applicable laws and regulations, including but not limited to GDPR and other EU data protection requirements. Only modify these settings if: (1) you are operating a personal/private instance, (2) you are outside EU jurisdiction and understand your local legal obligations, or (3) you have obtained proper legal counsel and accept sole responsibility for all user data and legal compliance. RustlingPDF and its developers assume no liability for your legal obligations."
 title = "Legal Responsibility Warning"
 
 [admin.settings.legal.impressum]
@@ -1338,8 +1338,8 @@ description = "Username for SMTP authentication"
 label = "SMTP Username"
 
 [admin.settings.mcp]
-apikeyNote = "Clients send a Stirling API key in the X-API-KEY header (or Authorization: Bearer <key>). The key maps to its owning Stirling user - only provisioned accounts get in, and actions are audited as that user. Manage keys under Account > API Keys."
-description = "Expose Stirling's PDF tools and AI agents to MCP clients over an OAuth-protected endpoint."
+apikeyNote = "Clients send a RustlingPDF API key in the X-API-KEY header (or Authorization: Bearer <key>). The key maps to its owning RustlingPDF user - only provisioned accounts get in, and actions are audited as that user. Manage keys under Account > API Keys."
+description = "Expose RustlingPDF's PDF tools and AI agents to MCP clients over an OAuth-protected endpoint."
 title = "MCP Server"
 
 [admin.settings.mcp.acceptedAudiences]
@@ -1369,7 +1369,7 @@ step3ApiKeyb = "header (or Authorization: Bearer <key>). No OAuth or metadata di
 step4 = "Approve the sign-in; the client retries with a token. Tools appear grouped: convert, pages, misc, security, ai."
 step4ApiKey = "Tools appear grouped: convert, pages, misc, security, ai - and every call is audited as the key's owner."
 tip = "Tip: register the resource ID as an allowed audience in your IdP. Tested with MCP Inspector and Claude Desktop."
-tipApiKey = "Tip: API-key mode needs no external IdP - simplest for self-host. The key maps to its owning Stirling user."
+tipApiKey = "Tip: API-key mode needs no external IdP - simplest for self-host. The key maps to its owning RustlingPDF user."
 title = "Connect an MCP client"
 
 [admin.settings.mcp.issuerUri]
@@ -1382,12 +1382,12 @@ label = "JWKS URL (optional)"
 placeholder = "Auto-discovered from issuer"
 
 [admin.settings.mcp.mode]
-description = "OAuth needs an external IdP. API key uses a Stirling per-user API key (X-API-KEY) - simplest for self-host."
+description = "OAuth needs an external IdP. API key uses a RustlingPDF per-user API key (X-API-KEY) - simplest for self-host."
 label = "Authentication mode"
 
 [admin.settings.mcp.requireAccount]
-description = "Only let tokens through if their subject maps to a provisioned, enabled Stirling user."
-label = "Require an existing Stirling account"
+description = "Only let tokens through if their subject maps to a provisioned, enabled RustlingPDF user."
+label = "Require an existing RustlingPDF account"
 
 [admin.settings.mcp.resourceId]
 description = "This server's public /mcp URL. Tokens must list it in their audience (RFC 8707) or they are rejected."
@@ -1398,7 +1398,7 @@ description = "Require mcp.tools.read for read ops and mcp.tools.write for write
 label = "Enforce OAuth scopes"
 
 [admin.settings.mcp.usernameClaim]
-description = "JWT claim matched against a Stirling username (e.g. sub, email, preferred_username)."
+description = "JWT claim matched against a RustlingPDF username (e.g. sub, email, preferred_username)."
 label = "Username claim"
 
 [admin.settings.plan.noData]
@@ -1719,7 +1719,7 @@ description = "When enabled, only listed user IDs can use the bot."
 label = "Allow Specific User IDs"
 
 [admin.settings.telegram.enabled]
-description = "Allow users to interact with Stirling PDF through your configured Telegram bot."
+description = "Allow users to interact with RustlingPDF through your configured Telegram bot."
 label = "Enable Telegram Bot"
 
 [admin.settings.telegram.feedback]
@@ -1792,20 +1792,20 @@ settingsOverview = "This is the <strong>Settings Panel</strong>. Admin settings 
 systemCustomization = "We have extensive ways to customize the UI: <strong>System Settings</strong> let you change the app name and languages, <strong>Features</strong> allows server certificate management, and <strong>Endpoints</strong> lets you enable or disable specific tools for your users."
 teamsAndUsers = "Manage <strong>Teams</strong> and individual users here. You can invite new users via email, shareable links, or create custom accounts for them yourself."
 welcome = "Welcome to the <strong>Admin Tour</strong>! Let's explore the powerful enterprise features and settings available to system administrators."
-wrapUp = "That's the admin tour! You've seen the enterprise features that make Stirling PDF a powerful, customizable solution for organizations. You can replay it anytime - just open <strong>Settings</strong> and find it here in the <strong>Tours</strong> section under Help."
+wrapUp = "That's the admin tour! You've seen the enterprise features that make RustlingPDF a powerful, customizable solution for organizations. You can replay it anytime - just open <strong>Settings</strong> and find it here in the <strong>Tours</strong> section under Help."
 
 [adminUserSettings]
 admin = "Admin"
 title = "User Control Settings"
 
 [agents]
-stirling_name = "Stirling"
+stirling_name = "RustlingPDF"
 
 [analytics]
 learnMore = "Learn more about our analytics"
-paragraph1 = "Stirling PDF has opt-in analytics to help us improve the product. We do not track any personal information or file contents."
-paragraph2 = "Please consider enabling analytics to help Stirling-PDF grow and to allow us to understand our users better."
-title = "Do you want to help make Stirling PDF better?"
+paragraph1 = "RustlingPDF has opt-in analytics to help us improve the product. We do not track any personal information or file contents."
+paragraph2 = "Please consider enabling analytics to help RustlingPDF grow and to allow us to understand our users better."
+title = "Do you want to help make RustlingPDF better?"
 
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
@@ -2747,7 +2747,7 @@ bullet1 = "Supports PEM, PKCS12, JKS, and server certificate formats"
 bullet2 = "Option to show or hide signature on the PDF"
 bullet3 = "Add reason, location, and signer name"
 bullet4 = "Choose which page to place visible signatures"
-bullet5 = "Use server certificate for simple 'Sign with Stirling-PDF' option"
+bullet5 = "Use server certificate for simple 'Sign with RustlingPDF' option"
 text = "To sign a PDF, you need a digital certificate (like PEM, PKCS12, or JKS). You can choose to make the signature visible on the document or keep it invisible for security only."
 title = "Adding Signatures"
 
@@ -2928,10 +2928,10 @@ copy = "Copy message"
 
 [chat.fab]
 close = "Close chat"
-open = "Open Stirling AI assistant"
+open = "Open RustlingPDF AI assistant"
 
 [chat.header]
-agentMenu = "Stirling agent options"
+agentMenu = "RustlingPDF agent options"
 clearChat = "Clear chat"
 
 [chat.input]
@@ -3262,14 +3262,14 @@ upgradeButton = "Upgrade Account"
 
 [config.apiKeys]
 copyKeyAriaLabel = "Copy API key"
-description = "Your API key for accessing Stirling's suite of PDF tools. Copy it to your project or refresh to generate a new one."
-docsDescription = "Learn more about integrating with Stirling PDF:"
+description = "Your API key for accessing RustlingPDF's suite of PDF tools. Copy it to your project or refresh to generate a new one."
+docsDescription = "Learn more about integrating with RustlingPDF:"
 docsLink = "API Documentation"
 docsTitle = "API Documentation"
 generateError = "We couldn't generate your API key."
 goToAccount = "Go to Account"
 guestInfo = "Guest users do not receive API keys. Create an account to get an API key you can use in your applications."
-intro = "Use your API key to programmatically access Stirling PDF's processing capabilities."
+intro = "Use your API key to programmatically access RustlingPDF's processing capabilities."
 label = "API Key"
 publicKeyAriaLabel = "Public API key"
 refreshAriaLabel = "Refresh API key"
@@ -3293,10 +3293,10 @@ title = "Refresh API Keys"
 warning = "⚠️ Warning: This action will generate new API keys and make your previous keys invalid."
 
 [config.mcp]
-description = "Model Context Protocol (MCP) lets AI assistants like Claude use your Stirling PDF tools directly. Connect a client once and your assistant can convert, edit, secure and process documents on your behalf."
-guestInfo = "Guest users can't connect MCP clients. Create an account to use the MCP server and let your AI assistant run Stirling PDF tools on your behalf."
+description = "Model Context Protocol (MCP) lets AI assistants like Claude use your RustlingPDF tools directly. Connect a client once and your assistant can convert, edit, secure and process documents on your behalf."
+guestInfo = "Guest users can't connect MCP clients. Create an account to use the MCP server and let your AI assistant run RustlingPDF tools on your behalf."
 navLabel = "MCP Server"
-tip = "Every action your assistant runs is performed as your account and counts toward your usage, just like using Stirling PDF directly."
+tip = "Every action your assistant runs is performed as your account and counts toward your usage, just like using RustlingPDF directly."
 title = "MCP Server"
 viewApiKeys = "View API keys"
 
@@ -3313,7 +3313,7 @@ label = "Your MCP endpoint"
 
 [config.mcp.setup]
 addTo = "Add to"
-hint = "Pick your client, paste the snippet into the file shown, then restart it. You'll sign in with your Stirling account on first use - no keys to copy."
+hint = "Pick your client, paste the snippet into the file shown, then restart it. You'll sign in with your RustlingPDF account on first use - no keys to copy."
 title = "Connect your AI assistant"
 
 [config.overview]
@@ -3422,7 +3422,7 @@ showPreferencesBtn = "Manage preferences"
 title = "How we use Cookies"
 
 [cookieBanner.popUp.description]
-1 = "We use cookies and other technologies to make Stirling PDF work better for you-helping us improve our tools and keep building features you'll love."
+1 = "We use cookies and other technologies to make RustlingPDF work better for you-helping us improve our tools and keep building features you'll love."
 2 = "If you'd rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
 
 [cookieBanner.preferencesModal]
@@ -3435,12 +3435,12 @@ subtitle = "Cookie Usage"
 title = "Consent Preferences Center"
 
 [cookieBanner.preferencesModal.analytics]
-description = "These cookies help us understand how our tools are being used, so we can focus on building the features our community values most. Rest assured-Stirling PDF cannot and will never track the content of the documents you work with."
+description = "These cookies help us understand how our tools are being used, so we can focus on building the features our community values most. Rest assured-RustlingPDF cannot and will never track the content of the documents you work with."
 title = "Analytics"
 
 [cookieBanner.preferencesModal.description]
-1 = "Stirling PDF uses cookies and similar technologies to enhance your experience and understand how our tools are used. This helps us improve performance, develop the features you care about, and provide ongoing support to our users."
-2 = "Stirling PDF cannot-and will never-track or access the content of the documents you use."
+1 = "RustlingPDF uses cookies and similar technologies to enhance your experience and understand how our tools are used. This helps us improve performance, develop the features you care about, and provide ongoing support to our users."
+2 = "RustlingPDF cannot-and will never-track or access the content of the documents you use."
 3 = "Your privacy and trust are at the core of what we do."
 
 [cookieBanner.preferencesModal.necessary]
@@ -3536,14 +3536,14 @@ message = "Failed to set default PDF handler"
 title = "Error"
 
 [defaultApp.prompt]
-message = "Make Stirling PDF your default application for opening PDF files."
+message = "Make RustlingPDF your default application for opening PDF files."
 
 [defaultApp.settingsOpened]
-message = "In Windows Settings, search for 'PDF' and select Stirling PDF as your default app"
+message = "In Windows Settings, search for 'PDF' and select RustlingPDF as your default app"
 title = "Settings Opened"
 
 [defaultApp.success]
-message = "Stirling PDF is now your default PDF editor"
+message = "RustlingPDF is now your default PDF editor"
 title = "Default App Set"
 
 [desktopUpdate]
@@ -3559,7 +3559,7 @@ updateFailedMessage = "Failed to download or install the update."
 
 [desktopUpdate.blocked]
 docsLink = "View installation documentation"
-message = "Stirling-PDF does not have permission to update itself on this machine."
+message = "RustlingPDF does not have permission to update itself on this machine."
 title = "Administrator permissions required"
 
 [devAirgapped]
@@ -4118,7 +4118,7 @@ title = "Move to folder"
 [filesPage.origin]
 all = "All sources"
 cloud = "Cloud"
-cloudHint = "Stored on the Stirling server"
+cloudHint = "Stored on the RustlingPDF server"
 local = "Local"
 localHint = "Only stored in this browser"
 shared = "Shared"
@@ -4389,7 +4389,7 @@ invisible = "Invisible (metadata only)"
 location = "Location:"
 logo = "Logo:"
 logoHidden = "No logo"
-logoShown = "Stirling PDF logo shown"
+logoShown = "RustlingPDF logo shown"
 participantCount_one = "{{count}} participant will sign in order"
 participantCount_other = "{{count}} participants will sign in order"
 participants = "Participants"
@@ -4443,7 +4443,7 @@ title = "Sequential Signing"
 dismiss = "Dismiss banner"
 message = "Create a free account to save your work, access more features, and support the project."
 signUp = "Sign Up Free"
-title = "You're using Stirling PDF as a guest!"
+title = "You're using RustlingPDF as a guest!"
 
 [home.addAttachments]
 desc = "Add or remove embedded files (attachments) to/from a PDF"
@@ -4602,7 +4602,7 @@ tags = "combine,join,unite,merge,merge PDFs,combine PDFs,join PDFs,concatenate,a
 title = "Merge"
 
 [home.mobile]
-brandAlt = "Stirling PDF logo"
+brandAlt = "RustlingPDF logo"
 openFiles = "Open files"
 swipeHint = "Swipe left or right to switch views"
 tools = "Tools"
@@ -4827,7 +4827,7 @@ passwordRequired = "Password is required"
 signIn = "Sign in"
 validating = "Validating invitation..."
 validationError = "Failed to validate invitation link"
-welcome = "Welcome to Stirling PDF"
+welcome = "Welcome to RustlingPDF"
 welcomeSubtitle = "Complete your account setup to get started"
 welcomeTitle = "You've been invited!"
 
@@ -4854,7 +4854,7 @@ terms = "Terms and Conditions"
 title = "3rd Party Licenses"
 
 [localMode]
-toolUnavailable = "This tool requires an account. Sign in to Stirling Cloud or connect to a self-hosted server to use it."
+toolUnavailable = "This tool requires an account. Sign in to RustlingPDF Cloud or connect to a self-hosted server to use it."
 
 [localMode.toolPicker]
 message = "Sign in to unlock all tools."
@@ -5015,7 +5015,7 @@ message = "Authentication was not successful. You can close this window and try 
 title = "Authentication Failed"
 
 [oauth.success]
-message = "You can close this window and return to Stirling PDF."
+message = "You can close this window and return to RustlingPDF."
 title = "Authentication Successful"
 
 [oauthConsent]
@@ -5028,17 +5028,17 @@ loadFailed = "This authorization request is invalid or has expired. Close this t
 loading = "Loading authorization request..."
 missingId = "Missing authorization request. Start the connection from your app and try again."
 redirecting = "Returning you to the app..."
-requesting = "{{app}} wants to access your Stirling PDF account"
+requesting = "{{app}} wants to access your RustlingPDF account"
 scopesIntro = "This will allow {{app}} to:"
 signedInAs = "Signed in as {{name}}"
 signInButton = "Sign in to continue"
-signInPrompt = "Sign in to your Stirling PDF account to continue connecting the app."
+signInPrompt = "Sign in to your RustlingPDF account to continue connecting the app."
 title = "Authorize access"
 unknownApp = "A third-party application"
 
 [oauthConsent.access]
 actAsYou = "Act as you - everything {{app}} does runs under your account and counts towards your usage"
-tools = "Use your Stirling PDF tools on your behalf - convert, edit, sign, secure and process your documents"
+tools = "Use your RustlingPDF tools on your behalf - convert, edit, sign, secure and process your documents"
 
 [oauthConsent.scope]
 email = "See your email address"
@@ -5162,26 +5162,26 @@ skipTheTour = "Skip the tour"
 
 [onboarding.checklist]
 dismiss = "Dismiss"
-title = "Set up Stirling PDF"
+title = "Set up RustlingPDF"
 
 [onboarding.checklist.downloadDesktop]
-description = "Run Stirling natively on your machine"
-title = "Download Stirling for Desktop"
+description = "Run RustlingPDF natively on your machine"
+title = "Download RustlingPDF for Desktop"
 
 [onboarding.checklist.inviteTeam]
 description = "Collaborate with your team"
 title = "Invite team members"
 
 [onboarding.checklist.shareAnalytics]
-description = "Help improve Stirling"
+description = "Help improve RustlingPDF"
 title = "Share anonymous usage data"
 
 [onboarding.checklist.takeTour]
-description = "See how Stirling works in a quick walkthrough"
+description = "See how RustlingPDF works in a quick walkthrough"
 title = "Take the tour"
 
 [onboarding.desktopInstall]
-body = "Stirling works best as a desktop app. You can use it offline, access documents faster, and make edits locally on your computer."
+body = "RustlingPDF works best as a desktop app. You can use it offline, access documents faster, and make edits locally on your computer."
 selectOs = "Select operating system"
 title = "Download"
 titleWithOs = "Download for {{osLabel}}"
@@ -5205,21 +5205,21 @@ success = "MFA has been enabled. You can now continue."
 title = "Multi-Factor Authentication Setup"
 
 [onboarding.planOverview]
-adminBodyLoginDisabled = "Once you enable login mode, you can manage users, configure settings, and monitor server health. The first <strong>{{freeTierLimit}}</strong> people on your server get to use Stirling free of charge."
-adminBodyLoginEnabled = "As an admin, you can manage users, configure settings, and monitor server health. The first <strong>{{freeTierLimit}}</strong> people on your server get to use Stirling free of charge."
+adminBodyLoginDisabled = "Once you enable login mode, you can manage users, configure settings, and monitor server health. The first <strong>{{freeTierLimit}}</strong> people on your server get to use RustlingPDF free of charge."
+adminBodyLoginEnabled = "As an admin, you can manage users, configure settings, and monitor server health. The first <strong>{{freeTierLimit}}</strong> people on your server get to use RustlingPDF free of charge."
 adminTitle = "Admin Overview"
 userBody = "Invite teammates, assign roles, and keep your documents organized in one secure workspace. Enable login mode whenever you're ready to grow beyond solo use."
 userTitle = "Plan Overview"
 
 [onboarding.processorIntro]
-body = "Stirling now runs <strong>Policies</strong> — automated rules that classify, secure, and process every document as it arrives. Set them up and monitor runs in the <strong>Processor</strong>."
+body = "RustlingPDF now runs <strong>Policies</strong> — automated rules that classify, secure, and process every document as it arrives. Set them up and monitor runs in the <strong>Processor</strong>."
 cta = "Check out the Processor"
-title = "Check out the Stirling Processor"
+title = "Check out the RustlingPDF Processor"
 
 [onboarding.saas.freeEditor]
 freeLine = "The editor is now <free>completely free</free>."
 premium = "We've added loads of new features, including <strong>Policies</strong> and <strong>Agent Chat</strong>."
-title = "Welcome to Stirling"
+title = "Welcome to RustlingPDF"
 
 [onboarding.saas.team]
 addButton = "Add"
@@ -5239,20 +5239,20 @@ rolePlaceholder = "Confirm your role"
 roleUser = "User"
 
 [onboarding.serverLicense]
-freeBody = "Our <strong>Open-Core</strong> licensing permits up to <strong>{{freeTierLimit}}</strong> users for free per server. To scale uninterrupted, we recommend the Stirling Server plan - <strong>unlimited seats</strong> and <strong>SSO support</strong> for $99/server/mo."
+freeBody = "Our <strong>Open-Core</strong> licensing permits up to <strong>{{freeTierLimit}}</strong> users for free per server. To scale uninterrupted, we recommend the RustlingPDF Server plan - <strong>unlimited seats</strong> and <strong>SSO support</strong> for $99/server/mo."
 freeTitle = "Server License"
-overLimitBody = "Our licensing permits up to <strong>{{freeTierLimit}}</strong> users for free per server. You have <strong>{{overLimitUserCopy}}</strong> Stirling users. To continue uninterrupted, upgrade to the Stirling Server plan - <strong>unlimited seats</strong>, PDF text editing, and full admin control for $99/server/mo."
+overLimitBody = "Our licensing permits up to <strong>{{freeTierLimit}}</strong> users for free per server. You have <strong>{{overLimitUserCopy}}</strong> RustlingPDF users. To continue uninterrupted, upgrade to the RustlingPDF Server plan - <strong>unlimited seats</strong>, PDF text editing, and full admin control for $99/server/mo."
 overLimitTitle = "Server License Needed"
 seePlans = "See Plans →"
 upgrade = "Upgrade now →"
 
 [onboarding.tourOverview]
-body = "Stirling PDF V2 ships with dozens of tools and a refreshed layout. Take a quick tour to see what changed and where to find the features you need."
+body = "RustlingPDF V2 ships with dozens of tools and a refreshed layout. Take a quick tour to see what changed and where to find the features you need."
 title = "Tour Overview"
 
 [onboarding.welcomeSlide]
-body = "Stirling PDF is now ready for teams of all sizes. This update includes a new layout, powerful new admin capabilities, and our most requested feature - <strong>Edit Text</strong>."
-title = "Welcome to Stirling"
+body = "RustlingPDF is now ready for teams of all sizes. This update includes a new layout, powerful new admin capabilities, and our most requested feature - <strong>Edit Text</strong>."
+title = "Welcome to RustlingPDF"
 
 [onboarding.whatsNew]
 activeFilesView = "Use Active Files to see everything you have open and pick what to work on."
@@ -5558,7 +5558,7 @@ benefit1Body = "chain tools, schedule runs, batch process"
 benefit1Title = "Automation pipelines"
 benefit2Body = "summarize, classify, redact, AI-OCR"
 benefit2Title = "AI tools"
-benefit3Body = "call any Stirling endpoint programmatically"
+benefit3Body = "call any RustlingPDF endpoint programmatically"
 benefit3Title = "API access"
 button = "Turn on Processor →"
 reassurance = "No minimum · Set a $0 cap to test · Cancel anytime"
@@ -5639,7 +5639,7 @@ leader = "Team owner"
 member = "Member"
 
 [payg.signupRequired]
-body = "Stirling PDF gives every signed-up account 500 free operations, enough to keep most workflows humming without paying a cent. You're currently using Stirling as a guest, which doesn't include billable tools like AI, automations, or hosted processing."
+body = "RustlingPDF gives every signed-up account 500 free operations, enough to keep most workflows humming without paying a cent. You're currently using RustlingPDF as a guest, which doesn't include billable tools like AI, automations, or hosted processing."
 cancel = "Not now"
 cta = "Sign up free"
 subtext = "Creating an account is free and takes a few seconds. No credit card required."
@@ -5687,7 +5687,7 @@ usdNote = "Estimated in USD. You can adjust your cap any time after subscribing,
 [payg.upgrade.checkout]
 capValue = "{{symbol}}{{amount}} / month"
 edit = "Edit"
-help = "Stripe handles your card details. Stirling never sees them."
+help = "Stripe handles your card details. RustlingPDF never sees them."
 loading = "Loading checkout…"
 noCap = "No cap"
 title = "Add your payment method"
@@ -5695,7 +5695,7 @@ title = "Add your payment method"
 [payg.upgrade.help]
 aiBody = "summarize, classify, redact, AI-OCR"
 aiTitle = "AI tools"
-apiBody = "programmatic access to any Stirling endpoint"
+apiBody = "programmatic access to any RustlingPDF endpoint"
 apiTitle = "API calls"
 automationBody = "chained tools or scheduled runs that don't need clicks"
 automationTitle = "Automation pipelines"
@@ -6126,7 +6126,7 @@ upToFiveUsers = "Up to 5 users"
 usageTrackingPrometheus = "Usage tracking & Prometheus"
 
 [plan.licenseWarning]
-body = "You have {{total}} users but the free tier only supports {{limit}} per server. Upgrade to keep Stirling PDF running smoothly."
+body = "You have {{total}} users but the free tier only supports {{limit}} per server. Upgrade to keep RustlingPDF running smoothly."
 cta = "See plans"
 overLimit = "more than {{limit}}"
 title = "Free self-hosted limit reached"
@@ -6260,25 +6260,25 @@ comingSoon = "Coming soon"
 [portal.accountLink.card]
 billingNote = "Unattended processing bills against your org wallet."
 eyebrow = "Account link"
-linkButton = "Link your Stirling account"
+linkButton = "Link your RustlingPDF account"
 linked = "Linked"
 linkedAs = "Linked as {{name}}."
 linkedGeneric = "This instance is linked."
 notLinked = "Not linked"
-title = "Link this org to its Stirling account"
+title = "Link this org to its RustlingPDF account"
 unlink = "Unlink"
 
 [portal.accountLink.card.error]
 title = "Couldn't link"
 
 [portal.accountLink.card.loginNotConfigured]
-after = "to enable account linking against the hosted Stirling account. In dev you can simulate sign-in from the link dialog."
+after = "to enable account linking against the hosted RustlingPDF account. In dev you can simulate sign-in from the link dialog."
 before = "Set"
 title = "SaaS login not configured"
 
 [portal.accountLink.gate]
 action = "Link account"
-description = "Link this org's Stirling account to use billable features."
+description = "Link this org's RustlingPDF account to use billable features."
 title = "Link to unlock"
 titleFeature = "Link to unlock {{feature}}"
 
@@ -6310,13 +6310,13 @@ never = "never"
 
 [portal.accountLink.modal]
 linkSubtitle = "Sign in to the account this server should bill against."
-linkTitle = "Link your Stirling account"
-reauthSubtitle = "Your session expired — sign back in to your Stirling account. Your instance stays linked."
+linkTitle = "Link your RustlingPDF account"
+reauthSubtitle = "Your session expired — sign back in to your RustlingPDF account. Your instance stays linked."
 reauthTitle = "Sign in again"
 simulateSignIn = "Simulate sign-in (dev)"
 
 [portal.accountLink.modal.loginNotConfigured]
-after = "to enable in-app linking against the hosted Stirling account."
+after = "to enable in-app linking against the hosted RustlingPDF account."
 and = "and"
 before = "Set"
 title = "SaaS login not configured"
@@ -6325,7 +6325,7 @@ title = "SaaS login not configured"
 instancesSub = "Every self-hosted instance registered to this org. Revoke a credential to immediately cut off its unattended access."
 instancesTitle = "Linked instances"
 revokeError = "Couldn't revoke instance"
-sub = "Link this self-hosted org to its Stirling account so unattended processing bills against your org wallet."
+sub = "Link this self-hosted org to its RustlingPDF account so unattended processing bills against your org wallet."
 
 [portal.accountLink.panel.loadError]
 forbidden = "Only the team owner can view the org's linked instances."
@@ -6342,7 +6342,7 @@ close = "Close assistant"
 error = "Couldn't reach the assistant."
 errorWithDetail = "Couldn't reach the assistant: {{detail}}"
 inputAriaLabel = "Ask the assistant"
-inputPlaceholder = "Ask about Stirling…"
+inputPlaceholder = "Ask about RustlingPDF…"
 open = "Open assistant"
 send = "Send"
 title = "Assistant"
@@ -6389,7 +6389,7 @@ title = "Set your spend limit"
 [portal.billing.checkout.card]
 fields = "Card number · MM / YY · CVC · ZIP"
 label = "Card details"
-note = "Card details collected by Stripe. Stirling never stores PAN or CVC."
+note = "Card details collected by Stripe. RustlingPDF never stores PAN or CVC."
 
 [portal.billing.checkout.error]
 title = "Couldn't start checkout"
@@ -6407,7 +6407,7 @@ limitNoCap = "No spend limit. Processing won't pause. Invoices post monthly."
 cta = "Explore Enterprise"
 description = "Committed volume discounts, air-gapped deployment, custom MSA and security reviews, and 3rd-party distributor partnerships."
 eyebrow = "Volume discount · 1M+ PDFs"
-title = "Stirling Enterprise"
+title = "RustlingPDF Enterprise"
 
 [portal.billing.freeEditors]
 activeThisMonth = "Active this month"
@@ -6456,9 +6456,9 @@ viewAriaLabel = "View invoice {{number}} in Stripe"
 viewLink = "View ↗"
 
 [portal.billing.linkPrompt]
-cta = "Link Stirling account"
+cta = "Link RustlingPDF account"
 description = "Manual PDF editing — view, sign, merge, split, watermark, compress, convert, manual OCR — is always free, linked or not. Link to claim 500 free PDFs of metered processing (automation, AI, and the API); when you need more, turn on the Processor plan and only pay for what you use."
-title = "Link your Stirling account"
+title = "Link your RustlingPDF account"
 
 [portal.billing.paymentMethod]
 billedMonthly = "Billed monthly"
@@ -6532,9 +6532,9 @@ usersLabel = "Total users"
 label = "I understand that when my prepaid capacity is used up or expires after 12 months, processing automatically continues at the standard metered pay-as-you-go rate (up to my spend limit) unless I cancel, and that I can cancel anytime from the billing portal."
 
 [portal.billing.prepaid.deploy]
-cloud = "Stirling Cloud"
-cloudDesc = "Managed by Stirling. Live in minutes."
-cloudValue = "Stirling Cloud · Managed"
+cloud = "RustlingPDF Cloud"
+cloudDesc = "Managed by RustlingPDF. Live in minutes."
+cloudValue = "RustlingPDF Cloud · Managed"
 selfhost = "Self-hosted"
 selfhostDesc = "Runs on private infrastructure. Same rate."
 selfhostValue = "Self-hosted · Private infrastructure"
@@ -6690,7 +6690,7 @@ description = "Where processed documents end up - a bucket, a drive, a ticket or
 label = "File & attach"
 
 [portal.connections.commonFields.accessToken]
-helperText = "Stirling stores this encrypted and never shows it again."
+helperText = "RustlingPDF stores this encrypted and never shows it again."
 label = "Access token"
 
 [portal.connections.commonFields.apiKey]
@@ -7140,7 +7140,7 @@ time = "Time"
 user = "User"
 
 [portal.editorAdmin]
-subtitle = "Deploy the Stirling PDF Editor, pair self-hosted instances to your org, and operate the running fleet — targets, health, credentials, and offline activation in one place."
+subtitle = "Deploy the RustlingPDF Editor, pair self-hosted instances to your org, and operate the running fleet — targets, health, credentials, and offline activation in one place."
 title = "Editor deployment"
 
 [portal.editorAdmin.health.columns]
@@ -7231,7 +7231,7 @@ guide = "Open the {{name}} guide"
 openInBrowser = "Open in browser instead"
 sectionDesktop = "Desktop app"
 sectionSelfHosted = "Self-hosted"
-title = "Install the Stirling PDF Editor"
+title = "Install the RustlingPDF Editor"
 
 [portal.home.download.docker]
 detailBody = "Run the official image on your server."
@@ -7281,7 +7281,7 @@ title = "Windows"
 activeUsers = "{{n}} active"
 install = "Install the editor"
 invite = "Invite teammates"
-name = "Stirling PDF Editor"
+name = "RustlingPDF Editor"
 open = "Open in browser"
 updated = "updated {{time}}"
 
@@ -7317,7 +7317,7 @@ title = "Confirm your policies"
 [portal.infrastructure]
 manageEditorDeployment = "Manage Editor deployment"
 sectionsAriaLabel = "Infrastructure sections"
-subtitle = "Deployments, credentials, security posture, storage, and the audit trail for your Stirling workspace."
+subtitle = "Deployments, credentials, security posture, storage, and the audit trail for your RustlingPDF workspace."
 title = "Infrastructure"
 
 # Fixed-enum label maps rendered via t(MAP[value]) in the infrastructure tabs.
@@ -7334,7 +7334,7 @@ usageMonth = "Usage this month"
 usageToday = "Usage today"
 
 [portal.infrastructure.apiKeys.empty]
-description = "Create a key to start calling the Stirling API."
+description = "Create a key to start calling the RustlingPDF API."
 title = "No API keys yet"
 
 [portal.infrastructure.apiKeys.error]
@@ -7434,7 +7434,7 @@ done = "Done"
 keyNameLabel = "Key name"
 keyNamePlaceholder = "e.g. Production ingest"
 secretKeyCaption = "Secret key"
-secretWarning = "Store this in a secrets manager. Stirling only ever stores a hash, so there is no way to recover it later."
+secretWarning = "Store this in a secrets manager. RustlingPDF only ever stores a hash, so there is no way to recover it later."
 subtitle = "Give the key a name so you can recognise it later. You can revoke it at any time."
 subtitleCreated = "Copy this secret now — it won't be shown again."
 title = "Create API key"
@@ -7475,7 +7475,7 @@ version = "Version"
 
 [portal.infrastructure.deployments.regions]
 heading = "Regions"
-subheading = "Live health for every deployed Stirling region — latency, load, and rollout version."
+subheading = "Live health for every deployed RustlingPDF region — latency, load, and rollout version."
 
 [portal.infrastructure.deployments.regions.empty]
 description = "Deployed regions appear here once your workspace is provisioned."
@@ -7556,16 +7556,16 @@ down = "Down"
 healthy = "Healthy"
 
 [portal.infrastructure.security.access.byok]
-description = "Supply a key from your own KMS. Stirling encrypts with it but can still read."
+description = "Supply a key from your own KMS. RustlingPDF encrypts with it but can still read."
 label = "Bring your own key (BYOK)"
 
 [portal.infrastructure.security.access.hyok]
-description = "Keys never leave your KMS. Stirling holds only ciphertext."
+description = "Keys never leave your KMS. RustlingPDF holds only ciphertext."
 label = "Hold your own key (HYOK)"
 
 [portal.infrastructure.security.access.stirling]
-description = "Stirling manages encryption keys. Simplest — zero key ops on your side."
-label = "Stirling-held keys"
+description = "RustlingPDF manages encryption keys. Simplest — zero key ops on your side."
+label = "RustlingPDF-held keys"
 
 [portal.infrastructure.security.accessPolicy]
 heading = "Document access policy"
@@ -7579,15 +7579,15 @@ viewReport = "View report →"
 
 [portal.infrastructure.security.compliance]
 heading = "Compliance"
-subheading = "Attestations and certifications covering the Stirling platform."
+subheading = "Attestations and certifications covering the RustlingPDF platform."
 
 [portal.infrastructure.security.empty]
 description = "Your workspace's security configuration will appear here."
 title = "Security posture unavailable"
 
 [portal.infrastructure.security.hyokBanner]
-description = "With HYOK, encryption keys never leave your KMS. Stirling stores and processes only ciphertext you can revoke at any time."
-title = "Stirling cannot decrypt your documents"
+description = "With HYOK, encryption keys never leave your KMS. RustlingPDF stores and processes only ciphertext you can revoke at any time."
+title = "RustlingPDF cannot decrypt your documents"
 
 [portal.infrastructure.security.ipAllowlist]
 empty = "No IP ranges configured — all IPs allowed."
@@ -7616,7 +7616,7 @@ subheading = "Custody of the keys that encrypt documents at rest — who can dec
 
 [portal.infrastructure.security.managedBanner]
 description = "Bring-your-own-key (BYOK) and hold-your-own-key (HYOK) custody are available on Enterprise. Upgrade to supply keys from your own KMS."
-title = "Keys are managed by Stirling on your plan"
+title = "Keys are managed by RustlingPDF on your plan"
 
 [portal.infrastructure.security.residency.apac]
 description = "ap-southeast-1"
@@ -7690,7 +7690,7 @@ connectionCount_one = "{{count}} connection"
 connectionCount_other = "{{count}} connections"
 customApi = "Custom API"
 searchPlaceholder = "Search integrations"
-subtitle = "Everything Stirling can talk to. Credentials are created once here, then referenced by sources, policies and pipelines."
+subtitle = "Everything RustlingPDF can talk to. Credentials are created once here, then referenced by sources, policies and pipelines."
 title = "Integrations"
 typedName = "{{tool}} name"
 
@@ -8357,7 +8357,7 @@ title = "No flow yet"
 
 [portal.processorFlow.sources]
 comingSoonTag = "Connect"
-editor = "Stirling PDF Editor"
+editor = "RustlingPDF Editor"
 heading = "Sources"
 perDay = "{{n}} / 24h"
 
@@ -8379,7 +8379,7 @@ upload = "Upload"
 
 [portal.procurement.agreement]
 agreeCta = "Agree & subscribe"
-confirm = "I have read and agree to the Stirling Enterprise Agreement."
+confirm = "I have read and agree to the RustlingPDF Enterprise Agreement."
 eyebrow = "Agreement"
 intro = "One combined agreement covers your deal: Master Service Agreement, Order Form, EULA, and Data Processing Agreement. Review it, then agree to accept the quote into a committed subscription."
 title = "Review your enterprise agreement"
@@ -8400,7 +8400,7 @@ contactEmailPlaceholder = "jane@acme.com"
 contactName = "Contact name"
 contactNamePlaceholder = "Jane Doe"
 continue = "Continue"
-eula = "I have read and agree to the Stirling Enterprise EULA. It governs the agreement generated from this quote."
+eula = "I have read and agree to the RustlingPDF Enterprise EULA. It governs the agreement generated from this quote."
 generate = "Generate quote"
 included = "Included"
 indemnification = "IP indemnification"
@@ -8506,7 +8506,7 @@ daysLeft_one = "{{count}} day left"
 daysLeft_other = "{{count}} days left"
 engineerLabel = "Your solutions engineer"
 eyebrow = "Your rollout"
-live = "You're live on Stirling Enterprise"
+live = "You're live on RustlingPDF Enterprise"
 nextStep = "Next step: {{action}}"
 subtitle = "Your solutions engineer is on every step. One next action at a time; the full checklist is below."
 title = "From trial to live, one guided path"
@@ -8533,7 +8533,7 @@ gatingAction = "Accept your quote"
 label = "Quote"
 
 [portal.procurement.journeySteps.trial]
-blurb = "Evaluate Stirling against your documents and workflows."
+blurb = "Evaluate RustlingPDF against your documents and workflows."
 gatingAction = "Build your quote"
 label = "Trial"
 
@@ -8550,14 +8550,14 @@ trialFileHint = "This is your trial licence file. Once your agreement is in plac
 
 [portal.procurement.link]
 cta = "Link account"
-description = "Procurement runs on your linked Stirling account: it's how we provision the trial, price your quote, and start billing. Link an account to start."
+description = "Procurement runs on your linked RustlingPDF account: it's how we provision the trial, price your quote, and start billing. Link an account to start."
 eyebrow = "Enterprise"
 title = "Link your account to begin"
 
 [portal.procurement.live]
 description = "Your subscription is active and your licence is issued. Your team is provisioned and billing has started."
 eyebrow = "Live"
-title = "You're live on Stirling Enterprise"
+title = "You're live on RustlingPDF Enterprise"
 
 [portal.procurement.locked]
 description = "Trial keys, committed-volume quotes, the one-signature agreement, payment, and your document ledger all live here once you start an enterprise evaluation."
@@ -8585,7 +8585,7 @@ requestBodyFree = "We generate this on demand. Confirm and your solutions engine
 requestBodyPaid = "This is a paid add-on. Confirm and your solutions engineer will scope it and send the paperwork."
 requestCta = "Request"
 requestTitle = "Request this document"
-signBody = "Opens the Stirling Enterprise Agreement for e-signature: one signature covers the MSA, order form, EULA and DPA. We countersign automatically and you advance to payment."
+signBody = "Opens the RustlingPDF Enterprise Agreement for e-signature: one signature covers the MSA, order form, EULA and DPA. We countersign automatically and you advance to payment."
 signCta = "Open for signature"
 signTitle = "Review and sign your agreement"
 uploadBody = "Send us your PO and we invoice against it on your terms. Drag in the PDF or pick a file below."
@@ -8609,15 +8609,15 @@ title = "Schedule a call"
 airgap = "Air-gapped"
 airgapSub = "Fully offline, isolated network. Includes a downloadable licence file."
 cloud = "Cloud"
-cloudSub = "Fully managed by Stirling. Nothing for you to run."
-deployment = "Where will you run Stirling?"
+cloudSub = "Fully managed by RustlingPDF. Nothing for you to run."
+deployment = "Where will you run RustlingPDF?"
 seats = "Team size"
 seatsHint = "Roughly how many people will use it. You can refine this when you build your quote."
 seatsPlaceholder = "e.g. 250"
 selfhost = "Self-hosted"
 selfhostSub = "Run it in your own cloud or data centre."
 start = "Start trial"
-subtitle = "Tell us how you plan to run Stirling so we can tailor your trial and quote. No card required."
+subtitle = "Tell us how you plan to run RustlingPDF so we can tailor your trial and quote. No card required."
 title = "Set up your trial"
 
 [portal.procurement.status]
@@ -8644,7 +8644,7 @@ homeHeadline = "Process millions of PDFs."
 
 [portal.search]
 ariaLabel = "Search"
-placeholder = "Search Stirling — endpoints, pipelines, docs…"
+placeholder = "Search RustlingPDF — endpoints, pipelines, docs…"
 
 [portal.search.empty]
 noActionsDescription = "Quick actions will appear here once they're available."
@@ -8661,8 +8661,8 @@ account-link = "Account link"
 [portal.shell.sidebar]
 appEditor = "Editor"
 appProcessor = "Processor"
-brandSuffix = "Stirling Processor"
-linkAccount = "Link Stirling account"
+brandSuffix = "RustlingPDF Processor"
+linkAccount = "Link RustlingPDF account"
 primaryNav = "Primary navigation"
 switchApp = "Switch app"
 
@@ -8672,7 +8672,7 @@ openNav = "Open navigation"
 search = "Search"
 
 [portal.sources]
-subtitle = "Reusable input connections that feed documents into Stirling. Configure a source once, then reference it from any number of pipelines."
+subtitle = "Reusable input connections that feed documents into RustlingPDF. Configure a source once, then reference it from any number of pipelines."
 title = "Sources"
 
 [portal.sources.actions]
@@ -8745,7 +8745,7 @@ description = "Watch a directory on the server for new documents."
 label = "Folder"
 
 [portal.sources.types.folder.fields.directory]
-helperText = "Absolute path Stirling watches for files to process."
+helperText = "Absolute path RustlingPDF watches for files to process."
 label = "Directory path"
 placeholder = "/data/incoming"
 
@@ -8828,7 +8828,7 @@ secretNote = "The signing secret is shown once, when the webhook is created. Rec
 copy = "Copy"
 done = "Done"
 secret = "Signing secret"
-secretHelp = "Sign each delivery's raw body with this key (HMAC-SHA256) and send it as the X-Stirling-Signature header."
+secretHelp = "Sign each delivery's raw body with this key (HMAC-SHA256) and send it as the X-RustlingPDF-Signature header."
 secretWarning = "Copy the signing secret now. For your security it is shown only once and cannot be retrieved later."
 title = "Webhook created"
 url = "Delivery URL"
@@ -8846,7 +8846,7 @@ pro = "Processor plan"
 
 [portal.usage]
 managePayment = "Manage Payment"
-subtitle = "Consumption, invoices, and plan management for every PDF Stirling has billed, in one console."
+subtitle = "Consumption, invoices, and plan management for every PDF RustlingPDF has billed, in one console."
 title = "Usage & billing"
 
 [portal.usage.error]
@@ -8856,7 +8856,7 @@ walletUnavailable = "Wallet unavailable: {{status}} {{statusText}}"
 
 [portal.usage.sessionExpired]
 action = "Sign in again"
-body = "Your Stirling account session has expired. Sign in again to view billing — your instance stays linked."
+body = "Your RustlingPDF account session has expired. Sign in again to view billing — your instance stays linked."
 title = "Session expired"
 
 [portal.users]
@@ -8907,7 +8907,7 @@ limited = "{{used}} / {{limit}}"
 unlimited = "{{used}} · Unlimited"
 
 [portal.welcome]
-ariaLabel = "Welcome to Stirling PDF"
+ariaLabel = "Welcome to RustlingPDF"
 install = "Install the editor"
 invite = "Invite teammates"
 openInBrowser = "Open in browser"
@@ -9603,8 +9603,8 @@ hideTools = "Hide unavailable tools ▴"
 messageNoFallback = "Tools are unavailable until your server comes back online."
 messageWithFallback = "Some tools require a server connection."
 showTools = "View unavailable tools ▾"
-title = "Your Stirling-PDF server is unreachable"
-toolNotAvailableLocally = "Your Stirling-PDF server is offline and \"{{endpoint}}\" is not available on the local backend."
+title = "Your RustlingPDF server is unreachable"
+toolNotAvailableLocally = "Your RustlingPDF server is offline and \"{{endpoint}}\" is not available on the local backend."
 
 [session]
 expired = "Your session has expired. Please refresh the page and try again."
@@ -9672,7 +9672,7 @@ user = "Logged in as"
 
 [settings.connection.mode]
 local = "Local Only"
-saas = "Stirling Cloud"
+saas = "RustlingPDF Cloud"
 selfhosted = "Self-Hosted"
 
 [settings.developer]
@@ -9687,7 +9687,7 @@ autoUnzipFileLimitDescription = "Maximum number of files to extract from ZIP"
 autoUnzipFileLimitTooltip = "Only unzip if the ZIP contains this many files or fewer. Set higher to extract larger ZIPs."
 autoUnzipTooltip = "Automatically extract ZIP files returned from API operations. Disable to keep ZIP files intact. This does not affect automation workflows."
 defaultPdfEditor = "Default PDF editor"
-defaultPdfEditorActive = "Stirling PDF is your default PDF editor"
+defaultPdfEditorActive = "RustlingPDF is your default PDF editor"
 defaultPdfEditorChecking = "Checking..."
 defaultPdfEditorInactive = "Another application is set as default"
 defaultPdfEditorSet = "Already Default"
@@ -9733,7 +9733,7 @@ learnMore = "Learn more in documentation"
 title = "For System Administrators"
 
 [settings.general.loginLanding]
-description = "Choose which app opens when you sign in to Stirling Cloud."
+description = "Choose which app opens when you sign in to RustlingPDF Cloud."
 editor = "Editor"
 processor = "Processor"
 title = "After signing in"
@@ -9763,7 +9763,7 @@ updateBehavior = "Update behavior"
 updateBehaviorDescription = "Choose whether to prompt before installing updates, install them automatically, or skip update checks entirely."
 updateBehaviorError = "Could not change update behavior"
 updateBehaviorErrorLocked = "This setting is locked by your administrator."
-updateBehaviorLockedDescription = "Your administrator has configured how Stirling-PDF handles updates on this machine. Contact them to change this."
+updateBehaviorLockedDescription = "Your administrator has configured how RustlingPDF handles updates on this machine. Contact them to change this."
 updateBehaviorSaved = "Update behavior saved."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
 viewDetails = "View Details"
@@ -9847,7 +9847,7 @@ usageAnalytics = "Usage Analytics"
 [settings.planBilling]
 currentPlan = "Current Plan"
 loading = "Loading billing information..."
-notAvailable = "Plan & Billing is only available when connected to Stirling Cloud (SaaS mode)."
+notAvailable = "Plan & Billing is only available when connected to RustlingPDF Cloud (SaaS mode)."
 title = "Plan & Billing"
 
 [settings.planBilling.billing]
@@ -9978,7 +9978,7 @@ emptyUsername = "Please enter your username"
 oauthFailed = "OAuth login failed. Please try again."
 
 [setup.saas]
-title = "Sign in to Stirling"
+title = "Sign in to RustlingPDF"
 
 [setup.selfhosted]
 changeServerLocked = "Your organization has restricted this app to a specific server"
@@ -10016,7 +10016,7 @@ step3 = "Restart the server"
 title = "Login Not Enabled"
 
 [setup.server.url]
-description = "Enter the full URL of your self-hosted Stirling PDF server"
+description = "Enter the full URL of your self-hosted RustlingPDF server"
 label = "Server URL"
 
 [sharedSign]
@@ -10252,7 +10252,7 @@ pleaseFillAllFields = "Please fill in all fields"
 signUp = "Sign Up"
 signUpWith = "Sign up with"
 skip = "Skip"
-subtitle = "Join Stirling PDF to get started"
+subtitle = "Join RustlingPDF to get started"
 title = "Create an account"
 unexpectedError = "Unexpected error: {{message}}"
 
@@ -10479,7 +10479,7 @@ download = "Download"
 downloaded = "Downloaded"
 downloadFailed = "Unable to download this file."
 downloadsCount = "Downloads: {{count}}"
-emailWarningBody = "This looks like an email address. If this person is not already a Stirling PDF user, they will not be able to access the file."
+emailWarningBody = "This looks like an email address. If this person is not already a RustlingPDF user, they will not be able to access the file."
 emailWarningConfirm = "Share anyway"
 emailWarningTitle = "Email address"
 errorTitle = "Share failed"
@@ -10510,7 +10510,7 @@ manageTitle = "Manage Sharing"
 noActivity = "No activity yet."
 noLinks = "No active share links yet."
 noSharedUsers = "No users have access yet."
-openInApp = "Open in Stirling PDF"
+openInApp = "Open in RustlingPDF"
 ownerLabel = "Owner"
 ownerUnknown = "Unknown"
 removeLink = "Remove link"
@@ -10564,7 +10564,7 @@ updateButton = "Update on Server"
 uploadButton = "Upload to Server"
 
 [survey]
-title = "Stirling-PDF Survey"
+title = "RustlingPDF Survey"
 
 [swagger]
 clickHere = "click here"
@@ -10695,7 +10695,7 @@ favorites = "Favorites"
 heading = "All tools (fullscreen view)"
 noResults = "Try adjusting your search or toggle descriptions to find what you need."
 recommended = "Recommended"
-selfHostedOffline = "Requires your Stirling-PDF server (currently offline):"
+selfHostedOffline = "Requires your RustlingPDF server (currently offline):"
 showDetails = "Show Details"
 unavailable = "Disabled by server administrator:"
 unavailableDependency = "Unavailable - required tool missing on server:"
@@ -10704,7 +10704,7 @@ unfavorite = "Remove from favorites"
 [toolPanel.modePrompt]
 chooseFullscreen = "Use fullscreen mode"
 chooseSidebar = "Use sidebar mode"
-description = "Preview both layouts and decide how you want to explore Stirling PDF tools."
+description = "Preview both layouts and decide how you want to explore RustlingPDF tools."
 dismiss = "Maybe later"
 fullscreenDescription = "Browse every tool in a catalog that covers the workspace until you pick one."
 fullscreenTitle = "Fullscreen mode - (legacy)"
@@ -10772,7 +10772,7 @@ loadingDetailedInfo = "Loading detailed information..."
 migrationGuide = "Migration Guide"
 migrationGuides = "Migration Guides"
 migrationGuidesDesc = "Review important changes before updating."
-modalSubtitle = "A new version of Stirling PDF is ready to install."
+modalSubtitle = "A new version of RustlingPDF is ready to install."
 modalTitle = "Update Available"
 notes = "Notes"
 releaseNotes = "Release Notes"
@@ -10796,7 +10796,7 @@ urgent = "Urgent"
 attentionBody = "Your admin needs to sign in to see more info. Please contact them immediately."
 attentionBodyAdmin = "Review the license requirements to keep this server compliant."
 attentionTitle = "This server needs admin attention"
-message = "Get the most out of Stirling PDF with unlimited users and advanced features"
+message = "Get the most out of RustlingPDF with unlimited users and advanced features"
 seeInfo = "See info"
 title = "Upgrade to Server Plan"
 upgradeButton = "Upgrade Now"
@@ -10931,7 +10931,7 @@ authWeb = "Password"
 create = "Create account"
 createSubtitle = "Create a self-hosted account with a password or SSO."
 createTitle = "Create account"
-editorDesc = "Edit PDFs in the Stirling PDF Editor. Everyone gets this."
+editorDesc = "Edit PDFs in the RustlingPDF Editor. Everyone gets this."
 email = "Email address"
 emailError = "Enter a valid email address"
 emailPlaceholder2 = "name@company.com"
@@ -10946,7 +10946,7 @@ processorDeferred = "Invite sent, but Processor access couldn't be granted yet -
 processorDesc = "The governance surface, run pipelines, agents, and the API."
 role = "Role"
 send2 = "Send invite"
-subtitle2 = "They'll get an email to join your Stirling workspace."
+subtitle2 = "They'll get an email to join your RustlingPDF workspace."
 team = "Team"
 title = "Invite people"
 username = "Username"
@@ -11079,7 +11079,7 @@ downloads = "Downloads"
 entryLabel = "Signature Summary"
 filesEvaluated_one = "{{count}} file evaluated"
 filesEvaluated_other = "{{count}} files evaluated"
-footer = "Validated via Stirling PDF"
+footer = "Validated via RustlingPDF"
 generatedAt = "Generated"
 noPdf = "PDF report will be available after a successful validation."
 page = "Page"

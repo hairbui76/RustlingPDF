@@ -59,7 +59,7 @@ export function AccountLinkPanel() {
           <p className="portal-link__page-sub">
             {t(
               "portal.accountLink.panel.sub",
-              "Link this self-hosted org to its Stirling account so unattended processing bills against your org wallet.",
+              "Link this self-hosted org to its RustlingPDF account so unattended processing bills against your org wallet.",
             )}
           </p>
         </div>

@@ -162,7 +162,7 @@ export default function AdminMcpSection() {
           <Text size="sm" c="dimmed">
             {t(
               "admin.settings.mcp.description",
-              "Expose Stirling's PDF tools and AI agents to MCP clients over an OAuth-protected endpoint.",
+              "Expose RustlingPDF's PDF tools and AI agents to MCP clients over an OAuth-protected endpoint.",
             )}
           </Text>
         </div>
@@ -203,11 +203,11 @@ export default function AdminMcpSection() {
               }
               description={t(
                 "admin.settings.mcp.mode.description",
-                "OAuth needs an external IdP. API key uses a Stirling per-user API key (X-API-KEY) - simplest for self-host.",
+                "OAuth needs an external IdP. API key uses a RustlingPDF per-user API key (X-API-KEY) - simplest for self-host.",
               )}
               data={[
                 { value: "oauth", label: "OAuth 2.1 (external IdP)" },
-                { value: "apikey", label: "API key (Stirling per-user key)" },
+                { value: "apikey", label: "API key (RustlingPDF per-user key)" },
               ]}
               value={authMode}
               onChange={(v) => setAuth({ mode: v || "oauth" })}
@@ -224,7 +224,7 @@ export default function AdminMcpSection() {
                 <Text size="xs">
                   {t(
                     "admin.settings.mcp.apikeyNote",
-                    "Clients send a Stirling API key in the X-API-KEY header (or Authorization: Bearer <key>). The key maps to its owning Stirling user - only provisioned accounts get in, and actions are audited as that user. Manage keys under Account → API Keys.",
+                    "Clients send a RustlingPDF API key in the X-API-KEY header (or Authorization: Bearer <key>). The key maps to its owning RustlingPDF user - only provisioned accounts get in, and actions are audited as that user. Manage keys under Account → API Keys.",
                   )}
                 </Text>
               </Alert>
@@ -362,13 +362,13 @@ export default function AdminMcpSection() {
                     <Text fw={500} size="sm">
                       {t(
                         "admin.settings.mcp.requireAccount.label",
-                        "Require an existing Stirling account",
+                        "Require an existing RustlingPDF account",
                       )}
                     </Text>
                     <Text size="xs" c="dimmed" mt={4}>
                       {t(
                         "admin.settings.mcp.requireAccount.description",
-                        "Only let tokens through if their subject maps to a provisioned, enabled Stirling user.",
+                        "Only let tokens through if their subject maps to a provisioned, enabled RustlingPDF user.",
                       )}
                     </Text>
                   </div>
@@ -402,7 +402,7 @@ export default function AdminMcpSection() {
                   }
                   description={t(
                     "admin.settings.mcp.usernameClaim.description",
-                    "JWT claim matched against a Stirling username (e.g. sub, email, preferred_username).",
+                    "JWT claim matched against a RustlingPDF username (e.g. sub, email, preferred_username).",
                   )}
                   value={settings.auth?.usernameClaim || ""}
                   onChange={(e) => setAuth({ usernameClaim: e.target.value })}
@@ -559,7 +559,7 @@ export default function AdminMcpSection() {
                   )
                 : t(
                     "admin.settings.mcp.guide.tipApiKey",
-                    "Tip: API-key mode needs no external IdP - simplest for self-host. The key maps to its owning Stirling user.",
+                    "Tip: API-key mode needs no external IdP - simplest for self-host. The key maps to its owning RustlingPDF user.",
                   )}
             </Text>
           </Stack>

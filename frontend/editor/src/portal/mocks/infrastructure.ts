@@ -256,13 +256,13 @@ const CERTS_FREE: ComplianceCert[] = [
     id: "soc2",
     name: "SOC 2 Type II",
     status: "certified",
-    detail: "Inherited — Stirling platform",
+    detail: "Inherited — RustlingPDF platform",
   },
   {
     id: "iso",
     name: "ISO 27001",
     status: "certified",
-    detail: "Inherited — Stirling platform",
+    detail: "Inherited — RustlingPDF platform",
   },
   {
     id: "hipaa",
@@ -302,11 +302,11 @@ const IP_ALLOWLIST: IpAllowEntry[] = [
   },
 ];
 
-// Stirling-managed key custody — what free/pro tiers run on. No key ops on the
-// customer side, so the provider/key fields describe Stirling's own KMS.
+// RustlingPDF-managed key custody — what free/pro tiers run on. No key ops on the
+// customer side, so the provider/key fields describe RustlingPDF's own KMS.
 const KEY_MANAGED: KeyManagement = {
   mode: "managed",
-  provider: "Stirling KMS",
+  provider: "RustlingPDF KMS",
   keyId: "arn:stirling:kms:us-east-1:platform/cmk-default",
   algorithm: "AES-256-GCM",
   lastRotated: "32 days ago",
@@ -377,7 +377,7 @@ const ATTESTATIONS_FREE: ComplianceAttestation[] = [
     name: "SOC 2 Type II",
     framework: "AICPA Trust Services",
     status: "attested",
-    detail: "Inherited — Stirling platform",
+    detail: "Inherited — RustlingPDF platform",
     reportUrl: "/v1/infrastructure/security/reports/soc2",
   },
   {
@@ -385,7 +385,7 @@ const ATTESTATIONS_FREE: ComplianceAttestation[] = [
     name: "ISO 27001",
     framework: "ISO/IEC 27001:2022",
     status: "attested",
-    detail: "Inherited — Stirling platform",
+    detail: "Inherited — RustlingPDF platform",
     reportUrl: "/v1/infrastructure/security/reports/iso27001",
   },
   {
@@ -431,7 +431,7 @@ export function securityFor(tier: Tier): SecurityConfig {
       dataResidency: "us",
       certs: CERTS_FULL,
       ipAllowlist: IP_ALLOWLIST.slice(0, 2),
-      // Pro stays on Stirling-managed keys; BYOK/HYOK is an enterprise lever.
+      // Pro stays on RustlingPDF-managed keys; BYOK/HYOK is an enterprise lever.
       keyManagement: KEY_MANAGED,
       attestations: ATTESTATIONS_FREE,
     };
@@ -453,7 +453,7 @@ export function securityFor(tier: Tier): SecurityConfig {
 const PROVIDERS_FULL: StorageProvider[] = [
   {
     id: "stirling",
-    name: "Stirling Cloud",
+    name: "RustlingPDF Cloud",
     kind: "stirling",
     connected: true,
     detail: "Primary vault · us-east-1",
@@ -700,7 +700,7 @@ const AUDIT_EVENTS_ALL: AuditEvent[] = [
 const MODELS_ALL: ModelEntry[] = [
   {
     id: "m-extract-v3",
-    name: "Stirling Extract",
+    name: "RustlingPDF Extract",
     provider: "stirling",
     type: "extraction",
     status: "active",
@@ -713,7 +713,7 @@ const MODELS_ALL: ModelEntry[] = [
   },
   {
     id: "m-classify-v2",
-    name: "Stirling Classify",
+    name: "RustlingPDF Classify",
     provider: "stirling",
     type: "classification",
     status: "active",
@@ -726,7 +726,7 @@ const MODELS_ALL: ModelEntry[] = [
   },
   {
     id: "m-ocr-tess",
-    name: "Stirling OCR",
+    name: "RustlingPDF OCR",
     provider: "stirling",
     type: "ocr",
     status: "active",
@@ -793,7 +793,7 @@ const MODELS_ALL: ModelEntry[] = [
 ];
 
 export function modelsFor(tier: Tier): ModelEntry[] {
-  // Free sees only the two managed Stirling models it can actually use.
+  // Free sees only the two managed RustlingPDF models it can actually use.
   if (tier === "free")
     return MODELS_ALL.filter(
       (m) => m.id === "m-extract-v3" || m.id === "m-classify-v2",
@@ -809,7 +809,7 @@ const ROUTING_ALL: RoutingRule[] = [
     operation: "Field extraction",
     docType: "Invoices",
     modelId: "m-extract-v3",
-    modelName: "Stirling Extract",
+    modelName: "RustlingPDF Extract",
     isDefault: false,
   },
   {
@@ -817,7 +817,7 @@ const ROUTING_ALL: RoutingRule[] = [
     operation: "Document classification",
     docType: "All document types",
     modelId: "m-classify-v2",
-    modelName: "Stirling Classify",
+    modelName: "RustlingPDF Classify",
     isDefault: false,
   },
   {
@@ -825,7 +825,7 @@ const ROUTING_ALL: RoutingRule[] = [
     operation: "Text recognition",
     docType: "Scanned PDFs",
     modelId: "m-ocr-tess",
-    modelName: "Stirling OCR",
+    modelName: "RustlingPDF OCR",
     isDefault: false,
   },
   {
@@ -842,7 +842,7 @@ const ROUTING_ALL: RoutingRule[] = [
     operation: "Default",
     docType: "All document types",
     modelId: "m-extract-v3",
-    modelName: "Stirling Extract",
+    modelName: "RustlingPDF Extract",
     isDefault: true,
   },
 ];

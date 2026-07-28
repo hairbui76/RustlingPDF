@@ -265,7 +265,7 @@ fn resolve_policy_name(raw: Option<&str>) -> &str {
     }
 }
 
-/// Read-only admin view of the Stirling-owned folder roots always permitted for
+/// Read-only admin view of the RustlingPDF-owned folder roots always permitted for
 /// folder automations (server storage, pipeline watched folders), regardless of
 /// `policies.allowedFolderRoots`. Mirrors Java's
 /// `FolderAccessSettingsController.impliedFolderRoots`; the service enforces the

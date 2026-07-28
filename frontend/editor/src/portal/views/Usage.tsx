@@ -169,7 +169,7 @@ export function Usage({ onWalletLoaded, onReauth }: UsageProps = {}) {
             <p className="portal-usage__subtitle">
               {t(
                 "portal.usage.subtitle",
-                "Consumption, invoices, and plan management for every PDF Stirling has billed, in one console.",
+                "Consumption, invoices, and plan management for every PDF RustlingPDF has billed, in one console.",
               )}
             </p>
           </div>
@@ -208,7 +208,7 @@ export function Usage({ onWalletLoaded, onReauth }: UsageProps = {}) {
           >
             {t(
               "portal.usage.sessionExpired.body",
-              "Your Stirling account session has expired. Sign in again to view billing — your instance stays linked.",
+              "Your RustlingPDF account session has expired. Sign in again to view billing — your instance stays linked.",
             )}
           </Banner>
         )}

@@ -242,7 +242,7 @@ async fn reviewed_security_sends_invite_mail_and_retains_invite_on_delivery_fail
     let message = timeout(Duration::from_secs(3), smtp_server).await???;
     let message = String::from_utf8(message)?;
     let message_without_soft_wraps = message.replace("=\r\n", "");
-    assert!(message.contains("Subject: You've been invited to Stirling PDF"));
+    assert!(message.contains("Subject: You've been invited to RustlingPDF"));
     assert!(message.contains("first-invite@example.test"));
     assert!(message_without_soft_wraps.contains(&invite_url));
 
@@ -433,7 +433,7 @@ async fn assert_bulk_invite_partial_success(
 
     let message = timeout(Duration::from_secs(3), smtp_server).await???;
     let message = String::from_utf8(message)?.replace("=\r\n", "");
-    assert!(message.contains("Subject: Welcome to Stirling PDF"));
+    assert!(message.contains("Subject: Welcome to RustlingPDF"));
     assert!(message.contains("invited@example.test"));
     assert!(message.contains("https://frontend.example.test/login"));
     let temporary_password = temporary_password_from_message(&message)?;
@@ -619,7 +619,7 @@ async fn provision_password_change_user(
 
 fn generated_password_from_message(message: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     let message = String::from_utf8(message)?.replace("=\r\n", "");
-    assert!(message.contains("Subject: Your Stirling PDF password has been updated"));
+    assert!(message.contains("Subject: Your RustlingPDF password has been updated"));
     assert!(message.contains("managed@example.test"));
     assert!(message.contains("https://frontend.example.test/login"));
     let password = temporary_password_from_message(&message)?;

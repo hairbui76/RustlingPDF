@@ -149,7 +149,7 @@ pub enum PdfRedactionError {
 
 /// Securely redacts page rectangles and writes an image-only PDF.
 ///
-/// `page_numbers` uses Stirling's one-based page-selection syntax. Selected pages are replaced
+/// `page_numbers` uses RustlingPDF's one-based page-selection syntax. Selected pages are replaced
 /// by `page_redaction_color` even if they have no rectangles. Out-of-range ordinary page
 /// numbers are ignored to preserve Java's manual-redaction behaviour.
 ///

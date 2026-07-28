@@ -161,8 +161,8 @@ fn add_comment(
     if width <= 0.0 || height <= 0.0 {
         return Ok(false);
     }
-    let author = non_blank_or(comment.author.as_deref(), "Stirling AI");
-    let subject = non_blank_or(comment.subject.as_deref(), "Stirling AI Comment");
+    let author = non_blank_or(comment.author.as_deref(), "RustlingPDF AI");
+    let subject = non_blank_or(comment.subject.as_deref(), "RustlingPDF AI Comment");
     let annotation_id = document.add_object(dictionary! {
         "Type" => "Annot",
         "Subtype" => "Text",

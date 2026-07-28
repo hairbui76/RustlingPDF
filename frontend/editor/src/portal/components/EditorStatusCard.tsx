@@ -15,7 +15,7 @@ import {
 import { DownloadEditorModal } from "@portal/components/DownloadEditorModal";
 import "@portal/components/EditorStatusCard.css";
 
-/** The Stirling brand mark, drawn at the hero size. Decorative. */
+/** The RustlingPDF brand mark, drawn at the hero size. Decorative. */
 function StirlingMark() {
   return (
     <svg

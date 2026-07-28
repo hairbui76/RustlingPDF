@@ -182,7 +182,7 @@ export const useCookieConsent = ({
                     description:
                       t(
                         "cookieBanner.popUp.description.1",
-                        "We use cookies and other technologies to make Stirling PDF work better for you—helping us improve our tools and keep building features you'll love.",
+                        "We use cookies and other technologies to make RustlingPDF work better for you—helping us improve our tools and keep building features you'll love.",
                       ) +
                       "<br>" +
                       t(
@@ -233,12 +233,12 @@ export const useCookieConsent = ({
                         description:
                           t(
                             "cookieBanner.preferencesModal.description.1",
-                            "Stirling PDF uses cookies and similar technologies to enhance your experience and understand how our tools are used. This helps us improve performance, develop the features you care about, and provide ongoing support to our users.",
+                            "RustlingPDF uses cookies and similar technologies to enhance your experience and understand how our tools are used. This helps us improve performance, develop the features you care about, and provide ongoing support to our users.",
                           ) +
                           "<br><br>" +
                           t(
                             "cookieBanner.preferencesModal.description.2",
-                            "Stirling PDF cannot—and will never—track or access the content of the documents you use.",
+                            "RustlingPDF cannot—and will never—track or access the content of the documents you use.",
                           ) +
                           "<b> " +
                           t(
@@ -272,7 +272,7 @@ export const useCookieConsent = ({
                         ),
                         description: t(
                           "cookieBanner.preferencesModal.analytics.description",
-                          "These cookies help us understand how our tools are being used, so we can focus on building the features our community values most. Rest assured—Stirling PDF cannot and will never track the content of the documents you work with.",
+                          "These cookies help us understand how our tools are being used, so we can focus on building the features our community values most. Rest assured—RustlingPDF cannot and will never track the content of the documents you work with.",
                         ),
                         linkedCategory: "analytics",
                       },

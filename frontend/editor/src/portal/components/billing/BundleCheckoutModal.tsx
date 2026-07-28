@@ -920,10 +920,10 @@ function CalculatorStep({
   const deployCards: PickerCard[] = [
     {
       id: "cloud",
-      title: t("portal.billing.prepaid.deploy.cloud", "Stirling Cloud"),
+      title: t("portal.billing.prepaid.deploy.cloud", "RustlingPDF Cloud"),
       desc: t(
         "portal.billing.prepaid.deploy.cloudDesc",
-        "Managed by Stirling. Live in minutes.",
+        "Managed by RustlingPDF. Live in minutes.",
       ),
     },
     {
@@ -1050,7 +1050,7 @@ function CalculatorStep({
     deployId === "cloud"
       ? t(
           "portal.billing.prepaid.deploy.cloudValue",
-          "Stirling Cloud · Managed",
+          "RustlingPDF Cloud · Managed",
         )
       : t(
           "portal.billing.prepaid.deploy.selfhostValue",

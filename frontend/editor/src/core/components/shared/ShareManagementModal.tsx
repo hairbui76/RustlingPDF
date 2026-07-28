@@ -643,7 +643,7 @@ const ShareManagementModal: React.FC<ShareManagementModalProps> = ({
                       <Text size="sm">
                         {t(
                           "storageShare.emailWarningBody",
-                          "This looks like an email address. If this person is not already a Stirling PDF user, they will not be able to access the file.",
+                          "This looks like an email address. If this person is not already a RustlingPDF user, they will not be able to access the file.",
                         )}
                       </Text>
                       <Group justify="flex-end" gap="sm">

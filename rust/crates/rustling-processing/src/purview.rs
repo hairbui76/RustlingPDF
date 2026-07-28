@@ -450,7 +450,7 @@ mod labels {
     pub(crate) enum PdfLabelError {
         #[error(
             "This label requires encryption, which needs the Microsoft Purview client or MIP SDK; \
-             Stirling can apply the label metadata but cannot protect the content."
+             RustlingPDF can apply the label metadata but cannot protect the content."
         )]
         ProtectedLabel,
         #[error("XMP packet exceeds {0} bytes")]

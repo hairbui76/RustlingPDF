@@ -67,7 +67,7 @@ fn parse_parent_process_id(value: &str, current_process_id: u32) -> Result<u32, 
     }
     if pid == current_process_id {
         return Err(invalid_parent_process_id(
-            "it cannot identify the Stirling processing process itself",
+            "it cannot identify the RustlingPDF processing process itself",
         ));
     }
     Ok(pid)

@@ -30,7 +30,7 @@ const invoices = http.get("*/api/v1/payg/invoices", () =>
       periodEnd: "2026-06-30T00:00:00Z",
       hostedInvoiceUrl: "https://invoice.stripe.com/i/test_6",
       invoicePdf: "https://invoice.stripe.com/i/test_6/pdf",
-      description: "Stirling Processor Plan",
+      description: "RustlingPDF Processor Plan",
       pdfsProcessed: 142847,
     },
     {
@@ -44,7 +44,7 @@ const invoices = http.get("*/api/v1/payg/invoices", () =>
       periodEnd: "2026-05-31T00:00:00Z",
       hostedInvoiceUrl: "https://invoice.stripe.com/i/test_5",
       invoicePdf: "https://invoice.stripe.com/i/test_5/pdf",
-      description: "Stirling Processor Plan",
+      description: "RustlingPDF Processor Plan",
       pdfsProcessed: 138217,
     },
     {
@@ -58,7 +58,7 @@ const invoices = http.get("*/api/v1/payg/invoices", () =>
       periodEnd: "2026-04-30T00:00:00Z",
       hostedInvoiceUrl: "https://invoice.stripe.com/i/test_4",
       invoicePdf: "https://invoice.stripe.com/i/test_4/pdf",
-      description: "Stirling Processor Plan",
+      description: "RustlingPDF Processor Plan",
       pdfsProcessed: 130103,
     },
   ]),

@@ -380,7 +380,7 @@ fn build_math_specs(
                 width: ICON_SIZE,
                 height: ICON_SIZE,
                 text: comment.text,
-                author: "Stirling Math Auditor",
+                author: "RustlingPDF Math Auditor",
                 subject: comment.subject,
                 anchor_text: if stated.is_empty() {
                     (!context.is_empty()).then(|| context.to_owned())
@@ -420,7 +420,7 @@ fn build_contradiction_specs(
                 width: ICON_SIZE,
                 height: ICON_SIZE,
                 text: comment.text,
-                author: "Stirling Contradiction Auditor",
+                author: "RustlingPDF Contradiction Auditor",
                 subject: comment.subject,
                 anchor_text: (claim.anchor_quality == "verbatim").then(|| claim.quote.clone()),
             })

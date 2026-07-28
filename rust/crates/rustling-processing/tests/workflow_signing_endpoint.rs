@@ -316,7 +316,7 @@ fn signing_router(root: &std::path::Path, enabled: bool) -> Result<Router, Box<d
     fs::write(
         &settings,
         format!(
-            "security:\n  initialLogin:\n    username: admin\n    password: test-only-password\nstorage:\n  enabled: true\n  provider: local\n  signing:\n    enabled: {enabled}\nsystem:\n  serverCertificate:\n    enabled: true\n    organizationName: Stirling Workflow Test\n    validity: 30\n"
+            "security:\n  initialLogin:\n    username: admin\n    password: test-only-password\nstorage:\n  enabled: true\n  provider: local\n  signing:\n    enabled: {enabled}\nsystem:\n  serverCertificate:\n    enabled: true\n    organizationName: RustlingPDF Workflow Test\n    validity: 30\n"
         ),
     )?;
     Ok(app_with_reviewed_security(

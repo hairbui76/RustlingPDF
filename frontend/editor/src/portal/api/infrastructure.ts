@@ -15,7 +15,7 @@ export interface DeploymentRegion {
   /** Current load as a fraction of provisioned capacity (0–1). */
   load: number;
   status: RegionStatus;
-  /** Deployed Stirling engine version. */
+  /** Deployed RustlingPDF engine version. */
   version: string;
   /** 30-day uptime as a fraction (0–1). */
   uptime: number;
@@ -99,15 +99,15 @@ export interface IpAllowEntry {
  * Where encryption keys live. Mirrors the {@link AccessPolicy} posture but is
  * surfaced separately because the key *custody model* (who can decrypt) is the
  * detail security teams scrutinise:
- *   - `managed` — Stirling-owned KMS keys; zero key ops on the customer side.
- *   - `byok` — customer key, but Stirling can use it to decrypt while processing.
- *   - `hyok` — key never leaves the customer KMS; Stirling holds only ciphertext.
+ *   - `managed` — RustlingPDF-owned KMS keys; zero key ops on the customer side.
+ *   - `byok` — customer key, but RustlingPDF can use it to decrypt while processing.
+ *   - `hyok` — key never leaves the customer KMS; RustlingPDF holds only ciphertext.
  */
 export type KeyMode = "managed" | "byok" | "hyok";
 
 export interface KeyManagement {
   mode: KeyMode;
-  /** Human-readable provider, e.g. "Stirling KMS" or "AWS KMS (customer)". */
+  /** Human-readable provider, e.g. "RustlingPDF KMS" or "AWS KMS (customer)". */
   provider: string;
   /** ARN-style identifier for the active key. */
   keyId: string;
@@ -118,7 +118,7 @@ export interface KeyManagement {
   /** Rotation cadence summary, e.g. "Automatic · every 90 days". */
   rotationPolicy: string;
   /**
-   * Whether the customer may switch key custody (BYOK/HYOK). Stirling-managed
+   * Whether the customer may switch key custody (BYOK/HYOK). RustlingPDF-managed
    * tiers see the posture but cannot change provider — only enterprise can.
    */
   customerManaged: boolean;

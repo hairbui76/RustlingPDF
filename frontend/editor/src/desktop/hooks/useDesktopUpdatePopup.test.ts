@@ -92,7 +92,7 @@ describe("useDesktopUpdatePopup — auto mode", () => {
     canInstallUpdatesMock.mockResolvedValue({
       canInstall: true,
       reason: null,
-      installDir: "C:/Program Files/Stirling-PDF",
+      installDir: "C:/Program Files/RustlingPDF",
     });
     listenMock.mockResolvedValue(() => undefined);
   });

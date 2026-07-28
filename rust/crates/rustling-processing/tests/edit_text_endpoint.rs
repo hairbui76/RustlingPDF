@@ -12,7 +12,7 @@ async fn edit_text_applies_ordered_literal_replacements() -> Result<(), Box<dyn 
 {
     let response = post_edit_text(
         &source_pdf()?,
-        r#"[{"find":"Acme","replace":"Rust"},{"find":"Rust","replace":"Stirling"}]"#,
+        r#"[{"find":"Acme","replace":"Rust"},{"find":"Rust","replace":"RustlingPDF"}]"#,
         None,
         None,
     )
@@ -28,9 +28,9 @@ async fn edit_text_applies_ordered_literal_replacements() -> Result<(), Box<dyn 
     let output = Document::load_mem(&response_bytes(response).await?)?;
     assert_eq!(
         output.extract_text(&[1])?.trim(),
-        "Stirling cat catalog cat"
+        "RustlingPDF cat catalog cat"
     );
-    assert_eq!(output.extract_text(&[2])?.trim(), "Stirling");
+    assert_eq!(output.extract_text(&[2])?.trim(), "RustlingPDF");
     Ok(())
 }
 

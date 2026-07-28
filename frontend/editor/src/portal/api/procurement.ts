@@ -221,7 +221,7 @@ export async function advanceStage(
   });
 }
 
-/** Sign the Stirling Enterprise Agreement (MSA + order form + EULA + DPA). */
+/** Sign the RustlingPDF Enterprise Agreement (MSA + order form + EULA + DPA). */
 export async function signAgreement(
   docId: string,
 ): Promise<ProcurementResponse> {

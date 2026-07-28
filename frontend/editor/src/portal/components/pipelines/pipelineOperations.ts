@@ -1,6 +1,6 @@
 /**
  * The operation catalogue the composer builds a pipeline from. Each entry's
- * `operation` is a real Stirling endpoint path (the backend's PipelineStep
+ * `operation` is a real RustlingPDF endpoint path (the backend's PipelineStep
  * contract) with sensible default `parameters`, so a composed pipeline is
  * runnable as-is. Per-operation parameter editing is intentionally out of scope
  * for this version: the composer chains operations with their defaults. Labels
@@ -8,7 +8,7 @@
  */
 
 export interface PipelineOperationDef {
-  /** Stirling endpoint path, e.g. "/api/v1/misc/compress-pdf". */
+  /** RustlingPDF endpoint path, e.g. "/api/v1/misc/compress-pdf". */
   operation: string;
   /** Scalar form fields the endpoint accepts; defaults that keep the step valid. */
   parameters: Record<string, unknown>;

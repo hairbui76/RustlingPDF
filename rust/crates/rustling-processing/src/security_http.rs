@@ -328,7 +328,7 @@ pub fn secure_router(router: Router, store: Arc<SecurityStore>) -> Router {
         router,
         store,
         SecurityHttpConfig {
-            totp_issuer: "Stirling PDF".to_owned(),
+            totp_issuer: "RustlingPDF".to_owned(),
             invites_enabled: true,
             invite_expiry_hours: 168,
             frontend_url: String::new(),
@@ -5094,7 +5094,7 @@ mod tests {
             router,
             Arc::clone(&store),
             SecurityHttpConfig {
-                totp_issuer: "Stirling PDF".to_owned(),
+                totp_issuer: "RustlingPDF".to_owned(),
                 invites_enabled: true,
                 invite_expiry_hours: 168,
                 frontend_url: String::new(),
@@ -5189,7 +5189,7 @@ mod tests {
             router,
             Arc::clone(&store),
             SecurityHttpConfig {
-                totp_issuer: "Stirling PDF".to_owned(),
+                totp_issuer: "RustlingPDF".to_owned(),
                 invites_enabled: true,
                 invite_expiry_hours: 168,
                 frontend_url: String::new(),
@@ -5216,7 +5216,7 @@ mod tests {
             Router::new().route("/health", get(|| async { "ok" })),
             Arc::clone(&store),
             SecurityHttpConfig {
-                totp_issuer: "Stirling PDF".to_owned(),
+                totp_issuer: "RustlingPDF".to_owned(),
                 invites_enabled: true,
                 invite_expiry_hours: 168,
                 frontend_url: String::new(),
@@ -5256,7 +5256,7 @@ mod tests {
             router,
             Arc::clone(&store),
             SecurityHttpConfig {
-                totp_issuer: "Stirling PDF".to_owned(),
+                totp_issuer: "RustlingPDF".to_owned(),
                 invites_enabled: true,
                 invite_expiry_hours: 168,
                 frontend_url: String::new(),

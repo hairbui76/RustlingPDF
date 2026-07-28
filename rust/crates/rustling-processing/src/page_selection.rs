@@ -10,7 +10,7 @@ pub enum PageSelectionError {
     InvalidExpression(String),
 }
 
-/// Parses Stirling's one-based page selection syntax into zero-based indices.
+/// Parses RustlingPDF's one-based page selection syntax into zero-based indices.
 ///
 /// Invalid ordinary numbers and ranges are ignored, matching `GeneralUtils`.
 /// Invalid characters in an `n` expression are rejected.

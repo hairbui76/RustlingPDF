@@ -1,7 +1,7 @@
 /**
  * Policies service layer.
  *
- * The portal calls the real Stirling policy API (`/api/v1/policies`);
+ * The portal calls the real RustlingPDF policy API (`/api/v1/policies`);
  * Storybook and tests intercept the same calls with MSW handlers.
  *
  * The flat `WirePolicy[]` + `PolicyRunView[]` responses are assembled into the

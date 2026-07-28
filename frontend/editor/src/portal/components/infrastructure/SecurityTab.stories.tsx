@@ -26,7 +26,7 @@ export const Enterprise: Story = {
   globals: { tier: "enterprise" },
 };
 
-// Free runs on Stirling-managed keys (rotate disabled, upgrade nudge) and a
+// Free runs on RustlingPDF-managed keys (rotate disabled, upgrade nudge) and a
 // trimmed attestation set with HIPAA/PCI not-applicable.
 export const Free: Story = {
   globals: { tier: "free" },

@@ -7342,7 +7342,7 @@ fn complete_pdf_signature(
     let signer_name = certificate_der
         .and_then(signing_certificate_common_name)
         .or_else(|| metadata.name.map(ToOwned::to_owned))
-        .unwrap_or_else(|| "Stirling PDF".to_owned());
+        .unwrap_or_else(|| "RustlingPDF".to_owned());
     let pdf_appearance = appearance.map(|appearance| PdfSignatureAppearance {
         page_number: appearance.page_number,
         signer_name: &signer_name,
@@ -9470,7 +9470,7 @@ async fn read_stamp_request(mut multipart: Multipart) -> Result<UploadedStampReq
     let mut stamp_image_path = None;
     let mut options = StampOptions {
         stamp_type: String::new(),
-        stamp_text: "Stirling Software".to_owned(),
+        stamp_text: "RustlingPDF".to_owned(),
         alphabet: "roman".to_owned(),
         font_size: 40.0,
         rotation: 0.0,
@@ -9557,7 +9557,7 @@ async fn read_watermark_request(
     let mut watermark_image_path = None;
     let mut options = WatermarkOptions {
         watermark_type: String::new(),
-        watermark_text: "Stirling Software".to_owned(),
+        watermark_text: "RustlingPDF".to_owned(),
         alphabet: "roman".to_owned(),
         font_size: 30.0,
         rotation: 0.0,

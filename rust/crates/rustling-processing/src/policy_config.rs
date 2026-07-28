@@ -227,7 +227,7 @@ struct DetailRow {
     value: String,
 }
 
-/// A Stirling-owned directory that is always permitted for folder automations
+/// A RustlingPDF-owned directory that is always permitted for folder automations
 /// regardless of `policies.allowedFolderRoots`, plus the reason key the admin UI
 /// uses to label it. Mirrors Java's `FolderAccessGuard.ImpliedRoot`.
 #[derive(Clone, Debug)]
@@ -290,7 +290,7 @@ impl PolicyConfigService {
         }
     }
 
-    /// Admin-only read of the Stirling-owned directories always permitted for
+    /// Admin-only read of the RustlingPDF-owned directories always permitted for
     /// folder automations, with a reason key for each. Mirrors Java's
     /// `FolderAccessSettingsController.impliedFolderRoots` (`@PreAuthorize
     /// hasRole('ADMIN')`), which is read-only and never editable here.
@@ -1475,7 +1475,7 @@ fn new_signing_secret() -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-/// Builds the Stirling-owned "implied" folder roots always permitted for folder
+/// Builds the RustlingPDF-owned "implied" folder roots always permitted for folder
 /// automations regardless of `policies.allowedFolderRoots`, so they work out of
 /// the box. Mirrors Java's `FolderAccessGuard.impliedRoots`: the local server
 /// file-storage directory (when that provider is enabled with a non-blank base
@@ -1521,10 +1521,10 @@ fn folder_access_decision(
 ) -> Result<(), PolicyFailure> {
     if directory.starts_with(protected_config_root) {
         return Err(PolicyFailure::BadRequest(
-            "folder may not point inside a protected Stirling directory".to_owned(),
+            "folder may not point inside a protected RustlingPDF directory".to_owned(),
         ));
     }
-    // Stirling-owned implied roots are always permitted, even with no configured
+    // RustlingPDF-owned implied roots are always permitted, even with no configured
     // allowlist, so automations work against them out of the box.
     if implied_folder_roots
         .iter()

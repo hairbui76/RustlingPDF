@@ -40,12 +40,12 @@ async function mockHardwareEndpoints(page: Page) {
       route.fulfill({
         json: [
           {
-            alias: "Anthony Stirling",
+            alias: "Anthony RustlingPDF",
             source: "WINDOWS_STORE",
-            subject: "CN=Anthony Stirling",
-            issuer: "CN=Anthony Stirling",
-            subjectCommonName: "Anthony Stirling",
-            issuerCommonName: "Anthony Stirling",
+            subject: "CN=Anthony RustlingPDF",
+            issuer: "CN=Anthony RustlingPDF",
+            subjectCommonName: "Anthony RustlingPDF",
+            issuerCommonName: "Anthony RustlingPDF",
             serialNumber: "abc123",
             keyAlgorithm: "RSA",
             notBefore: "2026-01-01T00:00:00Z",
@@ -222,6 +222,6 @@ test.describe("CertSign tool - hardware signing (desktop)", () => {
     // The single enumerated cert is auto-selected into the picker input.
     await expect(
       page.getByRole("textbox", { name: /^certificate$/i }),
-    ).toHaveValue(/Anthony Stirling/, { timeout: 10_000 });
+    ).toHaveValue(/Anthony RustlingPDF/, { timeout: 10_000 });
   });
 });

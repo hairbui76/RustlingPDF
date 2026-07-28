@@ -26,7 +26,7 @@ export function EnterpriseUpsell({ bare = false }: Props) {
       <div className="portal-billing__enterprise-head">
         <div>
           <h3 className="portal-billing__section-title">
-            {t("portal.billing.enterpriseUpsell.title", "Stirling Enterprise")}
+            {t("portal.billing.enterpriseUpsell.title", "RustlingPDF Enterprise")}
           </h3>
           <p className="portal-billing__section-sub">
             {t(

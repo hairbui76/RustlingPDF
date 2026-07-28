@@ -45,7 +45,7 @@ async fn pdf_to_video_route_encodes_a_slideshow_or_reports_missing_dependencies(
             ("secondsPerPage", "1"),
             ("dpi", "72"),
             ("resolution", "480p"),
-            ("watermarkText", "Stirling"),
+            ("watermarkText", "RustlingPDF"),
         ],
     )
     .await?;

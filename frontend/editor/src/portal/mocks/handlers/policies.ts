@@ -5,7 +5,7 @@ import type { PolicyRunView, WirePolicy } from "@app/policies/types";
 /**
  * The portal exercises the REAL policy API base — `/api/v1/policies`, NOT the
  * portal's usual `/v1/...` — so this surface is plug-and-play against the live
- * backend (drop MSW and the same calls hit Stirling).
+ * backend (drop MSW and the same calls hit RustlingPDF).
  *
  * These handlers speak the backend's actual wire contract:
  * - GET /api/v1/policies        → WirePolicy[]

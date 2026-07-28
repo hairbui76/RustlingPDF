@@ -1545,7 +1545,7 @@ mod route_tests {
 
     fn test_http_config(license_tier: LicenseTier) -> SecurityHttpConfig {
         SecurityHttpConfig {
-            totp_issuer: "Stirling PDF".to_owned(),
+            totp_issuer: "RustlingPDF".to_owned(),
             invites_enabled: false,
             invite_expiry_hours: 168,
             frontend_url: String::new(),

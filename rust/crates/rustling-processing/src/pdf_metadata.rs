@@ -46,7 +46,7 @@ pub(crate) fn apply_default_new_document_metadata(document: &mut Document) {
 ///
 /// Custom Info keys remain intact. Existing creator and creation date remain
 /// intact when the date is valid, while producer is always rewritten to the
-/// Stirling label and a missing modification date receives the current time.
+/// RustlingPDF label and a missing modification date receives the current time.
 pub(crate) fn apply_default_loaded_document_metadata(document: &mut Document) {
     let has_creation_date = document_info_date(document, b"CreationDate").is_some();
     let has_modification_date = document_info_date(document, b"ModDate").is_some();
@@ -61,7 +61,7 @@ pub(crate) fn apply_default_loaded_document_metadata(document: &mut Document) {
         }
     }
     let now = current_pdf_date();
-    let label = format!("Stirling-PDF v{}", application_version());
+    let label = format!("RustlingPDF v{}", application_version());
     if !has_creation_date {
         info.set("Creator", Object::string_literal(label.as_str()));
         info.set("CreationDate", Object::string_literal(now.as_str()));
@@ -78,7 +78,7 @@ pub(crate) fn apply_default_loaded_document_metadata(document: &mut Document) {
 /// based on an existing PDF.
 ///
 /// Standard descriptive fields and valid source dates are retained. Creator
-/// and producer are replaced with the current Stirling label, missing dates
+/// and producer are replaced with the current RustlingPDF label, missing dates
 /// receive the current time, and non-standard Info entries are discarded.
 pub(crate) fn normalize_rebuilt_document_metadata(document: &mut Document) {
     let retained = retained_rebuilt_metadata(document);
@@ -134,7 +134,7 @@ fn replace_info_dictionary(
     modification_date: Option<&str>,
 ) {
     let now = current_pdf_date();
-    let label = format!("Stirling-PDF v{}", application_version());
+    let label = format!("RustlingPDF v{}", application_version());
     info.set("Creator", Object::string_literal(label.as_str()));
     info.set("Producer", Object::string_literal(label));
     info.set(
@@ -228,7 +228,7 @@ pub fn update_metadata_to_file(
     Ok(())
 }
 
-/// Sets only the Stirling classification entry in the PDF Info dictionary.
+/// Sets only the RustlingPDF classification entry in the PDF Info dictionary.
 ///
 /// Existing standard and custom metadata is preserved byte-for-byte at the
 /// dictionary-value level; this helper intentionally does not apply the
@@ -388,7 +388,7 @@ mod tests {
 
         let info = document_info_dictionary(&document)
             .ok_or_else(|| lopdf::Error::Syntax("missing Info dictionary".to_owned()))?;
-        let label = format!("Stirling-PDF v{}", application_version());
+        let label = format!("RustlingPDF v{}", application_version());
         assert_eq!(info.get(b"Creator")?.as_str()?, label.as_bytes());
         assert_eq!(info.get(b"Producer")?.as_str()?, label.as_bytes());
         assert!(info.get(b"CreationDate")?.as_datetime().is_some());
@@ -414,7 +414,7 @@ mod tests {
 
         let info = document_info_dictionary(&document)
             .ok_or_else(|| lopdf::Error::Syntax("missing Info dictionary".to_owned()))?;
-        let label = format!("Stirling-PDF v{}", application_version());
+        let label = format!("RustlingPDF v{}", application_version());
         assert_eq!(info.get(b"Title")?.as_str()?, b"Source title");
         assert_eq!(info.get(b"Author")?.as_str()?, b"Source author");
         assert_eq!(info.get(b"Creator")?.as_str()?, label.as_bytes());
@@ -445,7 +445,7 @@ mod tests {
 
         let info = document_info_dictionary(&document)
             .ok_or_else(|| lopdf::Error::Syntax("missing Info dictionary".to_owned()))?;
-        let label = format!("Stirling-PDF v{}", application_version());
+        let label = format!("RustlingPDF v{}", application_version());
         assert_eq!(info.get(b"Title")?.as_str()?, b"Source title");
         assert_eq!(info.get(b"Creator")?.as_str()?, b"Source creator");
         assert_eq!(info.get(b"Producer")?.as_str()?, label.as_bytes());

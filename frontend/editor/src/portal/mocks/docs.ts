@@ -95,9 +95,9 @@ const QUICKSTART_SAMPLES: CodeSample[] = [
     key: "python",
     label: "Python",
     lang: "python",
-    code: `from stirling import Stirling
+    code: `from stirling import RustlingPDF
 
-client = Stirling(api_key="sk_live_...")
+client = RustlingPDF(api_key="sk_live_...")
 
 result = client.extract(
     endpoint="/v1/invoice",
@@ -109,9 +109,9 @@ print(result.fields["total"])`,
     key: "node",
     label: "Node",
     lang: "typescript",
-    code: `import { Stirling } from "@stirling/sdk";
+    code: `import { RustlingPDF } from "@stirling/sdk";
 
-const client = new Stirling({ apiKey: process.env.STIRLING_API_KEY });
+const client = new RustlingPDF({ apiKey: process.env.STIRLING_API_KEY });
 
 const result = await client.extract({
   endpoint: "/v1/invoice",
@@ -201,7 +201,7 @@ const SDKS: Sdk[] = [
   {
     name: ".NET",
     icon: "◈",
-    install: "dotnet add package Stirling",
+    install: "dotnet add package RustlingPDF",
     lang: "bash",
     status: "beta",
   },

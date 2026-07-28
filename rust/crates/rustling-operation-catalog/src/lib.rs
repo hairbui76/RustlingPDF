@@ -1,4 +1,4 @@
-//! Deterministic AI operation-catalog generation from Stirling PDF `OpenAPI`.
+//! Deterministic AI operation-catalog generation from RustlingPDF `OpenAPI`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;

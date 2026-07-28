@@ -18,7 +18,7 @@ use rustling_processing::{
 use tempfile::{TempDir, tempdir};
 use tower::ServiceExt;
 
-const INDEX_HTML: &str = "<!doctype html>\n<html>\n  <head>\n    <base href=\"%BASE_URL%\" />\n    <title>Stirling PDF</title>\n  </head>\n  <body>SPA-INDEX-BODY</body>\n</html>\n";
+const INDEX_HTML: &str = "<!doctype html>\n<html>\n  <head>\n    <base href=\"%BASE_URL%\" />\n    <title>RustlingPDF</title>\n  </head>\n  <body>SPA-INDEX-BODY</body>\n</html>\n";
 
 struct SyntheticDist {
     /// Owns configs/, customFiles/, dist/, and the outside-the-root secret.
@@ -442,7 +442,7 @@ async fn missing_index_serves_the_fallback_page() -> Result<(), Box<dyn std::err
     let response = get(dist.runtime_config()?, "/").await?;
     assert_index_response(&response);
     let body = body_string(response).await?;
-    assert!(body.contains("Stirling PDF is running."));
+    assert!(body.contains("RustlingPDF is running."));
     assert!(body.contains("window.RUSTLING_PDF_API_BASE_URL"));
     Ok(())
 }

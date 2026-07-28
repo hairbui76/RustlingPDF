@@ -50,7 +50,10 @@ async fn adds_valid_sticky_notes_and_skips_invalid_specs() -> Result<(), Box<dyn
         .ok_or("missing added annotation")?;
     assert_eq!(added.get(b"Subtype")?.as_name()?, b"Text");
     assert_eq!(added.get(b"Name")?.as_name()?, b"Comment");
-    assert_eq!(lopdf::decode_text_string(added.get(b"T")?)?, "Stirling AI");
+    assert_eq!(
+        lopdf::decode_text_string(added.get(b"T")?)?,
+        "RustlingPDF AI"
+    );
     assert_eq!(lopdf::decode_text_string(added.get(b"Subj")?)?, "Review");
     assert_eq!(
         added

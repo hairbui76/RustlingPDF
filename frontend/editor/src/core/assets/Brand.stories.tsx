@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 // Visual catalogue of the shared brand assets (shared/assets/brand) — the single
-// source of truth for the Stirling logos used across the apps.
+// source of truth for the RustlingPDF logos used across the apps.
 import modernMarkDark from "@app/assets/brand/modern-logo/StirlingPDFLogoNoTextDark.svg";
 import modernMarkLight from "@app/assets/brand/modern-logo/StirlingPDFLogoNoTextLight.svg";
 import modernBlack from "@app/assets/brand/modern-logo/StirlingPDFLogoBlackText.svg";

@@ -34,7 +34,7 @@ export const ASSISTANT_ROUTES: AssistantRoute[] = [
   {
     patterns: [/webhook/i, /callback/i],
     reply:
-      "Outbound webhooks deliver via 3× exponential backoff. We sign every payload with HMAC-SHA256 — verify via the X-Stirling-Signature header. Inbound webhooks support Bearer, HMAC, or mTLS auth.",
+      "Outbound webhooks deliver via 3× exponential backoff. We sign every payload with HMAC-SHA256 — verify via the X-RustlingPDF-Signature header. Inbound webhooks support Bearer, HMAC, or mTLS auth.",
   },
 ];
 

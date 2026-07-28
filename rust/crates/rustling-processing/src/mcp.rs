@@ -4,18 +4,18 @@
 //! `stirling_ai`), this owns reusable file artifacts (`stirling_upload`,
 //! `stirling_download`), Java's per-category PDF tools (`stirling_pages`,
 //! `stirling_convert`, `stirling_misc`, `stirling_security`), and direct
-//! dispatch of a real Stirling processing operation (`stirling_operation`, a
+//! dispatch of a real RustlingPDF processing operation (`stirling_operation`, a
 //! Rust-only extension Java does not have), reusing the existing owner-scoped
 //! [`crate::job_manager::JobManager`] for storage and the same in-process
 //! router dispatch [`crate::pipeline`] uses to run a pipeline step.
 //!
 //! Authentication follows Java's `McpSecurityConfig` mode split exactly:
-//! `mcp.auth.mode=apikey` accepts a Stirling per-user API key
+//! `mcp.auth.mode=apikey` accepts a RustlingPDF per-user API key
 //! (`McpApiKeyAuthFilter` semantics — every valid key is statically granted
 //! BOTH `mcp.tools.read` and `mcp.tools.write`), while **any other mode value
 //! runs the `OAuth2` resource-server chain**: bearer JWTs validated through
 //! [`crate::mcp_oauth`] (issuer + JWKS + RFC 8707 audience), token subjects
-//! bound to provisioned Stirling accounts (`McpUserBindingFilter` → 403
+//! bound to provisioned RustlingPDF accounts (`McpUserBindingFilter` → 403
 //! `insufficient_account`), RFC 9728 protected-resource metadata served under
 //! `/.well-known/oauth-protected-resource`, and a 401 challenge carrying the
 //! metadata pointer. In OAuth mode the token's `scope` claim is the caller's
@@ -442,7 +442,7 @@ fn log_oauth_config_findings(config: &McpConfig) {
     if !auth.require_existing_account {
         warn!(
             "mcp.auth.require-existing-account=false is not honored by the Rust MCP boundary: a \
-             validated token subject must still resolve to a provisioned, enabled Stirling \
+             validated token subject must still resolve to a provisioned, enabled RustlingPDF \
              account (fail-closed divergence documented in rust/contracts/mcp.md)."
         );
     }
@@ -555,7 +555,7 @@ fn initialize_result(params: Option<&Value>) -> Value {
         "protocolVersion": negotiated,
         "capabilities": {"tools": {}},
         "serverInfo": {
-            "name": "stirling-pdf-mcp",
+            "name": "rustling-pdf-mcp",
             "version": application_version(),
         }
     })
@@ -729,12 +729,12 @@ fn tools_list_result(state: &McpState, operations: &BTreeMap<String, AiCapabilit
     let mut tools = vec![
         json!({
             "name": "stirling_describe_operation",
-            "description": "Return the full JSON Schema for one Stirling operation's parameters. Call this before invoking a category tool to learn the exact shape of `parameters`. Argument: { operation: <op-id> } where <op-id> appears in the enum of any category tool (stirling_convert, _pages, _misc, _security, _ai).",
+            "description": "Return the full JSON Schema for one RustlingPDF operation's parameters. Call this before invoking a category tool to learn the exact shape of `parameters`. Argument: { operation: <op-id> } where <op-id> appears in the enum of any category tool (stirling_convert, _pages, _misc, _security, _ai).",
             "inputSchema": describe_schema(),
         }),
         json!({
             "name": "stirling_ai",
-            "description": "Invoke a Stirling AI agent capability. Call stirling_describe_operation with the chosen capability id before invoking this tool.",
+            "description": "Invoke a RustlingPDF AI agent capability. Call stirling_describe_operation with the chosen capability id before invoking this tool.",
             "inputSchema": ai_tool_schema(operations),
         }),
         json!({
@@ -758,7 +758,7 @@ fn tools_list_result(state: &McpState, operations: &BTreeMap<String, AiCapabilit
     // Rust-only extension: Java has no path-addressed dispatch tool.
     tools.push(json!({
         "name": "stirling_operation",
-        "description": "Run a real Stirling PDF processing operation (e.g. split, merge, compress, convert) by its API path, not an AI capability. Pass the input file inline as base64 via `file`, or a `fileId` from stirling_upload or a prior operation's result.",
+        "description": "Run a real RustlingPDF processing operation (e.g. split, merge, compress, convert) by its API path, not an AI capability. Pass the input file inline as base64 via `file`, or a `fileId` from stirling_upload or a prior operation's result.",
         "inputSchema": operation_tool_schema(),
     }));
     json!({ "tools": tools })
@@ -839,7 +839,7 @@ fn operation_tool_schema() -> Value {
         "properties": {
             "operation": {
                 "type": "string",
-                "description": "The Stirling API path to call, e.g. /api/v1/general/split-pages.",
+                "description": "The RustlingPDF API path to call, e.g. /api/v1/general/split-pages.",
             },
             "file": {"type": "string", "description": "Base64-encoded input file content."},
             "fileId": {
@@ -892,7 +892,7 @@ fn ai_tool_schema(operations: &BTreeMap<String, AiCapability>) -> Value {
             "parameters": {"type": "object", "description": "Per-capability parameters.", "additionalProperties": true},
             "fileId": {
                 "type": "string",
-                "description": "Reference to a previously-uploaded PDF in Stirling's job store. Required for capabilities that consume a document."
+                "description": "Reference to a previously-uploaded PDF in RustlingPDF's job store. Required for capabilities that consume a document."
             }
         },
         "required": ["operation"]
@@ -1065,7 +1065,7 @@ async fn download_file(state: &McpState, context: &McpCallContext, arguments: &V
     };
     if file.file_size > state.config.max_inline_response_bytes {
         return tool_error(&format!(
-            "File is {size} bytes, over the inline limit of {limit} bytes. Retrieve it via the Stirling UI/API instead.",
+            "File is {size} bytes, over the inline limit of {limit} bytes. Retrieve it via the RustlingPDF UI/API instead.",
             size = file.file_size,
             limit = state.config.max_inline_response_bytes,
         ));
@@ -1084,7 +1084,7 @@ async fn download_file(state: &McpState, context: &McpCallContext, arguments: &V
     )
 }
 
-/// Dispatches a real Stirling processing operation (identified by its own API
+/// Dispatches a real RustlingPDF processing operation (identified by its own API
 /// path, e.g. `/api/v1/general/split-pages`) in-process through the same
 /// router `pipeline` uses to run a step, with an input resolved from an
 /// uploaded `fileId` or inline base64. This tool is a Rust-only extension:
@@ -1092,7 +1092,7 @@ async fn download_file(state: &McpState, context: &McpCallContext, arguments: &V
 async fn run_operation(state: &McpState, context: &McpCallContext, arguments: &Value) -> Value {
     let Some(operation) = text_argument(arguments, "operation") else {
         return tool_error(
-            "Missing required argument: operation (the Stirling API path, e.g. /api/v1/general/split-pages).",
+            "Missing required argument: operation (the RustlingPDF API path, e.g. /api/v1/general/split-pages).",
         );
     };
     if crate::pipeline::validate_operation_path(operation).is_err()
@@ -1103,7 +1103,7 @@ async fn run_operation(state: &McpState, context: &McpCallContext, arguments: &V
         ));
     }
     // Rust-only tool, gated like the category tools it parallels: every
-    // dispatched Stirling operation is mutating, so it requires the write
+    // dispatched RustlingPDF operation is mutating, so it requires the write
     // scope (checked after the operation resolves, matching their order).
     if !context.has_scope(WRITE_SCOPE) {
         return tool_error(&format!(
@@ -1544,7 +1544,7 @@ async fn authenticate(state: &McpState, headers: &HeaderMap) -> Result<McpCallCo
 /// A tokenless request gets the plain RFC 9728 discovery challenge (the
 /// normal handshake, logged at debug in Java); a rejected token adds the
 /// sanitized reason as `error_description`; a validated token whose subject
-/// has no provisioned, enabled Stirling account gets Java's 403
+/// has no provisioned, enabled RustlingPDF account gets Java's 403
 /// `insufficient_account` body.
 async fn authenticate_oauth(
     state: &McpState,
@@ -1578,7 +1578,7 @@ async fn authenticate_oauth(
         .filter(|value| !value.trim().is_empty())
     else {
         return Err(insufficient_account(&format!(
-            "Token is missing the '{}' claim used to map to a Stirling user.",
+            "Token is missing the '{}' claim used to map to a RustlingPDF user.",
             verifier.username_claim()
         )));
     };
@@ -1595,10 +1595,10 @@ async fn authenticate_oauth(
         Ok(Err(_)) => {
             warn!(
                 subject = subject_for_log,
-                "MCP access denied: token subject has no active Stirling account"
+                "MCP access denied: token subject has no active RustlingPDF account"
             );
             return Err(insufficient_account(
-                "MCP access requires a provisioned, enabled Stirling account for this subject.",
+                "MCP access requires a provisioned, enabled RustlingPDF account for this subject.",
             ));
         }
     };
@@ -1716,12 +1716,12 @@ fn unauthorized() -> Response {
         StatusCode::UNAUTHORIZED,
         json!({
             "error": "unauthorized",
-            "message": "Provide a valid Stirling API key via the X-API-KEY header (or Authorization: Bearer <key>)."
+            "message": "Provide a valid RustlingPDF API key via the X-API-KEY header (or Authorization: Bearer <key>)."
         }),
     );
     response.headers_mut().insert(
         header::WWW_AUTHENTICATE,
-        axum::http::HeaderValue::from_static("Bearer realm=\"Stirling MCP (API key)\""),
+        axum::http::HeaderValue::from_static("Bearer realm=\"RustlingPDF MCP (API key)\""),
     );
     response
 }

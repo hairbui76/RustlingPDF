@@ -70,7 +70,7 @@ export default function McpSection() {
   const { config } = useAppConfig();
   const { user } = useAuth();
   // Guests can't authorise an MCP client - the OAuth flow mints an anonymous
-  // token with no email, which the server can't map to a Stirling account. So
+  // token with no email, which the server can't map to a RustlingPDF account. So
   // mirror the API-keys section: show a "create an account" card instead of a
   // connection guide that would only dead-end at sign-in.
   const isAnonymous = Boolean(user && isUserAnonymous(user));
@@ -158,7 +158,7 @@ export default function McpSection() {
           <Text size="sm" c="dimmed" mt={6}>
             {t(
               "config.mcp.description",
-              "Model Context Protocol (MCP) lets AI assistants like Claude use your Stirling PDF tools directly. Connect a client once and your assistant can convert, edit, secure and process documents on your behalf.",
+              "Model Context Protocol (MCP) lets AI assistants like Claude use your RustlingPDF tools directly. Connect a client once and your assistant can convert, edit, secure and process documents on your behalf.",
             )}
           </Text>
         </div>
@@ -175,7 +175,7 @@ export default function McpSection() {
                 <Text size="sm" c="dimmed" style={{ flex: 1 }}>
                   {t(
                     "config.mcp.guestInfo",
-                    "Guest users can't connect MCP clients. Create an account to use the MCP server and let your AI assistant run Stirling PDF tools on your behalf.",
+                    "Guest users can't connect MCP clients. Create an account to use the MCP server and let your AI assistant run RustlingPDF tools on your behalf.",
                   )}
                 </Text>
                 <Button
@@ -216,7 +216,7 @@ export default function McpSection() {
                 <Text size="xs" c="dimmed">
                   {t(
                     "config.mcp.setup.hint",
-                    "Pick your client, paste the snippet into the file shown, then restart it. You'll sign in with your Stirling account on first use - no keys to copy.",
+                    "Pick your client, paste the snippet into the file shown, then restart it. You'll sign in with your RustlingPDF account on first use - no keys to copy.",
                   )}
                 </Text>
                 <Tabs
@@ -274,7 +274,7 @@ export default function McpSection() {
                 <Text size="sm">
                   {t(
                     "config.mcp.tip",
-                    "Every action your assistant runs is performed as your account and counts towards your usage, just like using the Stirling PDF API and Automation.",
+                    "Every action your assistant runs is performed as your account and counts towards your usage, just like using the RustlingPDF API and Automation.",
                   )}
                 </Text>
                 <Button

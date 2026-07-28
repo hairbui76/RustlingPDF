@@ -104,12 +104,12 @@ function SignupPreview() {
       <div className="auth-logo-block">
         <img
           src={loginHeader}
-          alt="Stirling PDF"
+          alt="RustlingPDF"
           className="auth-logo-header auth-logo-header--light"
         />
         <img
           src={darkLogo}
-          alt="Stirling PDF"
+          alt="RustlingPDF"
           className="auth-logo-header auth-logo-header--dark"
         />
       </div>

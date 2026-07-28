@@ -263,7 +263,7 @@ fn metadata_pdf() -> Result<Vec<u8>, lopdf::Error> {
     let catalog = document.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
     let info = document.add_object(dictionary! {
         "Title" => Object::String(b"Quarterly Report".to_vec(), StringFormat::Literal),
-        "Author" => Object::String(b"Stirling".to_vec(), StringFormat::Literal),
+        "Author" => Object::String(b"RustlingPDF".to_vec(), StringFormat::Literal),
     });
     document.trailer.set("Root", catalog);
     document.trailer.set("Info", info);

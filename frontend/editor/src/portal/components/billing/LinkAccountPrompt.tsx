@@ -3,7 +3,7 @@ import { Button, Card, EmptyState } from "@app/ui";
 import { useUI } from "@portal/contexts/UIContext";
 
 /**
- * Unlinked state — the billing page asks the admin to link their Stirling
+ * Unlinked state — the billing page asks the admin to link their RustlingPDF
  * account to claim the 500-PDF free grant. The CTA opens the login modal
  * directly (no detour through Settings).
  */
@@ -16,7 +16,7 @@ export function LinkAccountPrompt() {
         size="default"
         title={t(
           "portal.billing.linkPrompt.title",
-          "Link your Stirling account",
+          "Link your RustlingPDF account",
         )}
         description={t(
           "portal.billing.linkPrompt.description",
@@ -28,7 +28,7 @@ export function LinkAccountPrompt() {
             accent="premium"
             onClick={() => openLinkModal()}
           >
-            {t("portal.billing.linkPrompt.cta", "Link Stirling account")}
+            {t("portal.billing.linkPrompt.cta", "Link RustlingPDF account")}
           </Button>
         }
       />

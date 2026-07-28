@@ -82,8 +82,8 @@ export class UpdateService {
       return (
         DOWNLOAD_BASE_URL +
         (machineInfo.activeSecurity
-          ? "Stirling-PDF-with-login.jar"
-          : "Stirling-PDF.jar")
+          ? "RustlingPDF-with-login.jar"
+          : "RustlingPDF.jar")
       );
     }
 
@@ -185,7 +185,7 @@ export class UpdateService {
    */
   async getCurrentVersionFromGitHub(): Promise<string> {
     const url =
-      "https://raw.githubusercontent.com/Stirling-Tools/Stirling-PDF/V2-master/build.gradle";
+      "https://raw.githubusercontent.com/RustlingPDF-Tools/RustlingPDF/V2-master/build.gradle";
 
     try {
       const response = await fetch(url);

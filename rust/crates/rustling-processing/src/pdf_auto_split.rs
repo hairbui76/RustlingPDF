@@ -18,7 +18,7 @@ pub enum AutoSplitError {
     Pdfium(#[from] PdfiumAutoSplitError),
 }
 
-/// Splits a PDF at Stirling QR divider pages and writes the results to a ZIP.
+/// Splits a PDF at RustlingPDF QR divider pages and writes the results to a ZIP.
 ///
 /// # Errors
 ///

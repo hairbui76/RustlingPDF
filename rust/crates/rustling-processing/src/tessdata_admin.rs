@@ -377,7 +377,7 @@ fn http_client() -> Result<Client, reqwest::Error> {
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT)
         .redirect(Policy::limited(3))
-        .user_agent("Stirling-PDF-App")
+        .user_agent("RustlingPDF-App")
         .build()
 }
 

@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Stirling Supabase project URL — in-app account-link login (same project every flavor uses). Empty → link UI shows a configure state. */
+  /** RustlingPDF Supabase project URL — in-app account-link login (same project every flavor uses). Empty → link UI shows a configure state. */
   readonly VITE_SUPABASE_URL: string;
-  /** Stirling Supabase publishable/anon key (public). */
+  /** RustlingPDF Supabase publishable/anon key (public). */
   readonly VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY: string;
   /** Hosted SaaS Java backend base URL — attended portal→SaaS reads (wallet, invoices, …) via apiClient.saas with the admin's JWT. */
   readonly VITE_SAAS_API_URL: string;

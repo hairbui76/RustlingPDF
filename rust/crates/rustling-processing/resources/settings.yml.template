@@ -1,10 +1,10 @@
 #############################################################################################################
 #                                         Welcome to settings file from                                     #
-#                      ____ _____ ___ ____  _     ___ _   _  ____       ____  ____  _____                   #
-#                     / ___|_   _|_ _|  _ \| |   |_ _| \ | |/ ___|     |  _ \|  _ \|  ___|                  #
-#                     \___ \ | |  | || |_) | |    | ||  \| | |  _ _____| |_) | | | | |_                     #
-#                      ___) || |  | ||  _ <| |___ | || |\  | |_| |_____|  __/| |_| |  _|                    #
-#                     |____/ |_| |___|_| \_\_____|___|_| \_|\____|     |_|   |____/|_|                      #
+#                    ____  _   _ ____ _____ _     ___ _   _  ____       ____  ____  _____                   #
+#                   |  _ \| | | / ___|_   _| |   |_ _| \ | |/ ___|     |  _ \|  _ \|  ___|                  #
+#                   | |_) | | | \___ \ | | | |    | ||  \| | |  _ _____| |_) | | | | |_                     #
+#                   |  _ <| |_| |___) || | | |___ | || |\  | |_| |_____|  __/| |_| |  _|                    #
+#                   |_| \_\\___/|____/ |_| |_____|___|_| \_|\____|     |_|   |____/|_|                      #
 #                                                                                                           #
 # Do not comment out any entry, it will be removed on next startup                                          #
 # If you want to override with environment parameter follow parameter naming SECURITY_INITIALLOGIN_USERNAME #
@@ -96,8 +96,8 @@ premium:
     customMetadata:
       autoUpdateMetadata: false
       author: username
-      creator: Stirling-PDF
-      producer: Stirling-PDF
+      creator: RustlingPDF
+      producer: RustlingPDF
     googleDrive:
       enabled: false # Enable Google Drive file picker integration
       clientId: "" # Google OAuth 2.0 client ID (obtain from Google Cloud Console)
@@ -195,8 +195,8 @@ system:
     pageFormat: A4 # Page format for converted PDFs: 'keep' (original image dimensions), 'A4' (A4 page size), or 'letter' (US Letter page size). Only applies when convertToPdf is true.
     stretchToFit: false # Whether to stretch images to fill the entire page (may distort aspect ratio). If false, images are centered with preserved aspect ratio. Only applies when convertToPdf is true.
   serverCertificate:
-    enabled: true # Enable server-side certificate for "Sign with Stirling-PDF" option
-    organizationName: Stirling PDF Inc # Organization name for generated certificates
+    enabled: true # Enable server-side certificate for "Sign with RustlingPDF" option
+    organizationName: RustlingPDF # Organization name for generated certificates
     validity: 365 # Certificate validity in days
     regenerateOnStartup: false # Generate new certificate on each startup
   html:
@@ -303,7 +303,7 @@ autoPipeline:
     allowedExtensions: [] # Optional extension allow-list (case-insensitive, without the leading dot). Empty list = accept all extensions. Example: ["pdf", "tiff"]
 
 ui:
-  appNameNavbar: "" # custom app/brand name. NOTE: no longer shown in the navbar (the navbar renders the logo). It IS used as the browser tab title and as the TOTP/2FA issuer label in authenticator apps. Empty falls back to "Stirling PDF"
+  appNameNavbar: "" # custom app/brand name. NOTE: no longer shown in the navbar (the navbar renders the logo). It IS used as the browser tab title and as the TOTP/2FA issuer label in authenticator apps. Empty falls back to "RustlingPDF"
   logoStyle: classic # Options: 'classic' (default - classic S icon) or 'modern' (minimalist logo)
   languages: [] # If empty, all languages are enabled. To restrict to specific languages, use a whitelist like ["de_DE", "pl_PL", "sv_SE"]. Empty list or not restricting any languages will enable all available languages.
   defaultHideUnavailableTools: false # Default user preference: hide disabled tools instead of greying them out
@@ -402,7 +402,7 @@ policies:
   # security boundary. Leave allowedFolderRoots empty (default) to disable folder sources/outputs,
   # other than from directories that are always permitted like server file-storage and watched folders.
   # List absolute directories to permit folder access within them.
-  # Stirling's own config directory is always off-limits, and folder access is always
+  # RustlingPDF's own config directory is always off-limits, and folder access is always
   # disabled in SaaS mode.
   allowedFolderRoots: [] # e.g. ["/data/inbox", "/data/outbox"]
   scheduleSweepSeconds: 60 # How often (seconds) scheduled policies are checked for being due
@@ -411,7 +411,7 @@ policies:
   streamTimeoutMs: 1800000 # SSE timeout (ms) for live run-progress streams
   runExpiryMinutes: 30 # How long (minutes) a finished run's in-memory state is kept before eviction
 
-# Model Context Protocol (MCP) server. Exposes Stirling's PDF tools (grouped by namespace)
+# Model Context Protocol (MCP) server. Exposes RustlingPDF's PDF tools (grouped by namespace)
 # plus the AI agents to MCP clients (Inspector, Claude Desktop, custom). OAuth-protected.
 # Disabled by default - enable explicitly per deployment after configuring mcp.auth.
 mcp:
@@ -422,7 +422,7 @@ mcp:
   allowedOperations: [] # Tool allow-list (operation ids, e.g. ['compress-pdf']). Empty = all. When set, ONLY these are exposed over MCP.
   blockedOperations: [] # Tool deny-list (operation ids). Always removed from MCP even if otherwise allowed.
   auth:
-    mode: oauth # 'oauth' (full OAuth2 resource server) or 'apikey' (Stirling per-user API key via X-API-KEY header; no external IdP needed - the low-friction self-host option)
+    mode: oauth # 'oauth' (full OAuth2 resource server) or 'apikey' (RustlingPDF per-user API key via X-API-KEY header; no external IdP needed - the low-friction self-host option)
     issuerUri: "" # OAuth2 issuer URI (e.g. http://localhost:9000). Required when mode=oauth.
     jwksUri: "" # JWKS URI. Blank -> derived from issuer's /.well-known/openid-configuration.
     resourceId: "" # RFC 8707 resource identifier of THIS MCP server (e.g. http://localhost:8080/mcp).
@@ -430,8 +430,8 @@ mcp:
     acceptedAudiences: [] # Extra `aud` values accepted on top of resourceId. Empty = strict RFC 8707.
                           # For IdPs that cannot mint resource audiences (Supabase OAuth server always
                           # issues aud=authenticated) list that audience here, e.g. ['authenticated'].
-    usernameClaim: sub # JWT claim matched against a Stirling username (e.g. 'sub', 'email', 'preferred_username')
-    requireExistingAccount: true # Reject tokens whose subject has no enabled Stirling account (recommended)
+    usernameClaim: sub # JWT claim matched against a RustlingPDF username (e.g. 'sub', 'email', 'preferred_username')
+    requireExistingAccount: true # Reject tokens whose subject has no enabled RustlingPDF account (recommended)
   engineCapabilityRefreshMinutes: 5 # How often to refresh the AI capabilities manifest from the engine
 
 # Cluster configuration. NOT YET ENABLED - scaffolding for later work. Leave at defaults.

@@ -43,7 +43,7 @@ async fn mcp_enforces_api_key_auth_json_rpc_and_request_limits()
             .headers()
             .get(header::WWW_AUTHENTICATE)
             .and_then(|value| value.to_str().ok()),
-        Some("Bearer realm=\"Stirling MCP (API key)\"")
+        Some("Bearer realm=\"RustlingPDF MCP (API key)\"")
     );
     let unauthorized = response_json(unauthorized).await?;
     assert_eq!(unauthorized["error"], "unauthorized");
@@ -1106,7 +1106,7 @@ async fn mcp_oauth_mode_validates_bearer_jwts_and_binds_accounts()
         )
     );
 
-    // A Stirling API key is not a credential in OAuth mode (Java parity).
+    // A RustlingPDF API key is not a credential in OAuth mode (Java parity).
     let keyed = rpc(
         &app,
         Some(&api_key),
@@ -1175,7 +1175,7 @@ async fn mcp_oauth_mode_validates_bearer_jwts_and_binds_accounts()
     let response = bearer_rpc(&app, &miss, json!({"jsonrpc":"2.0","id":5,"method":"ping"})).await?;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
-    // A valid token with no matching Stirling account: Java's 403
+    // A valid token with no matching RustlingPDF account: Java's 403
     // insufficient_account with the exact binding-filter message.
     let ghost = jwks.mint(
         "ghost-user@example.test",
@@ -1194,7 +1194,7 @@ async fn mcp_oauth_mode_validates_bearer_jwts_and_binds_accounts()
     assert_eq!(denied["error"], "insufficient_account");
     assert_eq!(
         denied["message"],
-        "MCP access requires a provisioned, enabled Stirling account for this subject."
+        "MCP access requires a provisioned, enabled RustlingPDF account for this subject."
     );
 
     // A token missing the username claim entirely: the other 403 message.
@@ -1213,7 +1213,7 @@ async fn mcp_oauth_mode_validates_bearer_jwts_and_binds_accounts()
     assert_eq!(denied.status(), StatusCode::FORBIDDEN);
     assert_eq!(
         response_json(denied).await?["message"],
-        "Token is missing the 'sub' claim used to map to a Stirling user."
+        "Token is missing the 'sub' claim used to map to a RustlingPDF user."
     );
 
     // A disabled account is rejected exactly like a missing one.
@@ -1733,7 +1733,7 @@ async fn assert_initialize_negotiation(
     assert_eq!(initialize["result"]["protocolVersion"], "2025-03-26");
     assert_eq!(
         initialize["result"]["serverInfo"]["name"],
-        "stirling-pdf-mcp"
+        "rustling-pdf-mcp"
     );
     assert!(initialize["result"]["serverInfo"]["version"].is_string());
     assert!(initialize["result"]["capabilities"]["tools"].is_object());

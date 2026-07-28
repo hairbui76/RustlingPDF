@@ -3200,7 +3200,7 @@ impl SecurityStore {
         Ok(token)
     }
 
-    /// Binds an MCP OAuth-validated token subject to a provisioned Stirling
+    /// Binds an MCP OAuth-validated token subject to a provisioned RustlingPDF
     /// account — the Rust port of Java's `McpUserBindingFilter` account check:
     /// the configured username-claim value must resolve, case-insensitively,
     /// to an existing **enabled** user, and the returned context carries that

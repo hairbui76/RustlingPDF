@@ -12593,7 +12593,7 @@ end"
     /// absent from `/Differences` *and* from Adobe `StandardEncoding`, the
     /// implicit base encoding a `/Differences` table with no `/BaseEncoding`
     /// falls back to for undefined codes) used to fail the *entire* element
-    /// with `UnsupportedText`, even though Stirling already has a working
+    /// with `UnsupportedText`, even though RustlingPDF already has a working
     /// Standard-14 fallback for fonts that cannot be restored at all (Euro is a
     /// `WinAnsiEncoding` character, so it *is* representable there). The fix
     /// applies that same fallback per run of unrepresentable characters instead:

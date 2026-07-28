@@ -288,7 +288,7 @@ fn malformed_auth_environment_exits_before_binding() -> Result<(), Box<dyn std::
             "stderr did not identify {name}: {stderr}"
         );
         assert!(
-            !String::from_utf8_lossy(&output.stdout).contains("starting Stirling Rust AI engine"),
+            !String::from_utf8_lossy(&output.stdout).contains("starting RustlingPDF AI engine"),
             "{name} reached listener startup"
         );
     }
@@ -305,7 +305,7 @@ fn malformed_numeric_environment_exits_before_binding() -> Result<(), Box<dyn st
         stderr.contains(name),
         "stderr did not identify {name}: {stderr}"
     );
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("starting Stirling Rust AI engine"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("starting RustlingPDF AI engine"));
     Ok(())
 }
 
@@ -325,7 +325,7 @@ fn non_unicode_auth_environment_exits_before_binding() -> Result<(), Box<dyn std
         "stderr did not identify {name}: {stderr}"
     );
     assert!(stderr.contains("valid Unicode"));
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("starting Stirling Rust AI engine"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("starting RustlingPDF AI engine"));
     Ok(())
 }
 

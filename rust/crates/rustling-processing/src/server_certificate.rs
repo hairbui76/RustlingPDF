@@ -661,7 +661,7 @@ mod tests {
         let directory = tempdir()?;
         let service = ServerCertificateService::new(ServerCertificateConfig {
             enabled: true,
-            organization_name: "Stirling Test".to_owned(),
+            organization_name: "RustlingPDF Test".to_owned(),
             validity_days: 30,
             regenerate_on_startup: false,
             config_directory: directory.path().to_path_buf(),
@@ -673,7 +673,7 @@ mod tests {
         assert!(
             info.subject
                 .as_deref()
-                .is_some_and(|value| value.contains("Stirling Test"))
+                .is_some_and(|value| value.contains("RustlingPDF Test"))
         );
         let mut signing_key = service.signing_key()?;
         assert!(

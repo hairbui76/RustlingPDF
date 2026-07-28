@@ -930,7 +930,7 @@ impl Default for MultipartBody {
 }
 
 // ---------------------------------------------------------------------------
-// (f) DocumentContext — the `{{...}}` namespace: everything Stirling already
+// (f) DocumentContext — the `{{...}}` namespace: everything RustlingPDF already
 //     knows about the document and the run, as one JSON object.
 //     (oracle DocumentContext.java)
 // ---------------------------------------------------------------------------
@@ -4936,7 +4936,7 @@ mod slice2_tests {
 
         assert!(body.content_type.starts_with("multipart/form-data"));
         let rendered = String::from_utf8_lossy(&body.bytes);
-        // Fields the vendor asked for, filled from what Stirling already knew.
+        // Fields the vendor asked for, filled from what RustlingPDF already knew.
         assert!(rendered.contains("name=\"label\""));
         assert!(rendered.contains("Confidential"));
         assert!(rendered.contains("name=\"class\""));
@@ -6968,7 +6968,7 @@ mod slice3_tests {
                 .as_deref()
                 .is_some_and(|value| value.starts_with("multipart/form-data"))
         );
-        // Fields the vendor asked for, filled from what Stirling already knew.
+        // Fields the vendor asked for, filled from what RustlingPDF already knew.
         let body = request.body_text();
         assert!(body.contains("name=\"label\"") && body.contains("Confidential"));
         assert!(body.contains("name=\"class\"") && body.contains("invoice"));

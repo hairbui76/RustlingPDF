@@ -248,7 +248,7 @@ fn information_pdf() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     });
     let info_id = document.add_object(dictionary! {
         "Title" => Object::string_literal("Information fixture"),
-        "Author" => Object::string_literal("Stirling"),
+        "Author" => Object::string_literal("RustlingPDF"),
         "CreationDate" => Object::string_literal("D:20260715123456+07'00'"),
         "ModDate" => Object::string_literal("D:20260715130000+07'00'"),
         "StirlingPDFClassification" => Object::string_literal("Internal"),

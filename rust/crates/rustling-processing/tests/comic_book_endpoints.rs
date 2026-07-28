@@ -46,7 +46,7 @@ async fn cbz_to_pdf_naturally_sorts_images_and_skips_corrupt_entries()
     assert_eq!(page_size(&document, pages[&3])?, (30.0, 31.0));
     let (_, info) = document.dereference(document.trailer.get(b"Info")?)?;
     let info = info.as_dict()?;
-    let label = format!("Stirling-PDF v{}", application_version());
+    let label = format!("RustlingPDF v{}", application_version());
     assert_eq!(info.get(b"Creator")?.as_str()?, label.as_bytes());
     assert_eq!(info.get(b"Producer")?.as_str()?, label.as_bytes());
     assert!(info.get(b"CreationDate")?.as_datetime().is_some());

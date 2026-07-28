@@ -93,7 +93,7 @@ export function priceQuote(cfg: Cfg) {
       ? "Air-gapped"
       : cfg.deployment === "selfhost"
         ? "Self-hosted"
-        : "Stirling Cloud";
+        : "RustlingPDF Cloud";
 
   type Kind = "RECURRING" | "ONE_TIME" | "DISCOUNT" | "INCLUDED";
   const lines: {

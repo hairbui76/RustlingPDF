@@ -6,7 +6,7 @@ import { money } from "@portal/components/procurement/format";
 import "@portal/views/Procurement.css";
 
 /**
- * The agreement (security) step: a single combined Stirling Enterprise Agreement — Master Service
+ * The agreement (security) step: a single combined RustlingPDF Enterprise Agreement — Master Service
  * Agreement + Order Form (from the issued quote) + EULA + Data Processing Agreement — that the buyer
  * reviews and agrees to before it's accepted into a subscription. No e-signature for now: an explicit
  * "I agree" click stands in (the terms reference the accepted quote). Document body is static legal
@@ -50,11 +50,11 @@ export function ProcurementAgreement({
       <div className="portal-agreement__doc">
         <h4>1. Master Service Agreement</h4>
         <p>
-          This Stirling Enterprise Agreement ("Agreement") is entered into
-          between Stirling PDF Inc. ("Stirling") and the customer identified on
+          This RustlingPDF Enterprise Agreement ("Agreement") is entered into
+          between RustlingPDF. ("RustlingPDF") and the customer identified on
           the Order Form ("Customer"). It governs Customer's access to and use
-          of the Stirling enterprise platform and related services (the
-          "Service"). Stirling will provide the Service with commercially
+          of the RustlingPDF enterprise platform and related services (the
+          "Service"). RustlingPDF will provide the Service with commercially
           reasonable skill and care and in accordance with the service levels
           set out in the Order Form.
         </p>
@@ -95,19 +95,19 @@ export function ProcurementAgreement({
 
         <h4>4. End-User License Agreement</h4>
         <p>
-          Subject to the terms of this Agreement, Stirling grants Customer a
+          Subject to the terms of this Agreement, RustlingPDF grants Customer a
           non-exclusive, non-transferable right to use the Service for its
           internal business purposes during the term. Customer is responsible
           for its users' compliance and for the content it processes. The
-          Service, and all intellectual property in it, remains Stirling's.
+          Service, and all intellectual property in it, remains RustlingPDF's.
         </p>
 
         <h4>5. Data Processing Agreement</h4>
         <p>
-          Where Stirling processes personal data on Customer's behalf, it does
+          Where RustlingPDF processes personal data on Customer's behalf, it does
           so only on Customer's documented instructions and applies appropriate
           technical and organisational measures. Sub-processors, international
-          transfers, and security commitments are as described in Stirling's
+          transfers, and security commitments are as described in RustlingPDF's
           Data Processing Agreement and Trust Center, incorporated here by
           reference.
         </p>
@@ -115,7 +115,7 @@ export function ProcurementAgreement({
         <h4>6. Acceptance</h4>
         <p>
           By agreeing below, Customer accepts this Agreement and the Order Form.
-          On acceptance, Stirling will issue the committed annual subscription
+          On acceptance, RustlingPDF will issue the committed annual subscription
           and its first invoice. This preview stands in for e-signature during
           the pilot.
         </p>

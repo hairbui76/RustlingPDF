@@ -1,6 +1,6 @@
 {
-  "short_name": "Stirling PDF",
-  "name": "Stirling PDF",
+  "short_name": "RustlingPDF",
+  "name": "RustlingPDF",
   "icons": [
     {
       "src": "classic-logo/favicon.ico",

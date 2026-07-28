@@ -19,7 +19,7 @@ import "@portal/views/DeveloperDocs.css";
 
 /**
  * Developer Docs — a markdown browser over the docs manifest generated from the
- * Stirling docs repo (see scripts/sync-portal-docs.mts). The nav is auto-sorted
+ * RustlingPDF docs repo (see scripts/sync-portal-docs.mts). The nav is auto-sorted
  * from the repo's folders + frontmatter; content is the repo markdown, and the
  * search box does full-text search across every doc.
  */

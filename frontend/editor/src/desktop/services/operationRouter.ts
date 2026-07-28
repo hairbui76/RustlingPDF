@@ -165,7 +165,7 @@ export class OperationRouter {
             throw new Error(
               i18n.t(
                 "localMode.toolUnavailable",
-                "This tool requires an account. Sign in to Stirling Cloud or connect to a self-hosted server to use it.",
+                "This tool requires an account. Sign in to RustlingPDF Cloud or connect to a self-hosted server to use it.",
               ),
             );
           }
@@ -281,7 +281,7 @@ export class OperationRouter {
         throw new Error(
           i18n.t(
             "selfHosted.offline.toolNotAvailableLocally",
-            'Your Stirling-PDF server is offline and "{{endpoint}}" is not available on the local backend.',
+            'Your RustlingPDF server is offline and "{{endpoint}}" is not available on the local backend.',
             { endpoint: endpointName },
           ),
         );

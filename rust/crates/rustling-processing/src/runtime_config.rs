@@ -971,7 +971,7 @@ impl RuntimeConfig {
         )
     }
 
-    /// The Stirling installation root (`InstallationPathConfig.getPath()` in
+    /// The RustlingPDF installation root (`InstallationPathConfig.getPath()` in
     /// Java), derived from the same settings-file source the policy runner uses.
     /// The webhook spool lives under this directory.
     #[must_use]
@@ -1116,7 +1116,7 @@ impl RuntimeConfig {
         let issuer = self.string(&["ui", "appNameNavbar"], "UI_APPNAMENAVBAR", "");
         let issuer = issuer.trim();
         if issuer.is_empty() {
-            "Stirling PDF".to_owned()
+            "RustlingPDF".to_owned()
         } else {
             issuer.to_owned()
         }
@@ -1418,7 +1418,7 @@ impl RuntimeConfig {
         let organization_name = self.string(
             &["system", "serverCertificate", "organizationName"],
             "SYSTEM_SERVERCERTIFICATE_ORGANIZATIONNAME",
-            "Stirling PDF Inc",
+            "RustlingPDF",
         );
         let validity_days = self
             .u64(

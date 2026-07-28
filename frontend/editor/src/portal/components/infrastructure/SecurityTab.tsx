@@ -188,7 +188,7 @@ export function SecurityTab() {
                 {KEY_MODE_LABEL[data.keyManagement.mode]}
               </StatusBadge>
             </div>
-            {/* Rotation is a privileged backend action; disabled where Stirling
+            {/* Rotation is a privileged backend action; disabled where RustlingPDF
                 holds the keys (managed tiers can't rotate customer keys). */}
             <Button
               variant="secondary"

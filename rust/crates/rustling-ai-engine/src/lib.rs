@@ -1,4 +1,4 @@
-//! Rust foundation for the Stirling AI engine.
+//! Rust foundation for the RustlingPDF AI engine.
 //!
 //! This crate intentionally starts with the process boundary that the Java
 //! backend already relies on: public liveness and shared-secret protection for
@@ -3438,7 +3438,7 @@ mod tests {
         let comments = serde_json::from_str::<serde_json::Value>(comments)?;
         assert_eq!(comments[0]["pageIndex"], 0);
         assert_eq!(comments[0]["anchorText"], "$215,000");
-        assert_eq!(comments[0]["author"], "Stirling Math Auditor");
+        assert_eq!(comments[0]["author"], "RustlingPDF Math Auditor");
         Ok(())
     }
 
