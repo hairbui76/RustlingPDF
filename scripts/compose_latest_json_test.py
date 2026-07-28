@@ -248,6 +248,11 @@ class ComposeLatestJsonTest(unittest.TestCase):
         (self.artifacts / "not-a-desktop-artifact").mkdir()
         self.assert_compose_error("unexpected entry")
 
+    def test_rejects_stray_top_level_file(self) -> None:
+        self.stage_default_tree()
+        (self.artifacts / "desktop-README.md").write_text("stray")
+        self.assert_compose_error("unexpected file")
+
     def test_rejects_empty_artifacts_dir(self) -> None:
         self.artifacts.mkdir(parents=True)
         self.assert_compose_error("no desktop-<os>-<arch>")
@@ -259,6 +264,14 @@ class ComposeLatestJsonTest(unittest.TestCase):
     def test_rejects_bad_pub_date(self) -> None:
         self.stage_default_tree()
         self.assert_compose_error("RFC 3339", pub_date="July 28th 2026")
+
+    def test_rejects_offsetless_or_space_separated_pub_date(self) -> None:
+        # fromisoformat accepts these, the plugin's strict RFC 3339 parse
+        # does not — the composer must reject them too.
+        self.stage_default_tree()
+        self.assert_compose_error("RFC 3339", pub_date="2026-07-28T00:00:00")
+        self.assert_compose_error("RFC 3339", pub_date="2026-07-28 00:00:00")
+        self.assert_compose_error("RFC 3339", pub_date="2026-07-28 00:00:00+00:00")
 
     def test_cli_end_to_end(self) -> None:
         self.stage_default_tree()

@@ -179,11 +179,19 @@ def compose(
         pub_date = (
             datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         ).replace("+00:00", "Z")
-    # The plugin parses pub_date with time's RFC 3339 well-known format.
+    # The plugin parses pub_date with time's RFC 3339 well-known format,
+    # which is stricter than fromisoformat: 'T' separator and an explicit
+    # UTC offset are mandatory, so reject offset-less / space-separated
+    # timestamps fromisoformat would happily accept.
     try:
-        datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
+        parsed_pub_date = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
     except ValueError as error:
         raise _fail(f"pub_date '{pub_date}' is not RFC 3339: {error}") from error
+    if parsed_pub_date.tzinfo is None or "T" not in pub_date:
+        raise _fail(
+            f"pub_date '{pub_date}' is not RFC 3339: the updater plugin requires "
+            f"a 'T' separator and an explicit UTC offset (e.g. 2026-07-28T00:00:00Z)"
+        )
 
     if not artifacts_dir.is_dir():
         raise _fail(f"artifacts directory not found: {artifacts_dir}")
@@ -191,7 +199,10 @@ def compose(
     platforms: dict[str, dict] = {}
     for directory in sorted(artifacts_dir.iterdir()):
         if not directory.is_dir():
-            continue
+            raise _fail(
+                f"unexpected file in artifacts directory (want desktop-<os>-<arch> "
+                f"directories only): {directory.name}"
+            )
         match = ARTIFACT_DIR_RE.match(directory.name)
         if not match:
             raise _fail(
