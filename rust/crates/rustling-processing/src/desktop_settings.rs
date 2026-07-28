@@ -307,7 +307,7 @@ mod tests {
         // that the current template has since gained (e.g. `aiEngine`).
         fs::write(
             &settings_path,
-            "security:\n  enableLogin: false\nmail:\n  host: mail.corp.com\n",
+            "metrics:\n  enabled: false\nmail:\n  host: mail.corp.com\n",
         )?;
 
         let rewritten = merge_template_into_existing(&settings_path)?;
@@ -315,7 +315,7 @@ mod tests {
 
         let merged = fs::read_to_string(&settings_path)?;
         // User values carried forward, keeping each template inline comment.
-        assert!(merged.contains("  enableLogin: false # set to 'true' to enable login"));
+        assert!(merged.contains("  enabled: false # 'true' to enable Info APIs"));
         assert!(merged.contains("  host: mail.corp.com # SMTP server hostname"));
         // A key the user never had keeps the template default.
         assert!(merged.contains("aiEngine:"));
@@ -352,7 +352,7 @@ mod tests {
         let settings_path = directory.path().join("settings.yml");
         fs::write(
             &settings_path,
-            "security:\n  enableLogin: false\nbogusTopLevel: dropMe\nbogusParent:\n  bogusChild: 42\n",
+            "metrics:\n  enabled: false\nbogusTopLevel: dropMe\nbogusParent:\n  bogusChild: 42\n",
         )?;
 
         merge_template_into_existing(&settings_path)?;
@@ -362,8 +362,10 @@ mod tests {
         assert!(!merged.contains("dropMe"));
         assert!(!merged.contains("bogusParent"));
         assert!(!merged.contains("bogusChild"));
-        // The valid override in the same file is still applied.
-        assert!(merged.contains("  enableLogin: false # set to 'true' to enable login"));
+        // The valid override in the same file is still applied. Legacy keys the
+        // template no longer carries (e.g. security.enableLogin) are likewise
+        // dropped by this template-shaped merge.
+        assert!(merged.contains("  enabled: false # 'true' to enable Info APIs"));
         Ok(())
     }
 

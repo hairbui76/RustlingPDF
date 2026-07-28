@@ -485,6 +485,7 @@ impl RuntimeConfig {
     }
 
     #[must_use]
+    #[allow(clippy::unused_self)] // kept as a config method: the TTL may become configurable again
     pub(crate) fn ai_workflow_document_ttl(&self) -> Duration {
         // Fixed bounded expiry for engine-ingested workflow documents. The
         // historic coupling to the (removed) login JWT lifetime is gone; the
