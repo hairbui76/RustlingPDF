@@ -44,7 +44,8 @@ cleanup() {
   echo "=== Cleanup ==="
   [ -n "$APP_PID" ] && kill "$APP_PID" 2>/dev/null || true
   [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null || true
-  pkill -f "stirling-pdf" 2>/dev/null || true
+  # productName is "Stirling PDF" (space) — match the actual process name.
+  pkill -f "Stirling PDF" 2>/dev/null || true
   pkill -f "stirling-processing" 2>/dev/null || true
   echo "  Done"
 }
@@ -82,19 +83,21 @@ case "$OS" in
   Darwin)
     BUNDLES="app"
     TAURI_PLATFORM="darwin-$([ "$ARCH" = "arm64" ] && echo aarch64 || echo x86_64)"
-    BUNDLE_GLOB="*.app.tar.gz"
+    BUNDLE_GLOBS=("*.app.tar.gz")
     WEBVIEW_DEBUG_ENV=""
     ;;
   Linux)
+    # v2 updater format signs the AppImage itself; v1Compatible wraps it in
+    # a tar.gz. Probe both (version-scoped to dodge stale bundles).
     BUNDLES="appimage"
     TAURI_PLATFORM="linux-x86_64"
-    BUNDLE_GLOB="*.AppImage.tar.gz"
+    BUNDLE_GLOBS=("*_99.0.0_*.AppImage.tar.gz" "*_99.0.0_*.AppImage")
     WEBVIEW_DEBUG_ENV=""
     ;;
   MINGW*|MSYS*|CYGWIN*)
     BUNDLES="msi"
     TAURI_PLATFORM="windows-x86_64"
-    BUNDLE_GLOB="*.msi"
+    BUNDLE_GLOBS=("*.msi")
     WEBVIEW_DEBUG_ENV="WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=$DEBUG_PORT"
     ;;
   *)
@@ -123,7 +126,11 @@ echo "  Sidecar: $(basename "$SIDECAR") ($(du -h "$SIDECAR" | cut -f1))"
 
 # ── Step 2: Build signed update bundle ────────────────────────────────────────
 mkdir -p "$OUTPUT_DIR"
-BUNDLE_FILE=$(ls "$OUTPUT_DIR"/$BUNDLE_GLOB 2>/dev/null | head -1 || true)
+BUNDLE_FILE=""
+for glob in "${BUNDLE_GLOBS[@]}"; do
+  BUNDLE_FILE=$(find "$OUTPUT_DIR" -maxdepth 1 -name "$glob" -not -name "*.sig" 2>/dev/null | head -1 || true)
+  [ -n "$BUNDLE_FILE" ] && break
+done
 
 if [ "$SKIP_BUILD" = false ] || [ -z "$BUNDLE_FILE" ]; then
   echo ""
@@ -148,8 +155,12 @@ if [ "$SKIP_BUILD" = false ] || [ -z "$BUNDLE_FILE" ]; then
     --bundles "$BUNDLES" 2>&1 | tail -5
 
   # Find and copy bundle (search release/bundle first, then broader)
-  BUILT_BUNDLE=$(find "$TAURI_DIR/target/release/bundle" -name "$BUNDLE_GLOB" -not -name "*.sig" 2>/dev/null | sort | tail -1)
-  [ -z "$BUILT_BUNDLE" ] && BUILT_BUNDLE=$(find "$TAURI_DIR/target" -maxdepth 5 -name "$BUNDLE_GLOB" -not -name "*.sig" 2>/dev/null | sort | tail -1)
+  BUILT_BUNDLE=""
+  for glob in "${BUNDLE_GLOBS[@]}"; do
+    BUILT_BUNDLE=$(find "$TAURI_DIR/target/release/bundle" -name "$glob" -not -name "*.sig" 2>/dev/null | sort | tail -1)
+    [ -z "$BUILT_BUNDLE" ] && BUILT_BUNDLE=$(find "$TAURI_DIR/target" -maxdepth 5 -name "$glob" -not -name "*.sig" 2>/dev/null | sort | tail -1)
+    [ -n "$BUILT_BUNDLE" ] && break
+  done
   BUILT_SIG="${BUILT_BUNDLE}.sig"
 
   if [ -z "$BUILT_BUNDLE" ] || [ ! -f "$BUILT_SIG" ]; then
@@ -209,7 +220,8 @@ cd "$FRONTEND_DIR/editor"
 
 # Enable WebView remote debugging (platform-specific)
 if [ -n "$WEBVIEW_DEBUG_ENV" ]; then
-  export ${WEBVIEW_DEBUG_ENV}
+  # WEBVIEW_DEBUG_ENV holds a full NAME=value assignment.
+  export "${WEBVIEW_DEBUG_ENV?}"
 else
   export WEBKIT_INSPECTOR_SERVER="127.0.0.1:$DEBUG_PORT"
 fi
