@@ -17,7 +17,7 @@ use ab_glyph::{FontArc, PxScale};
 use image::{ImageReader, Rgba, RgbaImage, imageops};
 use imageproc::{
     drawing::{draw_text_mut, text_size},
-    geometric_transformations::{Interpolation, rotate_about_center},
+    geometric_transformations::{Border, Interpolation, rotate_about_center},
 };
 use tempfile::TempDir;
 use thiserror::Error;
@@ -319,7 +319,7 @@ fn apply_watermark(
         &watermark,
         angle,
         Interpolation::Bilinear,
-        Rgba([0, 0, 0, 0]),
+        Border::Constant(Rgba([0, 0, 0, 0])),
     );
     let position_x = (i64::from(frame.width()) - i64::from(rotated.width())) / 2;
     let position_y = (i64::from(frame.height()) - i64::from(rotated.height())) / 2;
