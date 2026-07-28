@@ -13,7 +13,7 @@ aes-gcm = { version = "0.11.0", features = ["zeroize"] }
 axum = "0.8.9"
 base64 = "0.22.1"
 csv = "1.4.0"
-hkdf = "0.12.4"
+hkdf = "0.13.0"
 jsonschema = { version = "0.48.0", default-features = false }
 rand = "0.10.2"
 reqwest = { version = "0.12.28", default-features = false, features = ["json", "rustls-tls"] }
