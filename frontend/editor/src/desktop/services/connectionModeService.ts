@@ -39,6 +39,15 @@ export class ConnectionModeService {
     return () => {};
   }
 
+  /** Mark first-launch setup as done so onboarding bootstrap runs only once. */
+  async completeSetup(): Promise<void> {
+    try {
+      await invoke("complete_setup");
+    } catch (error) {
+      console.error("Failed to mark setup as completed:", error);
+    }
+  }
+
   async isFirstLaunch(): Promise<boolean> {
     try {
       return await invoke<boolean>("is_first_launch");

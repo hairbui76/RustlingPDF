@@ -58,13 +58,11 @@ describe("env vars", () => {
       join(frontendRoot, ".env.desktop"),
       "utf-8",
     );
-    const saasEnv = readFileSync(join(frontendRoot, ".env.saas"), "utf-8");
 
     const declaredKeys = new Set([
       ...parseEnvKeys(baseEnv),
       ...parseEnvKeys(proprietaryEnv),
       ...parseEnvKeys(desktopEnv),
-      ...parseEnvKeys(saasEnv),
     ]);
     const sourceVars = findViteEnvVars(join(frontendRoot, "src"));
 

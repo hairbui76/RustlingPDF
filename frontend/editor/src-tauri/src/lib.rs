@@ -1,34 +1,19 @@
-use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 
 pub mod commands;
-mod state;
 mod utils;
 
 use commands::connection::apply_provisioning_if_present;
 use commands::{
-    add_opened_file, can_install_updates, check_for_update, cleanup_backend, clear_auth_token,
-    clear_opened_files, clear_refresh_token, clear_user_info, download_and_install_update,
-    forward_files_to_window, get_app_version, get_auth_token, get_backend_port,
-    get_connection_config, get_desktop_os, get_opened_files, get_refresh_token, get_update_mode,
-    get_user_info, is_default_pdf_handler, is_first_launch, login, open_files_in_new_window,
-    open_in_new_window, pop_opened_files, pop_window_file_ids, print_pdf_file_native,
-    proxy_local_pdf_request, reset_setup_completion, restart_app, save_auth_token,
-    save_refresh_token, save_user_info, set_as_default_pdf_handler, set_connection_mode,
-    set_update_mode, start_backend, start_oauth_login, target_window_label, MAIN_WINDOW_LABEL,
+    add_opened_file, can_install_updates, check_for_update, cleanup_backend, clear_opened_files,
+    complete_setup, download_and_install_update, forward_files_to_window, get_app_version,
+    get_backend_port, get_desktop_os, get_opened_files, get_update_mode, is_default_pdf_handler,
+    is_first_launch, open_files_in_new_window, open_in_new_window, pop_opened_files,
+    pop_window_file_ids, print_pdf_file_native, proxy_local_pdf_request, reset_setup_completion,
+    restart_app, set_as_default_pdf_handler, set_update_mode, start_backend, target_window_label,
+    MAIN_WINDOW_LABEL,
 };
-use state::connection_state::AppConnectionState;
-use tauri_plugin_deep_link::DeepLinkExt;
 use utils::{add_log, get_tauri_logs};
-
-fn dispatch_deep_link(app: &AppHandle, url: &str) {
-    add_log(format!("🔗 Dispatching deep link: {}", url));
-    let _ = app.emit("deep-link", url.to_string());
-
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_focus();
-        let _ = window.unminimize();
-    }
-}
 
 // Extract existing file paths from CLI args (skips the executable name).
 fn parse_launch_files(args: &[String]) -> Vec<String> {
@@ -53,11 +38,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .manage(AppConnectionState::default())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // Runs in the existing instance when a second launch is attempted
             // (e.g. "open with" / double-click while the app is running).
@@ -92,29 +75,6 @@ pub fn run() {
                 add_opened_file(path);
             }
 
-            {
-                let app_handle = app.handle();
-                // On macOS the plugin registers schemes via bundle metadata, so runtime registration is required only on Windows/Linux
-                #[cfg(any(target_os = "linux", target_os = "windows"))]
-                if let Err(err) = app_handle.deep_link().register_all() {
-                    add_log(format!("⚠️ Failed to register deep link handler: {}", err));
-                }
-
-                if let Ok(Some(urls)) = app_handle.deep_link().get_current() {
-                    let initial_handle = app_handle.clone();
-                    for url in urls {
-                        dispatch_deep_link(&initial_handle, url.as_str());
-                    }
-                }
-
-                let event_app_handle = app_handle.clone();
-                app_handle.deep_link().on_open_url(move |event| {
-                    for url in event.urls() {
-                        dispatch_deep_link(&event_app_handle, url.as_str());
-                    }
-                });
-            }
-
             if let Err(err) = apply_provisioning_if_present(app.handle()) {
                 add_log(format!("⚠️ Failed to apply provisioning file: {}", err));
             }
@@ -124,10 +84,7 @@ pub fn run() {
 
             tauri::async_runtime::spawn(async move {
                 add_log("🚀 Starting bundled backend in background".to_string());
-                let connection_state = app_handle.state::<AppConnectionState>();
-                if let Err(e) =
-                    commands::backend::start_backend(app_handle.clone(), connection_state).await
-                {
+                if let Err(e) = commands::backend::start_backend(app_handle.clone()).await {
                     add_log(format!("⚠️ Backend start failed: {}", e));
                 }
             });
@@ -145,24 +102,12 @@ pub fn run() {
             open_files_in_new_window,
             pop_window_file_ids,
             get_tauri_logs,
-            get_connection_config,
-            set_connection_mode,
             is_default_pdf_handler,
             set_as_default_pdf_handler,
             is_first_launch,
+            complete_setup,
             reset_setup_completion,
-            login,
             proxy_local_pdf_request,
-            save_auth_token,
-            get_auth_token,
-            clear_auth_token,
-            save_refresh_token,
-            get_refresh_token,
-            clear_refresh_token,
-            save_user_info,
-            get_user_info,
-            clear_user_info,
-            start_oauth_login,
             get_desktop_os,
             print_pdf_file_native,
             can_install_updates,

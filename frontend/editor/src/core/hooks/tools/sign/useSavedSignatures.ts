@@ -56,21 +56,6 @@ export const useSavedSignatures = () => {
     loadSignatures();
   }, []);
 
-  // Attempt migration from localStorage to backend when backend becomes available
-  useEffect(() => {
-    if (storageType === "backend" && !isLoading) {
-      signatureStorageService.migrateToBackend().then((result) => {
-        if (result.migrated > 0) {
-          console.log(
-            `[useSavedSignatures] Migrated ${result.migrated} signatures to backend`,
-          );
-          // Reload after migration
-          signatureStorageService.loadSignatures().then(setSavedSignatures);
-        }
-      });
-    }
-  }, [storageType, isLoading]);
-
   // Listen for storage events (for localStorage only)
   useEffect(() => {
     if (!isSupportedEnvironment() || storageType !== "localStorage") {

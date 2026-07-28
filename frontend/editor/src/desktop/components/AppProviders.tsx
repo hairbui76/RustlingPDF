@@ -7,6 +7,7 @@ import { DesktopOnboardingModal } from "@app/components/DesktopOnboardingModal";
 import { useFirstLaunchCheck } from "@app/hooks/useFirstLaunchCheck";
 import { useBackendInitializer } from "@app/hooks/useBackendInitializer";
 import { DESKTOP_DEFAULT_APP_CONFIG } from "@app/config/defaultAppConfig";
+import { connectionModeService } from "@app/services/connectionModeService";
 import { tauriBackendService } from "@app/services/tauriBackendService";
 import { endpointAvailabilityService } from "@app/services/endpointAvailabilityService";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -48,10 +49,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
       // Guard against re-running when a state update re-triggers the effect.
       if (firstLaunchInitiated.current) return;
       firstLaunchInitiated.current = true;
-      // First launch: start the bundled backend; the onboarding carousel is
-      // shown inside the main app.
+      // First launch: start the bundled backend and mark setup as completed;
+      // the onboarding carousel is shown inside the main app.
       tauriBackendService
         .startBackend()
+        .then(() => connectionModeService.completeSetup())
         .catch(console.error)
         .finally(() => setBootstrapped(true));
     }
@@ -59,8 +61,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   // Initialize monitoring for the bundled backend (already started in Rust)
   // This sets up port detection and health checks
-  const shouldMonitorBackend = setupComplete && !isFirstLaunch;
-  useBackendInitializer(shouldMonitorBackend);
+  useBackendInitializer(bootstrapped);
 
   // Preload endpoint availability for the local bundled backend.
   useEffect(() => {

@@ -87,11 +87,6 @@
     "fs": {
       "requireLiteralLeadingDot": false
     },
-    "deep-link": {
-      "desktop": {
-        "schemes": ["stirlingpdf"]
-      }
-    },
     "updater": {
       "endpoints": [
         "https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json"

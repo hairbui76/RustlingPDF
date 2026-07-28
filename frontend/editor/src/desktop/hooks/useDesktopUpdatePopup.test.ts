@@ -199,18 +199,4 @@ describe("useDesktopUpdatePopup — auto mode", () => {
     expect(invocations).toContain("download_and_install_update");
     expect(invocations).toContain("restart_app");
   });
-
-  it("skips the update check entirely in SaaS connection mode", async () => {
-    // In SaaS mode the cloud owns versioning — the self-hosted update check
-    // must never run: no mode lookup, no external summary fetch, no install.
-    getCurrentModeMock.mockResolvedValue("saas");
-
-    await runStartup();
-
-    expect(getUpdateModeMock).not.toHaveBeenCalled();
-    expect(getUpdateSummaryMock).not.toHaveBeenCalled();
-    const invocations = invokeMock.mock.calls.map((c) => c[0]);
-    expect(invocations).not.toContain("download_and_install_update");
-    expect(invocations).not.toContain("restart_app");
-  });
 });
