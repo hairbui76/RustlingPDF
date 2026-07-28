@@ -188,8 +188,13 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
    `stirling.pdf.dev`, deep-link scheme, `Stirling-PDF` app-data dir,
    persisted storage keys, `StirlingPDFClassification` PDF Info key,
    `X-Stirling-*` wire headers, `stirling_*` MCP tool ids, and the pinned WiX
-   UpgradeCode. Follow-ups: migrate the app-data dir name, and the internal
-   frontend `StirlingFile*` identifier family.
+   UpgradeCode. Follow-ups: replace the shipped brand image assets — the
+   login/sidebar/portal wordmark SVGs, PWA icons, and the desktop app icon
+   set (`frontend/editor/src-tauri/icons/`) are still byte-identical to
+   upstream Stirling artwork; the maintainer is supplying new artwork —
+   migrate the app-data dir name, rename the internal frontend
+   `StirlingFile*` identifier family, and localize the rename into non-en-US
+   locale files (handled separately per house rules).
 3. **Independent security review** of the secured router + signing subsystem —
    the only gate for enabling `SECURITY_ENABLELOGIN=true` in production. Human
    task; `rust/SECURITY_MIGRATION_DESIGN.md` + `rust/SIGNING_MIGRATION_DESIGN.md`
