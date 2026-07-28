@@ -33,8 +33,8 @@ fn main() {
         name: "stirling-processing".to_owned(),
         url: "https://github.com/Stirling-Tools/Stirling-PDF".to_owned(),
         version: env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_owned()),
-        license: "AGPL-3.0-or-later".to_owned(),
-        license_url: "https://spdx.org/licenses/AGPL-3.0-or-later.html".to_owned(),
+        license: "MIT".to_owned(),
+        license_url: "https://spdx.org/licenses/MIT.html".to_owned(),
     });
     dependencies.sort_unstable_by(|left, right| {
         left.name
