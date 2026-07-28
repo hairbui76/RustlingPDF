@@ -22,16 +22,12 @@ policy and multipart contract.
 | Route | Response |
 | --- | --- |
 | `GET /api/v1/config/app-config` | Public application configuration consumed during UI bootstrap. It includes UI/system toggles, legal links, timestamp presets, startup dependency-probe completion, verified dynamic license fields, and an externally visible `frontendUrl` derived from `Host` plus a safe `X-Forwarded-Proto`. |
-| `GET /api/v1/config/login-disclaimer[?lang=<locale>]` | Enabled login-agreement markdown with locale fallback; unauthenticated calls return `401` when login is configured. |
-| `GET /api/v1/admin/login-agreement` | Secured administrator-only sorted list of stored login-agreement locales. |
-| `GET /api/v1/admin/login-agreement/{locale}` | Secured administrator-only locale and Markdown lookup. |
-| `PUT /api/v1/admin/login-agreement/{locale}` | Secured administrator-only atomic replacement or clearing of one locale. |
+| `GET /api/v1/config/login-disclaimer[?lang=<locale>]` | Enabled agreement markdown with locale fallback; always served openly (the legacy `security.enableLogin` key is ignored). |
 | `GET /api/v1/config/endpoint-enabled?endpoint=<key>` | JSON boolean for one endpoint key. |
 | `GET /api/v1/config/endpoints-enabled?endpoints=<key>,<key>` | JSON map of requested endpoint keys to booleans. |
 | `GET /api/v1/config/endpoints-availability[?endpoints=<key>,<key>]` | JSON map containing `{ "enabled": boolean, "reason": null | "CONFIG" | "DEPENDENCY" }`. Without a query it returns the known Java endpoint key set plus configured disabled keys. |
 | `GET /api/v1/config/group-enabled?group=<name>` | JSON boolean for a functional or tool group. |
 | `GET /api/v1/settings/get-endpoints-status` | Explicitly disabled endpoint keys mapped to `false`, matching the Java settings controller's status map. |
-| `POST /api/v1/settings/update-enable-analytics` | Accepts multipart or URL-encoded `enabled`. The first choice writes `system.enableAnalytics` to `settings.yml`, updates the running app-config response, and returns `{ "message": "Updated" }`. Later attempts return `208` with Java's already-configured message. |
 
 Endpoint keys are normalized by removing one leading slash. `endpoints.toRemove`
 or `ENDPOINTS_TOREMOVE` disables those keys with reason `CONFIG`.
@@ -81,11 +77,9 @@ working directory when relative. The deprecated `enterpriseEdition.enabled`
 and `.key` fields remain a migration fallback when the premium block is disabled
 or still contains the zero UUID placeholder.
 
-These values are configuration intent, not entitlement. The reviewed secured
-runtime verifies the key through the commercial-license boundary before adding
-`runningProOrHigher`, `runningEE`, and `license` to app-config. The normal router
-reports `false`, `false`, and `NORMAL`; it never treats a configured key as
-verified. See [`license-entitlement.md`](license-entitlement.md).
+These values are configuration intent, not entitlement. The open router
+reports `runningProOrHigher=false`, `runningEE=false`, and `license=NORMAL`;
+it never treats a configured key as verified.
 
 ## Timestamp settings
 
@@ -98,19 +92,21 @@ precedence, including `SECURITY_TIMESTAMP_DEFAULT_TSA_URL` and
 ## Login disclaimer
 
 The public agreement reader resolves locale-specific markdown from
-`customFiles/disclaimer` below the same base path. It is available in
-anonymous/no-login operation. When `security.enableLogin` is configured, Rust
-returns `401` on the public route unless the request passes through the reviewed
-secured router with an authenticated context. That router also owns the
-administrator-only list/read/update/clear surface with atomic replacement and
-link-safe bounds. See [`login-disclaimer.md`](login-disclaimer.md) for lookup
-rules and [`login-agreement-admin.md`](login-agreement-admin.md) for mutation.
+`customFiles/disclaimer` below the same base path and is always served openly;
+the disclaimer files are operator-provisioned (there is no runtime mutation
+API). See [`login-disclaimer.md`](login-disclaimer.md) for lookup rules.
 
 ## Install identity (`AutomaticallyGenerated`)
 
-At startup (before the serving configuration is loaded) the executable runs
+At startup (before the serving configuration is loaded) the executable
+resolves the install identity. Only the desktop (Tauri) sidecar persists it:
+under `RUSTLING_PDF_TAURI_MODE=true` the executable runs
 `RuntimeConfig::initialize_generated_identity`, the port of Java
-`InitialSetup`: an invalid or missing `AutomaticallyGenerated.UUID` /
+`InitialSetup`; every other deployment is stateless and resolves the same
+identity in memory per boot (`ephemeral_generated_identity`), still honoring
+configured `AutomaticallyGenerated.*` values and the env spellings below
+without ever writing. In persistent (desktop) mode an invalid or missing
+`AutomaticallyGenerated.UUID` /
 `AutomaticallyGenerated.key` is replaced with a fresh RFC 4122 v4 UUID and
 persisted into the settings file, and the canonical application version
 (`application_version()`, backed by the repo `VERSION` file — the Rust
@@ -146,14 +142,25 @@ byte reaches disk; the stock template contains none of those shapes. Java's `Ini
 defaulting (`legal.termsAndConditions`/`privacyPolicy`) is intentionally not
 persisted by the Rust port; those defaults are applied at read time.
 
-## Explicit boundaries
+## Ignored legacy settings
 
-Apart from the first-run analytics choice and the reviewed administrator surfaces,
-this slice does not yet support arbitrary settings mutation, external identity
-providers, general durable application storage, or signing hardware.
-`app-config` deliberately reports unported security
-capabilities as disabled rather than advertising a UI flow that the Rust service
-cannot complete.
+Authentication, MCP, and server-side state were removed from the product.
+Their configuration keys (`security.enableLogin`, `security.initialLogin.*`,
+`security.oauth2.*`, `security.saml2.*`, `security.jwt.*`,
+`security.loginMethod`, `security.databasePath`,
+`security.credentialEncryptionKey[Path]`, `mcp.*`, `storage.*`, `policies.*`,
+`premium.enterpriseFeatures.audit.*`, `mail.enableInvites`, `app.supabase.*`,
+and their env spellings such as `SECURITY_ENABLELOGIN` and
+`DOCKER_ENABLE_SECURITY`) are IGNORED with a one-line startup warning for the
+notable ones — never refused. Existing installs whose `settings.yml` still
+carries these keys (the historic desktop template shipped
+`security.enableLogin: true`) keep booting unchanged. The
+`security.validation.*`, `security.timestamp.*`, and `security.xFrameOptions`
+keys guard non-login features and stay fully honored.
+
+There is no server-side settings mutation API: the analytics-consent endpoint
+was removed (consent is client-owned), and settings files are edited by the
+operator or, on desktop, by the sidecar's own template/identity maintenance.
 
 ## Verification
 
@@ -162,7 +169,5 @@ availability (including distinct configuration/dependency reasons), dependency
 version parsing, and timestamp configuration extraction. HTTP integration coverage
 proves app-config bootstrap fields, host/proxy URL reconstruction, endpoint
 availability, group status, batch status, settings status, interceptor `403`,
-the API cache policy, the login-disclaimer route, and both multipart and
-URL-encoded analytics onboarding paths. The reviewed security fixture separately
-proves administrator login-agreement writes, public visibility, clearing, and
-unauthenticated/non-administrator denial.
+the API cache policy, and the login-disclaimer route (including the ignored
+legacy `security.enableLogin` key).

@@ -25,9 +25,6 @@ services:
     volumes:
       - ./data:/data
     environment:
-      # Open mode is the supported mode; secured mode is fail-closed by design
-      # and the binary refuses to start with SECURITY_ENABLELOGIN=true.
-      SECURITY_ENABLELOGIN: "false"
       # Wire the optional AI sidecar (only reachable when the "ai" profile is up).
       AIENGINE_ENABLED: "false"
       AIENGINE_URL: "http://ai-engine:5001"

@@ -12,8 +12,8 @@ Java-facing multipart workflow state machine.
   `aiEngine.enabled` is false.
 - Otherwise sends `GET {aiEngine.url}/health` with `Accept: application/json`.
 - Sends `X-Engine-Auth` only when `RUSTLING_ENGINE_SHARED_SECRET` is nonblank.
-- Sends `X-User-Id` only from the trusted Rust `AuthContext.username`. An
-  inbound caller-supplied `X-User-Id` is never used as identity.
+- Never sends `X-User-Id` (the product has no user identity). An inbound
+  caller-supplied `X-User-Id` is never forwarded.
 - On a successful upstream response, returns status `200`, content type
   `application/json`, and the upstream JSON body. As in Java, a non-error 3xx
   upstream response is not followed and its body is surfaced as a 200.
@@ -30,7 +30,7 @@ Java-facing multipart workflow state machine.
   availability. Java sends every enabled Spring mapping and the engine drops
   unknown mappings, so the engine-visible planning catalog is equivalent.
 - Sends the rewritten JSON to `{aiEngine.url}/api/v1/pdf/edit` with the same
-  engine-auth and trusted-user rules as the health proxy.
+  engine-auth and identity rules as the health proxy.
 - Returns status `200`, content type `application/json`, and the successful
   upstream response body without interpreting the plan.
 
@@ -94,12 +94,11 @@ The proxy retains `AiEngineClient` behavior:
 Errors use `application/problem+json` and include the Java-facing type, title,
 status, detail, timestamp, and request path fields.
 
-## Authentication boundary
+## Identity boundary
 
-The routes follow the existing processing security boundary. In reviewed
-secured mode they require normal authentication because they are not in the
-frozen public-route allowlist. In open mode they remain callable, and no user
-identity is fabricated for the engine.
+The routes are open like every processing route. No user identity exists or is
+fabricated for the engine; the only cross-service credential is the optional
+`X-Engine-Auth` shared secret.
 
 ## Resource bounds
 
@@ -108,8 +107,8 @@ indices are capped at 10,000, and workflows stop after 16 engine turns. Tool
 uploads and outputs remain streamed through files instead of accumulated in
 memory. Engine long-running calls use
 `aiEngine.longRunningTimeoutSeconds`/`AIENGINE_LONGRUNNINGTIMEOUTSECONDS`
-(default 600 seconds); ingested personal documents use the configured security
-JWT lifetime (default 1,440 minutes) as their expiry.
+(default 600 seconds); ingested documents carry a bounded expiry (default
+1,440 minutes).
 
 ## Processor→engine config push
 
@@ -121,12 +120,9 @@ engine's `POST /api/v1/config`:
   of `ApplicationReadyEvent`): the full models/rag/limits payload, retried up
   to 5 times with a 3-second delay, entirely off-thread — a down or
   still-booting engine never blocks startup and only produces warnings.
-- **After a successful bulk admin settings save** touching `aiEngine.*`
-  (see `contracts/admin-settings.md`): one attempt, overlaying the
-  accumulated pending `aiEngine.models.*`/`aiEngine.rag.*`/`aiEngine.limits.*`
-  values onto the live configuration.
 
-Both gates match Java: nothing is pushed unless `aiEngine.enabled` is true
+(The former after-admin-save live push was removed with the admin settings
+API.) The gates match Java: nothing is pushed unless `aiEngine.enabled` is true
 and `aiEngine.pushConfigToEngine` (default `true`, env
 `AIENGINE_PUSHCONFIGTOENGINE`) is on — pin it false for env-driven
 deployments so the engine stays environment-controlled. Pushes carry the

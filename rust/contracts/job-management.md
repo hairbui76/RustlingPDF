@@ -30,8 +30,10 @@ interpreted as a filesystem path.
 
 ## Deliberately not claimed
 
-This slice is process-local. Java's `JobController` also has authenticated ownership validation,
-distributed `JobStore`/Valkey write-through, sticky-410/503 cluster handling, queue position
+This slice is process-local and single-tenant: jobs share one namespace with no
+per-owner scoping (the product has no user accounts). Java's `JobController`
+also has authenticated ownership validation, distributed `JobStore`/Valkey
+write-through, sticky-410/503 cluster handling, queue position
 reporting, retries/timeouts, and cancellation that can interrupt native processing. The Rust
 wrapper supports the ported processing endpoints rather than every Java `@AutoJobPostMapping`
 controller: job/control routes, mobile scanner, settings mutation, and Windows certificate

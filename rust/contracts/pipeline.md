@@ -8,7 +8,7 @@ leaving the Rust process. It is the synchronous API counterpart of Java's
 handlers and receives ordinary multipart fields.
 
 Adding `?async=true` persists the exact multipart request and admits the whole pipeline through the
-shared resource-weighted job queue. The normal pipeline response becomes the owner-scoped job
+shared resource-weighted job queue. The normal pipeline response becomes the job
 result and is available through the generic status/result/file endpoints.
 
 ## Request
@@ -54,27 +54,16 @@ Files and response bodies are streamed through a private temporary workspace.
 ZIP extraction rejects traversal paths, more than 10,000 entries, and more than
 128 GiB total expanded data.
 
-## Watched folders
+## Watched folders (removed)
 
-The Rust processing binary starts a separate watcher after it has constructed
-the HTTP runtime. Constructing an application router does not start a task or
-create filesystem paths, so HTTP and unit tests remain isolated.
-
-The watcher resolves `system.customPaths.pipeline.pipelineDir`,
-`watchedFoldersDirs` (or the legacy `watchedFoldersDir`), and
-`finishedFoldersDir` with the same defaults as Java: `pipeline/watchedFolders`
-and `pipeline/finishedFolders` below the installation path. Each non-root
-directory containing a `.json` configuration is a job. Ready regular files are
-moved to its `processing` directory before dispatch and are restored on a
-failed run. Successful results are copied to `outputDir` and named with
-`outputFileName`; `{filename}`, `{pipelineName}`, `{date}`, and `{time}` are
-expanded before the original extension is appended.
-
-`autoPipeline.fileReadiness` is honoured before a move: it checks the optional
-extension allow-list, settle window, stable size, and an exclusive filesystem
-lock. A disabled readiness setting intentionally accepts every regular input.
-The scan interval is 60 seconds. Symlinks are not followed, preventing a
-configured watched root from traversing unrelated filesystem locations.
+The server-side watched-folder daemon was removed with server-side state: the
+binary no longer scans `pipeline/watchedFolders` or writes to
+`pipeline/finishedFolders`, and the `autoPipeline.*` /
+`system.customPaths.pipeline.watchedFoldersDir(s)` / `finishedFoldersDir`
+settings are ignored. Folder automation is client-owned: the SPA watches the
+user's real folders through the File System Access API and drives this same
+HTTP endpoint. `system.customPaths.pipeline.pipelineDir` is still honoured for
+locating the read-only pipeline web-UI config templates.
 
 ## Deliberate gaps
 

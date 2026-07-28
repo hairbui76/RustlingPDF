@@ -486,17 +486,11 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn ai_workflow_document_ttl(&self) -> Duration {
-        let minutes = crate::env_compat::var("SECURITY_JWT_TOKENEXPIRYMINUTES")
-            .ok()
-            .or_else(|| crate::env_compat::var("SECURITY_JWT_TOKEN_EXPIRY_MINUTES").ok())
-            .and_then(|value| value.parse().ok())
-            .or_else(|| {
-                value_at(&self.settings, &["security", "jwt", "tokenExpiryMinutes"])
-                    .and_then(Value::as_u64)
-            })
-            .unwrap_or(1_440)
-            .max(1);
-        Duration::from_secs(minutes.saturating_mul(60))
+        // Fixed bounded expiry for engine-ingested workflow documents. The
+        // historic coupling to the (removed) login JWT lifetime is gone; the
+        // legacy `security.jwt.*` keys are ignored like the rest of the
+        // removed auth configuration.
+        Duration::from_secs(1_440 * 60)
     }
 
     /// Resolves bounded asynchronous job admission. Values mirror the Java
