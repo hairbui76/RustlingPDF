@@ -100,4 +100,4 @@ crypto-bigint = "0.7.5"
 # already in the dependency graph as lopdf's decoder backends).
 flate2 = "1.0"
 jks = { version = "0.3.3", default-features = false, features = ["rand"] }
-weezl = "0.1.10"
+weezl = "0.2.1"
