@@ -25,16 +25,21 @@ mkdir -p "$OUTPUT_DIR"
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
+# With `createUpdaterArtifacts: true` (Tauri v2 updater format) the Linux
+# updater artifact is the signed AppImage itself (foo.AppImage + .sig); the
+# legacy "v1Compatible" mode wraps it (foo.AppImage.tar.gz + .sig). Probe the
+# v1 shape first, fall back to v2. Globs are version-scoped so stale bundles
+# from earlier runs in a cached target dir can never be picked up.
 case "$OS" in
   Linux)
     BUNDLES="appimage"
     TAURI_PLATFORM="linux-x86_64"
-    BUNDLE_GLOB="*.AppImage.tar.gz"
+    BUNDLE_GLOBS=("*_${VERSION}_*.AppImage.tar.gz" "*_${VERSION}_*.AppImage")
     ;;
   Darwin)
     BUNDLES="app"
     TAURI_PLATFORM="darwin-$([ "$ARCH" = "arm64" ] && echo aarch64 || echo x86_64)"
-    BUNDLE_GLOB="*.app.tar.gz"
+    BUNDLE_GLOBS=("*.app.tar.gz")
     ;;
   *)
     echo "Use build-dev-update.ps1 on Windows."
@@ -65,11 +70,18 @@ npx tauri build \
   --bundles "$BUNDLES"
 
 # ── locate outputs ────────────────────────────────────────────────────────────
-BUNDLE="$(find src-tauri/target -name "$BUNDLE_GLOB" -not -name "*.sig" 2>/dev/null | sort | tail -1)"
-SIG="$(find src-tauri/target -name "${BUNDLE_GLOB}.sig" 2>/dev/null | sort | tail -1)"
+BUNDLE=""
+SIG=""
+for glob in "${BUNDLE_GLOBS[@]}"; do
+    BUNDLE="$(find src-tauri/target -name "$glob" -not -name "*.sig" 2>/dev/null | sort | tail -1)"
+    if [ -n "$BUNDLE" ]; then
+        SIG="$(find src-tauri/target -name "$(basename "$BUNDLE").sig" 2>/dev/null | sort | tail -1)"
+        break
+    fi
+done
 
 if [ -z "$BUNDLE" ]; then
-    echo "Error: bundle matching '$BUNDLE_GLOB' not found in src-tauri/target."
+    echo "Error: bundle matching '${BUNDLE_GLOBS[*]}' not found in src-tauri/target."
     exit 1
 fi
 if [ -z "$SIG" ]; then
