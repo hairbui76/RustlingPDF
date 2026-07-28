@@ -1,0 +1,44 @@
+name: Desktop release dry-run
+
+# Manually dispatched proof run for the desktop bundle matrix: builds (and
+# signs, exercising the same TAURI_SIGNING_PRIVATE_KEY path as a real
+# release) the desktop bundles via the reusable desktop-build workflow and
+# uploads them as workflow artifacts only — no tag required, no GitHub
+# release created, no images published, no latest.json composed. This is how
+# the windows/macos legs get proven on real runners before a release tag is
+# cut (there is no local environment for either platform).
+#
+# The platforms input selects the full three-leg matrix or a cheap
+# linux-only smoke leg.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Matrix legs to build"
+        type: choice
+        options:
+          - all
+          - linux-only
+        default: all
+
+permissions:
+  contents: read
+
+# Unlike release.yml, cancelling a dry-run mid-flight loses nothing — no
+# partial publish is possible — so newer dispatches supersede older ones.
+concurrency:
+  group: desktop-dryrun-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/desktop-build.yml
+    permissions:
+      contents: read
+    with:
+      sign: true
+      platforms: ${{ inputs.platforms }}
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

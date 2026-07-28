@@ -2,9 +2,11 @@
 
 Releases are tag-driven. Pushing a tag `v<version>` runs
 `.github/workflows/release.yml`, which verifies version discipline, publishes
-both Docker images to GHCR, and creates the GitHub release. Nothing publishes
-until the tag lands, and the workflow refuses tags that do not match the
-repository's canonical version.
+both Docker images to GHCR, builds and signs the desktop bundles on a
+three-OS runner matrix, and creates the GitHub release with the desktop
+artifacts and the updater manifest attached. Nothing publishes until the tag
+lands, and the workflow refuses tags that do not match the repository's
+canonical version.
 
 ## Tag scheme
 
@@ -70,15 +72,77 @@ grep -rn "2\.14\.2" --include="*.rs" --include="*.ts" --include="*.json" \
      `version`/`source`/`revision`/`created` labels baked in:
      - `ghcr.io/hairbui76/rustlingpdf` (default `runtime` target),
      - `ghcr.io/hairbui76/rustlingpdf-ai-engine` (optional sidecar).
+   - `publish-desktop` — calls the reusable
+     `.github/workflows/desktop-build.yml` matrix (see "Desktop artifacts"
+     below) with signing enabled.
    - `github-release` — creates the GitHub release with auto-generated
-     notes plus the exact `docker pull` commands.
+     notes plus the exact `docker pull` commands, then composes
+     `latest.json` from the desktop artifacts
+     (`scripts/compose_latest_json.py`) and uploads the desktop bundles,
+     their `.sig` files, and `latest.json` as release assets.
 
    A failed run can be retried by re-running the workflow (or dispatching it
-   from the tag ref): image pushes overwrite the same tags and the release
-   step is idempotent when the release already exists. **Only re-dispatch
-   from the newest release tag**: dispatching from an older tag passes the
-   version guard (the old tree matches the old tag) and would move both
-   images' `latest` tags backwards to that older release.
+   from the tag ref): image pushes overwrite the same tags, the release
+   step keeps an existing release's notes, and asset uploads use
+   `--clobber` so a partially-uploaded release is completed idempotently.
+   **Only re-dispatch from the newest release tag**: dispatching from an
+   older tag passes the version guard (the old tree matches the old tag)
+   and would move both images' `latest` tags backwards to that older
+   release.
+
+## Desktop artifacts
+
+`publish-desktop` runs `.github/workflows/desktop-build.yml` (reusable,
+`workflow_call`) on three hosted runners; each leg stages the release Rust
+backend sidecar + pinned PDFium (`task desktop:stage-sidecar` — Windows
+dispatches to `rust/scripts/install-pdfium.ps1`), prepares the desktop
+frontend, and runs `npx tauri build`:
+
+| Leg | Runner | Bundles | Updater platform key(s) |
+|-----|--------|---------|--------------------------|
+| linux-x86_64 | ubuntu-latest | `.AppImage`, `.deb` | `linux-x86_64` (AppImage), `linux-x86_64-deb` |
+| windows-x86_64 | windows-latest | `.msi` (WiX) | `windows-x86_64`, `windows-x86_64-msi` |
+| darwin-aarch64 | macos-latest (Apple silicon) | `.app.tar.gz` (updater), `.dmg` | `darwin-aarch64` |
+
+What gets uploaded to the GitHub release:
+
+- the installers themselves (`.AppImage`, `.deb`, `.msi`, `.dmg`),
+- one `.sig` per updater artifact — base64 over the minisign signature box,
+  produced by `tauri build` from the `TAURI_SIGNING_PRIVATE_KEY` secret
+  (counterpart of the committed `src-tauri` `updater.pubkey`, minisign id
+  `9ADA2DC8FC4FAF0B`; the password secret is the empty string),
+- `latest.json` — the static manifest `tauri-plugin-updater` polls at
+  `https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`
+  (the endpoint committed in `tauri.conf.json`). Schema and platform-key
+  rules are documented in `scripts/compose_latest_json.py`, which is
+  unit-tested by `scripts/compose_latest_json_test.py` against a fixture
+  artifact tree (`python3 scripts/compose_latest_json_test.py`).
+
+Updater flow: a packaged app polls `latest.json`, picks its
+`{os}-{arch}[-{installer}]` platform key, downloads the URL, verifies the
+download against the `signature` field with the bundled pubkey, and
+installs (AppImage self-replace, `dpkg -i`, MSI passive install, macOS
+`.app` swap). Bundle file names are renamed space→dot before upload —
+GitHub applies the same rename to release assets, so the manifest URLs
+always match the asset names.
+
+Dry-run (proving the matrix without tagging a release): dispatch
+**Desktop release dry-run** (`.github/workflows/desktop-release-dryrun.yml`)
+from the Actions tab — `platforms: all` for the full matrix or
+`linux-only` for a cheap smoke leg. It calls the same reusable workflow
+with signing enabled and uploads workflow artifacts only; nothing is
+published.
+
+Known scope limits:
+
+- macOS is Apple-silicon only (`darwin-aarch64`). An Intel build needs
+  either a `macos-15-intel`-style runner leg or a cross-compiled
+  `x86_64-apple-darwin`/`universal-apple-darwin` target — follow-up.
+- macOS bundles are not notarized (`signingIdentity: null`): Gatekeeper
+  shows the unidentified-developer warning until Apple Developer ID signing
+  is added — follow-up.
+- Windows ships the WiX `.msi` only (no NSIS installer is configured in
+  `tauri.conf.json`).
 
 ## Notes
 
@@ -89,15 +153,12 @@ grep -rn "2\.14\.2" --include="*.rs" --include="*.ts" --include="*.json" \
   release therefore exercises the proprietary build path inside the Docker
   build itself — if that build breaks, it surfaces in `publish-images`, not
   in the earlier CI gates.
-- **Desktop updater signing (follow-up)**: the Tauri desktop shell currently
-  has no release artifact in this pipeline. The updater keypair already
-  exists: the committed `updater.pubkey` (minisign id `9ADA2DC8FC4FAF0B`) is
-  repo-controlled, and the private key is available to workflows as the
-  `TAURI_SIGNING_PRIVATE_KEY` secret (empty
-  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). When the desktop-bundle release job
-  lands, it signs update artifacts with that secret and uploads the
-  `.sig` files + `latest.json` to the GitHub release — extend `release.yml`
-  and this document together at that point.
+- **Desktop upgrade e2e proof (follow-up)**: the desktop bundles, updater
+  signatures, and `latest.json` are published by this pipeline (see
+  "Desktop artifacts"), but the cross-platform signed-bundle **upgrade**
+  proof — a packaged old version updating itself to a newly published one
+  via the reworked `frontend/scripts/dev-update-test` flow on a
+  webkit-capable host — is still outstanding.
 - **Version tag `latest`**: both image tags are moved on every release;
   consumers who need reproducibility should pin `vX.Y.Z` (or the image
   digest) instead.

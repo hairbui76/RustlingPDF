@@ -1,0 +1,272 @@
+name: Desktop build (reusable)
+
+# Reusable matrix build for the Tauri desktop bundles. Called by:
+#   - release.yml (publish-desktop job) on release tags, and
+#   - desktop-release-dryrun.yml for manually dispatched proof runs.
+#
+# Legs (see the plan job): ubuntu-latest builds AppImage + deb for
+# linux-x86_64, windows-latest builds the WiX MSI for windows-x86_64, and
+# macos-latest (Apple silicon) builds .app + dmg for darwin-aarch64. Each leg
+# stages the release Rust backend as the Tauri externalBin sidecar plus the
+# pinned PDFium runtime (`task desktop:stage-sidecar`, Windows dispatches to
+# install-pdfium.ps1), prepares the desktop frontend, runs `npx tauri build`,
+# and uploads the bundles as an artifact named desktop-<os>-<arch> — the
+# directory-name contract scripts/compose_latest_json.py consumes when the
+# release job assembles latest.json.
+#
+# Updater signing: with sign=true (the default and what both callers pass),
+# `tauri build` signs the updater artifacts (.AppImage/.deb on linux, .msi on
+# windows, .app.tar.gz on macos) with the minisign key from the
+# TAURI_SIGNING_PRIVATE_KEY secret — the counterpart of the committed
+# src-tauri updater.pubkey — and the collect step fails if any expected .sig
+# is missing. sign=false builds with --no-sign for keyless smoke runs.
+#
+# Bundle file names are renamed space→dot before upload: GitHub release
+# assets get the same rename server-side, so doing it here keeps local file
+# names identical to the release asset names that latest.json URLs point at.
+#
+# harden-runner only guards the Linux legs: step-security/harden-runner
+# supports Linux runners only (documented upstream), so the windows/macos
+# matrix legs run without it.
+
+on:
+  workflow_call:
+    inputs:
+      sign:
+        description: "Sign updater artifacts with the TAURI_SIGNING_PRIVATE_KEY secret"
+        type: boolean
+        default: true
+      platforms:
+        description: "Matrix legs to run: all | linux-only"
+        type: string
+        default: all
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        description: "Minisign private key matching src-tauri updater.pubkey (required when sign=true)"
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        description: "Password for the private key (empty string for a passwordless key)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      # The matrix legs live here (not inline in the strategy) so the
+      # platforms input can select a subset. The platform values double as
+      # tauri-plugin-updater platform keys ({os}-{arch}) — the artifact names
+      # derived from them are parsed back by scripts/compose_latest_json.py.
+      - name: Compute the build matrix
+        id: plan
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+
+          linux='{"os":"ubuntu-latest","platform":"linux-x86_64","bundles":"appimage,deb"}'
+          windows='{"os":"windows-latest","platform":"windows-x86_64","bundles":"msi"}'
+          macos='{"os":"macos-latest","platform":"darwin-aarch64","bundles":"app,dmg"}'
+
+          case "${PLATFORMS}" in
+            all)        matrix="[${linux},${windows},${macos}]" ;;
+            linux-only) matrix="[${linux}]" ;;
+            *)
+              echo "::error::Unknown platforms input '${PLATFORMS}' (expected 'all' or 'linux-only')."
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+          echo "Matrix: ${matrix}"
+
+  build:
+    name: Build desktop bundles (${{ matrix.platform }})
+    needs: plan
+    runs-on: ${{ matrix.os }}
+    # The release build of the Rust backend sidecar alone takes 30–45 min
+    # cold on a hosted runner, before the Tauri shell compile, the Vite
+    # desktop build and platform bundling on top. 120 covers the uncached
+    # worst case; rust-cache-warmed runs finish far under it.
+    timeout-minutes: 120
+    strategy:
+      # One failing leg must not cancel the others: each leg's log is the
+      # only diagnostic for its platform (there is no local windows/macos
+      # environment to reproduce on).
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        # Uniform scripting across the matrix; resolves to Git Bash on the
+        # windows runner (which is also what `task` invokes for the staging
+        # scripts).
+        shell: bash
+    steps:
+      - name: Harden the runner (audit egress — Linux legs only)
+        # step-security/harden-runner supports Linux runners only; the
+        # windows/macos legs necessarily run unguarded.
+        if: runner.os == 'Linux'
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Same package set as the Desktop CI gate: webkit2gtk/gtk/soup/rsvg/
+      # appindicator are what tauri (wry/gtk) links against, xdo backs the
+      # global-shortcut input plumbing. The windows and macos legs need no
+      # extra system packages: the Tauri CLI fetches WiX/NSIS on demand on
+      # Windows, and macOS ships everything (WebKit is a system framework).
+      - name: Install Tauri Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+        with:
+          # Matches the toolchain used by the backend and desktop CI gates.
+          toolchain: 1.94.0
+
+      # Two cargo roots build in every leg (backend workspace + Tauri shell);
+      # the two standalone Windows-installer helper crates only build on the
+      # windows leg (their empty target dirs are harmless elsewhere).
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: ${{ matrix.platform }}
+          workspaces: |
+            rust -> target
+            frontend/editor/src-tauri -> target
+            frontend/editor/src-tauri/provisioner -> target
+            frontend/editor/src-tauri/thumbnail-handler -> target
+
+      # Node 22 to match the Frontend CI gate (see frontend.yml for the
+      # version rationale).
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Task
+        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Builds the release stirling-processing binary, installs the pinned
+      # PDFium runtime (install-pdfium.sh on linux/macos, install-pdfium.ps1
+      # on windows — both lay the platform library + licenses out in
+      # rust/.pdfium/current), and stages both into src-tauri
+      # (binaries/stirling-processing-<triple>[.exe], resources/pdfium/).
+      - name: Stage the Rust sidecar and PDFium (task desktop:stage-sidecar)
+        run: task desktop:stage-sidecar
+
+      # Diagnostic listing so a bad staging layout is visible in the log
+      # without a local reproduction environment for the platform.
+      - name: Show staged sidecar and PDFium layout
+        run: |
+          ls -la frontend/editor/src-tauri/binaries/
+          ls -la frontend/editor/src-tauri/resources/pdfium/
+
+      # Frontend desktop env files, icons and OG metadata; on the windows leg
+      # this also builds the MSI provisioner + thumbnail-handler helper
+      # binaries into src-tauri/windows/wix/ (task desktop:provisioner is
+      # platforms: [windows]). The stage-sidecar dependency re-runs as a
+      # cheap incremental no-op.
+      - name: Prepare the desktop frontend (task desktop:prepare)
+        run: task desktop:prepare
+
+      # createUpdaterArtifacts: true — the bundler signs the updater
+      # artifacts in place (.sig siblings) when the signing env is present;
+      # --no-sign (sign=false) skips signing entirely for keyless runs.
+      # CI=true on hosted runners already suppresses CLI prompting.
+      - name: Build Tauri bundles (${{ matrix.bundles }})
+        working-directory: frontend/editor
+        env:
+          SIGN: ${{ inputs.sign }}
+          BUNDLES: ${{ matrix.bundles }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          args=(build --bundles "${BUNDLES}")
+          if [ "${SIGN}" != "true" ]; then
+            args+=(--no-sign)
+          fi
+          npx tauri "${args[@]}"
+
+      # Flatten the bundle outputs into one directory, renaming space→dot
+      # (see the header comment), and require a .sig sibling for every
+      # updater artifact when signing was requested.
+      - name: Collect bundles and signatures
+        env:
+          SIGN: ${{ inputs.sign }}
+        run: |
+          set -euo pipefail
+          bundle_root="frontend/editor/src-tauri/target/release/bundle"
+          stage="dist-desktop"
+          mkdir -p "${stage}"
+          shopt -s nullglob
+
+          count=0
+          for f in "${bundle_root}"/*/*.AppImage "${bundle_root}"/*/*.AppImage.sig \
+                   "${bundle_root}"/*/*.deb "${bundle_root}"/*/*.deb.sig \
+                   "${bundle_root}"/*/*.rpm "${bundle_root}"/*/*.rpm.sig \
+                   "${bundle_root}"/*/*.msi "${bundle_root}"/*/*.msi.sig \
+                   "${bundle_root}"/*/*-setup.exe "${bundle_root}"/*/*-setup.exe.sig \
+                   "${bundle_root}"/*/*.app.tar.gz "${bundle_root}"/*/*.app.tar.gz.sig \
+                   "${bundle_root}"/*/*.dmg; do
+            base="$(basename "${f}")"
+            cp -f "${f}" "${stage}/${base// /.}"
+            count=$((count + 1))
+          done
+
+          if [ "${count}" -eq 0 ]; then
+            echo "::error::No bundle outputs found under ${bundle_root}."
+            find "${bundle_root}" -maxdepth 2 || true
+            exit 1
+          fi
+
+          if [ "${SIGN}" = "true" ]; then
+            for f in "${stage}"/*.AppImage "${stage}"/*.deb "${stage}"/*.rpm \
+                     "${stage}"/*.msi "${stage}"/*-setup.exe "${stage}"/*.app.tar.gz; do
+              if [ ! -f "${f}.sig" ]; then
+                echo "::error::Missing updater signature for ${f}."
+                exit 1
+              fi
+            done
+          fi
+
+          echo "Collected bundles:"
+          ls -la "${stage}"
+
+      - name: Upload desktop bundle artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: dist-desktop/
+          if-no-files-found: error
