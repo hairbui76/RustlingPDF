@@ -64,7 +64,7 @@
     "i18next-browser-languagedetector": "^8.2.0",
     "jszip": "^3.10.1",
     "license-report": "^6.8.5",
-    "pdfjs-dist": "^5.4.149",
+    "pdfjs-dist": "^6.1.200",
     "peerjs": "^1.5.5",
     "pixelmatch": "^7.2.0",
     "posthog-js": "^1.407.3",
