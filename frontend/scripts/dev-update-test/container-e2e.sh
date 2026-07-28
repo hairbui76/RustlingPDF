@@ -176,15 +176,30 @@ cleanup() {
   pkill Xvfb 2>/dev/null || true
 }
 trap cleanup EXIT
-sleep 1
-curl -sf "http://localhost:$UPDATE_PORT/latest.json" >/dev/null || { echo "Error: update server not responding"; exit 1; }
+server_up=""
+for _ in $(seq 1 30); do
+  if curl -sf "http://localhost:$UPDATE_PORT/latest.json" >/dev/null; then
+    server_up=1
+    break
+  fi
+  sleep 1
+done
+[ -n "$server_up" ] || { echo "Error: update server not responding after 30s"; exit 1; }
 echo "  serving $DIST_DIR on :$UPDATE_PORT"
 
 echo ""
 echo "=== [7/7] Launch v0.0.1 app under Xvfb and drive the updater ==="
 export DISPLAY=:99
 Xvfb :99 -screen 0 1280x800x24 >"$LOG_DIR/xvfb.log" 2>&1 &
-sleep 1
+display_up=""
+for _ in $(seq 1 30); do
+  if [ -e /tmp/.X11-unix/X99 ]; then
+    display_up=1
+    break
+  fi
+  sleep 1
+done
+[ -n "$display_up" ] || { echo "Error: Xvfb display :99 did not come up after 30s"; exit 1; }
 
 INSTALL_FLAG=""
 [ "$INSTALL" = true ] && INSTALL_FLAG="--install"
