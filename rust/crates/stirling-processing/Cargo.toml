@@ -18,7 +18,7 @@ axum = { version = "0.8.9", features = ["multipart"] }
 aws-sdk-s3 = "=1.137.0"
 base64 = "0.22.1"
 bcder = "0.7.7"
-bcrypt = "0.18.0"
+bcrypt = "0.19.3"
 bytes = "1.12.1"
 chrono = "0.4.45"
 cbc = { version = "0.2.1", features = ["alloc", "zeroize"] }
