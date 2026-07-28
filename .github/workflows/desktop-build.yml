@@ -140,7 +140,12 @@ jobs:
             libgtk-3-dev \
             librsvg2-dev \
             libayatana-appindicator3-dev \
-            libxdo-dev
+            libxdo-dev \
+            desktop-file-utils \
+            zsync \
+            xdg-utils \
+            shared-mime-info \
+            file
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
@@ -220,7 +225,10 @@ jobs:
           NO_STRIP: "1"
         run: |
           set -euo pipefail
-          args=(build --bundles "${BUNDLES}")
+          # --verbose keeps the underlying bundler tools' output (linuxdeploy,
+          # WiX, hdiutil) in the log — without it a bundling failure surfaces
+          # only as "failed to run <tool>" with the real error swallowed.
+          args=(build --verbose --bundles "${BUNDLES}")
           if [ "${SIGN}" != "true" ]; then
             args+=(--no-sign)
           fi
