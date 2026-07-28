@@ -1133,7 +1133,7 @@ fn yaml_string(settings: &Value, path: &[&str]) -> String {
 
 /// Env-first, then YAML, then `false` — mirroring `RuntimeConfig::boolean`.
 fn config_bool(settings: &Value, path: &[&str], environment: &str) -> bool {
-    if let Ok(value) = std::env::var(environment) {
+    if let Ok(value) = crate::env_compat::var(environment) {
         match value.trim().to_ascii_lowercase().as_str() {
             "true" => return true,
             "false" => return false,
@@ -1147,7 +1147,7 @@ fn config_bool(settings: &Value, path: &[&str], environment: &str) -> bool {
 
 /// Env-first, then YAML, then default — mirroring `RuntimeConfig::string`.
 fn config_string(settings: &Value, path: &[&str], environment: &str, default: &str) -> String {
-    if let Ok(value) = std::env::var(environment) {
+    if let Ok(value) = crate::env_compat::var(environment) {
         return value;
     }
     value_at(settings, path)
@@ -1158,7 +1158,7 @@ fn config_string(settings: &Value, path: &[&str], environment: &str, default: &s
 /// Env-first (parsed as an integer), then YAML, then default — mirroring the
 /// license reader's `PREMIUM_MAXUSERS` lookup for `premium.maxUsers`.
 fn config_i64(settings: &Value, path: &[&str], environment: &str, default: i64) -> i64 {
-    let from_env = std::env::var(environment)
+    let from_env = crate::env_compat::var(environment)
         .ok()
         .and_then(|value| value.trim().parse::<i64>().ok());
     if let Some(parsed) = from_env {

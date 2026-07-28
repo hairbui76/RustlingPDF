@@ -5,7 +5,6 @@
 //! expansion checks, so the renderer never receives an archive traversal payload.
 
 use std::{
-    env,
     ffi::OsString,
     fs::{self, File},
     io::{self, ErrorKind, Read, Write},
@@ -19,7 +18,7 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 use crate::{ghostscript::exit_status, html_sanitizer::sanitize_html};
 
-const WEASYPRINT_COMMAND_ENV: &str = "STIRLING_PROCESSING_WEASYPRINT_COMMAND";
+const WEASYPRINT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_WEASYPRINT_COMMAND";
 const MAX_ARCHIVE_ENTRIES: usize = 100_000;
 const MAX_ARCHIVE_UNCOMPRESSED_BYTES: u64 = 200 * 1024 * 1024;
 
@@ -221,7 +220,7 @@ fn run_weasyprint(arguments: &[OsString], workspace: &Path) -> Result<(), HtmlTo
 }
 
 fn weasyprint_commands() -> Vec<String> {
-    if let Ok(command) = env::var(WEASYPRINT_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(WEASYPRINT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];

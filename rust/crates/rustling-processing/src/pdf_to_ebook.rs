@@ -3,14 +3,14 @@
 //! Calibre owns the PDF reflow implementation. The adapter deliberately invokes it without a
 //! shell, preserves Java's converter flags, and confines all transient files to a `TempDir`.
 
-use std::{env, ffi::OsString, fs, io::ErrorKind, path::Path, process::Command};
+use std::{ffi::OsString, fs, io::ErrorKind, path::Path, process::Command};
 
 use tempfile::TempDir;
 use thiserror::Error;
 
 use crate::ghostscript::exit_status;
 
-const EBOOK_CONVERT_COMMAND_ENV: &str = "STIRLING_PROCESSING_EBOOK_CONVERT_COMMAND";
+const EBOOK_CONVERT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND";
 const FILTERED_CSS: &str = "font-family,color,background-color,margin-left,margin-right";
 const SMART_CHAPTER_EXPRESSION: &str = "//h:*[re:test(., '\\s*Chapter\\s+', 'i')]";
 
@@ -193,7 +193,7 @@ fn run_ebook_convert(arguments: &[OsString]) -> Result<(), PdfToEbookError> {
 }
 
 fn ebook_convert_commands() -> EbookConvertCommands {
-    if let Ok(command) = env::var(EBOOK_CONVERT_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(EBOOK_CONVERT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return EbookConvertCommands {

@@ -244,7 +244,7 @@ async fn pdf_to_cbz_applies_dpi_fallback_and_validates_inputs()
 }
 
 fn native_pdfium_available() -> bool {
-    std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 fn comic_archive(entries: &[ComicEntry<'_>]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {

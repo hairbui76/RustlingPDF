@@ -9,8 +9,8 @@ use axum::{
     response::Response,
 };
 use lopdf::{Document, Object, dictionary};
-use serde_json::Value;
 use rustling_processing::app;
+use serde_json::Value;
 use tower::ServiceExt;
 use zip::ZipArchive;
 
@@ -138,7 +138,8 @@ fn ghostscript_present() -> bool {
     } else {
         &["gs"]
     };
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

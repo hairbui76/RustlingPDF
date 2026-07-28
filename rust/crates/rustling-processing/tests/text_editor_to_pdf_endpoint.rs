@@ -312,7 +312,8 @@ async fn rebuilds_annotation_appearance_streams_as_indirect_objects()
 fn pdfium() -> Result<Option<pdfium_render::prelude::Pdfium>, Box<dyn std::error::Error>> {
     use pdfium_render::prelude::Pdfium;
 
-    let Some(configured) = std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH") else {
+    let Some(configured) = rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH")
+    else {
         return Ok(None);
     };
     let configured = std::path::PathBuf::from(configured);

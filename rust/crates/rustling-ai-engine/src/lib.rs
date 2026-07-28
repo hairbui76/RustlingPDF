@@ -15,6 +15,7 @@ pub mod document_classifier;
 pub mod document_migration;
 pub mod documents;
 pub mod embedding;
+pub mod env_compat;
 pub mod execution;
 pub mod ledger;
 pub mod ledger_auditor;
@@ -187,81 +188,81 @@ impl EngineSettings {
     pub fn from_environment() -> Result<Self, EngineSettingsError> {
         let settings = Self {
             smart_model_name: environment_value(
-                "STIRLING_SMART_MODEL",
+                "RUSTLING_SMART_MODEL",
                 "anthropic:claude-haiku-4-5",
             )?,
             fast_model_name: environment_value(
-                "STIRLING_FAST_MODEL",
+                "RUSTLING_FAST_MODEL",
                 "anthropic:claude-haiku-4-5",
             )?,
             chat_provider: String::new(),
-            shared_secret: environment_value("STIRLING_ENGINE_SHARED_SECRET", "")?,
-            require_auth: environment_bool("STIRLING_ENGINE_REQUIRE_AUTH", false)?,
-            require_user_id: environment_bool("STIRLING_REQUIRE_USER_ID", false)?,
+            shared_secret: environment_value("RUSTLING_ENGINE_SHARED_SECRET", "")?,
+            require_auth: environment_bool("RUSTLING_ENGINE_REQUIRE_AUTH", false)?,
+            require_user_id: environment_bool("RUSTLING_REQUIRE_USER_ID", false)?,
             // Python default: config push is allowed unless explicitly disabled.
-            allow_config_push: environment_bool("STIRLING_ALLOW_CONFIG_PUSH", true)?,
+            allow_config_push: environment_bool("RUSTLING_ALLOW_CONFIG_PUSH", true)?,
             config_cache_dir: PathBuf::from("data"),
-            smart_model_max_tokens: environment_u32("STIRLING_SMART_MODEL_MAX_TOKENS", 8_192)?,
-            fast_model_max_tokens: environment_u32("STIRLING_FAST_MODEL_MAX_TOKENS", 2_048)?,
-            model_max_concurrency: environment_usize("STIRLING_MODEL_MAX_CONCURRENCY", 32)?,
-            documents_backend: environment_value("STIRLING_DOCUMENTS_BACKEND", "sqlite")?,
+            smart_model_max_tokens: environment_u32("RUSTLING_SMART_MODEL_MAX_TOKENS", 8_192)?,
+            fast_model_max_tokens: environment_u32("RUSTLING_FAST_MODEL_MAX_TOKENS", 2_048)?,
+            model_max_concurrency: environment_usize("RUSTLING_MODEL_MAX_CONCURRENCY", 32)?,
+            documents_backend: environment_value("RUSTLING_DOCUMENTS_BACKEND", "sqlite")?,
             documents_sqlite_path: PathBuf::from(environment_value(
-                "STIRLING_DOCUMENTS_SQLITE_PATH",
+                "RUSTLING_DOCUMENTS_SQLITE_PATH",
                 "data/rag.db",
             )?),
-            documents_pgvector_dsn: environment_value("STIRLING_DOCUMENTS_PGVECTOR_DSN", "")?,
+            documents_pgvector_dsn: environment_value("RUSTLING_DOCUMENTS_PGVECTOR_DSN", "")?,
             documents_pgvector_pool_min_size: environment_usize(
-                "STIRLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE",
+                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE",
                 1,
             )?,
             documents_pgvector_pool_max_size: environment_usize(
-                "STIRLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE",
+                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE",
                 10,
             )?,
             rag_embedding_model: environment_value(
-                "STIRLING_RAG_EMBEDDING_MODEL",
+                "RUSTLING_RAG_EMBEDDING_MODEL",
                 "voyageai:voyage-4",
             )?,
-            rag_chunk_size: environment_usize("STIRLING_RAG_CHUNK_SIZE", 512)?,
-            rag_chunk_overlap: environment_usize("STIRLING_RAG_CHUNK_OVERLAP", 64)?,
-            rag_default_top_k: environment_usize("STIRLING_RAG_TOP_K", 20)?,
-            rag_max_searches: environment_usize("STIRLING_RAG_MAX_SEARCHES", 5)?,
-            max_pages: environment_usize("STIRLING_MAX_PAGES", 200)?,
-            max_characters: environment_usize("STIRLING_MAX_CHARACTERS", 200_000)?,
+            rag_chunk_size: environment_usize("RUSTLING_RAG_CHUNK_SIZE", 512)?,
+            rag_chunk_overlap: environment_usize("RUSTLING_RAG_CHUNK_OVERLAP", 64)?,
+            rag_default_top_k: environment_usize("RUSTLING_RAG_TOP_K", 20)?,
+            rag_max_searches: environment_usize("RUSTLING_RAG_MAX_SEARCHES", 5)?,
+            max_pages: environment_usize("RUSTLING_MAX_PAGES", 200)?,
+            max_characters: environment_usize("RUSTLING_MAX_CHARACTERS", 200_000)?,
             chunked_reasoner_chars_per_slice: environment_usize(
-                "STIRLING_CHUNKED_REASONER_CHARS_PER_SLICE",
+                "RUSTLING_CHUNKED_REASONER_CHARS_PER_SLICE",
                 16_000,
             )?,
             chunked_reasoner_concurrency: environment_usize(
-                "STIRLING_CHUNKED_REASONER_CONCURRENCY",
+                "RUSTLING_CHUNKED_REASONER_CONCURRENCY",
                 10,
             )?,
             chunked_reasoner_worker_timeout_seconds: environment_f64(
-                "STIRLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS",
+                "RUSTLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS",
                 60.0,
             )?,
             chunked_reasoner_notes_char_budget: environment_usize(
-                "STIRLING_CHUNKED_REASONER_NOTES_CHAR_BUDGET",
+                "RUSTLING_CHUNKED_REASONER_NOTES_CHAR_BUDGET",
                 250_000,
             )?,
             contradiction_detect_concurrency: environment_usize(
-                "STIRLING_CONTRADICTION_DETECT_CONCURRENCY",
+                "RUSTLING_CONTRADICTION_DETECT_CONCURRENCY",
                 5,
             )?,
             contradiction_bucket_chunk_size: environment_usize(
-                "STIRLING_CONTRADICTION_BUCKET_CHUNK_SIZE",
+                "RUSTLING_CONTRADICTION_BUCKET_CHUNK_SIZE",
                 12,
             )?,
             contradiction_bucket_chunk_overlap: environment_usize(
-                "STIRLING_CONTRADICTION_BUCKET_CHUNK_OVERLAP",
+                "RUSTLING_CONTRADICTION_BUCKET_CHUNK_OVERLAP",
                 2,
             )?,
             contradiction_canonicaliser_batch_size: environment_usize(
-                "STIRLING_CONTRADICTION_CANONICALISER_BATCH_SIZE",
+                "RUSTLING_CONTRADICTION_CANONICALISER_BATCH_SIZE",
                 500,
             )?,
             documents_reaper_interval_seconds: environment_u64(
-                "STIRLING_DOCUMENTS_REAPER_INTERVAL_SECONDS",
+                "RUSTLING_DOCUMENTS_REAPER_INTERVAL_SECONDS",
                 900,
             )?,
         };
@@ -272,32 +273,32 @@ impl EngineSettings {
     fn validate_environment_bounds(&self) -> Result<(), EngineSettingsError> {
         if self.smart_model_max_tokens == 0 {
             return Err(EngineSettingsError::new(
-                "STIRLING_SMART_MODEL_MAX_TOKENS must be positive",
+                "RUSTLING_SMART_MODEL_MAX_TOKENS must be positive",
             ));
         }
         if self.fast_model_max_tokens == 0 {
             return Err(EngineSettingsError::new(
-                "STIRLING_FAST_MODEL_MAX_TOKENS must be positive",
+                "RUSTLING_FAST_MODEL_MAX_TOKENS must be positive",
             ));
         }
         if self.model_max_concurrency == 0 {
             return Err(EngineSettingsError::new(
-                "STIRLING_MODEL_MAX_CONCURRENCY must be positive",
+                "RUSTLING_MODEL_MAX_CONCURRENCY must be positive",
             ));
         }
         if self.rag_chunk_size == 0 {
             return Err(EngineSettingsError::new(
-                "STIRLING_RAG_CHUNK_SIZE must be positive",
+                "RUSTLING_RAG_CHUNK_SIZE must be positive",
             ));
         }
         if self.rag_chunk_overlap >= self.rag_chunk_size {
             return Err(EngineSettingsError::new(
-                "STIRLING_RAG_CHUNK_OVERLAP must be smaller than STIRLING_RAG_CHUNK_SIZE",
+                "RUSTLING_RAG_CHUNK_OVERLAP must be smaller than RUSTLING_RAG_CHUNK_SIZE",
             ));
         }
         if !matches!(self.documents_backend.as_str(), "sqlite" | "pgvector") {
             return Err(EngineSettingsError::new(
-                "STIRLING_DOCUMENTS_BACKEND must be sqlite or pgvector",
+                "RUSTLING_DOCUMENTS_BACKEND must be sqlite or pgvector",
             ));
         }
         if self.documents_backend == "pgvector"
@@ -306,7 +307,7 @@ impl EngineSettings {
                 || self.documents_pgvector_pool_min_size > self.documents_pgvector_pool_max_size)
         {
             return Err(EngineSettingsError::new(
-                "STIRLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE and STIRLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE must be positive, and min must not exceed max",
+                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE and RUSTLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE must be positive, and min must not exceed max",
             ));
         }
         if self.chunked_reasoner_chars_per_slice == 0
@@ -314,20 +315,20 @@ impl EngineSettings {
             || self.chunked_reasoner_notes_char_budget == 0
         {
             return Err(EngineSettingsError::new(
-                "STIRLING_CHUNKED_REASONER_CHARS_PER_SLICE, STIRLING_CHUNKED_REASONER_CONCURRENCY, and STIRLING_CHUNKED_REASONER_NOTES_CHAR_BUDGET must be positive",
+                "RUSTLING_CHUNKED_REASONER_CHARS_PER_SLICE, RUSTLING_CHUNKED_REASONER_CONCURRENCY, and RUSTLING_CHUNKED_REASONER_NOTES_CHAR_BUDGET must be positive",
             ));
         }
         let worker_timeout =
             Duration::try_from_secs_f64(self.chunked_reasoner_worker_timeout_seconds).map_err(
                 |_| {
                     EngineSettingsError::new(
-                        "STIRLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS must be a finite positive duration",
+                        "RUSTLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS must be a finite positive duration",
                     )
                 },
             )?;
         if worker_timeout.is_zero() {
             return Err(EngineSettingsError::new(
-                "STIRLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS must be a finite positive duration",
+                "RUSTLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS must be a finite positive duration",
             ));
         }
         if self.contradiction_detect_concurrency == 0
@@ -336,7 +337,7 @@ impl EngineSettings {
             || self.contradiction_canonicaliser_batch_size == 0
         {
             return Err(EngineSettingsError::new(
-                "contradiction limits must be positive and STIRLING_CONTRADICTION_BUCKET_CHUNK_OVERLAP must be smaller than STIRLING_CONTRADICTION_BUCKET_CHUNK_SIZE",
+                "contradiction limits must be positive and RUSTLING_CONTRADICTION_BUCKET_CHUNK_OVERLAP must be smaller than RUSTLING_CONTRADICTION_BUCKET_CHUNK_SIZE",
             ));
         }
         Ok(())
@@ -688,7 +689,7 @@ fn app_with_runtime(
             )
             .map(|store| Arc::new(store) as Arc<dyn DocumentRepository>),
             backend => Err(DocumentError::InvalidRequest(format!(
-                "unsupported STIRLING_DOCUMENTS_BACKEND {backend}; expected sqlite or pgvector"
+                "unsupported RUSTLING_DOCUMENTS_BACKEND {backend}; expected sqlite or pgvector"
             ))),
         };
     if let Ok(store) = &documents {
@@ -993,7 +994,7 @@ async fn apply_config(
     if !settings.allow_config_push {
         return error_response(
             StatusCode::FORBIDDEN,
-            "Config push is disabled on this deployment (STIRLING_ALLOW_CONFIG_PUSH is false).",
+            "Config push is disabled on this deployment (RUSTLING_ALLOW_CONFIG_PUSH is false).",
         );
     }
     // Secure-by-default: with no shared secret set, only trust a direct
@@ -1008,7 +1009,7 @@ async fn apply_config(
         return error_response(
             StatusCode::FORBIDDEN,
             "Config push from a non-local or proxied caller requires \
-             STIRLING_ENGINE_SHARED_SECRET to be set on both the engine and the processor.",
+             RUSTLING_ENGINE_SHARED_SECRET to be set on both the engine and the processor.",
         );
     }
     if let Err(detail) = request.validate() {
@@ -2017,7 +2018,7 @@ fn error_response(status: StatusCode, detail: impl Into<String>) -> Response {
 }
 
 fn optional_environment_value(name: &str) -> Result<Option<String>, EngineSettingsError> {
-    environment_result(name, env::var(name))
+    environment_result(name, crate::env_compat::var(name))
 }
 
 fn environment_result(
@@ -2138,32 +2139,32 @@ mod tests {
     #[test]
     fn environment_value_parsers_are_strict_and_python_compatible() {
         assert_eq!(
-            parse_environment_bool("STIRLING_ENGINE_REQUIRE_AUTH", " yes "),
+            parse_environment_bool("RUSTLING_ENGINE_REQUIRE_AUTH", " yes "),
             Ok(true)
         );
         assert_eq!(
-            parse_environment_bool("STIRLING_REQUIRE_USER_ID", "F"),
+            parse_environment_bool("RUSTLING_REQUIRE_USER_ID", "F"),
             Ok(false)
         );
         assert!(
-            parse_environment_bool("STIRLING_ENGINE_REQUIRE_AUTH", "sometimes")
-                .is_err_and(|error| error.to_string().contains("STIRLING_ENGINE_REQUIRE_AUTH"))
+            parse_environment_bool("RUSTLING_ENGINE_REQUIRE_AUTH", "sometimes")
+                .is_err_and(|error| error.to_string().contains("RUSTLING_ENGINE_REQUIRE_AUTH"))
         );
         assert_eq!(
-            parse_environment_integer::<usize>("STIRLING_MODEL_MAX_CONCURRENCY", " 32 "),
+            parse_environment_integer::<usize>("RUSTLING_MODEL_MAX_CONCURRENCY", " 32 "),
             Ok(32)
         );
         assert!(
-            parse_environment_integer::<usize>("STIRLING_MODEL_MAX_CONCURRENCY", "many")
-                .is_err_and(|error| error.to_string().contains("STIRLING_MODEL_MAX_CONCURRENCY"))
+            parse_environment_integer::<usize>("RUSTLING_MODEL_MAX_CONCURRENCY", "many")
+                .is_err_and(|error| error.to_string().contains("RUSTLING_MODEL_MAX_CONCURRENCY"))
         );
         assert!(
-            parse_environment_f64("STIRLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS", "NaN")
+            parse_environment_f64("RUSTLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS", "NaN")
                 .is_err()
         );
         for name in [
-            "STIRLING_ENGINE_REQUIRE_AUTH",
-            "STIRLING_MODEL_MAX_CONCURRENCY",
+            "RUSTLING_ENGINE_REQUIRE_AUTH",
+            "RUSTLING_MODEL_MAX_CONCURRENCY",
         ] {
             let result = environment_result(
                 name,
@@ -2190,14 +2191,14 @@ mod tests {
         assert!(
             zero_concurrency
                 .validate_environment_bounds()
-                .is_err_and(|error| error.to_string().contains("STIRLING_MODEL_MAX_CONCURRENCY"))
+                .is_err_and(|error| error.to_string().contains("RUSTLING_MODEL_MAX_CONCURRENCY"))
         );
         let invalid_chunking =
             EngineSettings::new("smart", "fast", "", false).with_rag_chunking(64, 64);
         assert!(
             invalid_chunking
                 .validate_environment_bounds()
-                .is_err_and(|error| error.to_string().contains("STIRLING_RAG_CHUNK_OVERLAP"))
+                .is_err_and(|error| error.to_string().contains("RUSTLING_RAG_CHUNK_OVERLAP"))
         );
         let invalid_pool =
             EngineSettings::new("smart", "fast", "", false).with_pgvector("dsn", 5, 4);
@@ -2206,14 +2207,14 @@ mod tests {
                 .validate_environment_bounds()
                 .is_err_and(|error| error
                     .to_string()
-                    .contains("STIRLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE"))
+                    .contains("RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE"))
         );
         let invalid_backend =
             EngineSettings::new("smart", "fast", "", false).with_documents_backend("unavailable");
         assert!(
             invalid_backend
                 .validate_environment_bounds()
-                .is_err_and(|error| error.to_string().contains("STIRLING_DOCUMENTS_BACKEND"))
+                .is_err_and(|error| error.to_string().contains("RUSTLING_DOCUMENTS_BACKEND"))
         );
         let invalid_contradiction =
             EngineSettings::new("smart", "fast", "", false).with_contradiction_limits(1, 8, 8, 1);
@@ -2222,7 +2223,7 @@ mod tests {
                 .validate_environment_bounds()
                 .is_err_and(|error| error
                     .to_string()
-                    .contains("STIRLING_CONTRADICTION_BUCKET_CHUNK_OVERLAP"))
+                    .contains("RUSTLING_CONTRADICTION_BUCKET_CHUNK_OVERLAP"))
         );
     }
 
@@ -4236,7 +4237,7 @@ mod tests {
         assert!(
             body["detail"]
                 .as_str()
-                .is_some_and(|detail| detail.contains("STIRLING_ALLOW_CONFIG_PUSH")),
+                .is_some_and(|detail| detail.contains("RUSTLING_ALLOW_CONFIG_PUSH")),
             "detail should name the gating flag: {body}"
         );
         Ok(())
@@ -4257,7 +4258,7 @@ mod tests {
         assert!(
             body["detail"]
                 .as_str()
-                .is_some_and(|detail| detail.contains("STIRLING_ENGINE_SHARED_SECRET")),
+                .is_some_and(|detail| detail.contains("RUSTLING_ENGINE_SHARED_SECRET")),
             "detail should name the shared-secret requirement: {body}"
         );
 

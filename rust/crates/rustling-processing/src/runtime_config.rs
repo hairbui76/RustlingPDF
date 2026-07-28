@@ -1,7 +1,7 @@
 //! Public compatibility configuration for the Rust HTTP service.
 //!
 //! The Java application loads `configs/settings.yml` and then
-//! `configs/custom_settings.yml` below `STIRLING_BASE_PATH`; the latter overrides
+//! `configs/custom_settings.yml` below `RUSTLING_BASE_PATH`; the latter overrides
 //! the former. This module mirrors the public runtime configuration surface and the
 //! anonymous analytics-onboarding mutation. Authentication and administrator mutation remain separate
 //! migration tracks and are intentionally not claimed here.
@@ -340,7 +340,7 @@ impl Clone for RuntimeConfig {
 impl RuntimeConfig {
     #[must_use]
     pub fn from_environment() -> Self {
-        let base_path = env::var_os("STIRLING_BASE_PATH")
+        let base_path = crate::env_compat::var_os("RUSTLING_BASE_PATH")
             .filter(|value| !value.is_empty())
             .map_or_else(|| PathBuf::from("."), PathBuf::from);
         let mut config = Self::from_files(
@@ -467,21 +467,21 @@ impl RuntimeConfig {
     #[must_use]
     pub fn ai_engine_settings(&self) -> (bool, String, u64) {
         let enabled = env_bool("AIENGINE_ENABLED")
-            .or_else(|| env_bool("STIRLING_AI_ENGINE_ENABLED"))
+            .or_else(|| env_bool("RUSTLING_AI_ENGINE_ENABLED"))
             .or_else(|| value_at(&self.settings, &["aiEngine", "enabled"]).and_then(yaml_bool))
             .unwrap_or(false);
-        let url = env::var("AIENGINE_URL")
+        let url = crate::env_compat::var("AIENGINE_URL")
             .ok()
-            .or_else(|| env::var("STIRLING_AI_ENGINE_URL").ok())
+            .or_else(|| crate::env_compat::var("RUSTLING_AI_ENGINE_URL").ok())
             .or_else(|| {
                 value_at(&self.settings, &["aiEngine", "url"])
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
             })
             .unwrap_or_else(|| "http://localhost:5001".to_owned());
-        let timeout_seconds = env::var("AIENGINE_TIMEOUTSECONDS")
+        let timeout_seconds = crate::env_compat::var("AIENGINE_TIMEOUTSECONDS")
             .ok()
-            .or_else(|| env::var("AIENGINE_TIMEOUT_SECONDS").ok())
+            .or_else(|| crate::env_compat::var("AIENGINE_TIMEOUT_SECONDS").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 value_at(&self.settings, &["aiEngine", "timeoutSeconds"]).and_then(Value::as_u64)
@@ -493,9 +493,9 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn ai_engine_long_running_timeout(&self) -> Duration {
-        let seconds = env::var("AIENGINE_LONGRUNNINGTIMEOUTSECONDS")
+        let seconds = crate::env_compat::var("AIENGINE_LONGRUNNINGTIMEOUTSECONDS")
             .ok()
-            .or_else(|| env::var("AIENGINE_LONG_RUNNING_TIMEOUT_SECONDS").ok())
+            .or_else(|| crate::env_compat::var("AIENGINE_LONG_RUNNING_TIMEOUT_SECONDS").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 value_at(&self.settings, &["aiEngine", "longRunningTimeoutSeconds"])
@@ -610,9 +610,9 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn ai_workflow_stream_timeout(&self) -> Duration {
-        let milliseconds = env::var("STIRLING_AI_STREAMTIMEOUTMS")
+        let milliseconds = crate::env_compat::var("RUSTLING_AI_STREAMTIMEOUTMS")
             .ok()
-            .or_else(|| env::var("STIRLING_AI_STREAM_TIMEOUT_MS").ok())
+            .or_else(|| crate::env_compat::var("RUSTLING_AI_STREAM_TIMEOUT_MS").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 value_at(&self.settings, &["stirling", "ai", "streamTimeoutMs"])
@@ -625,9 +625,9 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn ai_workflow_document_ttl(&self) -> Duration {
-        let minutes = env::var("SECURITY_JWT_TOKENEXPIRYMINUTES")
+        let minutes = crate::env_compat::var("SECURITY_JWT_TOKENEXPIRYMINUTES")
             .ok()
-            .or_else(|| env::var("SECURITY_JWT_TOKEN_EXPIRY_MINUTES").ok())
+            .or_else(|| crate::env_compat::var("SECURITY_JWT_TOKEN_EXPIRY_MINUTES").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 value_at(&self.settings, &["security", "jwt", "tokenExpiryMinutes"])
@@ -641,7 +641,7 @@ impl RuntimeConfig {
     /// Resolves the complete Java-compatible `mcp.*` tree.
     #[must_use]
     pub(crate) fn mcp_config(&self) -> McpConfig {
-        self.mcp_config_with_environment(|name| env::var(name).ok())
+        self.mcp_config_with_environment(|name| crate::env_compat::var(name).ok())
     }
 
     fn mcp_config_with_environment(
@@ -748,21 +748,21 @@ impl RuntimeConfig {
         let queue_capacity = self
             .u64(
                 &["stirling", "job", "queue", "baseCapacity"],
-                "STIRLING_JOB_QUEUE_BASE_CAPACITY",
+                "RUSTLING_JOB_QUEUE_BASE_CAPACITY",
                 10,
             )
             .clamp(1, 10_000) as usize;
         let resource_budget = self
             .u64(
                 &["stirling", "job", "queue", "resourceBudget"],
-                "STIRLING_JOB_QUEUE_RESOURCE_BUDGET",
+                "RUSTLING_JOB_QUEUE_RESOURCE_BUDGET",
                 10,
             )
             .clamp(1, 1_000) as u32;
         let max_wait_millis = self
             .u64(
                 &["stirling", "job", "queue", "maxWaitTimeMs"],
-                "STIRLING_JOB_QUEUE_MAX_WAIT_TIME_MS",
+                "RUSTLING_JOB_QUEUE_MAX_WAIT_TIME_MS",
                 600_000,
             )
             .clamp(1_000, 86_400_000);
@@ -777,7 +777,7 @@ impl RuntimeConfig {
         let minutes = self
             .u64(
                 &["stirling", "jobResultExpiryMinutes"],
-                "STIRLING_JOB_RESULT_EXPIRY_MINUTES",
+                "RUSTLING_JOB_RESULT_EXPIRY_MINUTES",
                 30,
             )
             .clamp(1, 7 * 24 * 60);
@@ -866,7 +866,7 @@ impl RuntimeConfig {
             "SECURITY_ENABLE_LOGIN",
         ]
         .map(|variable| {
-            let value = match env::var(variable) {
+            let value = match crate::env_compat::var(variable) {
                 Ok(value) => Ok(Some(value)),
                 Err(env::VarError::NotPresent) => Ok(None),
                 Err(env::VarError::NotUnicode(_)) => Err(variable),
@@ -942,7 +942,7 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn policies_allowed_folder_roots(&self) -> Vec<PathBuf> {
-        env::var("POLICIES_ALLOWED_FOLDER_ROOTS")
+        crate::env_compat::var("POLICIES_ALLOWED_FOLDER_ROOTS")
             .ok()
             .map_or_else(
                 || {
@@ -1023,9 +1023,9 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn security_portal_default_access(&self) -> String {
-        env::var("SECURITY_PORTAL_DEFAULT_ACCESS")
+        crate::env_compat::var("SECURITY_PORTAL_DEFAULT_ACCESS")
             .ok()
-            .or_else(|| env::var("SECURITY_PORTAL_DEFAULTACCESS").ok())
+            .or_else(|| crate::env_compat::var("SECURITY_PORTAL_DEFAULTACCESS").ok())
             .unwrap_or_else(|| {
                 self.string(
                     &["security", "portal", "defaultAccess"],
@@ -1044,7 +1044,7 @@ impl RuntimeConfig {
     pub(crate) fn classification_database_path(&self) -> PathBuf {
         let configured = self.string(
             &["policies", "databasePath"],
-            "STIRLING_CLASSIFICATION_DATABASE_PATH",
+            "RUSTLING_CLASSIFICATION_DATABASE_PATH",
             "",
         );
         resolve_configured_path(&self.security_bootstrap_config().database_path, &configured)
@@ -1056,7 +1056,7 @@ impl RuntimeConfig {
     #[must_use]
     pub fn security_bootstrap_config(&self) -> SecurityBootstrapConfig {
         let installation_path = installation_path(&self.settings_path);
-        let configured_database = env::var("STIRLING_SECURITY_DATABASE_PATH")
+        let configured_database = crate::env_compat::var("RUSTLING_SECURITY_DATABASE_PATH")
             .ok()
             .or_else(|| {
                 value_at(&self.settings, &["security", "databasePath"])
@@ -1070,7 +1070,7 @@ impl RuntimeConfig {
         );
         let configured_key_path = self.string(
             &["security", "credentialEncryptionKeyPath"],
-            "STIRLING_CREDENTIAL_ENCRYPTION_KEY_PATH",
+            "RUSTLING_CREDENTIAL_ENCRYPTION_KEY_PATH",
             "",
         );
         let credential_encryption_key_path = resolve_configured_path(
@@ -1081,7 +1081,7 @@ impl RuntimeConfig {
         );
         let configured_key = self.string(
             &["security", "credentialEncryptionKey"],
-            "STIRLING_CREDENTIAL_ENCRYPTION_KEY",
+            "RUSTLING_CREDENTIAL_ENCRYPTION_KEY",
             "",
         );
         let credential_encryption_key = (!configured_key.trim().is_empty())
@@ -1232,7 +1232,7 @@ impl RuntimeConfig {
     /// temporary `enterpriseEdition` migration fallback.
     #[must_use]
     pub(crate) fn license_config(&self) -> LicenseConfig {
-        self.license_config_with_environment(|name| env::var(name).ok())
+        self.license_config_with_environment(|name| crate::env_compat::var(name).ok())
     }
 
     fn license_config_with_environment(
@@ -1299,12 +1299,12 @@ impl RuntimeConfig {
     /// rejected later by the verifier rather than silently ignored.
     #[must_use]
     pub fn security_supabase_jwt_config(&self) -> Option<SupabaseJwtConfig> {
-        let project_ref = env::var("SAAS_DB_PROJECT_REF").unwrap_or_default();
+        let project_ref = crate::env_compat::var("SAAS_DB_PROJECT_REF").unwrap_or_default();
         let default_issuer = (!project_ref.trim().is_empty())
             .then(|| format!("https://{}.supabase.co/auth/v1", project_ref.trim()));
-        let issuer = env::var("STIRLING_SUPABASE_ISSUER")
+        let issuer = crate::env_compat::var("RUSTLING_SUPABASE_ISSUER")
             .ok()
-            .or_else(|| env::var("APP_SUPABASE_ISSUER").ok())
+            .or_else(|| crate::env_compat::var("APP_SUPABASE_ISSUER").ok())
             .or_else(|| {
                 value_at(&self.settings, &["app", "supabase", "issuer"])
                     .and_then(Value::as_str)
@@ -1314,16 +1314,16 @@ impl RuntimeConfig {
         if issuer.trim().is_empty() {
             return None;
         }
-        let expected_audience = env::var("STIRLING_SUPABASE_EXPECTED_AUD")
+        let expected_audience = crate::env_compat::var("RUSTLING_SUPABASE_EXPECTED_AUD")
             .ok()
-            .or_else(|| env::var("APP_SUPABASE_EXPECTED_AUD").ok())
+            .or_else(|| crate::env_compat::var("APP_SUPABASE_EXPECTED_AUD").ok())
             .or_else(|| {
                 value_at(&self.settings, &["app", "supabase", "expectedAud"])
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
             })
             .or_else(|| Some("authenticated".to_owned()));
-        let clock_skew_seconds = env::var("STIRLING_SUPABASE_CLOCK_SKEW_SECONDS")
+        let clock_skew_seconds = crate::env_compat::var("RUSTLING_SUPABASE_CLOCK_SKEW_SECONDS")
             .ok()
             .and_then(|value| value.parse().ok())
             .or_else(|| {
@@ -1331,7 +1331,7 @@ impl RuntimeConfig {
                     .and_then(Value::as_u64)
             })
             .unwrap_or(120);
-        let jwks_cache_seconds = env::var("STIRLING_SUPABASE_JWKS_CACHE_SECONDS")
+        let jwks_cache_seconds = crate::env_compat::var("RUSTLING_SUPABASE_JWKS_CACHE_SECONDS")
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(300);
@@ -1562,7 +1562,7 @@ impl RuntimeConfig {
         if !configured.trim().is_empty() {
             return PathBuf::from(configured);
         }
-        env::var_os("TESSDATA_PREFIX")
+        crate::env_compat::var_os("TESSDATA_PREFIX")
             .filter(|value| !value.is_empty())
             .map_or_else(
                 || PathBuf::from("/usr/share/tesseract-ocr/5/tessdata"),
@@ -1805,14 +1805,14 @@ impl RuntimeConfig {
     }
 
     /// Returns the built SPA `dist/` directory to serve from the binary, when
-    /// single-binary UI serving is enabled via `STIRLING_FRONTEND_DIST` (env)
+    /// single-binary UI serving is enabled via `RUSTLING_FRONTEND_DIST` (env)
     /// or `system.frontendDist` (settings). Upstream has no equivalent
     /// property: the Java build bakes the dist onto the servlet classpath, so
     /// this key is owned by the Rust runtime. Unset means SPA serving stays
     /// fully disabled (the Vite dev-proxy workflow).
     #[must_use]
     pub fn frontend_dist_dir(&self) -> Option<PathBuf> {
-        let configured = self.string(&["system", "frontendDist"], "STIRLING_FRONTEND_DIST", "");
+        let configured = self.string(&["system", "frontendDist"], "RUSTLING_FRONTEND_DIST", "");
         let trimmed = configured.trim();
         (!trimmed.is_empty()).then(|| PathBuf::from(trimmed))
     }
@@ -1905,7 +1905,7 @@ impl RuntimeConfig {
     }
 
     fn generated_setting(&self, field: &str, environment: &str) -> String {
-        env::var(environment)
+        crate::env_compat::var(environment)
             .ok()
             .filter(|value| !value.trim().is_empty())
             .or_else(|| {
@@ -1938,7 +1938,7 @@ impl RuntimeConfig {
         insert(
             config,
             "serverPort",
-            Self::usize("STIRLING_PROCESSING_PORT", 8081),
+            Self::usize("RUSTLING_PROCESSING_PORT", 8081),
         );
         insert(
             config,
@@ -2343,7 +2343,7 @@ impl RuntimeConfig {
 
     fn url_to_pdf_is_enabled(&self, endpoint: &str) -> bool {
         endpoint != "url-to-pdf"
-            || env_bool("STIRLING_PROCESSING_ENABLE_URL_TO_PDF")
+            || env_bool("RUSTLING_PROCESSING_ENABLE_URL_TO_PDF")
                 .or_else(|| env_bool("SYSTEM_ENABLE_URL_TO_PDF"))
                 .unwrap_or_else(|| {
                     self.boolean(
@@ -2364,7 +2364,7 @@ impl RuntimeConfig {
 
     /// `force_login_disabled` carries the desktop launcher's login override
     /// (see [`disable_login_setting`]); [`Self::from_paths`] derives it from
-    /// `STIRLING_PDF_TAURI_MODE`, and taking it as a parameter keeps the
+    /// `RUSTLING_PDF_TAURI_MODE`, and taking it as a parameter keeps the
     /// override unit-testable without mutating process environment.
     fn from_paths_with_desktop_login_override(
         settings_path: PathBuf,
@@ -2437,8 +2437,8 @@ impl RuntimeConfig {
             }
         }
 
-        env::var("LEGAL_LOGINAGREEMENT_FALLBACKTEXT")
-            .or_else(|_| env::var("LEGAL_LOGIN_AGREEMENT_FALLBACK_TEXT"))
+        crate::env_compat::var("LEGAL_LOGINAGREEMENT_FALLBACKTEXT")
+            .or_else(|_| crate::env_compat::var("LEGAL_LOGIN_AGREEMENT_FALLBACK_TEXT"))
             .ok()
             .or_else(|| {
                 value_at(&self.settings, &["legal", "loginAgreement", "fallbackText"])
@@ -2493,7 +2493,7 @@ impl RuntimeConfig {
     }
 
     fn string(&self, path: &[&str], environment: &str, default: &str) -> String {
-        env::var(environment)
+        crate::env_compat::var(environment)
             .ok()
             .or_else(|| {
                 value_at(&self.settings, path)
@@ -2504,7 +2504,7 @@ impl RuntimeConfig {
     }
 
     fn strings(&self, path: &[&str], environment: &str) -> Vec<String> {
-        if let Ok(value) = env::var(environment) {
+        if let Ok(value) = crate::env_compat::var(environment) {
             return split_strings(&value);
         }
         value_at(&self.settings, path)
@@ -2520,7 +2520,7 @@ impl RuntimeConfig {
     }
 
     fn u64(&self, path: &[&str], environment: &str, default: u64) -> u64 {
-        env::var(environment)
+        crate::env_compat::var(environment)
             .ok()
             .and_then(|value| value.parse().ok())
             .or_else(|| value_at(&self.settings, path).and_then(Value::as_u64))
@@ -2528,7 +2528,7 @@ impl RuntimeConfig {
     }
 
     fn signed_integer(&self, path: &[&str], environment: &str, default: i64) -> i64 {
-        env::var(environment)
+        crate::env_compat::var(environment)
             .ok()
             .and_then(|value| value.parse().ok())
             .or_else(|| value_at(&self.settings, path).and_then(Value::as_i64))
@@ -2536,7 +2536,7 @@ impl RuntimeConfig {
     }
 
     fn usize(environment: &str, default: usize) -> usize {
-        env::var(environment)
+        crate::env_compat::var(environment)
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(default)
@@ -2882,10 +2882,11 @@ pub(crate) fn is_valid_locale(locale: &str) -> bool {
 }
 
 /// Whether this process is the native desktop (Tauri) sidecar, signalled by
-/// the launcher through `STIRLING_PDF_TAURI_MODE=true` (Java reads the same
+/// the launcher through `RUSTLING_PDF_TAURI_MODE=true` (Java reads the same
 /// flag with `Boolean.parseBoolean`).
 fn desktop_mode_from_environment() -> bool {
-    env::var("STIRLING_PDF_TAURI_MODE").is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
+    crate::env_compat::var("RUSTLING_PDF_TAURI_MODE")
+        .is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
 }
 
 /// Java desktop parity: the Tauri launcher always passes
@@ -2930,7 +2931,9 @@ fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
 }
 
 fn env_bool(name: &str) -> Option<bool> {
-    env::var(name).ok().and_then(|value| parse_boolean(&value))
+    crate::env_compat::var(name)
+        .ok()
+        .and_then(|value| parse_boolean(&value))
 }
 
 /// Parses a configuration boolean with Spring's relaxed vocabulary.

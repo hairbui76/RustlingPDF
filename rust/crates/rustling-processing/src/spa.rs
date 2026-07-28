@@ -1,7 +1,7 @@
 //! Single-binary SPA serving.
 //!
 //! Rust port of the Java `ReactRoutingController` + `WebMvcConfig` static
-//! resource pipeline. When `STIRLING_FRONTEND_DIST` (or `system.frontendDist`
+//! resource pipeline. When `RUSTLING_FRONTEND_DIST` (or `system.frontendDist`
 //! in settings) names a built Vite `dist/` directory, the binary serves the
 //! React SPA itself: `/` and `/index.html` return the (transformed) index
 //! page, client-route paths fall back to the index without shadowing `/api/**`
@@ -124,7 +124,7 @@ impl SpaServing {
         let dist_root = config.frontend_dist_dir()?;
         let external_static = config.custom_static_dir();
         // Same switch the Java side reads as a system property.
-        let tauri_mode = std::env::var("STIRLING_PDF_TAURI_MODE")
+        let tauri_mode = crate::env_compat::var("RUSTLING_PDF_TAURI_MODE")
             .is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"));
         Some(Self::new(dist_root, &external_static, tauri_mode))
     }
@@ -372,7 +372,7 @@ fn transform_index_html(raw: &str) -> String {
     html = rewrite_base_href(&html);
     html.replace(
         "</head>",
-        "<script>window.STIRLING_PDF_API_BASE_URL = '/';</script></head>",
+        "<script>window.RUSTLING_PDF_API_BASE_URL = '/';</script></head>",
     )
 }
 
@@ -665,7 +665,7 @@ mod tests {
         assert!(transformed.contains("<base href=\"/\" />"));
         assert!(!transformed.contains("%BASE_URL%"));
         assert!(
-            transformed.contains("<script>window.STIRLING_PDF_API_BASE_URL = '/';</script></head>")
+            transformed.contains("<script>window.RUSTLING_PDF_API_BASE_URL = '/';</script></head>")
         );
         // A Vite-baked relative base is rewritten too.
         let baked = rewrite_base_href("<base href=\"./\">rest");

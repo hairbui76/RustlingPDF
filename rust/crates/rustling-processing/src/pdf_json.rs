@@ -50,7 +50,7 @@ const MAX_PREDEFINED_CMAP_DEPTH: usize = 8;
 const MAX_PREDEFINED_CMAP_FILES: usize = 8;
 const MAX_PREDEFINED_CMAP_USECMAP_NAMES: usize = 8;
 const MAX_PREDEFINED_CMAP_CACHE_ENTRIES: usize = 8;
-const PREDEFINED_CMAP_PATH_ENV: &str = "STIRLING_PROCESSING_CMAP_PATH";
+const PREDEFINED_CMAP_PATH_ENV: &str = "RUSTLING_PROCESSING_CMAP_PATH";
 const DEFAULT_PREDEFINED_CMAP_ROOTS: &[&str] =
     &["/usr/share/poppler/cMap", "/usr/local/share/poppler/cMap"];
 const MAX_TYPE3_GLYPHS: usize = 256;
@@ -7004,7 +7004,7 @@ fn type0_cmap_collection(document: &Document, font: &Dictionary) -> Option<Strin
 }
 
 fn predefined_cmap_roots() -> Vec<PathBuf> {
-    let mut roots = env::var_os(PREDEFINED_CMAP_PATH_ENV)
+    let mut roots = crate::env_compat::var_os(PREDEFINED_CMAP_PATH_ENV)
         .map(|value| env::split_paths(&value).collect::<Vec<_>>())
         .unwrap_or_default();
     for root in DEFAULT_PREDEFINED_CMAP_ROOTS {

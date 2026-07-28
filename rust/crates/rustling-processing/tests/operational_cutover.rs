@@ -9,7 +9,7 @@ fn rust_binary_fails_closed_when_login_mode_is_requested() -> Result<(), Box<dyn
         let working_directory = tempfile::tempdir()?;
         let output = Command::new(env!("CARGO_BIN_EXE_rustling-processing"))
             .current_dir(working_directory.path())
-            .env("STIRLING_PORT", "0")
+            .env("RUSTLING_PORT", "0")
             .env("SECURITY_ENABLELOGIN", requested)
             .env_remove("SECURITY_ENABLE_LOGIN")
             .env_remove("DOCKER_ENABLE_SECURITY")
@@ -31,7 +31,7 @@ fn rust_binary_fails_closed_when_login_mode_is_requested() -> Result<(), Box<dyn
         let working_directory = tempfile::tempdir()?;
         let output = Command::new(env!("CARGO_BIN_EXE_rustling-processing"))
             .current_dir(working_directory.path())
-            .env("STIRLING_PORT", "0")
+            .env("RUSTLING_PORT", "0")
             .env("SECURITY_ENABLELOGIN", malformed)
             .env_remove("SECURITY_ENABLE_LOGIN")
             .env_remove("DOCKER_ENABLE_SECURITY")

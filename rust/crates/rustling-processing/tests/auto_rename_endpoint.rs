@@ -39,7 +39,7 @@ async fn preserves_the_uploaded_name_when_no_title_is_found()
 
 #[tokio::test]
 async fn native_pdfium_selects_the_largest_font_line() -> Result<(), Box<dyn std::error::Error>> {
-    if std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_none() {
+    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
         return Ok(());
     }
     let response = require_status(

@@ -171,7 +171,7 @@ async fn rejects_invalid_options_and_a_missing_file() -> Result<(), Box<dyn std:
 }
 
 fn native_pdfium_available() -> bool {
-    std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 async fn response_bytes(response: Response) -> Result<Vec<u8>, Box<dyn std::error::Error>> {

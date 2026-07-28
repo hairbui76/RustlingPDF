@@ -5,7 +5,6 @@
 //! installed `ffmpeg` executable and never invokes a shell.
 
 use std::{
-    env,
     ffi::OsString,
     fs::{self, File},
     io::{self, ErrorKind, copy},
@@ -28,7 +27,7 @@ use crate::{
     pdf_to_image::{PdfToImageError, PdfToImageOptions, PdfToImageOutput, convert_pdf_to_images},
 };
 
-const FFMPEG_COMMAND_ENV: &str = "STIRLING_PROCESSING_FFMPEG_COMMAND";
+const FFMPEG_COMMAND_ENV: &str = "RUSTLING_PROCESSING_FFMPEG_COMMAND";
 const MAX_VIDEO_FRAMES: usize = 10_000;
 const MAX_WATERMARK_CHARACTERS: usize = 4_096;
 const MAX_WATERMARK_PIXELS: u64 = 32 * 1024 * 1024;
@@ -428,7 +427,7 @@ fn resolution_filter(resolution: &str) -> &'static str {
 }
 
 fn ffmpeg_commands() -> FfmpegCommands {
-    if let Ok(command) = env::var(FFMPEG_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(FFMPEG_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return FfmpegCommands {

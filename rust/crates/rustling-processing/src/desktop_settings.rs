@@ -21,7 +21,7 @@
 
 use std::{
     collections::HashMap,
-    env, fs, io,
+    fs, io,
     io::Write as _,
     path::{Path, PathBuf},
 };
@@ -32,17 +32,21 @@ use chrono::Utc;
 // `main.rs`), so the shared editor is reached through the library crate.
 use rustling_processing::settings_yaml;
 
-const TAURI_MODE_VARIABLE: &str = "STIRLING_PDF_TAURI_MODE";
-const BASE_PATH_VARIABLE: &str = "STIRLING_BASE_PATH";
+const TAURI_MODE_VARIABLE: &str = "RUSTLING_PDF_TAURI_MODE";
+const BASE_PATH_VARIABLE: &str = "RUSTLING_BASE_PATH";
 const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template");
 /// Matches Java's `ConfigInitializer.MIN_SETTINGS_FILE_LINES`.
 const MIN_SETTINGS_FILE_LINES: usize = 31;
 
 pub(crate) fn initialize_from_environment() -> Result<(), io::Error> {
-    if !tauri_mode_enabled(env::var(TAURI_MODE_VARIABLE).ok().as_deref()) {
+    if !tauri_mode_enabled(
+        rustling_processing::env_compat::var(TAURI_MODE_VARIABLE)
+            .ok()
+            .as_deref(),
+    ) {
         return Ok(());
     }
-    let base_path = env::var_os(BASE_PATH_VARIABLE)
+    let base_path = rustling_processing::env_compat::var_os(BASE_PATH_VARIABLE)
         .filter(|value| !value.is_empty())
         .map_or_else(|| PathBuf::from("."), PathBuf::from);
     initialize_missing_files(&base_path)

@@ -73,7 +73,7 @@ async fn auto_crop_detects_rendered_content_when_pdfium_is_available()
     if response.status() == StatusCode::NOT_IMPLEMENTED {
         let body = to_bytes(response.into_body(), usize::MAX).await?;
         assert!(String::from_utf8_lossy(&body).contains("PDFium"));
-        if std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_some() {
+        if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
             return Err(std::io::Error::other(
                 "configured PDFium runtime did not execute auto-crop",
             )

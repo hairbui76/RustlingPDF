@@ -12,7 +12,7 @@ pub(crate) struct ParentProcessWatcher {
 
 impl ParentProcessWatcher {
     pub(crate) fn from_environment() -> Result<Option<Self>, io::Error> {
-        let value = match env::var(PARENT_PROCESS_ID_VARIABLE) {
+        let value = match rustling_processing::env_compat::var(PARENT_PROCESS_ID_VARIABLE) {
             Ok(value) => value,
             Err(env::VarError::NotPresent) => return Ok(None),
             Err(env::VarError::NotUnicode(_)) => {

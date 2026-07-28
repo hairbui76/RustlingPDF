@@ -6,8 +6,8 @@ use axum::{
     response::Response,
 };
 use lopdf::{Document, Object, dictionary};
-use serde_json::{Value, json};
 use rustling_processing::app;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 use zip::ZipArchive;
 
@@ -374,7 +374,7 @@ async fn validates_fill_json_and_optionally_flattens_with_pdfium()
         ],
     )
     .await?;
-    if std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_some() {
+    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
         let response = require_status(response, StatusCode::OK).await?;
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let document = Document::load_mem(&bytes)?;

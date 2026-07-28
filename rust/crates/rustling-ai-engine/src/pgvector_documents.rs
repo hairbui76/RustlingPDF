@@ -41,7 +41,7 @@ impl PgVectorDocumentStore {
     ) -> Result<Self, DocumentError> {
         if dsn.trim().is_empty() {
             return Err(DocumentError::InvalidRequest(
-                "pgvector backend requires STIRLING_DOCUMENTS_PGVECTOR_DSN".to_owned(),
+                "pgvector backend requires RUSTLING_DOCUMENTS_PGVECTOR_DSN".to_owned(),
             ));
         }
         if pool_min_size == 0 || pool_max_size == 0 || pool_min_size > pool_max_size {
@@ -501,7 +501,7 @@ mod tests {
 
     #[tokio::test]
     async fn optional_pgvector_lifecycle_is_acl_scoped() -> Result<(), Box<dyn std::error::Error>> {
-        let Ok(dsn) = std::env::var("STIRLING_TEST_PGVECTOR_DSN") else {
+        let Ok(dsn) = crate::env_compat::var("RUSTLING_TEST_PGVECTOR_DSN") else {
             return Ok(());
         };
         let store = PgVectorDocumentStore::new(&dsn, 1, 4, 32, 4)?;

@@ -2,8 +2,8 @@ use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode, header},
 };
-use serde_json::Value;
 use rustling_processing::app;
+use serde_json::Value;
 use tower::ServiceExt;
 
 #[tokio::test]

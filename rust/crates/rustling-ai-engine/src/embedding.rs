@@ -1,6 +1,6 @@
 //! Provider-neutral embedding client for document indexing and retrieval.
 
-use std::{env, fmt, time::Duration};
+use std::{fmt, time::Duration};
 
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
@@ -48,7 +48,7 @@ pub struct EmbeddingClient {
 }
 
 impl EmbeddingClient {
-    /// Builds the adapter from `STIRLING_RAG_EMBEDDING_MODEL` provider syntax.
+    /// Builds the adapter from `RUSTLING_RAG_EMBEDDING_MODEL` provider syntax.
     ///
     /// # Errors
     ///
@@ -59,19 +59,19 @@ impl EmbeddingClient {
             return Self::new(EmbeddingProvider::Test, "test", None, "http://localhost");
         }
         if let Some(model) = model_name.strip_prefix("voyageai:") {
-            let api_key = env::var("VOYAGE_API_KEY")
+            let api_key = crate::env_compat::var("VOYAGE_API_KEY")
                 .map_err(|_| EmbeddingError::new("VOYAGE_API_KEY is not configured"))?;
-            let endpoint = env::var("VOYAGE_BASE_URL").map_or_else(
+            let endpoint = crate::env_compat::var("VOYAGE_BASE_URL").map_or_else(
                 |_| DEFAULT_VOYAGE_ENDPOINT.to_owned(),
                 |base_url| voyage_endpoint(&base_url),
             );
             return Self::new(EmbeddingProvider::Voyage, model, Some(api_key), &endpoint);
         }
         if let Some(model) = model_name.strip_prefix("openai:") {
-            let api_key = env::var("OPENAI_API_KEY")
+            let api_key = crate::env_compat::var("OPENAI_API_KEY")
                 .map_err(|_| EmbeddingError::new("OPENAI_API_KEY is not configured"))?;
-            let base_url =
-                env::var("OPENAI_BASE_URL").unwrap_or_else(|_| DEFAULT_OPENAI_BASE_URL.to_owned());
+            let base_url = crate::env_compat::var("OPENAI_BASE_URL")
+                .unwrap_or_else(|_| DEFAULT_OPENAI_BASE_URL.to_owned());
             return Self::new(
                 EmbeddingProvider::OpenAi,
                 model,
@@ -80,8 +80,8 @@ impl EmbeddingClient {
             );
         }
         if let Some(model) = model_name.strip_prefix("ollama:") {
-            let base_url =
-                env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| DEFAULT_OLLAMA_BASE_URL.to_owned());
+            let base_url = crate::env_compat::var("OLLAMA_BASE_URL")
+                .unwrap_or_else(|_| DEFAULT_OLLAMA_BASE_URL.to_owned());
             return Self::new(
                 EmbeddingProvider::Ollama,
                 model,
@@ -90,7 +90,7 @@ impl EmbeddingClient {
             );
         }
         Err(EmbeddingError::new(
-            "STIRLING_RAG_EMBEDDING_MODEL must use voyageai:, openai:, or ollama:",
+            "RUSTLING_RAG_EMBEDDING_MODEL must use voyageai:, openai:, or ollama:",
         ))
     }
 
@@ -118,12 +118,12 @@ impl EmbeddingClient {
             "voyageai" => {
                 let api_key = match pushed_key {
                     Some(api_key) => api_key.to_owned(),
-                    None => env::var("VOYAGE_API_KEY")
+                    None => crate::env_compat::var("VOYAGE_API_KEY")
                         .map_err(|_| EmbeddingError::new("VOYAGE_API_KEY is not configured"))?,
                 };
                 let endpoint = pushed_base.map_or_else(
                     || {
-                        env::var("VOYAGE_BASE_URL").map_or_else(
+                        crate::env_compat::var("VOYAGE_BASE_URL").map_or_else(
                             |_| DEFAULT_VOYAGE_ENDPOINT.to_owned(),
                             |base_url| voyage_endpoint(&base_url),
                         )
@@ -135,12 +135,12 @@ impl EmbeddingClient {
             "openai" => {
                 let api_key = match pushed_key {
                     Some(api_key) => api_key.to_owned(),
-                    None => env::var("OPENAI_API_KEY")
+                    None => crate::env_compat::var("OPENAI_API_KEY")
                         .map_err(|_| EmbeddingError::new("OPENAI_API_KEY is not configured"))?,
                 };
                 let base_url = pushed_base.map_or_else(
                     || {
-                        env::var("OPENAI_BASE_URL")
+                        crate::env_compat::var("OPENAI_BASE_URL")
                             .unwrap_or_else(|_| DEFAULT_OPENAI_BASE_URL.to_owned())
                     },
                     str::to_owned,
@@ -155,7 +155,7 @@ impl EmbeddingClient {
             "custom" => {
                 let base_url = pushed_base.map_or_else(
                     || {
-                        env::var("OPENAI_BASE_URL")
+                        crate::env_compat::var("OPENAI_BASE_URL")
                             .unwrap_or_else(|_| DEFAULT_OPENAI_BASE_URL.to_owned())
                     },
                     str::to_owned,
@@ -170,7 +170,7 @@ impl EmbeddingClient {
             "ollama" => {
                 let base_url = pushed_base.map_or_else(
                     || {
-                        env::var("OLLAMA_BASE_URL")
+                        crate::env_compat::var("OLLAMA_BASE_URL")
                             .unwrap_or_else(|_| DEFAULT_OLLAMA_BASE_URL.to_owned())
                     },
                     str::to_owned,

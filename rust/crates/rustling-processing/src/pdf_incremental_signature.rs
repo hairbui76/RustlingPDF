@@ -866,7 +866,7 @@ amwXixTh3YlrdOneww==\n\
         cms: &[u8],
         signed_content: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
-        if std::env::var_os("STIRLING_VERIFY_OPENSSL").is_none() {
+        if crate::env_compat::var_os("RUSTLING_VERIFY_OPENSSL").is_none() {
             return Ok(());
         }
         let directory = tempfile::tempdir()?;

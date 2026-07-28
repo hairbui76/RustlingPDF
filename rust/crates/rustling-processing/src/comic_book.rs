@@ -1,6 +1,5 @@
 use std::{
     cmp::Ordering,
-    env,
     ffi::OsString,
     fs::{self, File},
     io::{self, ErrorKind, Read},
@@ -21,8 +20,8 @@ use crate::{
 
 const MAX_CBZ_ENTRIES: usize = 100_000;
 const MAX_CBZ_UNCOMPRESSED_BYTES: u64 = 2_000 * 1024 * 1024;
-const UNRAR_COMMAND_ENV: &str = "STIRLING_PROCESSING_UNRAR_COMMAND";
-const RAR_COMMAND_ENV: &str = "STIRLING_PROCESSING_RAR_COMMAND";
+const UNRAR_COMMAND_ENV: &str = "RUSTLING_PROCESSING_UNRAR_COMMAND";
+const RAR_COMMAND_ENV: &str = "RUSTLING_PROCESSING_RAR_COMMAND";
 
 #[derive(Debug, Error)]
 pub enum ComicBookError {
@@ -529,7 +528,7 @@ struct ExternalCommands {
 }
 
 fn cbr_extractor_commands() -> ExternalCommands {
-    if let Ok(command) = env::var(UNRAR_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(UNRAR_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return ExternalCommands {
@@ -554,7 +553,7 @@ fn cbr_extractor_commands() -> ExternalCommands {
 }
 
 fn rar_commands() -> ExternalCommands {
-    if let Ok(command) = env::var(RAR_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(RAR_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return ExternalCommands {

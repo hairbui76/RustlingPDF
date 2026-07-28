@@ -82,7 +82,7 @@ impl AiEngineConfigSync {
             runtime_config.ai_engine_push_settings(),
             base_url,
             Duration::from_secs(timeout_seconds),
-            std::env::var("STIRLING_ENGINE_SHARED_SECRET")
+            crate::env_compat::var("RUSTLING_ENGINE_SHARED_SECRET")
                 .ok()
                 .filter(|value| !value.trim().is_empty()),
             RETRY_DELAY,
@@ -207,7 +207,7 @@ async fn run_push_worker(mut receiver: mpsc::UnboundedReceiver<PushJob>, transpo
                         %error,
                         "AI engine config push failed; the engine keeps running its previous \
                          configuration. If the engine is not on localhost, set \
-                         STIRLING_ENGINE_SHARED_SECRET on both the engine and the processor \
+                         RUSTLING_ENGINE_SHARED_SECRET on both the engine and the processor \
                          so it accepts the push."
                     );
                     if attempt < job.attempts {

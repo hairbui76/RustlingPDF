@@ -96,7 +96,8 @@ async fn ocr_follows_available_tooling() -> Result<(), Box<dyn std::error::Error
 }
 
 fn tesseract_present() -> bool {
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_TESSERACT_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_TESSERACT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();
@@ -112,7 +113,8 @@ fn tesseract_present() -> bool {
 }
 
 fn ocrmypdf_present() -> bool {
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_OCRMYPDF_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_OCRMYPDF_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

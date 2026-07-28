@@ -183,7 +183,7 @@ async fn convert_to_image_uses_the_shared_native_rasterization_path()
         ],
     )
     .await?;
-    if std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_none() {
+    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
         assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
         return Ok(());
     }

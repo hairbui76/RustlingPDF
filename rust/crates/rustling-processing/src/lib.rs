@@ -8,6 +8,7 @@ mod classification;
 pub mod comic_book;
 pub mod ebook_to_pdf;
 pub mod eml_to_pdf;
+pub mod env_compat;
 pub mod extract_image_scans;
 mod ghostscript;
 pub mod hardware_signing;
@@ -149,7 +150,6 @@ mod workflow_signing_http;
 use std::{
     cmp::Reverse,
     collections::BTreeMap,
-    env,
     io::ErrorKind,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     num::NonZeroU32,
@@ -766,14 +766,14 @@ impl TimestampSettings {
         let default_tsa_url = timestamp_environment_value(&[
             "SECURITY_TIMESTAMP_DEFAULTTSAURL",
             "SECURITY_TIMESTAMP_DEFAULT_TSA_URL",
-            "STIRLING_SECURITY_TIMESTAMP_DEFAULT_TSA_URL",
+            "RUSTLING_SECURITY_TIMESTAMP_DEFAULT_TSA_URL",
         ])
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| Self::default().default_tsa_url);
         let custom_tsa_urls = timestamp_environment_value(&[
             "SECURITY_TIMESTAMP_CUSTOMTSAURLS",
             "SECURITY_TIMESTAMP_CUSTOM_TSA_URLS",
-            "STIRLING_SECURITY_TIMESTAMP_CUSTOM_TSA_URLS",
+            "RUSTLING_SECURITY_TIMESTAMP_CUSTOM_TSA_URLS",
         ])
         .map(|urls| {
             urls.split(',')
@@ -795,14 +795,14 @@ impl TimestampSettings {
         let default_tsa_url = timestamp_environment_value(&[
             "SECURITY_TIMESTAMP_DEFAULTTSAURL",
             "SECURITY_TIMESTAMP_DEFAULT_TSA_URL",
-            "STIRLING_SECURITY_TIMESTAMP_DEFAULT_TSA_URL",
+            "RUSTLING_SECURITY_TIMESTAMP_DEFAULT_TSA_URL",
         ])
         .filter(|value| !value.trim().is_empty())
         .unwrap_or(configured_default_tsa_url);
         let custom_tsa_urls = timestamp_environment_value(&[
             "SECURITY_TIMESTAMP_CUSTOMTSAURLS",
             "SECURITY_TIMESTAMP_CUSTOM_TSA_URLS",
-            "STIRLING_SECURITY_TIMESTAMP_CUSTOM_TSA_URLS",
+            "RUSTLING_SECURITY_TIMESTAMP_CUSTOM_TSA_URLS",
         ])
         .map_or(configured_custom_tsa_urls, |urls| {
             urls.split(',')
@@ -2631,22 +2631,22 @@ fn info_routes() -> Router {
 
 #[must_use]
 pub fn max_upload_bytes_from_environment() -> usize {
-    env::var("STIRLING_PROCESSING_MAX_UPLOAD_BYTES")
+    crate::env_compat::var("RUSTLING_PROCESSING_MAX_UPLOAD_BYTES")
         .ok()
         .and_then(|value| value.parse().ok())
         .filter(|value| *value > 0)
         .or_else(|| {
-            env::var("SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE")
+            crate::env_compat::var("SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE")
                 .ok()
                 .and_then(|value| parse_data_size(&value))
         })
         .or_else(|| {
-            env::var("SYSTEMFILEUPLOADLIMIT")
+            crate::env_compat::var("SYSTEMFILEUPLOADLIMIT")
                 .ok()
                 .and_then(|value| parse_data_size(&value))
         })
         .or_else(|| {
-            env::var("SYSTEM_MAXFILESIZE")
+            crate::env_compat::var("SYSTEM_MAXFILESIZE")
                 .ok()
                 .and_then(|value| value.trim().parse::<usize>().ok())
                 .filter(|megabytes| (1..=999).contains(megabytes))
@@ -2656,7 +2656,9 @@ pub fn max_upload_bytes_from_environment() -> usize {
 }
 
 fn timestamp_environment_value(names: &[&str]) -> Option<String> {
-    names.iter().find_map(|name| env::var(name).ok())
+    names
+        .iter()
+        .find_map(|name| crate::env_compat::var(name).ok())
 }
 
 fn parse_data_size(value: &str) -> Option<usize> {
@@ -4625,7 +4627,7 @@ async fn redact_pdf_manually(multipart: Multipart) -> Result<Response, ApiError>
             explicitly_configured: false,
         } => Err(ApiError::unsupported_at(
             REDACT_PATH,
-            "PDFium is unavailable; configure STIRLING_PDFIUM_LIBRARY_PATH to enable secure redaction",
+            "PDFium is unavailable; configure RUSTLING_PDFIUM_LIBRARY_PATH to enable secure redaction",
         )),
         PdfRedactionAttempt::Unavailable {
             explicitly_configured: true,
@@ -4671,7 +4673,7 @@ async fn auto_redact_pdf(multipart: Multipart) -> Result<Response, ApiError> {
             explicitly_configured: false,
         } => Err(ApiError::unsupported_at(
             AUTO_REDACT_PATH,
-            "PDFium is unavailable; configure STIRLING_PDFIUM_LIBRARY_PATH to enable secure redaction",
+            "PDFium is unavailable; configure RUSTLING_PDFIUM_LIBRARY_PATH to enable secure redaction",
         )),
         PdfRedactionAttempt::Unavailable {
             explicitly_configured: true,
@@ -4717,7 +4719,7 @@ async fn execute_redaction(multipart: Multipart) -> Result<Response, ApiError> {
             explicitly_configured: false,
         } => Err(ApiError::unsupported_at(
             REDACT_EXECUTE_PATH,
-            "PDFium is unavailable; configure STIRLING_PDFIUM_LIBRARY_PATH to enable secure redaction",
+            "PDFium is unavailable; configure RUSTLING_PDFIUM_LIBRARY_PATH to enable secure redaction",
         )),
         PdfRedactionAttempt::Unavailable {
             explicitly_configured: true,

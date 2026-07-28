@@ -36,7 +36,7 @@ use x509_certificate::{
 use x509_parser::parse_x509_certificate;
 use zeroize::Zeroizing;
 
-const PKCS11_LIBRARIES_ENV: &str = "STIRLING_PKCS11_LIBRARIES";
+const PKCS11_LIBRARIES_ENV: &str = "RUSTLING_PKCS11_LIBRARIES";
 type Pkcs11CertificateData = (Vec<u8>, Vec<u8>);
 
 static PKCS11_CONTEXTS: OnceLock<Mutex<HashMap<PathBuf, Arc<Pkcs11>>>> = OnceLock::new();
@@ -893,15 +893,15 @@ fn desktop_gate_satisfied(is_desktop: bool, peer_is_loopback: bool) -> bool {
 }
 
 fn is_desktop() -> bool {
-    env_bool("STIRLING_PDF_TAURI_MODE")
-        || env::var("STIRLING_MACHINE_TYPE")
+    env_bool("RUSTLING_PDF_TAURI_MODE")
+        || crate::env_compat::var("RUSTLING_MACHINE_TYPE")
             .is_ok_and(|machine_type| machine_type.starts_with("Client-"))
 }
 
 fn detect_pkcs11_libraries() -> Vec<Pkcs11LibraryInfo> {
     detect_libraries(
         default_library_candidates(),
-        configured_libraries(env::var_os(PKCS11_LIBRARIES_ENV).as_deref()),
+        configured_libraries(crate::env_compat::var_os(PKCS11_LIBRARIES_ENV).as_deref()),
     )
 }
 
@@ -1043,7 +1043,7 @@ fn same_file(left: &Path, right: &Path) -> bool {
 }
 
 fn env_bool(name: &str) -> bool {
-    env::var(name).is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
+    crate::env_compat::var(name).is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
 }
 
 fn certificate_info_from_der(
@@ -1210,7 +1210,7 @@ mod windows_store {
     const WINDOWS_SIGNING_SCRIPT: &str = r"
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Security
-$thumbprint = $env:STIRLING_WINDOWS_CERT_ALIAS
+$thumbprint = $env:RUSTLING_WINDOWS_CERT_ALIAS
 $store = New-Object System.Security.Cryptography.X509Certificates.X509Store('My', 'CurrentUser')
 $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
 try {
@@ -1294,7 +1294,7 @@ try {
                 "-Command",
                 WINDOWS_SIGNING_SCRIPT,
             ])
-            .env("STIRLING_WINDOWS_CERT_ALIAS", alias)
+            .env("RUSTLING_WINDOWS_CERT_ALIAS", alias)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

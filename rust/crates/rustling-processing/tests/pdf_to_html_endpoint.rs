@@ -50,7 +50,8 @@ async fn requires_a_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn pdftohtml_present() -> bool {
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_PDFTOHTML_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_PDFTOHTML_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("-v").output().is_ok();

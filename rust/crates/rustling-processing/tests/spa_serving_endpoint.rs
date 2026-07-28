@@ -148,7 +148,7 @@ async fn serves_transformed_index_at_root_and_index_html() -> Result<(), Box<dyn
         assert!(body.contains("<base href=\"/\" />"), "uri: {uri}");
         assert!(!body.contains("%BASE_URL%"), "uri: {uri}");
         assert!(
-            body.contains("window.STIRLING_PDF_API_BASE_URL = '/';"),
+            body.contains("window.RUSTLING_PDF_API_BASE_URL = '/';"),
             "uri: {uri}"
         );
     }
@@ -201,7 +201,7 @@ async fn tauri_auth_callback_serves_standalone_completion_page()
 async fn mobile_scanner_serves_index_outside_desktop_mode() -> Result<(), Box<dyn std::error::Error>>
 {
     // The desktop (Tauri-mode) variant is covered by unit tests in `src/spa.rs`
-    // because flipping STIRLING_PDF_TAURI_MODE in-process is not allowed here.
+    // because flipping RUSTLING_PDF_TAURI_MODE in-process is not allowed here.
     let dist = SyntheticDist::new()?;
     let response = get(dist.runtime_config()?, "/mobile-scanner").await?;
     assert_index_response(&response);
@@ -443,7 +443,7 @@ async fn missing_index_serves_the_fallback_page() -> Result<(), Box<dyn std::err
     assert_index_response(&response);
     let body = body_string(response).await?;
     assert!(body.contains("Stirling PDF is running."));
-    assert!(body.contains("window.STIRLING_PDF_API_BASE_URL"));
+    assert!(body.contains("window.RUSTLING_PDF_API_BASE_URL"));
     Ok(())
 }
 

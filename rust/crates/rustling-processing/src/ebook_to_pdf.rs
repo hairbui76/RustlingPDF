@@ -4,14 +4,14 @@
 //! e-reader optimization uses Ghostscript's `/ebook` settings when it is available;
 //! as in Java, an optimization failure returns Calibre's original PDF instead.
 
-use std::{env, ffi::OsString, fs, io::ErrorKind, path::Path, process::Command};
+use std::{ffi::OsString, fs, io::ErrorKind, path::Path, process::Command};
 
 use tempfile::TempDir;
 use thiserror::Error;
 
 use crate::ghostscript::{exit_status, ghostscript_commands};
 
-const EBOOK_CONVERT_COMMAND_ENV: &str = "STIRLING_PROCESSING_EBOOK_CONVERT_COMMAND";
+const EBOOK_CONVERT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND";
 const SUPPORTED_EXTENSIONS: &[&str] = &["epub", "mobi", "azw3", "fb2", "txt", "docx"];
 
 /// Rendering options accepted by Calibre's `ebook-convert` command.
@@ -179,7 +179,7 @@ fn optimize_with_ghostscript(input: &Path, output: &Path) -> Result<(), ()> {
 }
 
 fn ebook_convert_commands() -> EbookConvertCommands {
-    if let Ok(command) = env::var(EBOOK_CONVERT_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(EBOOK_CONVERT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return EbookConvertCommands {

@@ -33,9 +33,9 @@ Options:
   --pool-max-size NUMBER     Maximum pgvector connections
   -h, --help                 Print this help
 
-Defaults come from STIRLING_RAG_EMBEDDING_MODEL, STIRLING_RAG_CHUNK_SIZE,
-STIRLING_RAG_CHUNK_OVERLAP, STIRLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE, and
-STIRLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE, then fall back to engine defaults.
+Defaults come from RUSTLING_RAG_EMBEDDING_MODEL, RUSTLING_RAG_CHUNK_SIZE,
+RUSTLING_RAG_CHUNK_OVERLAP, RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE, and
+RUSTLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE, then fall back to engine defaults.
 ";
 
 #[derive(Debug)]
@@ -84,15 +84,15 @@ struct MigrationDefaults {
 impl MigrationDefaults {
     fn from_environment() -> Result<Self, MigrationCliError> {
         Ok(Self {
-            model: environment_string("STIRLING_RAG_EMBEDDING_MODEL", DEFAULT_MODEL)?,
-            chunk_size: environment_usize("STIRLING_RAG_CHUNK_SIZE", DEFAULT_CHUNK_SIZE)?,
-            chunk_overlap: environment_usize("STIRLING_RAG_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP)?,
+            model: environment_string("RUSTLING_RAG_EMBEDDING_MODEL", DEFAULT_MODEL)?,
+            chunk_size: environment_usize("RUSTLING_RAG_CHUNK_SIZE", DEFAULT_CHUNK_SIZE)?,
+            chunk_overlap: environment_usize("RUSTLING_RAG_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP)?,
             pool_min_size: environment_usize(
-                "STIRLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE",
+                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE",
                 DEFAULT_POOL_MIN_SIZE,
             )?,
             pool_max_size: environment_usize(
-                "STIRLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE",
+                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE",
                 DEFAULT_POOL_MAX_SIZE,
             )?,
         })
@@ -106,6 +106,7 @@ enum MigrationCommand {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    rustling_ai_engine::env_compat::warn_once_on_legacy_environment();
     let defaults = MigrationDefaults::from_environment()?;
     match parse_arguments(env::args_os().skip(1), defaults)? {
         MigrationCommand::Help => print!("{USAGE}"),
@@ -283,7 +284,7 @@ fn set_once<T>(slot: &mut Option<T>, value: T, flag: &str) -> Result<(), Migrati
 }
 
 fn environment_string(name: &str, default: &str) -> Result<String, MigrationCliError> {
-    match env::var(name) {
+    match rustling_ai_engine::env_compat::var(name) {
         Ok(value) => Ok(value),
         Err(env::VarError::NotPresent) => Ok(default.to_owned()),
         Err(env::VarError::NotUnicode(_)) => Err(MigrationCliError::new(format!(
@@ -293,7 +294,7 @@ fn environment_string(name: &str, default: &str) -> Result<String, MigrationCliE
 }
 
 fn environment_usize(name: &str, default: usize) -> Result<usize, MigrationCliError> {
-    match env::var(name) {
+    match rustling_ai_engine::env_compat::var(name) {
         Ok(value) => value.parse::<usize>().map_err(|error| {
             MigrationCliError::new(format!("{name} must be a non-negative integer: {error}"))
         }),

@@ -1,5 +1,4 @@
 use std::{
-    env,
     ffi::OsString,
     fs,
     io::{Cursor, ErrorKind},
@@ -16,7 +15,7 @@ use thiserror::Error;
 
 use crate::ghostscript::{exit_status, ghostscript_commands};
 
-const QPDF_COMMAND_ENV: &str = "STIRLING_PROCESSING_QPDF_COMMAND";
+const QPDF_COMMAND_ENV: &str = "RUSTLING_PROCESSING_QPDF_COMMAND";
 const MAX_IMAGE_BYTES: usize = 512 * 1024 * 1024;
 const MAX_IMAGE_PIXELS: u64 = 100_000_000;
 const MAX_JAVA_SIZE: f64 = 9_223_372_036_854_775_807.0;
@@ -152,7 +151,7 @@ pub fn compress_pdf_to_file(
             current_path = qpdf_path;
         } else if options.linearize || options.normalize {
             return Err(CompressError::QpdfUnavailable {
-                explicitly_configured: env::var_os(QPDF_COMMAND_ENV).is_some(),
+                explicitly_configured: crate::env_compat::var_os(QPDF_COMMAND_ENV).is_some(),
             });
         }
 
@@ -671,7 +670,7 @@ const fn qpdf_jpeg_quality(level: i32) -> i32 {
 }
 
 fn qpdf_commands() -> (Vec<String>, bool) {
-    if let Ok(command) = env::var(QPDF_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(QPDF_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return (vec![command], true);

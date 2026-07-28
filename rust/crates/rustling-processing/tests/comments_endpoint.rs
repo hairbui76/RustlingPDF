@@ -79,7 +79,7 @@ async fn rejects_missing_blank_and_invalid_comment_json() -> Result<(), Box<dyn 
 #[tokio::test]
 async fn native_pdfium_resolves_anchor_text_to_a_twenty_point_icon()
 -> Result<(), Box<dyn std::error::Error>> {
-    if std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_none() {
+    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
         return Ok(());
     }
     let comments = r#"[{"pageIndex":0,"x":1,"y":2,"width":3,"height":4,"text":"anchored","anchorText":"Anchor Text"}]"#;

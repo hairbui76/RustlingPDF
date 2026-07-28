@@ -5,7 +5,6 @@
 //! one-page PDFs that are merged back in source order.
 
 use std::{
-    env,
     ffi::OsString,
     fs::{self, File},
     io::{ErrorKind, Write},
@@ -29,8 +28,8 @@ use crate::{
     tessdata::available_tesseract_languages,
 };
 
-const OCRMYPDF_COMMAND_ENV: &str = "STIRLING_PROCESSING_OCRMYPDF_COMMAND";
-const TESSERACT_COMMAND_ENV: &str = "STIRLING_PROCESSING_TESSERACT_COMMAND";
+const OCRMYPDF_COMMAND_ENV: &str = "RUSTLING_PROCESSING_OCRMYPDF_COMMAND";
+const TESSERACT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_TESSERACT_COMMAND";
 
 #[derive(Debug, Clone)]
 #[allow(clippy::struct_excessive_bools)] // mirrors the OCRmyPDF request flags
@@ -569,7 +568,7 @@ fn write_sidecar_zip(
 }
 
 fn default_ocrmypdf_commands() -> Vec<String> {
-    if let Ok(command) = env::var(OCRMYPDF_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(OCRMYPDF_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];
@@ -582,7 +581,7 @@ fn default_ocrmypdf_commands() -> Vec<String> {
 }
 
 fn default_tesseract_commands() -> Vec<String> {
-    if let Ok(command) = env::var(TESSERACT_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(TESSERACT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];

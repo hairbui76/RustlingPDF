@@ -4,7 +4,7 @@
 //! to the separately configured AI engine, and returned opaque chunk IDs are
 //! resolved locally before annotations are written.
 
-use std::{collections::HashMap, env, path::Path, time::Duration};
+use std::{collections::HashMap, path::Path, time::Duration};
 
 use reqwest::{
     blocking::Client,
@@ -45,11 +45,11 @@ impl AiCommentEngineSettings {
             120,
         );
         Self {
-            enabled: environment_bool(&["AIENGINE_ENABLED", "STIRLING_AI_ENGINE_ENABLED"], false),
-            url: environment_value(&["AIENGINE_URL", "STIRLING_AI_ENGINE_URL"])
+            enabled: environment_bool(&["AIENGINE_ENABLED", "RUSTLING_AI_ENGINE_ENABLED"], false),
+            url: environment_value(&["AIENGINE_URL", "RUSTLING_AI_ENGINE_URL"])
                 .unwrap_or_else(|| "http://localhost:5001".to_owned()),
             timeout: Duration::from_secs(timeout_seconds.max(1)),
-            shared_secret: environment_value(&["STIRLING_ENGINE_SHARED_SECRET"])
+            shared_secret: environment_value(&["RUSTLING_ENGINE_SHARED_SECRET"])
                 .filter(|value| !value.trim().is_empty()),
         }
     }
@@ -61,7 +61,7 @@ impl AiCommentEngineSettings {
             enabled,
             url,
             Duration::from_secs(timeout_seconds),
-            environment_value(&["STIRLING_ENGINE_SHARED_SECRET"]),
+            environment_value(&["RUSTLING_ENGINE_SHARED_SECRET"]),
         )
     }
 
@@ -364,7 +364,9 @@ fn truncate_for_error(value: &str) -> String {
 }
 
 fn environment_value(names: &[&str]) -> Option<String> {
-    names.iter().find_map(|name| env::var(name).ok())
+    names
+        .iter()
+        .find_map(|name| crate::env_compat::var(name).ok())
 }
 
 fn environment_bool(names: &[&str], default: bool) -> bool {

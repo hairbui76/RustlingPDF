@@ -17,7 +17,7 @@
 //!
 //! Periods are jittered by up to +10% per tick so multiple instances sharing a
 //! database do not synchronize, and each loop can be overridden with
-//! `STIRLING_MAINTENANCE_<NAME>_SECONDS` for operator tuning.
+//! `RUSTLING_MAINTENANCE_<NAME>_SECONDS` for operator tuning.
 
 use std::{
     fs,
@@ -102,13 +102,13 @@ impl MaintenanceSchedule {
     }
 }
 
-/// Resolves a loop schedule, honouring `STIRLING_MAINTENANCE_<NAME>_SECONDS`.
+/// Resolves a loop schedule, honouring `RUSTLING_MAINTENANCE_<NAME>_SECONDS`.
 pub(crate) fn schedule_from_environment(
     name: &str,
     default: MaintenanceSchedule,
 ) -> MaintenanceSchedule {
-    let variable = format!("STIRLING_MAINTENANCE_{name}_SECONDS");
-    let value = std::env::var(variable).ok();
+    let variable = format!("RUSTLING_MAINTENANCE_{name}_SECONDS");
+    let value = crate::env_compat::var(&variable).ok();
     default.with_period_override(parse_override_seconds(value.as_deref()))
 }
 

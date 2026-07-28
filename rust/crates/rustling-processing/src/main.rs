@@ -18,6 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
+    rustling_processing::env_compat::warn_once_on_legacy_environment();
     desktop_settings::initialize_from_environment()?;
     let bootstrap_config = RuntimeConfig::from_environment();
     if bootstrap_config.security_mode_is_requested()? {
@@ -87,8 +88,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn configured_host() -> Result<IpAddr, io::Error> {
-    for variable in ["STIRLING_HOST", "SERVER_ADDRESS"] {
-        match env::var(variable) {
+    for variable in ["RUSTLING_HOST", "SERVER_ADDRESS"] {
+        match rustling_processing::env_compat::var(variable) {
             Ok(value) => return parse_host(variable, &value),
             Err(env::VarError::NotPresent) => {}
             Err(env::VarError::NotUnicode(_)) => {
@@ -100,8 +101,8 @@ fn configured_host() -> Result<IpAddr, io::Error> {
 }
 
 fn configured_port() -> Result<u16, io::Error> {
-    for variable in ["STIRLING_PORT", "SERVER_PORT"] {
-        match env::var(variable) {
+    for variable in ["RUSTLING_PORT", "SERVER_PORT"] {
+        match rustling_processing::env_compat::var(variable) {
             Ok(value) => return parse_port(variable, &value),
             Err(env::VarError::NotPresent) => {}
             Err(env::VarError::NotUnicode(_)) => {
@@ -146,24 +147,24 @@ mod tests {
     #[test]
     fn parses_loopback_and_container_hosts() {
         assert_eq!(
-            parse_host("STIRLING_HOST", "127.0.0.1").ok(),
+            parse_host("RUSTLING_HOST", "127.0.0.1").ok(),
             Some(IpAddr::V4(Ipv4Addr::LOCALHOST))
         );
         assert_eq!(
-            parse_host("STIRLING_HOST", " 0.0.0.0 ").ok(),
+            parse_host("RUSTLING_HOST", " 0.0.0.0 ").ok(),
             Some(IpAddr::V4(Ipv4Addr::UNSPECIFIED))
         );
         assert_eq!(
             parse_host("SERVER_ADDRESS", "::").ok(),
             Some(IpAddr::V6(Ipv6Addr::UNSPECIFIED))
         );
-        assert!(parse_host("STIRLING_HOST", "localhost").is_err());
+        assert!(parse_host("RUSTLING_HOST", "localhost").is_err());
     }
 
     #[test]
     fn parses_fixed_and_ephemeral_ports() {
-        assert_eq!(parse_port("STIRLING_PORT", "8081").ok(), Some(8_081));
-        assert_eq!(parse_port("STIRLING_PORT", " 0 ").ok(), Some(0));
-        assert!(parse_port("STIRLING_PORT", "not-a-port").is_err());
+        assert_eq!(parse_port("RUSTLING_PORT", "8081").ok(), Some(8_081));
+        assert_eq!(parse_port("RUSTLING_PORT", " 0 ").ok(), Some(0));
+        assert!(parse_port("RUSTLING_PORT", "not-a-port").is_err());
     }
 }

@@ -5,7 +5,6 @@
 //! produced file (HTML pages plus extracted images) into a ZIP.
 
 use std::{
-    env,
     ffi::OsString,
     fs::{self, File},
     io::{ErrorKind, Write},
@@ -19,7 +18,7 @@ use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 use crate::ghostscript::exit_status;
 
-const PDFTOHTML_COMMAND_ENV: &str = "STIRLING_PROCESSING_PDFTOHTML_COMMAND";
+const PDFTOHTML_COMMAND_ENV: &str = "RUSTLING_PROCESSING_PDFTOHTML_COMMAND";
 
 #[derive(Debug, Error)]
 pub enum PdfToHtmlError {
@@ -120,7 +119,7 @@ fn run_pdftohtml(arguments: &[OsString], work_dir: &Path) -> Result<(), PdfToHtm
 }
 
 fn pdftohtml_commands() -> Vec<String> {
-    if let Ok(command) = env::var(PDFTOHTML_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(PDFTOHTML_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];

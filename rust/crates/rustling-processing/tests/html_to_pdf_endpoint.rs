@@ -72,7 +72,8 @@ fn unsafe_zip() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 }
 
 fn weasyprint_present() -> bool {
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_WEASYPRINT_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_WEASYPRINT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

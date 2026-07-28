@@ -14,7 +14,7 @@ use zip::ZipArchive;
 #[tokio::test]
 async fn extracts_unique_page_images_as_png_jpeg_and_gif() -> Result<(), Box<dyn std::error::Error>>
 {
-    let native = std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_some();
+    let native = rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some();
     for (wire_format, extension, image_format) in [
         ("png", "png", ImageFormat::Png),
         ("jpg", "jpg", ImageFormat::Jpeg),

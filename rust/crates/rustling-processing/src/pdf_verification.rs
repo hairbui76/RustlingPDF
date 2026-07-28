@@ -1,6 +1,5 @@
 use std::{
     collections::HashSet,
-    env,
     path::Path,
     process::{Command, Output},
 };
@@ -10,7 +9,7 @@ use regex::Regex;
 use serde::Serialize;
 use thiserror::Error;
 
-const VERAPDF_COMMAND_ENV: &str = "STIRLING_PROCESSING_VERAPDF_COMMAND";
+const VERAPDF_COMMAND_ENV: &str = "RUSTLING_PROCESSING_VERAPDF_COMMAND";
 const MAX_XMP_BYTES: usize = 16 * 1024 * 1024;
 const NOT_PDFA_NAME: &str = "Not PDF/A (no PDF/A identification metadata)";
 
@@ -302,7 +301,7 @@ fn validate_profile(
 }
 
 fn verapdf_commands() -> (Vec<String>, bool) {
-    if let Some(command) = env::var_os(VERAPDF_COMMAND_ENV) {
+    if let Some(command) = crate::env_compat::var_os(VERAPDF_COMMAND_ENV) {
         return (vec![command.to_string_lossy().into_owned()], true);
     }
     (vec!["verapdf".to_owned(), "verapdf.bat".to_owned()], false)

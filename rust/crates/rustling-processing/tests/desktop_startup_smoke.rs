@@ -1,3 +1,4 @@
+use rustling_processing::runtime_metrics::application_version;
 use std::{
     error::Error,
     fs,
@@ -8,15 +9,14 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-use rustling_processing::runtime_metrics::application_version;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 const HANDSHAKE_PREFIX: &str = "Stirling-PDF running on port: ";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(60);
 const PARENT_EXIT_TIMEOUT: Duration = Duration::from_secs(10);
-const PARENT_HELPER_BACKEND_VARIABLE: &str = "STIRLING_TEST_PARENT_HELPER_BACKEND";
-const PARENT_HELPER_DIRECTORY_VARIABLE: &str = "STIRLING_TEST_PARENT_HELPER_DIRECTORY";
-const PARENT_HELPER_INFO_VARIABLE: &str = "STIRLING_TEST_PARENT_HELPER_INFO";
+const PARENT_HELPER_BACKEND_VARIABLE: &str = "RUSTLING_TEST_PARENT_HELPER_BACKEND";
+const PARENT_HELPER_DIRECTORY_VARIABLE: &str = "RUSTLING_TEST_PARENT_HELPER_DIRECTORY";
+const PARENT_HELPER_INFO_VARIABLE: &str = "RUSTLING_TEST_PARENT_HELPER_INFO";
 const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template");
 
 struct ChildGuard(Child);
@@ -39,8 +39,8 @@ fn reports_desktop_port_without_rust_log_and_serves_app_config() -> Result<(), B
     let working_directory = tempfile::tempdir()?;
     let child = Command::new(env!("CARGO_BIN_EXE_rustling-processing"))
         .current_dir(working_directory.path())
-        .env("STIRLING_PORT", "0")
-        .env("STIRLING_BASE_PATH", working_directory.path())
+        .env("RUSTLING_PORT", "0")
+        .env("RUSTLING_BASE_PATH", working_directory.path())
         .env_remove("SERVER_PORT")
         .env_remove("RUST_LOG")
         .env_remove("DOCKER_ENABLE_SECURITY")
@@ -125,9 +125,9 @@ fn initializes_missing_desktop_settings_before_reporting_ready() -> Result<(), B
 fn boot_desktop_until_ready(working_directory: &std::path::Path) -> Result<(), Box<dyn Error>> {
     let child = Command::new(env!("CARGO_BIN_EXE_rustling-processing"))
         .current_dir(working_directory)
-        .env("STIRLING_PORT", "0")
-        .env("STIRLING_BASE_PATH", working_directory)
-        .env("STIRLING_PDF_TAURI_MODE", "true")
+        .env("RUSTLING_PORT", "0")
+        .env("RUSTLING_BASE_PATH", working_directory)
+        .env("RUSTLING_PDF_TAURI_MODE", "true")
         .env_remove("SERVER_PORT")
         .env_remove("RUST_LOG")
         .env_remove("DOCKER_ENABLE_SECURITY")
@@ -283,16 +283,17 @@ fn exits_after_its_short_lived_desktop_parent() -> Result<(), Box<dyn Error>> {
 #[test]
 #[ignore = "spawned as a short-lived parent by exits_after_its_short_lived_desktop_parent"]
 fn short_lived_parent_helper() -> Result<(), Box<dyn Error>> {
-    let backend = std::env::var_os(PARENT_HELPER_BACKEND_VARIABLE)
+    let backend = rustling_processing::env_compat::var_os(PARENT_HELPER_BACKEND_VARIABLE)
         .ok_or("parent helper backend path is missing")?;
-    let working_directory = std::env::var_os(PARENT_HELPER_DIRECTORY_VARIABLE)
-        .ok_or("parent helper working directory is missing")?;
-    let helper_info_path = std::env::var_os(PARENT_HELPER_INFO_VARIABLE)
+    let working_directory =
+        rustling_processing::env_compat::var_os(PARENT_HELPER_DIRECTORY_VARIABLE)
+            .ok_or("parent helper working directory is missing")?;
+    let helper_info_path = rustling_processing::env_compat::var_os(PARENT_HELPER_INFO_VARIABLE)
         .ok_or("parent helper info path is missing")?;
     let mut backend = Command::new(backend)
         .current_dir(&working_directory)
-        .env("STIRLING_PORT", "0")
-        .env("STIRLING_BASE_PATH", &working_directory)
+        .env("RUSTLING_PORT", "0")
+        .env("RUSTLING_BASE_PATH", &working_directory)
         .env("TAURI_PARENT_PID", std::process::id().to_string())
         .env_remove("SERVER_PORT")
         .env_remove("RUST_LOG")

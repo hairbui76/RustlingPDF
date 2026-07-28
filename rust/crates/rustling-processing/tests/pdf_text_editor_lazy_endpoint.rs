@@ -8,8 +8,8 @@ use axum::{
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
 use lopdf::{Document, Object, Stream, content::Content, dictionary};
-use serde_json::Value;
 use rustling_processing::app;
+use serde_json::Value;
 use tower::ServiceExt;
 
 #[tokio::test]

@@ -7,8 +7,8 @@ use lopdf::{
     Dictionary, Document, EncryptionState, EncryptionVersion, Object, Permissions, Stream,
     dictionary,
 };
-use serde_json::{Value, json};
 use rustling_processing::app;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 #[tokio::test]

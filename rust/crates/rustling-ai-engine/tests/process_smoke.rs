@@ -120,9 +120,9 @@ async fn binary_serves_ephemeral_port_with_auth_and_post_contracts()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut engine = EngineProcess::spawn(
         engine_command()
-            .env("STIRLING_ENGINE_SHARED_SECRET", "smoke-secret")
-            .env("STIRLING_ENGINE_REQUIRE_AUTH", "true")
-            .env("STIRLING_REQUIRE_USER_ID", "true"),
+            .env("RUSTLING_ENGINE_SHARED_SECRET", "smoke-secret")
+            .env("RUSTLING_ENGINE_REQUIRE_AUTH", "true")
+            .env("RUSTLING_REQUIRE_USER_ID", "true"),
     )?;
     let address = engine.startup_address(Duration::from_secs(10))?;
     let base_url = format!("http://{address}");
@@ -217,8 +217,8 @@ async fn binary_infers_keyless_ollama_and_completes_an_http_agent_request()
 
     let mut engine = EngineProcess::spawn(
         engine_command()
-            .env("STIRLING_SMART_MODEL", "ollama:qwen3:8b")
-            .env("STIRLING_FAST_MODEL", "ollama:qwen3:8b")
+            .env("RUSTLING_SMART_MODEL", "ollama:qwen3:8b")
+            .env("RUSTLING_FAST_MODEL", "ollama:qwen3:8b")
             .env("OLLAMA_BASE_URL", format!("http://{provider_address}")),
     )?;
     let address = engine.startup_address(Duration::from_secs(10))?;
@@ -279,7 +279,7 @@ async fn fake_ollama_completion(
 
 #[test]
 fn malformed_auth_environment_exits_before_binding() -> Result<(), Box<dyn std::error::Error>> {
-    for name in ["STIRLING_ENGINE_REQUIRE_AUTH", "STIRLING_REQUIRE_USER_ID"] {
+    for name in ["RUSTLING_ENGINE_REQUIRE_AUTH", "RUSTLING_REQUIRE_USER_ID"] {
         let output = engine_command().env(name, "not-a-boolean").output()?;
         assert!(!output.status.success(), "{name} unexpectedly started");
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -297,7 +297,7 @@ fn malformed_auth_environment_exits_before_binding() -> Result<(), Box<dyn std::
 
 #[test]
 fn malformed_numeric_environment_exits_before_binding() -> Result<(), Box<dyn std::error::Error>> {
-    let name = "STIRLING_MODEL_MAX_CONCURRENCY";
+    let name = "RUSTLING_MODEL_MAX_CONCURRENCY";
     let output = engine_command().env(name, "many").output()?;
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -314,7 +314,7 @@ fn malformed_numeric_environment_exits_before_binding() -> Result<(), Box<dyn st
 fn non_unicode_auth_environment_exits_before_binding() -> Result<(), Box<dyn std::error::Error>> {
     use std::{ffi::OsString, os::unix::ffi::OsStringExt};
 
-    let name = "STIRLING_ENGINE_REQUIRE_AUTH";
+    let name = "RUSTLING_ENGINE_REQUIRE_AUTH";
     let output = engine_command()
         .env(name, OsString::from_vec(vec![0xff]))
         .output()?;
@@ -345,18 +345,18 @@ fn engine_command() -> Command {
     command
         .current_dir(working_dir)
         .env("RUST_LOG", "info")
-        .env("STIRLING_ENGINE_HOST", "127.0.0.1")
-        .env("STIRLING_ENGINE_PORT", "0")
-        .env("STIRLING_SMART_MODEL", "unsupported:smoke")
-        .env("STIRLING_FAST_MODEL", "unsupported:smoke")
-        .env("STIRLING_RAG_EMBEDDING_MODEL", "test")
-        .env("STIRLING_DOCUMENTS_BACKEND", "sqlite")
-        .env("STIRLING_DOCUMENTS_SQLITE_PATH", ":memory:")
-        .env_remove("STIRLING_ENGINE_SHARED_SECRET")
-        .env_remove("STIRLING_ENGINE_REQUIRE_AUTH")
-        .env_remove("STIRLING_REQUIRE_USER_ID")
-        .env_remove("STIRLING_ALLOW_CONFIG_PUSH")
-        .env_remove("STIRLING_DOCUMENTS_PGVECTOR_DSN")
+        .env("RUSTLING_ENGINE_HOST", "127.0.0.1")
+        .env("RUSTLING_ENGINE_PORT", "0")
+        .env("RUSTLING_SMART_MODEL", "unsupported:smoke")
+        .env("RUSTLING_FAST_MODEL", "unsupported:smoke")
+        .env("RUSTLING_RAG_EMBEDDING_MODEL", "test")
+        .env("RUSTLING_DOCUMENTS_BACKEND", "sqlite")
+        .env("RUSTLING_DOCUMENTS_SQLITE_PATH", ":memory:")
+        .env_remove("RUSTLING_ENGINE_SHARED_SECRET")
+        .env_remove("RUSTLING_ENGINE_REQUIRE_AUTH")
+        .env_remove("RUSTLING_REQUIRE_USER_ID")
+        .env_remove("RUSTLING_ALLOW_CONFIG_PUSH")
+        .env_remove("RUSTLING_DOCUMENTS_PGVECTOR_DSN")
         .env_remove("ANTHROPIC_API_KEY")
         .env_remove("ANTHROPIC_BASE_URL")
         .env_remove("OPENAI_API_KEY")

@@ -5,7 +5,7 @@
 //! addresses before fetching, preventing a DNS rebind from reaching local services.
 
 use std::{
-    env, fs,
+    fs,
     io::Read as _,
     net::{IpAddr, SocketAddr, ToSocketAddrs},
     path::Path,
@@ -22,7 +22,7 @@ const REMOTE_HTML_LIMIT_BYTES: u64 = 20 * 1024 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 const ENABLE_URL_TO_PDF_ENV: &[&str] = &[
-    "STIRLING_PROCESSING_ENABLE_URL_TO_PDF",
+    "RUSTLING_PROCESSING_ENABLE_URL_TO_PDF",
     "SYSTEM_ENABLEURLTOPDF",
     "SYSTEM_ENABLE_URL_TO_PDF",
 ];
@@ -52,9 +52,9 @@ pub enum UrlToPdfError {
 /// Returns whether remote website conversion is explicitly enabled.
 #[must_use]
 pub fn url_to_pdf_enabled() -> bool {
-    ENABLE_URL_TO_PDF_ENV
-        .iter()
-        .any(|name| env::var(name).is_ok_and(|value| value.trim().eq_ignore_ascii_case("true")))
+    ENABLE_URL_TO_PDF_ENV.iter().any(|name| {
+        crate::env_compat::var(name).is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
+    })
 }
 
 /// Downloads a public HTTP(S) page and renders its sanitized HTML to PDF.

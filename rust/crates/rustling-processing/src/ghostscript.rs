@@ -1,6 +1,6 @@
-use std::{env, process::ExitStatus};
+use std::process::ExitStatus;
 
-const GHOSTSCRIPT_COMMAND_ENV: &str = "STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND";
+const GHOSTSCRIPT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND";
 
 pub(crate) struct GhostscriptCommands {
     pub(crate) candidates: Vec<String>,
@@ -8,7 +8,7 @@ pub(crate) struct GhostscriptCommands {
 }
 
 pub(crate) fn ghostscript_commands() -> GhostscriptCommands {
-    if let Ok(command) = env::var(GHOSTSCRIPT_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(GHOSTSCRIPT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return GhostscriptCommands {

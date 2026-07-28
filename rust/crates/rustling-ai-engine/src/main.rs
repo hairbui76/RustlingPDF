@@ -10,8 +10,8 @@ use tracing_subscriber::EnvFilter;
 
 const DEFAULT_ENGINE_HOST: &str = "127.0.0.1";
 const DEFAULT_ENGINE_PORT: u16 = 5001;
-const ENGINE_HOST_ENV: &str = "STIRLING_ENGINE_HOST";
-const ENGINE_PORT_ENV: &str = "STIRLING_ENGINE_PORT";
+const ENGINE_HOST_ENV: &str = "RUSTLING_ENGINE_HOST";
+const ENGINE_PORT_ENV: &str = "RUSTLING_ENGINE_PORT";
 
 #[derive(Debug)]
 struct BindAddressError(String);
@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_ansi(std::io::stdout().is_terminal())
         .init();
 
+    rustling_ai_engine::env_compat::warn_once_on_legacy_environment();
     let settings = EngineSettings::from_environment()?;
     let address = bind_address_from_environment()?;
     let listener = tokio::net::TcpListener::bind(address).await?;
@@ -55,7 +56,7 @@ fn bind_address_from_environment() -> Result<(IpAddr, u16), BindAddressError> {
 }
 
 fn optional_environment_value(name: &str) -> Result<Option<String>, BindAddressError> {
-    match env::var(name) {
+    match rustling_ai_engine::env_compat::var(name) {
         Ok(value) => Ok(Some(value)),
         Err(env::VarError::NotPresent) => Ok(None),
         Err(env::VarError::NotUnicode(_)) => Err(BindAddressError(format!(
@@ -123,12 +124,12 @@ mod tests {
             Ok(address) => panic!("invalid host unexpectedly produced {address:?}"),
             Err(error) => error.to_string(),
         };
-        assert!(host_error.contains("STIRLING_ENGINE_HOST must be an IP address"));
+        assert!(host_error.contains("RUSTLING_ENGINE_HOST must be an IP address"));
 
         let port_error = match parse_bind_address(None, Some("70000")) {
             Ok(address) => panic!("invalid port unexpectedly produced {address:?}"),
             Err(error) => error.to_string(),
         };
-        assert!(port_error.contains("STIRLING_ENGINE_PORT must be an integer"));
+        assert!(port_error.contains("RUSTLING_ENGINE_PORT must be an integer"));
     }
 }

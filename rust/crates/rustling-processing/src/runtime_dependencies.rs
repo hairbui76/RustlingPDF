@@ -31,63 +31,63 @@ pub(crate) fn discover_dependencies() -> DependencyDiscovery {
     let specs = [
         DependencySpec {
             group: "Ghostscript",
-            environment: "STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND",
+            environment: "RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND",
             unix_candidates: &["gs"],
             windows_candidates: &["gswin64c.exe", "gswin32c.exe", "gs.exe"],
             minimum_version: None,
         },
         DependencySpec {
             group: "OCRmyPDF",
-            environment: "STIRLING_PROCESSING_OCRMYPDF_COMMAND",
+            environment: "RUSTLING_PROCESSING_OCRMYPDF_COMMAND",
             unix_candidates: &["ocrmypdf"],
             windows_candidates: &["ocrmypdf.exe", "ocrmypdf"],
             minimum_version: None,
         },
         DependencySpec {
             group: "tesseract",
-            environment: "STIRLING_PROCESSING_TESSERACT_COMMAND",
+            environment: "RUSTLING_PROCESSING_TESSERACT_COMMAND",
             unix_candidates: &["tesseract"],
             windows_candidates: &["tesseract.exe", "tesseract"],
             minimum_version: None,
         },
         DependencySpec {
             group: "LibreOffice",
-            environment: "STIRLING_PROCESSING_SOFFICE_COMMAND",
+            environment: "RUSTLING_PROCESSING_SOFFICE_COMMAND",
             unix_candidates: &["soffice", "/usr/bin/soffice"],
             windows_candidates: &["soffice.com", "soffice.exe", "soffice"],
             minimum_version: None,
         },
         DependencySpec {
             group: "Weasyprint",
-            environment: "STIRLING_PROCESSING_WEASYPRINT_COMMAND",
+            environment: "RUSTLING_PROCESSING_WEASYPRINT_COMMAND",
             unix_candidates: &["weasyprint", "/usr/bin/weasyprint"],
             windows_candidates: &["weasyprint.exe", "weasyprint"],
             minimum_version: Some([58, 0, 0]),
         },
         DependencySpec {
             group: "Pdftohtml",
-            environment: "STIRLING_PROCESSING_PDFTOHTML_COMMAND",
+            environment: "RUSTLING_PROCESSING_PDFTOHTML_COMMAND",
             unix_candidates: &["pdftohtml"],
             windows_candidates: &["pdftohtml.exe", "pdftohtml"],
             minimum_version: None,
         },
         DependencySpec {
             group: "qpdf",
-            environment: "STIRLING_PROCESSING_QPDF_COMMAND",
+            environment: "RUSTLING_PROCESSING_QPDF_COMMAND",
             unix_candidates: &["qpdf"],
             windows_candidates: &["qpdf.exe", "qpdf"],
             minimum_version: Some([12, 0, 0]),
         },
         DependencySpec {
             group: "rar",
-            environment: "STIRLING_PROCESSING_RAR_COMMAND",
+            environment: "RUSTLING_PROCESSING_RAR_COMMAND",
             unix_candidates: &["rar"],
             windows_candidates: &["rar.exe", "rar"],
             minimum_version: None,
         },
         DependencySpec {
             group: "Calibre",
-            environment: "STIRLING_PROCESSING_EBOOK_CONVERT_COMMAND",
+            environment: "RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND",
             unix_candidates: &["ebook-convert"],
             windows_candidates: &["ebook-convert.exe", "ebook-convert"],
             minimum_version: None,
@@ -128,7 +128,9 @@ fn configured_or_platform_candidates(
     unix_candidates: &[&str],
     windows_candidates: &[&str],
 ) -> Vec<OsString> {
-    if let Some(command) = env::var_os(environment).filter(|command| !command.is_empty()) {
+    if let Some(command) =
+        crate::env_compat::var_os(environment).filter(|command| !command.is_empty())
+    {
         return vec![command];
     }
     if cfg!(windows) {
@@ -149,7 +151,7 @@ fn resolve_command(command: &OsStr) -> Option<PathBuf> {
     if path.is_absolute() || path.components().count() > 1 {
         return path.is_file().then(|| path.to_owned());
     }
-    let search_path = env::var_os("PATH")?;
+    let search_path = crate::env_compat::var_os("PATH")?;
     let extensions = executable_extensions(command);
     for directory in env::split_paths(&search_path) {
         for extension in &extensions {
@@ -170,7 +172,7 @@ fn executable_extensions(command: &OsStr) -> Vec<OsString> {
     }
     let mut extensions = vec![OsString::new()];
     extensions.extend(
-        env::var_os("PATHEXT")
+        crate::env_compat::var_os("PATHEXT")
             .unwrap_or_else(|| OsString::from(".COM;.EXE;.BAT;.CMD"))
             .to_string_lossy()
             .split(';')

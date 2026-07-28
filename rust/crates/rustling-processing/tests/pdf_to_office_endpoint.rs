@@ -50,7 +50,8 @@ async fn xml_endpoint_is_wired() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn libreoffice_present() -> bool {
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_SOFFICE_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_SOFFICE_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

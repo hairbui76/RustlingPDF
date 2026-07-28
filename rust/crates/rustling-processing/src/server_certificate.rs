@@ -501,11 +501,11 @@ fn validate_config(config: &ServerCertificateConfig) -> Result<(), ServerCertifi
 
 fn load_or_create_password(directory: &Path) -> Result<Zeroizing<String>, ServerCertificateError> {
     if let Some(password) = [
-        "STIRLING_SERVER_CERTIFICATE_PASSWORD",
+        "RUSTLING_SERVER_CERTIFICATE_PASSWORD",
         "SYSTEM_SERVERCERTIFICATE_PASSWORD",
     ]
     .iter()
-    .find_map(|name| std::env::var(name).ok())
+    .find_map(|name| crate::env_compat::var(name).ok())
     {
         return validate_password(Zeroizing::new(password));
     }

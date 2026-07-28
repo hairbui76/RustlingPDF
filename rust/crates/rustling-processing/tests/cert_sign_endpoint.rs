@@ -10,10 +10,10 @@ use jks::{Certificate as JksCertificate, KeyStore as JksKeyStore, PrivateKeyEntr
 use lopdf::{Dictionary, Document, Object, Stream, dictionary};
 use p12_keystore::{Certificate, KeyStore, KeyStoreEntry, PrivateKey, PrivateKeyChain};
 use pkcs8::{LineEnding, PrivateKeyInfoRef};
-use serde_json::Value;
 use rustling_processing::{
     TimestampSettings, app, app_with_reviewed_security, runtime_config::RuntimeConfig,
 };
+use serde_json::Value;
 use tempfile::tempdir;
 use tower::ServiceExt;
 use x509_certificate::{Sign, testutil::self_signed_ecdsa_key_pair};
@@ -434,9 +434,9 @@ async fn windows_store_signing_is_desktop_gated() -> TestResult {
 
 #[cfg(windows)]
 #[tokio::test]
-#[ignore = "requires STIRLING_WINDOWS_TEST_CERT_ALIAS and its CurrentUser private key"]
+#[ignore = "requires RUSTLING_WINDOWS_TEST_CERT_ALIAS and its CurrentUser private key"]
 async fn signs_with_a_live_windows_store_certificate() -> TestResult {
-    let alias = std::env::var("STIRLING_WINDOWS_TEST_CERT_ALIAS")?;
+    let alias = rustling_processing::env_compat::var("RUSTLING_WINDOWS_TEST_CERT_ALIAS")?;
     let boundary = "stirling-live-windows-store-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", "WINDOWS_STORE");

@@ -162,7 +162,7 @@ async fn requires_the_option_field() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn native_pdfium_requested() -> bool {
-    std::env::var_os("STIRLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 fn ghostscript_present() -> bool {
@@ -171,7 +171,8 @@ fn ghostscript_present() -> bool {
     } else {
         &["gs"]
     };
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

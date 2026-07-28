@@ -91,7 +91,8 @@ async fn post_ebook(
 }
 
 fn calibre_present() -> bool {
-    if let Some(command) = std::env::var_os("STIRLING_PROCESSING_EBOOK_CONVERT_COMMAND")
+    if let Some(command) =
+        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

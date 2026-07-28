@@ -118,7 +118,7 @@ fn load_or_create_keyfile(data_dir: &Path) -> Result<[u8; KEY_BYTES], ConfigCach
     KEYFILE_WARNED.call_once(|| {
         tracing::warn!(
             key_path = %key_path.display(),
-            "STIRLING_ENGINE_SHARED_SECRET is not set; encrypting the AI config cache with a \
+            "RUSTLING_ENGINE_SHARED_SECRET is not set; encrypting the AI config cache with a \
              local keyfile (0600, best-effort). This is modest protection only - set a shared \
              secret for HKDF key derivation in any deployment where the cache must be strongly \
              protected."

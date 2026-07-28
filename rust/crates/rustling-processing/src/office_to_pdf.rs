@@ -8,7 +8,6 @@
 //! external-resource SSRF and active-content execution.
 
 use std::{
-    env,
     ffi::OsString,
     fs::{self, File},
     io::{ErrorKind, Write},
@@ -26,7 +25,7 @@ use crate::{
     office_sanitizer::{is_sanitizable_extension, sanitize_office_archive},
 };
 
-const SOFFICE_COMMAND_ENV: &str = "STIRLING_PROCESSING_SOFFICE_COMMAND";
+const SOFFICE_COMMAND_ENV: &str = "RUSTLING_PROCESSING_SOFFICE_COMMAND";
 
 /// Extensions `LibreOffice` can convert that this port accepts.
 const ALLOWED_EXTENSIONS: &[&str] = &[
@@ -281,7 +280,7 @@ fn prepare_conversion_input(
 }
 
 fn soffice_commands() -> Vec<String> {
-    if let Ok(command) = env::var(SOFFICE_COMMAND_ENV)
+    if let Ok(command) = crate::env_compat::var(SOFFICE_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];
