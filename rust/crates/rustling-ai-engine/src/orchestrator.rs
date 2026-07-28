@@ -9,9 +9,6 @@ use tokio::time::timeout;
 use crate::{
     pdf_create::{PdfCreateAgent, PdfCreateError},
     pdf_edit::{PdfEditAgent, PdfEditError},
-    pdf_question::{
-        AiFile, ConversationMessage, PdfQuestionAgent, PdfQuestionError, PdfQuestionRequest,
-    },
     pdf_review::{PdfReviewAgent, PdfReviewError},
     structured_output::{ModelError, StructuredOutputModel, ToolDefinition},
     user_spec::{UserSpecAgent, UserSpecError},
@@ -20,12 +17,32 @@ use crate::{
 type PageTextArtifactInput = Vec<(String, Vec<(Option<i64>, String)>)>;
 
 const ROUTE_TOOL: &str = "route_orchestrator_request";
-const MATH_INTENT_TOOL: &str = "classify_math_intent";
-const MATH_SYNTHESIS_TOOL: &str = "synthesise_math_audit_answer";
-const MATH_AUDITOR_TOOL: &str = "/api/v1/ai/tools/math-auditor-agent";
-const ROUTER_PROMPT: &str = "Choose pdf_question for questions about attached PDF contents. Choose pdf_edit for requests to modify or convert PDFs. Choose pdf_review when the user wants review comments or annotations added to a PDF. Choose pdf_create when the user wants a new document created from scratch. Choose agent_draft when the user wants to create or define a reusable saved agent specification. Choose unsupported for any capability not exposed by this Rust orchestrator. Do not pretend an unavailable capability succeeded.";
-const MATH_INTENT_PROMPT: &str = "Decide whether the user's prompt asks to verify numerical content: math correctness, recalculation, totals, sums, percentages, balances, arithmetic, or financial figures. Decide from meaning in any language.";
-const MATH_SYNTHESIS_PROMPT: &str = "Answer the user's question using only the supplied structured math-audit verdict. Reply in the same language as the question. Keep it concise. Quote stated and expected numeric values verbatim; do not invent figures or pages.";
+pub(crate) const MATH_AUDITOR_TOOL: &str = "/api/v1/ai/tools/math-auditor-agent";
+const ROUTER_PROMPT: &str = "Choose pdf_edit for requests to modify or convert PDFs. Choose pdf_review when the user wants review comments or annotations added to a PDF. Choose pdf_create when the user wants a new document created from scratch. Choose agent_draft when the user wants to create or define a reusable saved agent specification. Choose unsupported for any capability not exposed by this Rust orchestrator, including answering questions about attached PDF contents. Do not pretend an unavailable capability succeeded.";
+
+/// A client-supplied file reference attached to an AI request.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AiFile {
+    pub id: String,
+    pub name: String,
+}
+
+/// One prior conversation turn supplied with the request.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ConversationMessage {
+    pub role: String,
+    pub content: String,
+}
+
+/// One ordered page of extracted PDF text supplied with the request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StoredPage {
+    pub page_number: u32,
+    pub text: String,
+    pub char_count: usize,
+}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -49,7 +66,6 @@ pub struct OrchestratorRequest {
 pub enum ResumeCapability {
     Orchestrate,
     PdfEdit,
-    PdfQuestion,
     PdfReview,
     PdfCreate,
     AgentDraft,
@@ -168,6 +184,41 @@ impl OrchestratorRequest {
             .join(", ")
     }
 
+    /// Returns the request's extracted-text artifact as ordered pages per
+    /// file, for delegates that reason over full page text. Pages without a
+    /// usable page number fall back to their 1-based position in the file.
+    #[must_use]
+    pub(crate) fn extracted_pages(&self) -> Option<Vec<(String, Vec<StoredPage>)>> {
+        let files = self.artifacts.iter().find_map(|artifact| match artifact {
+            WorkflowArtifact::ExtractedText { files } => Some(files),
+            WorkflowArtifact::ToolReport { .. } => None,
+        })?;
+        let pages_by_file = files
+            .iter()
+            .map(|file| {
+                (
+                    file.file_name.clone(),
+                    file.pages
+                        .iter()
+                        .enumerate()
+                        .map(|(position, page)| StoredPage {
+                            page_number: page
+                                .page_number
+                                .and_then(|number| u32::try_from(number).ok())
+                                .filter(|number| *number > 0)
+                                .unwrap_or_else(|| {
+                                    u32::try_from(position).unwrap_or(u32::MAX - 1) + 1
+                                }),
+                            text: page.text.clone(),
+                            char_count: page.text.chars().count(),
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        (!pages_by_file.is_empty()).then_some(pages_by_file)
+    }
+
     #[must_use]
     pub(crate) fn formatted_extracted_text(&self) -> Option<String> {
         let files = self.artifacts.iter().find_map(|artifact| match artifact {
@@ -260,7 +311,6 @@ struct RouteDecision {
 
 #[derive(Debug)]
 pub(crate) enum ResolvedRoute {
-    PdfQuestion,
     PdfEdit,
     PdfReview,
     PdfCreate,
@@ -268,30 +318,10 @@ pub(crate) enum ResolvedRoute {
     Unsupported { capability: String, message: String },
 }
 
-impl ResolvedRoute {
-    #[must_use]
-    pub(crate) const fn requires_principal(&self) -> bool {
-        matches!(self, Self::PdfQuestion | Self::PdfReview)
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct MathIntentDecision {
-    is_math: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct MathAnswer {
-    answer: String,
-}
-
 #[derive(Clone, Debug)]
 pub enum OrchestratorError {
     ModelUnavailable(String),
     Model(String),
-    PdfQuestion(String),
     PdfEdit(String),
     PdfReview(String),
     PdfCreate(String),
@@ -304,7 +334,6 @@ impl fmt::Display for OrchestratorError {
         match self {
             Self::ModelUnavailable(message)
             | Self::Model(message)
-            | Self::PdfQuestion(message)
             | Self::PdfEdit(message)
             | Self::PdfReview(message)
             | Self::PdfCreate(message)
@@ -319,12 +348,6 @@ impl std::error::Error for OrchestratorError {}
 impl From<ModelError> for OrchestratorError {
     fn from(error: ModelError) -> Self {
         Self::Model(error.to_string())
-    }
-}
-
-impl From<PdfQuestionError> for OrchestratorError {
-    fn from(error: PdfQuestionError) -> Self {
-        Self::PdfQuestion(error.to_string())
     }
 }
 
@@ -354,9 +377,8 @@ impl From<UserSpecError> for OrchestratorError {
 
 pub struct OrchestratorAgent {
     fast_model: Result<Arc<dyn StructuredOutputModel>, ModelError>,
-    pdf_question: Option<PdfQuestionAgent>,
     pdf_edit: PdfEditAgent,
-    pdf_review: Option<PdfReviewAgent>,
+    pdf_review: PdfReviewAgent,
     pdf_create: PdfCreateAgent,
     user_spec: UserSpecAgent,
     max_output_tokens: u32,
@@ -364,9 +386,8 @@ pub struct OrchestratorAgent {
 }
 
 pub struct OrchestratorDelegates {
-    pub pdf_question: Option<PdfQuestionAgent>,
     pub pdf_edit: PdfEditAgent,
-    pub pdf_review: Option<PdfReviewAgent>,
+    pub pdf_review: PdfReviewAgent,
     pub pdf_create: PdfCreateAgent,
     pub user_spec: UserSpecAgent,
 }
@@ -381,7 +402,6 @@ impl OrchestratorAgent {
     ) -> Self {
         Self {
             fast_model,
-            pdf_question: delegates.pdf_question,
             pdf_edit: delegates.pdf_edit,
             pdf_review: delegates.pdf_review,
             pdf_create: delegates.pdf_create,
@@ -396,23 +416,18 @@ impl OrchestratorAgent {
     /// # Errors
     ///
     /// Returns an error for provider failures, invalid resume artifacts, or a
-    /// delegated PDF-question failure.
-    pub async fn handle(
-        &self,
-        request: &OrchestratorRequest,
-        principal: &str,
-    ) -> Result<Value, OrchestratorError> {
+    /// delegated agent failure.
+    pub async fn handle(&self, request: &OrchestratorRequest) -> Result<Value, OrchestratorError> {
         let route = self.resolve_route(request).await?;
-        self.handle_resolved(request, Some(principal), route).await
+        self.handle_resolved(request, route).await
     }
 
-    pub(crate) async fn resolve_route(
+    async fn resolve_route(
         &self,
         request: &OrchestratorRequest,
     ) -> Result<ResolvedRoute, OrchestratorError> {
         if let Some(capability) = request.resume_with {
             return match capability {
-                ResumeCapability::PdfQuestion => Ok(ResolvedRoute::PdfQuestion),
                 ResumeCapability::PdfEdit => Ok(ResolvedRoute::PdfEdit),
                 ResumeCapability::PdfReview => Ok(ResolvedRoute::PdfReview),
                 ResumeCapability::PdfCreate => Ok(ResolvedRoute::PdfCreate),
@@ -425,7 +440,6 @@ impl OrchestratorAgent {
 
         let decision = self.route(request).await?;
         match decision.route.as_str() {
-            "pdf_question" => Ok(ResolvedRoute::PdfQuestion),
             "pdf_edit" => Ok(ResolvedRoute::PdfEdit),
             "pdf_review" => Ok(ResolvedRoute::PdfReview),
             "pdf_create" => Ok(ResolvedRoute::PdfCreate),
@@ -442,22 +456,14 @@ impl OrchestratorAgent {
         }
     }
 
-    pub(crate) async fn handle_resolved(
+    async fn handle_resolved(
         &self,
         request: &OrchestratorRequest,
-        principal: Option<&str>,
         route: ResolvedRoute,
     ) -> Result<Value, OrchestratorError> {
         match route {
-            ResolvedRoute::PdfQuestion => {
-                let principal = require_principal(principal)?;
-                self.run_pdf_question(request, principal).await
-            }
             ResolvedRoute::PdfEdit => self.run_pdf_edit(request).await,
-            ResolvedRoute::PdfReview => {
-                let principal = require_principal(principal)?;
-                self.run_pdf_review(request, principal).await
-            }
+            ResolvedRoute::PdfReview => self.run_pdf_review(request).await,
             ResolvedRoute::PdfCreate => self.run_pdf_create(request).await,
             ResolvedRoute::AgentDraft => self.run_agent_draft(request).await,
             ResolvedRoute::Unsupported {
@@ -497,46 +503,6 @@ impl OrchestratorAgent {
         .await
     }
 
-    async fn run_pdf_question(
-        &self,
-        request: &OrchestratorRequest,
-        principal: &str,
-    ) -> Result<Value, OrchestratorError> {
-        if let Some(verdict) = math_verdict(&request.artifacts)? {
-            return self
-                .synthesise_math_answer(&request.user_message, verdict)
-                .await;
-        }
-        if self.is_math_intent(&request.user_message).await? {
-            return Ok(json!({
-                "outcome": "plan",
-                "summary": "",
-                "rationale": null,
-                "steps": [{
-                    "kind": "tool",
-                    "tool": MATH_AUDITOR_TOOL,
-                    "parameters": {"tolerance": "0.01"}
-                }],
-                "resumeWith": "pdf_question"
-            }));
-        }
-        let agent = self.pdf_question.as_ref().ok_or_else(|| {
-            OrchestratorError::PdfQuestion("Document storage is unavailable".to_owned())
-        })?;
-        let response = agent
-            .handle(
-                &PdfQuestionRequest {
-                    question: request.user_message.clone(),
-                    files: request.files.clone(),
-                    conversation_history: request.conversation_history.clone(),
-                },
-                principal,
-            )
-            .await?;
-        serde_json::to_value(response)
-            .map_err(|error| OrchestratorError::PdfQuestion(error.to_string()))
-    }
-
     async fn run_pdf_edit(
         &self,
         request: &OrchestratorRequest,
@@ -547,16 +513,8 @@ impl OrchestratorAgent {
     async fn run_pdf_review(
         &self,
         request: &OrchestratorRequest,
-        principal: &str,
     ) -> Result<Value, OrchestratorError> {
-        self.pdf_review
-            .as_ref()
-            .ok_or_else(|| {
-                OrchestratorError::PdfReview("Document storage is unavailable".to_owned())
-            })?
-            .handle(request, principal)
-            .await
-            .map_err(Into::into)
+        self.pdf_review.handle(request).await.map_err(Into::into)
     }
 
     async fn run_pdf_create(
@@ -574,48 +532,6 @@ impl OrchestratorAgent {
             .orchestrate(request)
             .await
             .map_err(Into::into)
-    }
-
-    async fn is_math_intent(&self, message: &str) -> Result<bool, OrchestratorError> {
-        if message.trim().is_empty() {
-            return Ok(false);
-        }
-        let decision: MathIntentDecision = self
-            .complete(
-                MATH_INTENT_PROMPT,
-                message,
-                MATH_INTENT_TOOL,
-                "Classify whether the request requires numerical auditing.",
-                &math_intent_schema(),
-            )
-            .await?;
-        Ok(decision.is_math)
-    }
-
-    async fn synthesise_math_answer(
-        &self,
-        user_message: &str,
-        verdict: &MathVerdict,
-    ) -> Result<Value, OrchestratorError> {
-        let verdict_json = serde_json::to_string(verdict)
-            .map_err(|error| OrchestratorError::InvalidRequest(error.to_string()))?;
-        let prompt =
-            format!("User question:\n{user_message}\n\nMath audit Verdict (JSON):\n{verdict_json}");
-        let output: MathAnswer = self
-            .complete(
-                MATH_SYNTHESIS_PROMPT,
-                &prompt,
-                MATH_SYNTHESIS_TOOL,
-                "Render a grounded localised answer from a math verdict.",
-                &math_answer_schema(),
-            )
-            .await?;
-        if output.answer.trim().is_empty() {
-            return Err(OrchestratorError::Model(
-                "math synthesis returned an empty answer".to_owned(),
-            ));
-        }
-        Ok(json!({"outcome": "answer", "answer": output.answer, "evidence": []}))
     }
 
     async fn complete<T: for<'de> Deserialize<'de>>(
@@ -649,11 +565,6 @@ impl OrchestratorAgent {
     }
 }
 
-fn require_principal(principal: Option<&str>) -> Result<&str, OrchestratorError> {
-    principal
-        .ok_or_else(|| OrchestratorError::InvalidRequest("X-User-Id header is required".to_owned()))
-}
-
 fn math_verdict(artifacts: &[WorkflowArtifact]) -> Result<Option<&MathVerdict>, OrchestratorError> {
     for artifact in artifacts {
         match artifact {
@@ -679,28 +590,10 @@ fn route_schema() -> Value {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-            "route": {"type": "string", "enum": ["pdf_question", "pdf_edit", "pdf_review", "pdf_create", "agent_draft", "unsupported"]},
+            "route": {"type": "string", "enum": ["pdf_edit", "pdf_review", "pdf_create", "agent_draft", "unsupported"]},
             "capability": {"type": ["string", "null"]},
             "message": {"type": ["string", "null"]}
         },
         "required": ["route", "capability", "message"]
-    })
-}
-
-fn math_intent_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {"isMath": {"type": "boolean"}},
-        "required": ["isMath"]
-    })
-}
-
-fn math_answer_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {"answer": {"type": "string", "minLength": 1}},
-        "required": ["answer"]
     })
 }

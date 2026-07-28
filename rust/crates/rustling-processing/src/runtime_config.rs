@@ -422,34 +422,6 @@ impl RuntimeConfig {
                     "",
                 ),
             },
-            rag: AiEngineRagPush {
-                embedding_provider: self.string(
-                    &["aiEngine", "rag", "embeddingProvider"],
-                    "AIENGINE_RAG_EMBEDDINGPROVIDER",
-                    DEFAULT_AI_EMBEDDING_PROVIDER,
-                ),
-                embedding_model: self.string(
-                    &["aiEngine", "rag", "embeddingModel"],
-                    "AIENGINE_RAG_EMBEDDINGMODEL",
-                    DEFAULT_AI_EMBEDDING_MODEL,
-                ),
-                embedding_api_key: self.string(
-                    &["aiEngine", "rag", "embeddingApiKey"],
-                    "AIENGINE_RAG_EMBEDDINGAPIKEY",
-                    "",
-                ),
-                embedding_base_url: self.string(
-                    &["aiEngine", "rag", "embeddingBaseUrl"],
-                    "AIENGINE_RAG_EMBEDDINGBASEURL",
-                    "",
-                ),
-                top_k: self.signed_integer(&["aiEngine", "rag", "topK"], "AIENGINE_RAG_TOPK", 20),
-                max_searches: self.signed_integer(
-                    &["aiEngine", "rag", "maxSearches"],
-                    "AIENGINE_RAG_MAXSEARCHES",
-                    5,
-                ),
-            },
             limits: AiEngineLimitsPush {
                 max_pages: self.signed_integer(
                     &["aiEngine", "limits", "maxPages"],
@@ -482,16 +454,6 @@ impl RuntimeConfig {
             .unwrap_or(1_800_000)
             .max(1);
         Duration::from_millis(milliseconds)
-    }
-
-    #[must_use]
-    #[allow(clippy::unused_self)] // kept as a config method: the TTL may become configurable again
-    pub(crate) fn ai_workflow_document_ttl(&self) -> Duration {
-        // Fixed bounded expiry for engine-ingested workflow documents. The
-        // historic coupling to the (removed) login JWT lifetime is gone; the
-        // legacy `security.jwt.*` keys are ignored like the rest of the
-        // removed auth configuration.
-        Duration::from_secs(1_440 * 60)
     }
 
     /// Resolves bounded asynchronous job admission. Values mirror the Java
@@ -997,6 +959,20 @@ impl RuntimeConfig {
         }
         if yaml_true(&["mail", "enableInvites"]) || env_present(&["MAIL_ENABLEINVITES"]) {
             ignored.push("mail.enableInvites");
+        }
+        if yaml_present(&["aiEngine", "rag"])
+            || env_present(&[
+                "AIENGINE_RAG_EMBEDDINGPROVIDER",
+                "AIENGINE_RAG_EMBEDDINGMODEL",
+                "AIENGINE_RAG_EMBEDDINGAPIKEY",
+                "AIENGINE_RAG_EMBEDDINGBASEURL",
+                "AIENGINE_RAG_TOPK",
+                "AIENGINE_RAG_MAXSEARCHES",
+            ])
+        {
+            // The document store / PDF question-answer feature was removed;
+            // retrieval settings are no longer pushed to the AI engine.
+            ignored.push("aiEngine.rag.*");
         }
         if yaml_present(&["app", "supabase"])
             || env_present(&[
@@ -1648,13 +1624,11 @@ impl RuntimeConfig {
     }
 }
 
-// Java `ApplicationProperties.AiEngine` model/RAG identity defaults, shared
-// with the config-push "was this section configured?" detection.
+// Java `ApplicationProperties.AiEngine` model identity defaults, shared with
+// the config-push "was this section configured?" detection.
 pub(crate) const DEFAULT_AI_MODEL_PROVIDER: &str = "anthropic";
 pub(crate) const DEFAULT_AI_SMART_MODEL: &str = "claude-haiku-4-5";
 pub(crate) const DEFAULT_AI_FAST_MODEL: &str = "claude-haiku-4-5";
-pub(crate) const DEFAULT_AI_EMBEDDING_PROVIDER: &str = "voyageai";
-pub(crate) const DEFAULT_AI_EMBEDDING_MODEL: &str = "voyage-4";
 
 /// Model + provider selection pushed to the engine (Java `AiEngine.Models`).
 #[derive(Clone, Debug)]
@@ -1666,17 +1640,6 @@ pub struct AiEngineModelsPush {
     pub fast_max_tokens: i64,
     pub api_key: String,
     pub base_url: String,
-}
-
-/// Retrieval settings pushed to the engine (Java `AiEngine.Rag`).
-#[derive(Clone, Debug)]
-pub struct AiEngineRagPush {
-    pub embedding_provider: String,
-    pub embedding_model: String,
-    pub embedding_api_key: String,
-    pub embedding_base_url: String,
-    pub top_k: i64,
-    pub max_searches: i64,
 }
 
 /// Request size / cost guardrails pushed to the engine (Java `AiEngine.Limits`).
@@ -1697,7 +1660,6 @@ pub struct AiEnginePushSettings {
     /// stays env-controlled (Java `aiEngine.pushConfigToEngine`).
     pub push_config_to_engine: bool,
     pub models: AiEngineModelsPush,
-    pub rag: AiEngineRagPush,
     pub limits: AiEngineLimitsPush,
 }
 
@@ -1714,14 +1676,6 @@ impl Default for AiEnginePushSettings {
                 fast_max_tokens: 2_048,
                 api_key: String::new(),
                 base_url: String::new(),
-            },
-            rag: AiEngineRagPush {
-                embedding_provider: DEFAULT_AI_EMBEDDING_PROVIDER.to_owned(),
-                embedding_model: DEFAULT_AI_EMBEDDING_MODEL.to_owned(),
-                embedding_api_key: String::new(),
-                embedding_base_url: String::new(),
-                top_k: 20,
-                max_searches: 5,
             },
             limits: AiEngineLimitsPush {
                 max_pages: 200,
@@ -2463,14 +2417,12 @@ mod tests {
         assert_eq!(push.models.fast_max_tokens, 2_048);
         assert_eq!(push.models.api_key, "");
         assert_eq!(push.models.base_url, "");
-        assert_eq!(push.rag.embedding_provider, "voyageai");
-        assert_eq!(push.rag.embedding_model, "voyage-4");
-        assert_eq!(push.rag.top_k, 20);
-        assert_eq!(push.rag.max_searches, 5);
         assert_eq!(push.limits.max_pages, 200);
         assert_eq!(push.limits.max_characters, 200_000);
         assert_eq!(push.limits.model_max_concurrency, 32);
 
+        // A legacy `aiEngine.rag` block from an existing install is ignored
+        // (the retrieval pipeline was removed), never a startup failure.
         fs::write(
             &settings,
             "aiEngine:\n  enabled: true\n  pushConfigToEngine: false\n  models:\n    provider: ollama\n    smartModel: qwen3\n    apiKey: sk-yaml\n  rag:\n    topK: 7\n  limits:\n    maxPages: 42\n",
@@ -2484,8 +2436,6 @@ mod tests {
         // Unset keys inside a configured section keep their Java defaults.
         assert_eq!(push.models.fast_model, "claude-haiku-4-5");
         assert_eq!(push.models.api_key, "sk-yaml");
-        assert_eq!(push.rag.top_k, 7);
-        assert_eq!(push.rag.max_searches, 5);
         assert_eq!(push.limits.max_pages, 42);
         Ok(())
     }

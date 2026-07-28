@@ -1,13 +1,14 @@
 //! Best-effort push of admin-configured AI settings to the engine.
 //!
 //! Port of Java `AiEngineConfigSync`: the processor pushes the engine-relevant
-//! `aiEngine.*` configuration (models, RAG, limits) to the engine's
-//! `POST /api/v1/config` on startup and after each successful bulk admin
-//! settings save, so model/RAG/limit changes apply without an engine restart.
-//! Pushes are strictly serialized (each carries the full configuration and the
-//! engine keeps whatever lands last), never block startup, and give up quietly
-//! when the engine is down — the engine then keeps running its environment
-//! configuration until the next restart.
+//! `aiEngine.*` configuration (models, limits) to the engine's
+//! `POST /api/v1/config` on startup, so model/limit changes apply without an
+//! engine restart. Pushes are strictly serialized (each carries the full
+//! configuration and the engine keeps whatever lands last), never block
+//! startup, and give up quietly when the engine is down — the engine then
+//! keeps running its environment configuration until the next restart. The
+//! historic `rag` section is gone: retrieval settings died with the document
+//! store / PDF question-answer feature.
 
 use std::{collections::BTreeSet, sync::OnceLock, time::Duration};
 
@@ -28,8 +29,6 @@ const RETRY_DELAY: Duration = Duration::from_secs(3);
 const DEFAULT_MODEL_PROVIDER: &str = "anthropic";
 const DEFAULT_SMART_MODEL: &str = "claude-haiku-4-5";
 const DEFAULT_FAST_MODEL: &str = "claude-haiku-4-5";
-const DEFAULT_EMBEDDING_PROVIDER: &str = "voyageai";
-const DEFAULT_EMBEDDING_MODEL: &str = "voyage-4";
 
 const MODEL_IDENTITY_KEYS: &[&str] = &[
     "aiEngine.models.provider",
@@ -37,13 +36,6 @@ const MODEL_IDENTITY_KEYS: &[&str] = &[
     "aiEngine.models.fastModel",
     "aiEngine.models.apiKey",
     "aiEngine.models.baseUrl",
-];
-
-const RAG_IDENTITY_KEYS: &[&str] = &[
-    "aiEngine.rag.embeddingProvider",
-    "aiEngine.rag.embeddingModel",
-    "aiEngine.rag.embeddingApiKey",
-    "aiEngine.rag.embeddingBaseUrl",
 ];
 
 /// One queued push: the full JSON body plus how many delivery attempts it gets.
@@ -226,14 +218,6 @@ fn build_config_node(settings: &AiEnginePushSettings) -> Value {
             "apiKey": settings.models.api_key,
             "baseUrl": settings.models.base_url,
         },
-        "rag": {
-            "embeddingProvider": settings.rag.embedding_provider,
-            "embeddingModel": settings.rag.embedding_model,
-            "embeddingApiKey": settings.rag.embedding_api_key,
-            "embeddingBaseUrl": settings.rag.embedding_base_url,
-            "topK": settings.rag.top_k,
-            "maxSearches": settings.rag.max_searches,
-        },
         "limits": {
             "maxPages": settings.limits.max_pages,
             "maxCharacters": settings.limits.max_characters,
@@ -265,9 +249,10 @@ fn blank_fields(section: &mut Value, fields: &[&str]) {
     }
 }
 
-/// Blanks the identity (provider/model/credentials) of unconfigured sections so
-/// the push keeps the engine's env values; edited sections are sent as-is so a
-/// cleared key really clears. Mirrors Java `keepEnvForUnconfiguredIdentity`.
+/// Blanks the identity (provider/model/credentials) of an unconfigured models
+/// section so the push keeps the engine's env values; edited sections are sent
+/// as-is so a cleared key really clears. Mirrors Java
+/// `keepEnvForUnconfiguredIdentity`.
 fn keep_env_for_unconfigured_identity(root: &mut Value, touched_keys: &BTreeSet<String>) {
     if let Some(models) = root.get_mut("models").filter(|value| value.is_object()) {
         let configured = touched_identity(touched_keys, MODEL_IDENTITY_KEYS)
@@ -280,24 +265,6 @@ fn keep_env_for_unconfigured_identity(root: &mut Value, touched_keys: &BTreeSet<
             blank_fields(
                 models,
                 &["provider", "smartModel", "fastModel", "apiKey", "baseUrl"],
-            );
-        }
-    }
-    if let Some(rag) = root.get_mut("rag").filter(|value| value.is_object()) {
-        let configured = touched_identity(touched_keys, RAG_IDENTITY_KEYS)
-            || !text(rag, "embeddingApiKey").trim().is_empty()
-            || !text(rag, "embeddingBaseUrl").trim().is_empty()
-            || text(rag, "embeddingProvider") != DEFAULT_EMBEDDING_PROVIDER
-            || text(rag, "embeddingModel") != DEFAULT_EMBEDDING_MODEL;
-        if !configured {
-            blank_fields(
-                rag,
-                &[
-                    "embeddingProvider",
-                    "embeddingModel",
-                    "embeddingApiKey",
-                    "embeddingBaseUrl",
-                ],
             );
         }
     }
@@ -392,20 +359,8 @@ mod tests {
         ] {
             assert!(models.contains_key(key), "models.{key} missing");
         }
-        let rag = node
-            .get("rag")
-            .and_then(Value::as_object)
-            .ok_or("rag section")?;
-        for key in [
-            "embeddingProvider",
-            "embeddingModel",
-            "embeddingApiKey",
-            "embeddingBaseUrl",
-            "topK",
-            "maxSearches",
-        ] {
-            assert!(rag.contains_key(key), "rag.{key} missing");
-        }
+        // The removed retrieval settings must no longer be pushed.
+        assert!(node.get("rag").is_none(), "rag section should be gone");
         let limits = node
             .get("limits")
             .and_then(Value::as_object)
@@ -426,17 +381,8 @@ mod tests {
         for key in ["provider", "smartModel", "fastModel", "apiKey", "baseUrl"] {
             assert_eq!(node["models"][key], json!(""), "models.{key}");
         }
-        for key in [
-            "embeddingProvider",
-            "embeddingModel",
-            "embeddingApiKey",
-            "embeddingBaseUrl",
-        ] {
-            assert_eq!(node["rag"][key], json!(""), "rag.{key}");
-        }
         // Non-identity values keep their concrete defaults.
         assert_eq!(node["models"]["smartMaxTokens"], json!(8_192));
-        assert_eq!(node["rag"]["topK"], json!(20));
     }
 
     #[test]
@@ -448,8 +394,6 @@ mod tests {
         keep_env_for_unconfigured_identity(&mut node, &BTreeSet::new());
         assert_eq!(node["models"]["provider"], json!("anthropic"));
         assert_eq!(node["models"]["apiKey"], json!("sk-live"));
-        // Untouched rag section still defers to env.
-        assert_eq!(node["rag"]["embeddingProvider"], json!(""));
 
         // Touching an identity key keeps the section even at default values,
         // so an admin's explicit clear really clears.
@@ -457,7 +401,6 @@ mod tests {
         let touched = BTreeSet::from(["aiEngine.models.apiKey".to_owned()]);
         keep_env_for_unconfigured_identity(&mut node, &touched);
         assert_eq!(node["models"]["provider"], json!("anthropic"));
-        assert_eq!(node["rag"]["embeddingModel"], json!(""));
     }
 
     #[tokio::test]

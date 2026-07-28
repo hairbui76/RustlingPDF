@@ -12,8 +12,7 @@ use serde_json::{Value, json};
 use tokio::{sync::Semaphore, task::JoinSet, time::timeout};
 
 use crate::{
-    documents::{DocumentError, DocumentRepository, StoredPage},
-    pdf_question::AiFile,
+    orchestrator::StoredPage,
     structured_output::{ModelError, StructuredOutputModel, ToolDefinition},
 };
 
@@ -42,24 +41,17 @@ pub struct ContradictionLimits {
 #[derive(Clone, Debug)]
 pub enum ContradictionError {
     InvalidSettings(String),
-    Storage(String),
 }
 
 impl fmt::Display for ContradictionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidSettings(message) | Self::Storage(message) => formatter.write_str(message),
+            Self::InvalidSettings(message) => formatter.write_str(message),
         }
     }
 }
 
 impl std::error::Error for ContradictionError {}
-
-impl From<DocumentError> for ContradictionError {
-    fn from(error: DocumentError) -> Self {
-        Self::Storage(error.to_string())
-    }
-}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -181,7 +173,6 @@ struct ExtractionJob {
 
 pub struct ContradictionDetector {
     model: Arc<dyn StructuredOutputModel>,
-    documents: Arc<dyn DocumentRepository>,
     limits: ContradictionLimits,
 }
 
@@ -193,7 +184,6 @@ impl ContradictionDetector {
     /// Returns an error when a limit cannot produce bounded, progressing work.
     pub fn new(
         model: Arc<dyn StructuredOutputModel>,
-        documents: Arc<dyn DocumentRepository>,
         limits: ContradictionLimits,
     ) -> Result<Self, ContradictionError> {
         if limits.chars_per_slice == 0
@@ -210,46 +200,37 @@ impl ContradictionDetector {
                     .to_owned(),
             ));
         }
-        Ok(Self {
-            model,
-            documents,
-            limits,
-        })
+        Ok(Self { model, limits })
     }
 
-    /// Audits every readable page in the supplied files.
+    /// Audits every supplied page across the request-provided files.
     ///
-    /// Provider failures are isolated to their extraction/detection unit;
-    /// storage failures remain fatal because coverage cannot be established.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when ACL-scoped page reads fail.
+    /// Provider failures are isolated to their extraction/detection unit; the
+    /// page text arrives with the request, so there is no storage dependency.
     pub async fn detect(
         &self,
-        files: &[AiFile],
-        principal: &str,
+        files: &[(String, Vec<StoredPage>)],
         query: &str,
-    ) -> Result<ContradictionReport, ContradictionError> {
-        let jobs = self.extraction_jobs(files, principal).await?;
+    ) -> ContradictionReport {
+        let jobs = self.extraction_jobs(files);
         if jobs.is_empty() {
-            return Ok(empty_report(
+            return empty_report(
                 "No document content was available to audit.".to_owned(),
                 Vec::new(),
-            ));
+            );
         }
 
         let (claims, mut pages_examined) = self.extract_claims(jobs, query).await;
         pages_examined.sort_unstable();
         if pages_examined.is_empty() {
-            return Ok(empty_report(
+            return empty_report(
                 "No document content was available to audit.".to_owned(),
                 pages_examined,
-            ));
+            );
         }
         if claims.is_empty() {
             let summary = self.summarise(0, 0, pages_examined.len()).await;
-            return Ok(empty_report(summary, pages_examined));
+            return empty_report(summary, pages_examined);
         }
 
         let mut ledger = ClaimLedger::from_claims(claims);
@@ -265,33 +246,25 @@ impl ContradictionDetector {
             .count();
         let warnings = contradictions.len().saturating_sub(errors);
         let summary = self.summarise(errors, warnings, pages_examined.len()).await;
-        Ok(ContradictionReport {
+        ContradictionReport {
             contradictions,
             pages_examined,
             clean: errors == 0,
             summary,
-        })
+        }
     }
 
-    async fn extraction_jobs(
-        &self,
-        files: &[AiFile],
-        principal: &str,
-    ) -> Result<Vec<ExtractionJob>, ContradictionError> {
+    fn extraction_jobs(&self, files: &[(String, Vec<StoredPage>)]) -> Vec<ExtractionJob> {
         let mut jobs = Vec::new();
-        for file in files {
-            let pages = self
-                .documents
-                .read_pages(file.id.clone(), vec![principal.to_owned()], None)
-                .await?;
-            for slice in slice_pages(&pages, self.limits.chars_per_slice) {
+        for (file_name, pages) in files {
+            for slice in slice_pages(pages, self.limits.chars_per_slice) {
                 jobs.push(ExtractionJob {
-                    file_name: file.name.clone(),
+                    file_name: file_name.clone(),
                     pages: slice,
                 });
             }
         }
-        Ok(jobs)
+        jobs
     }
 
     async fn extract_claims(

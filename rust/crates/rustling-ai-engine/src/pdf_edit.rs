@@ -12,8 +12,7 @@ use serde_json::{Value, json};
 use tokio::time::timeout;
 
 use crate::{
-    orchestrator::OrchestratorRequest,
-    pdf_question::{AiFile, ConversationMessage},
+    orchestrator::{AiFile, ConversationMessage, OrchestratorRequest},
     structured_output::{ModelError, StructuredOutputModel, ToolDefinition},
 };
 

@@ -7,14 +7,10 @@
 //! advertised as an empty manifest.
 
 pub mod anthropic;
-pub mod chunked_reasoner;
 pub mod config_cache;
 pub mod config_push;
 pub mod contradiction;
 pub mod document_classifier;
-pub mod document_migration;
-pub mod documents;
-pub mod embedding;
 pub mod env_compat;
 pub mod execution;
 pub mod ledger;
@@ -24,10 +20,7 @@ pub mod orchestrator;
 pub mod pdf_comment;
 pub mod pdf_create;
 pub mod pdf_edit;
-pub mod pdf_question;
 pub mod pdf_review;
-pub mod pgvector_documents;
-mod progress;
 pub mod structured_output;
 pub mod user_spec;
 
@@ -43,11 +36,11 @@ use std::{
 use axum::{
     Extension, Json, Router,
     body::{Body, Bytes},
-    extract::{ConnectInfo, Path as AxumPath, Query, Request},
+    extract::{ConnectInfo, Query, Request},
     http::{HeaderMap, HeaderValue, StatusCode, header::CONTENT_TYPE},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{delete, get, post},
+    routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -59,44 +52,27 @@ use crate::{
     anthropic::AnthropicClassifierModel,
     config_push::{ConfigApplyResponse, ConfigPushRequest},
     document_classifier::{ClassifierError, DocumentClassifier},
-    documents::{
-        DeleteDocumentResponse, DocumentError, DocumentRepository, IngestDocumentRequest,
-        IngestDocumentResponse, PurgeOwnerResponse, SqliteDocumentStore,
-    },
-    embedding::{EmbeddingClient, EmbeddingError},
     execution::{AgentExecutionRequest, ExecutionPlanningAgent},
     ledger_auditor::{AuditError, LedgerAuditor},
     openai::OpenAiClassifierModel,
-    orchestrator::{
-        OrchestratorAgent, OrchestratorDelegates, OrchestratorError, OrchestratorRequest,
-    },
+    orchestrator::{OrchestratorAgent, OrchestratorDelegates, OrchestratorRequest},
     pdf_comment::{PdfCommentAgent, PdfCommentError},
     pdf_create::PdfCreateAgent,
     pdf_edit::{
         PdfEditAgent, PdfEditError, PdfEditRequest, catalogued_operation_endpoints,
         catalogued_processing_endpoints,
     },
-    pdf_question::{
-        PdfQuestionAgent, PdfQuestionError, PdfQuestionLimits, PdfQuestionModels,
-        PdfQuestionRequest,
-    },
     pdf_review::{PdfReviewAgent, PdfReviewLimits},
-    pgvector_documents::PgVectorDocumentStore,
     structured_output::{ConcurrencyLimitedModel, ModelError, StructuredOutputModel},
     user_spec::{AgentDraftRequest, AgentRevisionRequest, UserSpecAgent, UserSpecError},
 };
 
 const ENGINE_AUTH_HEADER: &str = "X-Engine-Auth";
-const USER_ID_HEADER: &str = "X-User-Id";
 const HEALTH_PATH: &str = "/health";
 const CAPABILITIES_PATH: &str = "/api/v1/agents/capabilities";
-const DOCUMENTS_PATH: &str = "/api/v1/documents";
-const DOCUMENT_BY_ID_PATH: &str = "/api/v1/documents/by-id/{document_id}";
-const DOCUMENTS_BY_OWNER_PATH: &str = "/api/v1/documents/by-owner";
 const MATH_AUDITOR_EXAMINE_PATH: &str = "/api/v1/ai/math-auditor-agent/examine";
 const MATH_AUDITOR_DELIBERATE_PATH: &str = "/api/v1/ai/math-auditor-agent/deliberate";
 const PDF_COMMENT_GENERATE_PATH: &str = "/api/v1/ai/pdf-comment-agent/generate";
-const PDF_QUESTIONS_PATH: &str = "/api/v1/pdf/questions";
 const PDF_EDIT_PATH: &str = "/api/v1/pdf/edit";
 const AGENT_DRAFT_PATH: &str = "/api/v1/agents/draft";
 const AI_AGENT_DRAFT_PATH: &str = "/api/v1/ai/agents/draft";
@@ -108,11 +84,26 @@ const CONFIG_PATH: &str = "/api/v1/config";
 const ORCHESTRATOR_HEARTBEAT_SECONDS: u64 = 10;
 
 // Copied verbatim from the Python oracle so processors see identical guidance.
-const REINDEX_NOTE: &str = "Embedding model changed; existing indexed documents were embedded \
-     with the previous model and must be re-indexed. If the embedding dimensionality changed, \
-     re-ingest before searching.";
 const PERSIST_FAILURE_NOTE: &str = "Config applied on this worker but could not be persisted; it \
      will not survive an engine restart and other workers will not pick it up.";
+
+// Environment names from the removed document store / RAG question-answer
+// feature. A present value is ignored; warn once so operators notice.
+const IGNORED_LEGACY_ENVIRONMENT: &[&str] = &[
+    "RUSTLING_REQUIRE_USER_ID",
+    "RUSTLING_DOCUMENTS_BACKEND",
+    "RUSTLING_DOCUMENTS_SQLITE_PATH",
+    "RUSTLING_DOCUMENTS_PGVECTOR_DSN",
+    "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE",
+    "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE",
+    "RUSTLING_DOCUMENTS_REAPER_INTERVAL_SECONDS",
+    "RUSTLING_RAG_EMBEDDING_MODEL",
+    "RUSTLING_RAG_CHUNK_SIZE",
+    "RUSTLING_RAG_CHUNK_OVERLAP",
+    "RUSTLING_RAG_TOP_K",
+    "RUSTLING_RAG_MAX_SEARCHES",
+    "RUSTLING_CHUNKED_REASONER_NOTES_CHAR_BUDGET",
+];
 
 #[derive(Clone)]
 pub struct EngineSettings {
@@ -124,37 +115,24 @@ pub struct EngineSettings {
     chat_provider: String,
     shared_secret: String,
     require_auth: bool,
-    require_user_id: bool,
     // When true, the Java processor may push admin AI settings to
     // POST /api/v1/config. Off means env is the single source of truth.
     allow_config_push: bool,
     // Directory holding the encrypted config-push cache; empty disables
-    // persistence (the in-memory test default, like the :memory: sqlite path).
+    // persistence (the in-memory test default).
     config_cache_dir: PathBuf,
     smart_model_max_tokens: u32,
     fast_model_max_tokens: u32,
     model_max_concurrency: usize,
-    documents_backend: String,
-    documents_sqlite_path: PathBuf,
-    documents_pgvector_dsn: String,
-    documents_pgvector_pool_min_size: usize,
-    documents_pgvector_pool_max_size: usize,
-    rag_embedding_model: String,
-    rag_chunk_size: usize,
-    rag_chunk_overlap: usize,
-    rag_default_top_k: usize,
-    rag_max_searches: usize,
     max_pages: usize,
     max_characters: usize,
     chunked_reasoner_chars_per_slice: usize,
     chunked_reasoner_concurrency: usize,
     chunked_reasoner_worker_timeout_seconds: f64,
-    chunked_reasoner_notes_char_budget: usize,
     contradiction_detect_concurrency: usize,
     contradiction_bucket_chunk_size: usize,
     contradiction_bucket_chunk_overlap: usize,
     contradiction_canonicaliser_batch_size: usize,
-    documents_reaper_interval_seconds: u64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -186,6 +164,7 @@ impl EngineSettings {
     /// Returns an error for a malformed environment value or settings whose
     /// existing size, concurrency, timeout, or cross-field bounds are invalid.
     pub fn from_environment() -> Result<Self, EngineSettingsError> {
+        warn_on_ignored_legacy_environment();
         let settings = Self {
             smart_model_name: environment_value(
                 "RUSTLING_SMART_MODEL",
@@ -198,35 +177,12 @@ impl EngineSettings {
             chat_provider: String::new(),
             shared_secret: environment_value("RUSTLING_ENGINE_SHARED_SECRET", "")?,
             require_auth: environment_bool("RUSTLING_ENGINE_REQUIRE_AUTH", false)?,
-            require_user_id: environment_bool("RUSTLING_REQUIRE_USER_ID", false)?,
             // Python default: config push is allowed unless explicitly disabled.
             allow_config_push: environment_bool("RUSTLING_ALLOW_CONFIG_PUSH", true)?,
             config_cache_dir: PathBuf::from("data"),
             smart_model_max_tokens: environment_u32("RUSTLING_SMART_MODEL_MAX_TOKENS", 8_192)?,
             fast_model_max_tokens: environment_u32("RUSTLING_FAST_MODEL_MAX_TOKENS", 2_048)?,
             model_max_concurrency: environment_usize("RUSTLING_MODEL_MAX_CONCURRENCY", 32)?,
-            documents_backend: environment_value("RUSTLING_DOCUMENTS_BACKEND", "sqlite")?,
-            documents_sqlite_path: PathBuf::from(environment_value(
-                "RUSTLING_DOCUMENTS_SQLITE_PATH",
-                "data/rag.db",
-            )?),
-            documents_pgvector_dsn: environment_value("RUSTLING_DOCUMENTS_PGVECTOR_DSN", "")?,
-            documents_pgvector_pool_min_size: environment_usize(
-                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE",
-                1,
-            )?,
-            documents_pgvector_pool_max_size: environment_usize(
-                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE",
-                10,
-            )?,
-            rag_embedding_model: environment_value(
-                "RUSTLING_RAG_EMBEDDING_MODEL",
-                "voyageai:voyage-4",
-            )?,
-            rag_chunk_size: environment_usize("RUSTLING_RAG_CHUNK_SIZE", 512)?,
-            rag_chunk_overlap: environment_usize("RUSTLING_RAG_CHUNK_OVERLAP", 64)?,
-            rag_default_top_k: environment_usize("RUSTLING_RAG_TOP_K", 20)?,
-            rag_max_searches: environment_usize("RUSTLING_RAG_MAX_SEARCHES", 5)?,
             max_pages: environment_usize("RUSTLING_MAX_PAGES", 200)?,
             max_characters: environment_usize("RUSTLING_MAX_CHARACTERS", 200_000)?,
             chunked_reasoner_chars_per_slice: environment_usize(
@@ -240,10 +196,6 @@ impl EngineSettings {
             chunked_reasoner_worker_timeout_seconds: environment_f64(
                 "RUSTLING_CHUNKED_REASONER_WORKER_TIMEOUT_SECONDS",
                 60.0,
-            )?,
-            chunked_reasoner_notes_char_budget: environment_usize(
-                "RUSTLING_CHUNKED_REASONER_NOTES_CHAR_BUDGET",
-                250_000,
             )?,
             contradiction_detect_concurrency: environment_usize(
                 "RUSTLING_CONTRADICTION_DETECT_CONCURRENCY",
@@ -260,10 +212,6 @@ impl EngineSettings {
             contradiction_canonicaliser_batch_size: environment_usize(
                 "RUSTLING_CONTRADICTION_CANONICALISER_BATCH_SIZE",
                 500,
-            )?,
-            documents_reaper_interval_seconds: environment_u64(
-                "RUSTLING_DOCUMENTS_REAPER_INTERVAL_SECONDS",
-                900,
             )?,
         };
         settings.validate_environment_bounds()?;
@@ -286,36 +234,9 @@ impl EngineSettings {
                 "RUSTLING_MODEL_MAX_CONCURRENCY must be positive",
             ));
         }
-        if self.rag_chunk_size == 0 {
+        if self.chunked_reasoner_chars_per_slice == 0 || self.chunked_reasoner_concurrency == 0 {
             return Err(EngineSettingsError::new(
-                "RUSTLING_RAG_CHUNK_SIZE must be positive",
-            ));
-        }
-        if self.rag_chunk_overlap >= self.rag_chunk_size {
-            return Err(EngineSettingsError::new(
-                "RUSTLING_RAG_CHUNK_OVERLAP must be smaller than RUSTLING_RAG_CHUNK_SIZE",
-            ));
-        }
-        if !matches!(self.documents_backend.as_str(), "sqlite" | "pgvector") {
-            return Err(EngineSettingsError::new(
-                "RUSTLING_DOCUMENTS_BACKEND must be sqlite or pgvector",
-            ));
-        }
-        if self.documents_backend == "pgvector"
-            && (self.documents_pgvector_pool_min_size == 0
-                || self.documents_pgvector_pool_max_size == 0
-                || self.documents_pgvector_pool_min_size > self.documents_pgvector_pool_max_size)
-        {
-            return Err(EngineSettingsError::new(
-                "RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE and RUSTLING_DOCUMENTS_PGVECTOR_POOL_MAX_SIZE must be positive, and min must not exceed max",
-            ));
-        }
-        if self.chunked_reasoner_chars_per_slice == 0
-            || self.chunked_reasoner_concurrency == 0
-            || self.chunked_reasoner_notes_char_budget == 0
-        {
-            return Err(EngineSettingsError::new(
-                "RUSTLING_CHUNKED_REASONER_CHARS_PER_SLICE, RUSTLING_CHUNKED_REASONER_CONCURRENCY, and RUSTLING_CHUNKED_REASONER_NOTES_CHAR_BUDGET must be positive",
+                "RUSTLING_CHUNKED_REASONER_CHARS_PER_SLICE and RUSTLING_CHUNKED_REASONER_CONCURRENCY must be positive",
             ));
         }
         let worker_timeout =
@@ -356,40 +277,21 @@ impl EngineSettings {
             chat_provider: String::new(),
             shared_secret: shared_secret.into(),
             require_auth,
-            require_user_id: false,
             allow_config_push: true,
             config_cache_dir: PathBuf::new(),
             smart_model_max_tokens: 8_192,
             fast_model_max_tokens: 2_048,
             model_max_concurrency: 32,
-            documents_backend: "sqlite".to_owned(),
-            documents_sqlite_path: PathBuf::from(":memory:"),
-            documents_pgvector_dsn: String::new(),
-            documents_pgvector_pool_min_size: 1,
-            documents_pgvector_pool_max_size: 10,
-            rag_embedding_model: "test".to_owned(),
-            rag_chunk_size: 512,
-            rag_chunk_overlap: 64,
-            rag_default_top_k: 20,
-            rag_max_searches: 5,
             max_pages: 200,
             max_characters: 200_000,
             chunked_reasoner_chars_per_slice: 16_000,
             chunked_reasoner_concurrency: 10,
             chunked_reasoner_worker_timeout_seconds: 60.0,
-            chunked_reasoner_notes_char_budget: 250_000,
             contradiction_detect_concurrency: 5,
             contradiction_bucket_chunk_size: 12,
             contradiction_bucket_chunk_overlap: 2,
             contradiction_canonicaliser_batch_size: 500,
-            documents_reaper_interval_seconds: 900,
         }
-    }
-
-    #[must_use]
-    pub fn with_required_user_id(mut self, require_user_id: bool) -> Self {
-        self.require_user_id = require_user_id;
-        self
     }
 
     #[must_use]
@@ -423,69 +325,15 @@ impl EngineSettings {
     }
 
     #[must_use]
-    pub fn with_documents_sqlite_path(mut self, documents_sqlite_path: impl Into<PathBuf>) -> Self {
-        self.documents_sqlite_path = documents_sqlite_path.into();
-        self
-    }
-
-    #[must_use]
-    pub fn with_documents_backend(mut self, documents_backend: impl Into<String>) -> Self {
-        self.documents_backend = documents_backend.into();
-        self
-    }
-
-    #[must_use]
-    pub fn with_pgvector(
-        mut self,
-        dsn: impl Into<String>,
-        pool_min_size: usize,
-        pool_max_size: usize,
-    ) -> Self {
-        "pgvector".clone_into(&mut self.documents_backend);
-        self.documents_pgvector_dsn = dsn.into();
-        self.documents_pgvector_pool_min_size = pool_min_size;
-        self.documents_pgvector_pool_max_size = pool_max_size;
-        self
-    }
-
-    #[must_use]
-    pub fn with_rag_embedding_model(mut self, model_name: impl Into<String>) -> Self {
-        self.rag_embedding_model = model_name.into();
-        self
-    }
-
-    #[must_use]
-    pub const fn with_rag_chunking(mut self, chunk_size: usize, chunk_overlap: usize) -> Self {
-        self.rag_chunk_size = chunk_size;
-        self.rag_chunk_overlap = chunk_overlap;
-        self
-    }
-
-    #[must_use]
-    pub const fn with_rag_limits(mut self, top_k: usize, max_characters: usize) -> Self {
-        self.rag_default_top_k = top_k;
-        self.max_characters = max_characters;
-        self
-    }
-
-    #[must_use]
     pub const fn with_chunked_reasoner_limits(
         mut self,
         chars_per_slice: usize,
         concurrency: usize,
         worker_timeout_seconds: f64,
-        notes_char_budget: usize,
     ) -> Self {
         self.chunked_reasoner_chars_per_slice = chars_per_slice;
         self.chunked_reasoner_concurrency = concurrency;
         self.chunked_reasoner_worker_timeout_seconds = worker_timeout_seconds;
-        self.chunked_reasoner_notes_char_budget = notes_char_budget;
-        self
-    }
-
-    #[must_use]
-    pub const fn with_documents_reaper_interval(mut self, interval_seconds: u64) -> Self {
-        self.documents_reaper_interval_seconds = interval_seconds;
         self
     }
 
@@ -516,10 +364,6 @@ impl EngineSettings {
         self.smart_model_max_tokens
     }
 }
-
-/// Authenticated user identity propagated from `X-User-Id` to Rust handlers.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct UserId(pub String);
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -556,8 +400,6 @@ struct EngineRuntime {
     classifier: Result<Arc<Classifier>, ModelError>,
     model: Result<Arc<dyn StructuredOutputModel>, ModelError>,
     smart_model: Result<Arc<dyn StructuredOutputModel>, ModelError>,
-    documents: Result<Arc<dyn DocumentRepository>, DocumentError>,
-    embedder: Result<Arc<EmbeddingClient>, EmbeddingError>,
 }
 
 /// Holds the live runtime bundle; a config push swaps in a rebuilt bundle
@@ -589,7 +431,6 @@ pub fn app(settings: EngineSettings) -> Router {
     let mut settings = Arc::new(settings);
     let mut fast_model = structured_model_from_environment(settings.fast_model_name());
     let mut smart_model = structured_model_from_environment(&settings.smart_model_name);
-    let mut pushed_embedder = None;
     if let Some(cached) = load_cached_push(&settings) {
         match resolve_pushed_config(&settings, &cached) {
             Ok(resolved) => {
@@ -601,7 +442,6 @@ pub fn app(settings: EngineSettings) -> Router {
                 settings = Arc::new(resolved.effective);
                 fast_model = Ok(resolved.fast_model);
                 smart_model = Ok(resolved.smart_model);
-                pushed_embedder = resolved.embedder;
             }
             Err(detail) => {
                 tracing::warn!(
@@ -611,7 +451,21 @@ pub fn app(settings: EngineSettings) -> Router {
             }
         }
     }
-    app_with_runtime(settings, fast_model, smart_model, pushed_embedder)
+    app_with_runtime(settings, fast_model, smart_model)
+}
+
+/// Warns once per boot about environment variables from the removed document
+/// store / RAG question-answer feature; a present value is ignored, never an
+/// error, so existing deployments keep starting.
+fn warn_on_ignored_legacy_environment() {
+    for name in IGNORED_LEGACY_ENVIRONMENT {
+        if crate::env_compat::var(name).is_ok() {
+            tracing::warn!(
+                "{name} is set but the document store / PDF question-answer feature was removed; \
+                 the value is ignored"
+            );
+        }
+    }
 }
 
 fn load_cached_push(settings: &EngineSettings) -> Option<ConfigPushRequest> {
@@ -655,7 +509,6 @@ pub fn app_with_classifier(
         settings,
         Ok(Arc::clone(&classifier_model)),
         Ok(classifier_model),
-        None,
     )
 }
 
@@ -663,41 +516,10 @@ fn app_with_runtime(
     settings: Arc<EngineSettings>,
     model: Result<Arc<dyn StructuredOutputModel>, ModelError>,
     smart_model: Result<Arc<dyn StructuredOutputModel>, ModelError>,
-    pushed_embedder: Option<EmbeddingClient>,
 ) -> Router {
     let model_semaphore = Arc::new(Semaphore::new(settings.model_max_concurrency));
     let model = concurrency_limited_model(model, Arc::clone(&model_semaphore));
     let smart_model = concurrency_limited_model(smart_model, model_semaphore);
-    let embedder = match pushed_embedder {
-        Some(embedder) => Ok(Arc::new(embedder)),
-        None => EmbeddingClient::from_environment(&settings.rag_embedding_model).map(Arc::new),
-    };
-    let documents: Result<Arc<dyn DocumentRepository>, DocumentError> =
-        match settings.documents_backend.as_str() {
-            "sqlite" => SqliteDocumentStore::open(
-                &settings.documents_sqlite_path,
-                settings.rag_chunk_size,
-                settings.rag_chunk_overlap,
-            )
-            .map(|store| Arc::new(store) as Arc<dyn DocumentRepository>),
-            "pgvector" => PgVectorDocumentStore::new(
-                &settings.documents_pgvector_dsn,
-                settings.documents_pgvector_pool_min_size,
-                settings.documents_pgvector_pool_max_size,
-                settings.rag_chunk_size,
-                settings.rag_chunk_overlap,
-            )
-            .map(|store| Arc::new(store) as Arc<dyn DocumentRepository>),
-            backend => Err(DocumentError::InvalidRequest(format!(
-                "unsupported RUSTLING_DOCUMENTS_BACKEND {backend}; expected sqlite or pgvector"
-            ))),
-        };
-    if let Ok(store) = &documents {
-        start_document_reaper(
-            Arc::downgrade(store),
-            settings.documents_reaper_interval_seconds,
-        );
-    }
     let classifier = match &model {
         Ok(model) => Ok(Arc::new(DocumentClassifier::new(
             Arc::clone(model),
@@ -710,21 +532,15 @@ fn app_with_runtime(
         classifier,
         model,
         smart_model,
-        documents,
-        embedder,
     };
     let cell = Arc::new(RuntimeCell::new(runtime));
     Router::new()
         .route(HEALTH_PATH, get(health))
         .route(CAPABILITIES_PATH, get(capabilities))
-        .route(DOCUMENTS_PATH, post(ingest_document))
-        .route(DOCUMENT_BY_ID_PATH, delete(delete_document))
-        .route(DOCUMENTS_BY_OWNER_PATH, delete(purge_owner_documents))
         .route("/api/v1/documents/classify", post(classify_document))
         .route(MATH_AUDITOR_EXAMINE_PATH, post(examine_math_audit))
         .route(MATH_AUDITOR_DELIBERATE_PATH, post(deliberate_math_audit))
         .route(PDF_COMMENT_GENERATE_PATH, post(generate_pdf_comments))
-        .route(PDF_QUESTIONS_PATH, post(answer_pdf_question))
         .route(PDF_EDIT_PATH, post(plan_pdf_edit))
         .route(AGENT_DRAFT_PATH, post(draft_agent))
         .route(AI_AGENT_DRAFT_PATH, post(draft_agent))
@@ -759,8 +575,6 @@ struct ResolvedPush {
     effective: EngineSettings,
     fast_model: Arc<dyn StructuredOutputModel>,
     smart_model: Arc<dyn StructuredOutputModel>,
-    embedder: Option<EmbeddingClient>,
-    notes: Vec<String>,
 }
 
 /// Drops a leading `provider:` from an env model string (`anthropic:x` -> `x`).
@@ -768,22 +582,6 @@ fn strip_provider_prefix(model_name: &str) -> &str {
     model_name
         .split_once(':')
         .map_or(model_name, |(_prefix, rest)| rest)
-}
-
-/// Splits an env embedding string (`voyageai:voyage-4`) into (provider, model).
-fn split_embedding_ref(reference: &str) -> (&str, &str) {
-    reference
-        .split_once(':')
-        .map_or(("", reference), |(provider, model)| (provider, model))
-}
-
-/// Composes the engine's `provider:model` embedding string from pushed parts.
-fn compose_embedding_model(provider: &str, model: &str) -> String {
-    if provider.is_empty() {
-        model.to_owned()
-    } else {
-        format!("{provider}:{model}")
-    }
 }
 
 fn non_empty_or<'value>(pushed: &'value str, current: &'value str) -> &'value str {
@@ -797,9 +595,7 @@ fn resolve_pushed_config(
     request: &ConfigPushRequest,
 ) -> Result<ResolvedPush, String> {
     let models = &request.models;
-    let rag = &request.rag;
     let limits = &request.limits;
-    let mut notes = Vec::new();
 
     let provider = models.provider.trim();
     let use_explicit_provider =
@@ -840,36 +636,6 @@ fn resolve_pushed_config(
     let smart_model = build(&smart_name)?;
     let fast_model = build(&fast_name)?;
 
-    // Embedding: any non-empty embedding field triggers a rebuild; empty
-    // fields fall back to the running provider/model/creds so a partial push
-    // never clobbers env.
-    let embedding_changed = !rag.embedding_provider.trim().is_empty()
-        || !rag.embedding_model.trim().is_empty()
-        || !rag.embedding_api_key.is_empty()
-        || !rag.embedding_base_url.is_empty();
-    let mut rag_embedding_model = current.rag_embedding_model.clone();
-    let mut embedder = None;
-    if embedding_changed {
-        let (current_provider, current_model) = split_embedding_ref(&current.rag_embedding_model);
-        let embed_provider = non_empty_or(rag.embedding_provider.trim(), current_provider);
-        let embed_model = non_empty_or(rag.embedding_model.trim(), current_model);
-        rag_embedding_model = compose_embedding_model(embed_provider, embed_model);
-        let pushed_key =
-            (!rag.embedding_api_key.is_empty()).then_some(rag.embedding_api_key.as_str());
-        let pushed_base =
-            (!rag.embedding_base_url.is_empty()).then_some(rag.embedding_base_url.as_str());
-        embedder = Some(
-            EmbeddingClient::from_pushed_config(
-                embed_provider,
-                embed_model,
-                pushed_key,
-                pushed_base,
-            )
-            .map_err(|error| error.to_string())?,
-        );
-        notes.push(REINDEX_NOTE.to_owned());
-    }
-
     // Scalars: an omitted value keeps the current one.
     let mut effective = current.clone();
     provider.clone_into(&mut effective.chat_provider);
@@ -881,9 +647,6 @@ fn resolve_pushed_config(
     effective.fast_model_max_tokens = models
         .fast_max_tokens
         .unwrap_or(current.fast_model_max_tokens);
-    effective.rag_embedding_model = rag_embedding_model;
-    effective.rag_default_top_k = rag.top_k.unwrap_or(current.rag_default_top_k);
-    effective.rag_max_searches = rag.max_searches.unwrap_or(current.rag_max_searches);
     effective.max_pages = limits.max_pages.unwrap_or(current.max_pages);
     effective.max_characters = limits.max_characters.unwrap_or(current.max_characters);
     effective.model_max_concurrency = limits
@@ -894,8 +657,6 @@ fn resolve_pushed_config(
         effective,
         fast_model,
         smart_model,
-        embedder,
-        notes,
     })
 }
 
@@ -931,8 +692,8 @@ fn build_pushed_model(
 }
 
 /// Builds the post-push runtime bundle: fresh models under a fresh shared
-/// concurrency ceiling, the store and (unless re-pushed) embedder reused.
-fn rebuilt_runtime(current: &EngineRuntime, resolved: ResolvedPush) -> EngineRuntime {
+/// concurrency ceiling.
+fn rebuilt_runtime(resolved: ResolvedPush) -> EngineRuntime {
     let effective = Arc::new(resolved.effective);
     let semaphore = Arc::new(Semaphore::new(effective.model_max_concurrency));
     let model = Arc::new(ConcurrencyLimitedModel::new(
@@ -947,17 +708,11 @@ fn rebuilt_runtime(current: &EngineRuntime, resolved: ResolvedPush) -> EngineRun
         Arc::clone(&model),
         effective.fast_model_max_tokens(),
     ));
-    let embedder = match resolved.embedder {
-        Some(embedder) => Ok(Arc::new(embedder)),
-        None => current.embedder.clone(),
-    };
     EngineRuntime {
         settings: effective,
         classifier: Ok(classifier),
         model: Ok(model),
         smart_model: Ok(smart_model),
-        documents: current.documents.clone(),
-        embedder,
     }
 }
 
@@ -1020,8 +775,8 @@ async fn apply_config(
         // Reject without touching the running config.
         Err(detail) => return error_response(StatusCode::BAD_REQUEST, detail),
     };
-    let mut notes = resolved.notes.clone();
-    let new_runtime = rebuilt_runtime(&runtime, resolved);
+    let mut notes = Vec::new();
+    let new_runtime = rebuilt_runtime(resolved);
     let effective = Arc::clone(&new_runtime.settings);
     cell.swap(new_runtime);
 
@@ -1047,7 +802,6 @@ async fn apply_config(
         },
         smart_model = %effective.smart_model_name,
         fast_model = %effective.fast_model_name,
-        top_k = effective.rag_default_top_k,
         "applied pushed AI config"
     );
 
@@ -1058,9 +812,6 @@ async fn apply_config(
         fast_model: effective.fast_model_name.clone(),
         smart_max_tokens: effective.smart_model_max_tokens,
         fast_max_tokens: effective.fast_model_max_tokens,
-        rag_embedding_model: effective.rag_embedding_model.clone(),
-        rag_top_k: effective.rag_default_top_k,
-        rag_max_searches: effective.rag_max_searches,
         max_pages: effective.max_pages,
         max_characters: effective.max_characters,
         model_max_concurrency: effective.model_max_concurrency,
@@ -1076,32 +827,6 @@ fn concurrency_limited_model(
     model.map(|model| {
         Arc::new(ConcurrencyLimitedModel::new(model, semaphore)) as Arc<dyn StructuredOutputModel>
     })
-}
-
-fn start_document_reaper(store: std::sync::Weak<dyn DocumentRepository>, interval_seconds: u64) {
-    let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-        return;
-    };
-    let interval_seconds = interval_seconds.max(1);
-    std::mem::drop(runtime.spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(interval_seconds));
-        interval.tick().await;
-        loop {
-            interval.tick().await;
-            let Some(store) = store.upgrade() else {
-                break;
-            };
-            match store.reap_expired().await {
-                Ok(deleted) if deleted > 0 => {
-                    tracing::info!(deleted, "reaped expired Rust document collections");
-                }
-                Ok(_) => {}
-                Err(error) => {
-                    tracing::warn!(%error, "failed to reap expired Rust document collections");
-                }
-            }
-        }
-    }));
 }
 
 async fn health(Extension(runtime): Extension<Arc<EngineRuntime>>) -> impl IntoResponse {
@@ -1130,14 +855,6 @@ async fn capabilities() -> Response {
     Json(CapabilityManifest {
         version: 1,
         capabilities: vec![
-            AgentCapability {
-                id: "pdf-question-answer",
-                description: "Answer a natural-language question about a PDF document.",
-                input_schema: pdf_question_capability_schema(),
-                mode: "sync",
-                required_scope: "mcp.tools.read",
-                route: PDF_QUESTIONS_PATH,
-            },
             AgentCapability {
                 id: "pdf-edit-plan",
                 description: "Produce a structured PDF edit plan from a natural-language request.",
@@ -1205,124 +922,6 @@ async fn capabilities() -> Response {
     .into_response()
 }
 
-async fn ingest_document(
-    Extension(runtime): Extension<Arc<EngineRuntime>>,
-    user_id: Option<Extension<UserId>>,
-    Json(request): Json<IngestDocumentRequest>,
-) -> Response {
-    if document_user(user_id.as_ref()).is_none() {
-        return missing_document_user_response();
-    }
-    let store = match &runtime.documents {
-        Ok(store) => store,
-        Err(error) => return document_store_unavailable_response(error),
-    };
-    let document_id = request.document_id.clone();
-    let prepared = match store.prepare_ingest(request) {
-        Ok(prepared) => prepared,
-        Err(error) => return document_error_response(error),
-    };
-    let embedder = match &runtime.embedder {
-        Ok(embedder) => embedder,
-        Err(error) => {
-            return error_response(
-                StatusCode::SERVICE_UNAVAILABLE,
-                format!("Document embedding is unavailable: {error}"),
-            );
-        }
-    };
-    let embeddings = match embedder.embed_documents(&prepared.chunk_texts()).await {
-        Ok(embeddings) => embeddings,
-        Err(error) => {
-            return error_response(
-                StatusCode::BAD_GATEWAY,
-                format!("Document embedding provider failed: {error}"),
-            );
-        }
-    };
-    match store.commit_ingest(prepared, embeddings).await {
-        Ok(chunks_indexed) => Json(IngestDocumentResponse {
-            document_id,
-            chunks_indexed,
-        })
-        .into_response(),
-        Err(error) => document_error_response(error),
-    }
-}
-
-async fn delete_document(
-    Extension(runtime): Extension<Arc<EngineRuntime>>,
-    user_id: Option<Extension<UserId>>,
-    AxumPath(document_id): AxumPath<String>,
-) -> Response {
-    let Some(user_id) = document_user(user_id.as_ref()) else {
-        return missing_document_user_response();
-    };
-    let store = match &runtime.documents {
-        Ok(store) => store,
-        Err(error) => return document_store_unavailable_response(error),
-    };
-    match store
-        .delete_owned_collection(document_id.clone(), user_id.to_owned())
-        .await
-    {
-        Ok(deleted) => Json(DeleteDocumentResponse {
-            document_id,
-            deleted,
-        })
-        .into_response(),
-        Err(error) => document_error_response(error),
-    }
-}
-
-async fn purge_owner_documents(
-    Extension(runtime): Extension<Arc<EngineRuntime>>,
-    user_id: Option<Extension<UserId>>,
-) -> Response {
-    let Some(user_id) = document_user(user_id.as_ref()) else {
-        return missing_document_user_response();
-    };
-    let store = match &runtime.documents {
-        Ok(store) => store,
-        Err(error) => return document_store_unavailable_response(error),
-    };
-    match store.purge_owner(user_id.to_owned()).await {
-        Ok(deleted) => Json(PurgeOwnerResponse {
-            owner_id: user_id.to_owned(),
-            deleted,
-        })
-        .into_response(),
-        Err(error) => document_error_response(error),
-    }
-}
-
-fn document_user(user_id: Option<&Extension<UserId>>) -> Option<&str> {
-    user_id.map(|Extension(user_id)| user_id.0.as_str())
-}
-
-fn missing_document_user_response() -> Response {
-    error_response(StatusCode::UNAUTHORIZED, "X-User-Id header is required")
-}
-
-fn document_store_unavailable_response(error: &DocumentError) -> Response {
-    error_response(
-        StatusCode::SERVICE_UNAVAILABLE,
-        format!("Document storage is unavailable: {error}"),
-    )
-}
-
-fn document_error_response(error: DocumentError) -> Response {
-    match error {
-        DocumentError::InvalidRequest(message) => {
-            error_response(StatusCode::UNPROCESSABLE_ENTITY, message)
-        }
-        DocumentError::Database(message) | DocumentError::Worker(message) => error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Document storage failed: {message}"),
-        ),
-    }
-}
-
 fn ai_file_schema() -> Value {
     json!({
         "type":"object","additionalProperties":false,
@@ -1336,18 +935,6 @@ fn conversation_message_schema() -> Value {
         "type":"object","additionalProperties":false,
         "properties":{"role":{"type":"string"},"content":{"type":"string"}},
         "required":["role","content"]
-    })
-}
-
-fn pdf_question_capability_schema() -> Value {
-    json!({
-        "title":"PdfQuestionRequest","type":"object","additionalProperties":false,
-        "properties":{
-            "question":{"type":"string"},
-            "files":{"type":"array","items":ai_file_schema(),"default":[]},
-            "conversationHistory":{"type":"array","items":conversation_message_schema(),"default":[]}
-        },
-        "required":["question"]
     })
 }
 
@@ -1623,79 +1210,6 @@ async fn generate_pdf_comments(
     }
 }
 
-async fn answer_pdf_question(
-    Extension(runtime): Extension<Arc<EngineRuntime>>,
-    user_id: Option<Extension<UserId>>,
-    Json(request): Json<PdfQuestionRequest>,
-) -> Response {
-    let Some(user_id) = document_user(user_id.as_ref()) else {
-        return missing_document_user_response();
-    };
-    let documents = match &runtime.documents {
-        Ok(documents) => Arc::clone(documents),
-        Err(error) => return document_store_unavailable_response(error),
-    };
-    match pdf_question_agent(&runtime, documents)
-        .handle(&request, user_id)
-        .await
-    {
-        Ok(response) => Json(response).into_response(),
-        Err(PdfQuestionError::InvalidRequest(message)) => {
-            error_response(StatusCode::UNPROCESSABLE_ENTITY, message)
-        }
-        Err(PdfQuestionError::Storage(message)) => error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Document storage failed: {message}"),
-        ),
-        Err(PdfQuestionError::EmbeddingUnavailable(message)) => error_response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Document embedding is unavailable: {message}"),
-        ),
-        Err(PdfQuestionError::Embedding(message)) => error_response(
-            StatusCode::BAD_GATEWAY,
-            format!("Document embedding provider failed: {message}"),
-        ),
-        Err(PdfQuestionError::ModelUnavailable(message)) => error_response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("PDF question model is unavailable: {message}"),
-        ),
-        Err(PdfQuestionError::Model(message)) => error_response(
-            StatusCode::BAD_GATEWAY,
-            format!("PDF question model failed: {message}"),
-        ),
-    }
-}
-
-fn pdf_question_agent(
-    runtime: &EngineRuntime,
-    documents: Arc<dyn DocumentRepository>,
-) -> PdfQuestionAgent {
-    PdfQuestionAgent::new(
-        PdfQuestionModels {
-            fast: runtime.model.clone(),
-            smart: runtime.smart_model.clone(),
-            embedder: runtime.embedder.clone(),
-        },
-        documents,
-        PdfQuestionLimits {
-            top_k: runtime.settings.rag_default_top_k,
-            max_characters: runtime.settings.max_characters,
-            smart_max_output_tokens: runtime.settings.smart_model_max_tokens(),
-            fast_max_output_tokens: runtime.settings.fast_model_max_tokens(),
-            chars_per_slice: runtime.settings.chunked_reasoner_chars_per_slice,
-            concurrency: runtime.settings.chunked_reasoner_concurrency,
-            worker_timeout_seconds: runtime.settings.chunked_reasoner_worker_timeout_seconds,
-            notes_char_budget: runtime.settings.chunked_reasoner_notes_char_budget,
-            contradiction_detect_concurrency: runtime.settings.contradiction_detect_concurrency,
-            contradiction_bucket_size: runtime.settings.contradiction_bucket_chunk_size,
-            contradiction_bucket_overlap: runtime.settings.contradiction_bucket_chunk_overlap,
-            contradiction_canonicaliser_batch_size: runtime
-                .settings
-                .contradiction_canonicaliser_batch_size,
-        },
-    )
-}
-
 fn pdf_edit_agent(runtime: &EngineRuntime, worker_timeout: Duration) -> PdfEditAgent {
     PdfEditAgent::new(
         runtime.smart_model.clone(),
@@ -1715,14 +1229,9 @@ fn user_spec_agent(runtime: &EngineRuntime, worker_timeout: Duration) -> UserSpe
     )
 }
 
-fn pdf_review_agent(
-    runtime: &EngineRuntime,
-    documents: Arc<dyn DocumentRepository>,
-    worker_timeout: Duration,
-) -> PdfReviewAgent {
+fn pdf_review_agent(runtime: &EngineRuntime, worker_timeout: Duration) -> PdfReviewAgent {
     PdfReviewAgent::new(
         runtime.model.clone(),
-        documents,
         PdfReviewLimits {
             chars_per_slice: runtime.settings.chunked_reasoner_chars_per_slice,
             extraction_concurrency: runtime.settings.chunked_reasoner_concurrency,
@@ -1732,6 +1241,8 @@ fn pdf_review_agent(
             bucket_overlap: runtime.settings.contradiction_bucket_chunk_overlap,
             canonicaliser_batch_size: runtime.settings.contradiction_canonicaliser_batch_size,
             max_output_tokens: runtime.settings.fast_model_max_tokens(),
+            max_pages: runtime.settings.max_pages,
+            max_characters: runtime.settings.max_characters,
         },
     )
 }
@@ -1839,10 +1350,8 @@ fn user_spec_error_response(error: UserSpecError) -> Response {
 
 async fn orchestrate(
     Extension(runtime): Extension<Arc<EngineRuntime>>,
-    user_id: Option<Extension<UserId>>,
     Json(request): Json<OrchestratorRequest>,
 ) -> Response {
-    let user_id = document_user(user_id.as_ref()).map(str::to_owned);
     let worker_timeout =
         match Duration::try_from_secs_f64(runtime.settings.chunked_reasoner_worker_timeout_seconds)
         {
@@ -1854,55 +1363,25 @@ async fn orchestrate(
                 );
             }
         };
-    let agent =
-        OrchestratorAgent::new(
-            runtime.model.clone(),
-            OrchestratorDelegates {
-                pdf_question: runtime
-                    .documents
-                    .as_ref()
-                    .ok()
-                    .map(|documents| pdf_question_agent(&runtime, Arc::clone(documents))),
-                pdf_edit: pdf_edit_agent(&runtime, worker_timeout),
-                pdf_review: runtime.documents.as_ref().ok().map(|documents| {
-                    pdf_review_agent(&runtime, Arc::clone(documents), worker_timeout)
-                }),
-                pdf_create: PdfCreateAgent::new(
-                    runtime.smart_model.clone(),
-                    runtime.settings.smart_model_max_tokens(),
-                    worker_timeout,
-                    10,
-                ),
-                user_spec: user_spec_agent(&runtime, worker_timeout),
-            },
-            runtime.settings.fast_model_max_tokens(),
-            worker_timeout,
-        );
-    let anonymous_route = if user_id.is_none() {
-        let route = match agent.resolve_route(&request).await {
-            Ok(route) => route,
-            Err(error) => return orchestrator_error_response(error),
-        };
-        if route.requires_principal() {
-            return missing_document_user_response();
-        }
-        Some(route)
-    } else {
-        None
-    };
+    let agent = OrchestratorAgent::new(
+        runtime.model.clone(),
+        OrchestratorDelegates {
+            pdf_edit: pdf_edit_agent(&runtime, worker_timeout),
+            pdf_review: pdf_review_agent(&runtime, worker_timeout),
+            pdf_create: PdfCreateAgent::new(
+                runtime.smart_model.clone(),
+                runtime.settings.smart_model_max_tokens(),
+                worker_timeout,
+                10,
+            ),
+            user_spec: user_spec_agent(&runtime, worker_timeout),
+        },
+        runtime.settings.fast_model_max_tokens(),
+        worker_timeout,
+    );
     let (sender, receiver) = mpsc::channel::<String>(16);
     tokio::spawn(async move {
-        let operation = progress::scope(sender.clone(), async move {
-            if let Some(route) = anonymous_route {
-                agent.handle_resolved(&request, None, route).await
-            } else if let Some(principal) = user_id.as_deref() {
-                agent.handle(&request, principal).await
-            } else {
-                Err(OrchestratorError::InvalidRequest(
-                    "X-User-Id header is required".to_owned(),
-                ))
-            }
-        });
+        let operation = async move { agent.handle(&request).await };
         tokio::pin!(operation);
         let mut heartbeat =
             tokio::time::interval(Duration::from_secs(ORCHESTRATOR_HEARTBEAT_SECONDS));
@@ -1939,26 +1418,9 @@ async fn orchestrate(
     response
 }
 
-fn orchestrator_error_response(error: OrchestratorError) -> Response {
-    match error {
-        OrchestratorError::ModelUnavailable(message) => {
-            error_response(StatusCode::SERVICE_UNAVAILABLE, message)
-        }
-        OrchestratorError::InvalidRequest(message) => {
-            error_response(StatusCode::UNPROCESSABLE_ENTITY, message)
-        }
-        OrchestratorError::Model(message)
-        | OrchestratorError::PdfQuestion(message)
-        | OrchestratorError::PdfEdit(message)
-        | OrchestratorError::PdfReview(message)
-        | OrchestratorError::PdfCreate(message)
-        | OrchestratorError::UserSpec(message) => error_response(StatusCode::BAD_GATEWAY, message),
-    }
-}
-
 async fn enforce_request_guards(
     axum::extract::State(settings): axum::extract::State<Arc<EngineSettings>>,
-    mut request: Request,
+    request: Request,
     next: Next,
 ) -> Response {
     if request.uri().path() == HEALTH_PATH {
@@ -1982,14 +1444,6 @@ async fn enforce_request_guards(
             "Missing or invalid X-Engine-Auth header.",
         );
     }
-    let user_id = provided_user_id(request.headers()).map(str::to_owned);
-    if let Some(user_id) = user_id {
-        request.extensions_mut().insert(UserId(user_id));
-    } else if settings.require_user_id && request.uri().path() != CONFIG_PATH {
-        // The config push is processor-to-engine plumbing with no acting user;
-        // the Python oracle leaves it outside the user-id gate too.
-        return error_response(StatusCode::UNAUTHORIZED, "X-User-Id header is required");
-    }
     next.run(request).await
 }
 
@@ -1998,13 +1452,6 @@ fn provided_secret(headers: &HeaderMap) -> &str {
         .get(ENGINE_AUTH_HEADER)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default()
-}
-
-fn provided_user_id(headers: &HeaderMap) -> Option<&str> {
-    headers
-        .get(USER_ID_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .filter(|value| !value.is_empty())
 }
 
 fn error_response(status: StatusCode, detail: impl Into<String>) -> Response {
@@ -2060,10 +1507,6 @@ fn environment_u32(name: &str, default: u32) -> Result<u32, EngineSettingsError>
 }
 
 fn environment_usize(name: &str, default: usize) -> Result<usize, EngineSettingsError> {
-    environment_integer(name, default)
-}
-
-fn environment_u64(name: &str, default: u64) -> Result<u64, EngineSettingsError> {
     environment_integer(name, default)
 }
 
@@ -2143,7 +1586,7 @@ mod tests {
             Ok(true)
         );
         assert_eq!(
-            parse_environment_bool("RUSTLING_REQUIRE_USER_ID", "F"),
+            parse_environment_bool("RUSTLING_ALLOW_CONFIG_PUSH", "F"),
             Ok(false)
         );
         assert!(
@@ -2193,28 +1636,14 @@ mod tests {
                 .validate_environment_bounds()
                 .is_err_and(|error| error.to_string().contains("RUSTLING_MODEL_MAX_CONCURRENCY"))
         );
-        let invalid_chunking =
-            EngineSettings::new("smart", "fast", "", false).with_rag_chunking(64, 64);
+        let invalid_reasoner =
+            EngineSettings::new("smart", "fast", "", false).with_chunked_reasoner_limits(0, 2, 5.0);
         assert!(
-            invalid_chunking
-                .validate_environment_bounds()
-                .is_err_and(|error| error.to_string().contains("RUSTLING_RAG_CHUNK_OVERLAP"))
-        );
-        let invalid_pool =
-            EngineSettings::new("smart", "fast", "", false).with_pgvector("dsn", 5, 4);
-        assert!(
-            invalid_pool
+            invalid_reasoner
                 .validate_environment_bounds()
                 .is_err_and(|error| error
                     .to_string()
-                    .contains("RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE"))
-        );
-        let invalid_backend =
-            EngineSettings::new("smart", "fast", "", false).with_documents_backend("unavailable");
-        assert!(
-            invalid_backend
-                .validate_environment_bounds()
-                .is_err_and(|error| error.to_string().contains("RUSTLING_DOCUMENTS_BACKEND"))
+                    .contains("RUSTLING_CHUNKED_REASONER_CHARS_PER_SLICE"))
         );
         let invalid_contradiction =
             EngineSettings::new("smart", "fast", "", false).with_contradiction_limits(1, 8, 8, 1);
@@ -2279,27 +1708,21 @@ mod tests {
 
     fn stub_orchestrator_output(tool_name: &str, prompt: &str) -> Option<serde_json::Value> {
         match tool_name {
-            "route_orchestrator_request" => Some(serde_json::json!({
-                "route": if prompt.contains("Build an agent") {
-                    "agent_draft"
-                } else if prompt.contains("Create") {
-                    "pdf_create"
-                } else if prompt.contains("Review") {
-                    "pdf_review"
-                } else if prompt.contains("Rotate") {
-                    "pdf_edit"
-                } else {
-                    "pdf_question"
-                },
-                "capability": null,
-                "message": null
-            })),
-            "classify_math_intent" => Some(serde_json::json!({
-                "isMath": prompt.to_lowercase().contains("math")
-            })),
-            "synthesise_math_audit_answer" => Some(serde_json::json!({
-                "answer": "The total is incorrect: stated $215,000, expected $215,500."
-            })),
+            "route_orchestrator_request" => Some(if prompt.contains("Build an agent") {
+                serde_json::json!({"route": "agent_draft", "capability": null, "message": null})
+            } else if prompt.contains("Create") {
+                serde_json::json!({"route": "pdf_create", "capability": null, "message": null})
+            } else if prompt.contains("Review") {
+                serde_json::json!({"route": "pdf_review", "capability": null, "message": null})
+            } else if prompt.contains("Rotate") {
+                serde_json::json!({"route": "pdf_edit", "capability": null, "message": null})
+            } else {
+                serde_json::json!({
+                    "route": "unsupported",
+                    "capability": "pdf-question-answer",
+                    "message": "Question answering over PDF contents is not available."
+                })
+            }),
             "select_pdf_edit_plan" => {
                 let needs_text = prompt.contains("mentions DRAFT")
                     && prompt.contains("Extracted page text:\nNone");
@@ -2412,35 +1835,6 @@ mod tests {
                         "rationale": "Flagged ambiguous dates."
                     }));
                 }
-                if tool.name == "answer_pdf_question" {
-                    if prompt.contains("Findings (") {
-                        return Ok(serde_json::json!({
-                            "outcome": "answer",
-                            "answer": "The document states two incompatible deadlines.",
-                            "reason": null,
-                            "evidenceIndices": [0, 1]
-                        }));
-                    }
-                    let evidence_index = usize::from(prompt.contains("[Notes from"));
-                    return Ok(serde_json::json!({
-                        "outcome": "answer",
-                        "answer": "The invoice total is 120.00.",
-                        "reason": null,
-                        "evidenceIndices": [evidence_index]
-                    }));
-                }
-                if tool.name == "extract_document_notes" {
-                    return Ok(serde_json::json!({
-                        "summary": "The page states the invoice total.",
-                        "relevantExcerpts": ["120.00"],
-                        "facts": ["Invoice total: 120.00"]
-                    }));
-                }
-                if tool.name == "classify_contradiction_intent" {
-                    return Ok(serde_json::json!({
-                        "isContradiction": prompt.contains("contradiction")
-                    }));
-                }
                 if tool.name == "extract_contradiction_claims" {
                     return Ok(serde_json::json!({
                         "claims": [
@@ -2536,19 +1930,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn user_identity_requirement_applies_after_shared_secret_authentication()
+    async fn invalid_shared_secret_is_rejected_and_user_id_headers_are_not_required()
     -> Result<(), Box<dyn std::error::Error>> {
-        let app =
-            app(EngineSettings::new("smart", "fast", "secret", true).with_required_user_id(true));
+        let app = app(EngineSettings::new("smart", "fast", "secret", true));
 
-        let missing_user = app
-            .clone()
-            .oneshot(
-                Request::get("/api/v1/agents/capabilities")
-                    .header("X-Engine-Auth", "secret")
-                    .body(Body::empty())?,
-            )
-            .await?;
         let invalid_secret = app
             .clone()
             .oneshot(
@@ -2557,40 +1942,18 @@ mod tests {
                     .body(Body::empty())?,
             )
             .await?;
-        let accepted = app
+        // The removed per-user identity gate must not resurface: the shared
+        // secret alone authenticates service-to-service calls.
+        let accepted_without_user = app
             .oneshot(
                 Request::get("/api/v1/agents/capabilities")
                     .header("X-Engine-Auth", "secret")
-                    .header("X-User-Id", "tenant-user")
                     .body(Body::empty())?,
             )
             .await?;
 
-        assert_eq!(missing_user.status(), 401);
         assert_eq!(invalid_secret.status(), 401);
-        assert_eq!(accepted.status(), 200);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn user_identity_requirement_is_independent_of_shared_secret_configuration()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = app(EngineSettings::new("smart", "fast", "", false).with_required_user_id(true));
-
-        let missing_user = app
-            .clone()
-            .oneshot(Request::get("/api/v1/agents/capabilities").body(Body::empty())?)
-            .await?;
-        let accepted = app
-            .oneshot(
-                Request::get("/api/v1/agents/capabilities")
-                    .header("X-User-Id", "tenant-user")
-                    .body(Body::empty())?,
-            )
-            .await?;
-
-        assert_eq!(missing_user.status(), 401);
-        assert_eq!(accepted.status(), 200);
+        assert_eq!(accepted_without_user.status(), 200);
         Ok(())
     }
 
@@ -2605,7 +1968,7 @@ mod tests {
         let body = to_bytes(response.into_body(), 65_536).await?;
         let body = serde_json::from_slice::<serde_json::Value>(&body)?;
         assert_eq!(body["version"], 1);
-        assert_eq!(body["capabilities"].as_array().map(Vec::len), Some(8));
+        assert_eq!(body["capabilities"].as_array().map(Vec::len), Some(7));
         let ids = body["capabilities"]
             .as_array()
             .ok_or("capabilities must be an array")?
@@ -2615,7 +1978,6 @@ mod tests {
         assert_eq!(
             ids,
             vec![
-                "pdf-question-answer",
                 "pdf-edit-plan",
                 "agent-draft",
                 "agent-revise",
@@ -2625,9 +1987,9 @@ mod tests {
                 "agent-next-action"
             ]
         );
-        assert_eq!(body["capabilities"][4]["id"], "math-audit-examine");
+        assert_eq!(body["capabilities"][3]["id"], "math-audit-examine");
         assert_eq!(
-            body["capabilities"][4]["input_schema"],
+            body["capabilities"][3]["input_schema"],
             serde_json::json!({
                 "title": "FolioManifest",
                 "type": "object",
@@ -2644,17 +2006,17 @@ mod tests {
                 "required": ["sessionId", "pageCount", "folioTypes"]
             }),
         );
-        assert_eq!(body["capabilities"][5]["id"], "math-audit-deliberate");
+        assert_eq!(body["capabilities"][4]["id"], "math-audit-deliberate");
         assert_eq!(
-            body["capabilities"][5]["route"],
+            body["capabilities"][4]["route"],
             "/api/v1/ai/math-auditor-agent/deliberate"
         );
-        assert_eq!(body["capabilities"][5]["input_schema"]["title"], "Evidence");
+        assert_eq!(body["capabilities"][4]["input_schema"]["title"], "Evidence");
         assert_eq!(
-            body["capabilities"][5]["input_schema"]["properties"]["round"],
+            body["capabilities"][4]["input_schema"]["properties"]["round"],
             serde_json::json!({"type": "integer", "minimum": 1, "maximum": 3}),
         );
-        let tool_step_endpoints = body["capabilities"][3]["input_schema"]["properties"]
+        let tool_step_endpoints = body["capabilities"][2]["input_schema"]["properties"]
             ["currentDraft"]["properties"]["steps"]["items"]["oneOf"][0]["properties"]
             ["tool"]["enum"]
             .as_array()
@@ -2674,7 +2036,7 @@ mod tests {
                 .iter()
                 .any(|endpoint| endpoint == "/api/v1/not-real")
         );
-        let ai_tool_step_endpoints = body["capabilities"][3]["input_schema"]["properties"]
+        let ai_tool_step_endpoints = body["capabilities"][2]["input_schema"]["properties"]
             ["currentDraft"]["properties"]["steps"]["items"]["oneOf"][1]["properties"]
             ["tool"]["enum"]
             .as_array()
@@ -2902,322 +2264,71 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn document_routes_replace_ingest_and_scope_deletes_to_the_header_owner()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = app(EngineSettings::new("smart", "fast", "", false)
-            .with_documents_sqlite_path(":memory:")
-            .with_rag_chunking(100, 10));
-        let alice_body = r#"{
-            "documentId":"shared",
-            "source":"report.pdf",
-            "pageText":[
-                {"pageNumber":1,"text":"First page text."},
-                {"pageNumber":2,"text":"Second page text."}
-            ],
-            "ownerId":"alice",
-            "readPrincipals":["alice"],
-            "expiresAt":null
-        }"#;
-        let ingested = app
-            .clone()
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(alice_body))?,
-            )
-            .await?;
-        assert_eq!(ingested.status(), 200);
-        let body = to_bytes(ingested.into_body(), 1_024).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({"documentId":"shared", "chunksIndexed":2}),
-        );
-
-        let bob_body = alice_body
-            .replace("\"ownerId\":\"alice\"", "\"ownerId\":\"bob\"")
-            .replace("[\"alice\"]", "[\"bob\"]");
-        let bob_ingested = app
-            .clone()
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "bob")
-                    .header("content-type", "application/json")
-                    .body(Body::from(bob_body))?,
-            )
-            .await?;
-        assert_eq!(bob_ingested.status(), 200);
-
-        let alice_deleted = app
-            .clone()
-            .oneshot(
-                Request::delete("/api/v1/documents/by-id/shared")
-                    .header("X-User-Id", "alice")
-                    .body(Body::empty())?,
-            )
-            .await?;
-        assert_eq!(alice_deleted.status(), 200);
-        let body = to_bytes(alice_deleted.into_body(), 1_024).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({"documentId":"shared", "deleted":true}),
-        );
-
-        let alice_idempotent = app
-            .clone()
-            .oneshot(
-                Request::delete("/api/v1/documents/by-id/shared")
-                    .header("X-User-Id", "alice")
-                    .body(Body::empty())?,
-            )
-            .await?;
-        let body = to_bytes(alice_idempotent.into_body(), 1_024).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({"documentId":"shared", "deleted":false}),
-        );
-
-        let bob_deleted = app
-            .oneshot(
-                Request::delete("/api/v1/documents/by-id/shared")
-                    .header("X-User-Id", "bob")
-                    .body(Body::empty())?,
-            )
-            .await?;
-        let body = to_bytes(bob_deleted.into_body(), 1_024).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({"documentId":"shared", "deleted":true}),
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn document_routes_require_user_identity_and_validate_ingest_contract()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = app(EngineSettings::new("smart", "fast", "", false));
-        let body = r#"{
-            "documentId":"bad-page",
-            "source":"report.pdf",
-            "pageText":[{"pageNumber":0,"text":"invalid"}],
-            "ownerId":"alice",
-            "readPrincipals":["alice"],
-            "expiresAt":null
-        }"#;
-        let missing_user = app
-            .clone()
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("content-type", "application/json")
-                    .body(Body::from(body))?,
-            )
-            .await?;
-        assert_eq!(missing_user.status(), 401);
-
-        let invalid_page = app
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(body))?,
-            )
-            .await?;
-        assert_eq!(invalid_page.status(), 422);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn pgvector_without_a_dsn_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
-        let app =
-            app(EngineSettings::new("smart", "fast", "", false).with_documents_backend("pgvector"));
-        let response = app
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{"documentId":"doc","source":"doc.pdf","pageText":[],"ownerId":"alice","readPrincipals":["alice"],"expiresAt":null}"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(response.status(), 503);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn pdf_question_requests_ingest_for_only_missing_files()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = app(EngineSettings::new("smart", "fast", "", false));
-        let response = app
-            .oneshot(
-                Request::post("/api/v1/pdf/questions")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{"question":"What is the total?","files":[{"id":"missing","name":"missing.pdf"}]}"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(response.status(), 200);
-        let body = to_bytes(response.into_body(), 2_048).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({
-                "outcome":"need_ingest",
-                "resumeWith":"pdf_question",
-                "reason":"Some files have not been ingested yet.",
-                "filesToIngest":[{"id":"missing","name":"missing.pdf"}],
-                "contentTypes":["page_text"]
-            }),
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn pdf_question_returns_model_answer_with_store_grounded_evidence()
+    async fn removed_document_and_question_routes_are_absent()
     -> Result<(), Box<dyn std::error::Error>> {
         let app = app_with_classifier(
             EngineSettings::new("smart", "fast", "", false),
             Arc::new(StubClassifierModel),
         );
-        let ingested = app
-            .clone()
+        for (method, path) in [
+            ("POST", "/api/v1/documents"),
+            ("DELETE", "/api/v1/documents/by-id/some-document"),
+            ("DELETE", "/api/v1/documents/by-owner"),
+            ("POST", "/api/v1/pdf/questions"),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(path)
+                        .header("content-type", "application/json")
+                        .body(Body::from("{}"))?,
+                )
+                .await?;
+            assert_eq!(response.status(), 404, "{method} {path} should be gone");
+        }
+        // The stateless classifier shares the /api/v1/documents prefix and
+        // must survive the store removal.
+        let classified = app
             .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "alice")
+                Request::post("/api/v1/documents/classify")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        r#"{"documentId":"invoice","source":"invoice.pdf","pageText":[{"pageNumber":1,"text":"Invoice total: 120.00."}],"ownerId":"alice","readPrincipals":["alice"],"expiresAt":null}"#,
+                        r#"{"fileName":"invoice.pdf","pages":[{"pageNumber":1,"text":"invoice"}],"labels":[{"id":"invoice","name":"Invoice"}]}"#,
                     ))?,
             )
             .await?;
-        assert_eq!(ingested.status(), 200);
-
-        let response = app
-            .oneshot(
-                Request::post("/api/v1/pdf/questions")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{"question":"What is the total?","files":[{"id":"invoice","name":"invoice.pdf"}],"conversationHistory":[{"role":"user","content":"Read the invoice."}]}"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(response.status(), 200);
-        let body = to_bytes(response.into_body(), 4_096).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({
-                "outcome":"answer",
-                "answer":"The invoice total is 120.00.",
-                "evidence":[{
-                    "fileName":"invoice.pdf",
-                    "pages":[{"pageNumber":1,"text":"Invoice total: 120.00."}]
-                }]
-            }),
-        );
+        assert_eq!(classified.status(), 200);
         Ok(())
     }
 
     #[tokio::test]
-    async fn pdf_question_maps_long_document_notes_back_to_source_excerpts()
+    async fn orchestrator_reports_question_requests_as_unsupported_without_identity()
     -> Result<(), Box<dyn std::error::Error>> {
-        let app = app_with_classifier(
-            EngineSettings::new("smart", "fast", "", false)
-                .with_rag_limits(20, 1)
-                .with_chunked_reasoner_limits(16_000, 2, 5.0, 10_000),
-            Arc::new(StubClassifierModel),
-        );
-        let ingested = app
-            .clone()
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{"documentId":"long-invoice","source":"invoice.pdf","pageText":[{"pageNumber":7,"text":"Invoice total: 120.00."}],"ownerId":"alice","readPrincipals":["alice"],"expiresAt":null}"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(ingested.status(), 200);
-
-        let response = app
-            .oneshot(
-                Request::post("/api/v1/pdf/questions")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{"question":"Summarize the invoice total.","files":[{"id":"long-invoice","name":"invoice.pdf"}]}"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(response.status(), 200);
-        let body = to_bytes(response.into_body(), 4_096).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({
-                "outcome":"answer",
-                "answer":"The invoice total is 120.00.",
-                "evidence":[{
-                    "fileName":"invoice.pdf",
-                    "pages":[{"pageNumber":7,"text":"120.00"}]
-                }]
-            }),
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn pdf_question_runs_grounded_contradiction_pipeline()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = app_with_classifier(
+        let response = app_with_classifier(
             EngineSettings::new("smart", "fast", "", false),
             Arc::new(StubClassifierModel),
-        );
-        let ingested = app
-            .clone()
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{"documentId":"deadlines","source":"deadlines.pdf","pageText":[{"pageNumber":1,"text":"The deadline is March 5."},{"pageNumber":2,"text":"The deadline is April 10."}],"ownerId":"alice","readPrincipals":["alice"],"expiresAt":null}"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(ingested.status(), 200);
-
-        let response = app
-            .oneshot(
-                Request::post("/api/v1/pdf/questions")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{"question":"Are there contradictions?","files":[{"id":"deadlines","name":"deadlines.pdf"}]}"#,
-                    ))?,
-            )
-            .await?;
+        )
+        .oneshot(
+            Request::post("/api/v1/orchestrator")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"userMessage":"What is the invoice total?","files":[{"id":"report","name":"report.pdf"}]}"#,
+                ))?,
+        )
+        .await?;
         assert_eq!(response.status(), 200);
         let body = to_bytes(response.into_body(), 8_192).await?;
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body)?,
-            serde_json::json!({
-                "outcome":"answer",
-                "answer":"The document states two incompatible deadlines.",
-                "evidence":[{
-                    "fileName":"deadlines.pdf",
-                    "pages":[
-                        {"pageNumber":1,"text":"The deadline is March 5."},
-                        {"pageNumber":2,"text":"The deadline is April 10."}
-                    ]
-                }]
-            }),
-        );
+        let frame = serde_json::from_slice::<serde_json::Value>(&body)?;
+        assert_eq!(frame["event"], "result");
+        assert_eq!(frame["response"]["outcome"], "unsupported_capability");
+        assert_eq!(frame["response"]["capability"], "pdf-question-answer");
         Ok(())
     }
 
     #[tokio::test]
-    async fn orchestrator_streams_math_plan_then_synthesises_resume_verdict()
+    async fn orchestrator_pdf_review_contradictions_request_page_text_then_build_comment_plan()
     -> Result<(), Box<dyn std::error::Error>> {
         let app = app_with_classifier(
             EngineSettings::new("smart", "fast", "", false),
@@ -3227,152 +2338,62 @@ mod tests {
             .clone()
             .oneshot(
                 Request::post("/api/v1/orchestrator")
-                    .header("X-User-Id", "alice")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        r#"{"userMessage":"Is the math correct?","files":[{"id":"report","name":"report.pdf"}]}"#,
+                        r#"{"userMessage":"Review the contradictions in this PDF.","files":[{"id":"deadlines","name":"deadlines.pdf"}]}"#,
                     ))?,
             )
             .await?;
         assert_eq!(first_turn.status(), 200);
-        assert_eq!(
-            first_turn
-                .headers()
-                .get("content-type")
-                .and_then(|value| value.to_str().ok()),
-            Some("application/x-ndjson")
-        );
         let body = to_bytes(first_turn.into_body(), 8_192).await?;
         let frame = serde_json::from_slice::<serde_json::Value>(&body)?;
         assert_eq!(frame["event"], "result");
-        assert_eq!(frame["response"]["outcome"], "plan");
-        assert_eq!(
-            frame["response"]["steps"][0]["tool"],
-            "/api/v1/ai/tools/math-auditor-agent"
-        );
-        assert_eq!(frame["response"]["resumeWith"], "pdf_question");
+        assert_eq!(frame["response"]["outcome"], "need_content");
+        assert_eq!(frame["response"]["resumeWith"], "pdf_review");
+        assert_eq!(frame["response"]["files"][0]["file"]["id"], "deadlines");
+        assert_eq!(frame["response"]["maxPages"], 200);
+        assert_eq!(frame["response"]["maxCharacters"], 200_000);
 
         let resumed = app
             .oneshot(
                 Request::post("/api/v1/orchestrator")
-                    .header("X-User-Id", "alice")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{
-                            "userMessage":"Is the math correct?",
-                            "files":[{"id":"report","name":"report.pdf"}],
-                            "resumeWith":"pdf_question",
+                            "userMessage":"Review the contradictions in this PDF.",
+                            "files":[{"id":"deadlines","name":"deadlines.pdf"}],
+                            "resumeWith":"pdf_review",
                             "artifacts":[{
-                                "kind":"tool_report",
-                                "sourceTool":"/api/v1/ai/tools/math-auditor-agent",
-                                "report":{
-                                    "type":"verdict",
-                                    "sessionId":"s1",
-                                    "discrepancies":[{
-                                        "page":0,
-                                        "kind":"tally",
-                                        "severity":"error",
-                                        "description":"Total mismatch.",
-                                        "stated":"$215,000",
-                                        "expected":"$215,500",
-                                        "context":"Revenue row"
-                                    }],
-                                    "pagesExamined":[0],
-                                    "roundsTaken":1,
-                                    "summary":"One discrepancy.",
-                                    "clean":false,
-                                    "unauditablePages":[]
-                                }
+                                "kind":"extracted_text",
+                                "files":[{
+                                    "fileName":"deadlines.pdf",
+                                    "pages":[
+                                        {"pageNumber":1,"text":"The deadline is March 5."},
+                                        {"pageNumber":2,"text":"The deadline is April 10."}
+                                    ]
+                                }]
                             }]
                         }"#,
                     ))?,
             )
             .await?;
         assert_eq!(resumed.status(), 200);
-        let body = to_bytes(resumed.into_body(), 8_192).await?;
+        let body = to_bytes(resumed.into_body(), 16_384).await?;
         let frame = serde_json::from_slice::<serde_json::Value>(&body)?;
-        assert_eq!(frame["event"], "result");
-        assert_eq!(frame["response"]["outcome"], "answer");
+        assert_eq!(frame["response"]["outcome"], "plan");
         assert_eq!(
-            frame["response"]["answer"],
-            "The total is incorrect: stated $215,000, expected $215,500."
+            frame["response"]["steps"][0]["tool"],
+            "/api/v1/misc/add-comments"
         );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn orchestrator_streams_long_document_progress_before_the_result()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = app_with_classifier(
-            EngineSettings::new("smart", "fast", "", false)
-                .with_rag_limits(20, 1)
-                .with_chunked_reasoner_limits(20, 2, 60.0, 10_000),
-            Arc::new(StubClassifierModel),
-        );
-        let ingested = app
-            .clone()
-            .oneshot(
-                Request::post("/api/v1/documents")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{
-                            "documentId":"progress-report",
-                            "source":"progress-report.pdf",
-                            "pageText":[
-                                {"pageNumber":1,"text":"Invoice total: 120.00."},
-                                {"pageNumber":2,"text":"Payment is due in 30 days."}
-                            ],
-                            "ownerId":"alice",
-                            "readPrincipals":["alice"],
-                            "expiresAt":null
-                        }"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(ingested.status(), 200);
-
-        let response = app
-            .oneshot(
-                Request::post("/api/v1/orchestrator")
-                    .header("X-User-Id", "alice")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        r#"{
-                            "userMessage":"What is the invoice total?",
-                            "files":[{"id":"progress-report","name":"progress-report.pdf"}]
-                        }"#,
-                    ))?,
-            )
-            .await?;
-        assert_eq!(response.status(), 200);
-        let body = to_bytes(response.into_body(), 65_536).await?;
-        let frames = std::str::from_utf8(&body)?
-            .lines()
-            .map(serde_json::from_str::<serde_json::Value>)
-            .collect::<Result<Vec<_>, _>>()?;
-        let phases = frames
-            .iter()
-            .filter_map(|frame| frame["phase"].as_str())
-            .collect::<Vec<_>>();
-        assert_eq!(
-            phases,
-            vec![
-                "whole_doc_read_started",
-                "whole_doc_slice_done",
-                "whole_doc_slice_done",
-                "whole_doc_read_done"
-            ]
-        );
-        assert_eq!(frames[0]["event"], "progress");
-        assert_eq!(frames[0]["pages"], 2);
-        assert_eq!(frames[0]["slices"], 2);
-        assert!(frames[1].get("durationMs").is_some());
-        assert!(frames[3].get("durationSeconds").is_some());
-        assert_eq!(
-            frames.last().and_then(|frame| frame["event"].as_str()),
-            Some("result")
-        );
+        let comments = frame["response"]["steps"][0]["parameters"]["comments"]
+            .as_str()
+            .ok_or("comments must be a JSON string")?;
+        let comments = serde_json::from_str::<serde_json::Value>(comments)?;
+        assert_eq!(comments.as_array().map(Vec::len), Some(2));
+        assert_eq!(comments[0]["pageIndex"], 0);
+        assert_eq!(comments[0]["anchorText"], "The deadline is March 5.");
+        assert_eq!(comments[1]["pageIndex"], 1);
+        assert_eq!(comments[0]["author"], "RustlingPDF Contradiction Auditor");
         Ok(())
     }
 
@@ -3387,7 +2408,6 @@ mod tests {
             .clone()
             .oneshot(
                 Request::post("/api/v1/orchestrator")
-                    .header("X-User-Id", "alice")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{"userMessage":"Review the math in this PDF.","files":[{"id":"report","name":"report.pdf"}]}"#,
@@ -3405,7 +2425,6 @@ mod tests {
         let resumed = app
             .oneshot(
                 Request::post("/api/v1/orchestrator")
-                    .header("X-User-Id", "alice")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{
@@ -3446,7 +2465,7 @@ mod tests {
     async fn orchestrator_pdf_create_assembles_structured_document_plan()
     -> Result<(), Box<dyn std::error::Error>> {
         let response = app_with_classifier(
-            EngineSettings::new("smart", "fast", "", false).with_documents_backend("unavailable"),
+            EngineSettings::new("smart", "fast", "", false),
             Arc::new(StubClassifierModel),
         )
         .oneshot(
@@ -3476,23 +2495,6 @@ mod tests {
         assert_eq!(document["title"], "Acme Invoice");
         assert_eq!(document["style"]["primaryColor"], "#1e3a5f");
         assert_eq!(document["sections"][1]["totalRow"][1], "$500");
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn orchestrator_requires_identity_for_acl_backed_delegation()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let response = app_with_classifier(
-            EngineSettings::new("smart", "fast", "", false),
-            Arc::new(StubClassifierModel),
-        )
-        .oneshot(
-            Request::post("/api/v1/orchestrator")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"userMessage":"What is this?"}"#))?,
-        )
-        .await?;
-        assert_eq!(response.status(), 401);
         Ok(())
     }
 
@@ -3861,23 +2863,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn pdf_question_requires_identity_even_when_global_identity_gate_is_disabled()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let response = app_with_classifier(
-            EngineSettings::new("smart", "fast", "", false),
-            Arc::new(StubClassifierModel),
-        )
-        .oneshot(
-            Request::post("/api/v1/pdf/questions")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"question":"What is this?"}"#))?,
-        )
-        .await?;
-        assert_eq!(response.status(), 401);
-        Ok(())
-    }
-
-    #[tokio::test]
     #[allow(
         clippy::too_many_lines,
         reason = "the table intentionally keeps every POST wire contract visible together"
@@ -3891,25 +2876,6 @@ mod tests {
         }
 
         let cases = vec![
-            WireCase {
-                path: "/api/v1/documents",
-                camel: serde_json::json!({
-                    "documentId": "camel-document",
-                    "source": "camel.pdf",
-                    "pageText": [],
-                    "ownerId": "wire-user",
-                    "readPrincipals": ["wire-user"],
-                    "expiresAt": null
-                }),
-                snake: serde_json::json!({
-                    "document_id": "snake-document",
-                    "source": "snake.pdf",
-                    "page_text": [],
-                    "owner_id": "wire-user",
-                    "read_principals": ["wire-user"],
-                    "expires_at": null
-                }),
-            },
             WireCase {
                 path: "/api/v1/documents/classify",
                 camel: serde_json::json!({
@@ -3976,19 +2942,6 @@ mod tests {
                     "session_id": "snake-comment",
                     "user_message": "Review this PDF.",
                     "chunks": []
-                }),
-            },
-            WireCase {
-                path: "/api/v1/pdf/questions",
-                camel: serde_json::json!({
-                    "question": "What is this?",
-                    "files": [],
-                    "conversationHistory": [{"role": "user", "content": "Earlier"}]
-                }),
-                snake: serde_json::json!({
-                    "question": "What is this?",
-                    "files": [],
-                    "conversation_history": [{"role": "user", "content": "Earlier"}]
                 }),
             },
             WireCase {
@@ -4216,6 +3169,8 @@ mod tests {
                 "baseUrl": "http://localhost:11434"
             },
             "limits": {"maxPages": 50},
+            // Legacy retrieval section from an older processor: tolerated and
+            // ignored since the RAG store was removed.
             "rag": {"topK": 7}
         })
     }
@@ -4294,10 +3249,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn config_push_requires_the_shared_secret_but_no_user_id()
+    async fn config_push_requires_the_shared_secret_when_configured()
     -> Result<(), Box<dyn std::error::Error>> {
-        let app =
-            app(EngineSettings::new("smart", "fast", "secret", true).with_required_user_id(true));
+        let app = app(EngineSettings::new("smart", "fast", "secret", true));
 
         let missing_secret = app
             .clone()
@@ -4305,12 +3259,10 @@ mod tests {
             .await?;
         assert_eq!(missing_secret.status(), StatusCode::UNAUTHORIZED);
 
-        // Processor-to-engine plumbing carries no acting user; the push stays
-        // outside the user-id gate exactly like the Python oracle's router.
-        let no_user = app
+        let authenticated = app
             .oneshot(config_push(&ollama_push_body(), Some("secret"), None)?)
             .await?;
-        assert_eq!(no_user.status(), StatusCode::OK);
+        assert_eq!(authenticated.status(), StatusCode::OK);
         Ok(())
     }
 
@@ -4335,7 +3287,6 @@ mod tests {
                 "apiKey": "push-key-not-a-real-secret",
                 "baseUrl": "http://localhost:11434"
             },
-            "rag": {"topK": 7, "maxSearches": 0},
             "limits": {"maxPages": 50, "modelMaxConcurrency": 8}
         });
         let response = app
@@ -4349,10 +3300,11 @@ mod tests {
         assert_eq!(response["smartModel"], "llama3.1:8b");
         assert_eq!(response["fastModel"], "qwen3:4b");
         assert_eq!(response["smartMaxTokens"], 4096);
-        assert_eq!(response["ragTopK"], 7);
-        assert_eq!(response["ragMaxSearches"], 0);
         assert_eq!(response["maxPages"], 50);
         assert_eq!(response["modelMaxConcurrency"], 8);
+        // The removed retrieval settings are gone from the summary too.
+        assert!(response.get("ragTopK").is_none());
+        assert!(response.get("ragEmbeddingModel").is_none());
         assert!(
             !serde_json::to_string(&response)?.contains("push-key-not-a-real-secret"),
             "the response must never echo credentials"
@@ -4398,7 +3350,6 @@ mod tests {
         for body in [
             serde_json::json!({"limits": {"modelMaxConcurrency": 0}}),
             serde_json::json!({"models": {"smartMaxTokens": 0}}),
-            serde_json::json!({"rag": {"topK": 0}}),
             serde_json::json!({"limits": {"maxPages": -3}}),
         ] {
             let response = app
@@ -4448,50 +3399,6 @@ mod tests {
 
         let after = health_models(&app).await?;
         assert_eq!(after["smart_model"], "llama3.1:8b");
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn config_push_rebuilds_the_embedder_and_flags_reindexing()
-    -> Result<(), Box<dyn std::error::Error>> {
-        // Env model names must stay rebuildable: a push always reconstructs
-        // both tiers, and keyless ollama needs no credentials to construct.
-        let app = app(EngineSettings::new(
-            "ollama:qwen3:8b",
-            "ollama:qwen3:8b",
-            "secret",
-            true,
-        ));
-        let response = app
-            .clone()
-            .oneshot(config_push(
-                &serde_json::json!({
-                    "rag": {"embeddingProvider": "test", "embeddingModel": "test-embed"}
-                }),
-                Some("secret"),
-                None,
-            )?)
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = json_body(response).await?;
-        assert_eq!(body["ragEmbeddingModel"], "test:test-embed");
-        assert!(
-            body["notes"].as_array().is_some_and(|notes| notes
-                .iter()
-                .any(|note| note.as_str().is_some_and(|note| note.contains("re-index")))),
-            "an embedding change must warn about re-indexing: {body}"
-        );
-
-        let unsupported = app
-            .oneshot(config_push(
-                &serde_json::json!({
-                    "rag": {"embeddingProvider": "mystery", "embeddingModel": "embed-x"}
-                }),
-                Some("secret"),
-                None,
-            )?)
-            .await?;
-        assert_eq!(unsupported.status(), StatusCode::BAD_REQUEST);
         Ok(())
     }
 

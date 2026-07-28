@@ -7,12 +7,11 @@ use serde_json::{Value, json};
 use tokio::time::timeout;
 
 use crate::{
-    orchestrator::OrchestratorRequest,
+    orchestrator::{ConversationMessage, OrchestratorRequest},
     pdf_edit::{
         PdfEditAgent, PdfEditError, catalogued_operations, validate_operation_parameters,
         validate_processing_endpoint,
     },
-    pdf_question::ConversationMessage,
     structured_output::{ModelError, StructuredOutputModel, ToolDefinition},
 };
 

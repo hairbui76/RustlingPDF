@@ -121,8 +121,7 @@ async fn binary_serves_ephemeral_port_with_auth_and_post_contracts()
     let mut engine = EngineProcess::spawn(
         engine_command()
             .env("RUSTLING_ENGINE_SHARED_SECRET", "smoke-secret")
-            .env("RUSTLING_ENGINE_REQUIRE_AUTH", "true")
-            .env("RUSTLING_REQUIRE_USER_ID", "true"),
+            .env("RUSTLING_ENGINE_REQUIRE_AUTH", "true"),
     )?;
     let address = engine.startup_address(Duration::from_secs(10))?;
     let base_url = format!("http://{address}");
@@ -137,17 +136,9 @@ async fn binary_serves_ephemeral_port_with_auth_and_post_contracts()
         .await?;
     assert_eq!(missing_secret.status(), StatusCode::UNAUTHORIZED);
 
-    let missing_user = client
-        .get(format!("{base_url}/api/v1/agents/capabilities"))
-        .header("X-Engine-Auth", "smoke-secret")
-        .send()
-        .await?;
-    assert_eq!(missing_user.status(), StatusCode::UNAUTHORIZED);
-
     let capabilities = client
         .get(format!("{base_url}/api/v1/agents/capabilities"))
         .header("X-Engine-Auth", "smoke-secret")
-        .header("X-User-Id", "smoke-user")
         .send()
         .await?;
     assert_eq!(capabilities.status(), StatusCode::OK);
@@ -159,10 +150,25 @@ async fn binary_serves_ephemeral_port_with_auth_and_post_contracts()
             .is_some_and(|entries| !entries.is_empty())
     );
 
+    // The document store and PDF question-answer routes are gone.
+    let removed_ingest = client
+        .post(format!("{base_url}/api/v1/documents"))
+        .header("X-Engine-Auth", "smoke-secret")
+        .json(&json!({}))
+        .send()
+        .await?;
+    assert_eq!(removed_ingest.status(), StatusCode::NOT_FOUND);
+    let removed_questions = client
+        .post(format!("{base_url}/api/v1/pdf/questions"))
+        .header("X-Engine-Auth", "smoke-secret")
+        .json(&json!({"question": "What is this?"}))
+        .send()
+        .await?;
+    assert_eq!(removed_questions.status(), StatusCode::NOT_FOUND);
+
     let examined = client
         .post(format!("{base_url}/api/v1/ai/math-auditor-agent/examine"))
         .header("X-Engine-Auth", "smoke-secret")
-        .header("X-User-Id", "smoke-user")
         .json(&serde_json::json!({
             "session_id": "smoke-audit",
             "page_count": 1,
@@ -176,8 +182,8 @@ async fn binary_serves_ephemeral_port_with_auth_and_post_contracts()
     assert_eq!(examined["type"], "requisition");
     assert_eq!(examined["needText"], serde_json::json!([0]));
 
-    // The config push is processor-to-engine plumbing: authenticated by the
-    // shared secret but exempt from the user-id gate, like the Python oracle.
+    // The config push is processor-to-engine plumbing authenticated by the
+    // shared secret.
     let pushed = client
         .post(format!("{base_url}/api/v1/config"))
         .header("X-Engine-Auth", "smoke-secret")
@@ -279,19 +285,44 @@ async fn fake_ollama_completion(
 
 #[test]
 fn malformed_auth_environment_exits_before_binding() -> Result<(), Box<dyn std::error::Error>> {
-    for name in ["RUSTLING_ENGINE_REQUIRE_AUTH", "RUSTLING_REQUIRE_USER_ID"] {
-        let output = engine_command().env(name, "not-a-boolean").output()?;
-        assert!(!output.status.success(), "{name} unexpectedly started");
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            stderr.contains(name),
-            "stderr did not identify {name}: {stderr}"
-        );
-        assert!(
-            !String::from_utf8_lossy(&output.stdout).contains("starting RustlingPDF AI engine"),
-            "{name} reached listener startup"
-        );
-    }
+    let name = "RUSTLING_ENGINE_REQUIRE_AUTH";
+    let output = engine_command().env(name, "not-a-boolean").output()?;
+    assert!(!output.status.success(), "{name} unexpectedly started");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(name),
+        "stderr did not identify {name}: {stderr}"
+    );
+    assert!(
+        !String::from_utf8_lossy(&output.stdout).contains("starting RustlingPDF AI engine"),
+        "{name} reached listener startup"
+    );
+    Ok(())
+}
+
+#[test]
+fn removed_document_environment_is_ignored_with_a_warning() -> Result<(), Box<dyn std::error::Error>>
+{
+    // Legacy document-store settings must never stop the engine from booting;
+    // they are ignored with a one-line warning, even with malformed values.
+    let mut engine = EngineProcess::spawn(
+        engine_command()
+            .env("RUSTLING_DOCUMENTS_BACKEND", "not-a-backend")
+            .env("RUSTLING_REQUIRE_USER_ID", "not-a-boolean"),
+    )?;
+    let address = engine.startup_address(Duration::from_secs(10))?;
+    assert!(address.port() > 0);
+    let warned = engine
+        .seen_stdout
+        .iter()
+        .chain(std::iter::once(&engine.stderr_tail()))
+        .any(|line| line.contains("RUSTLING_DOCUMENTS_BACKEND"));
+    assert!(
+        warned,
+        "expected an ignored-setting warning naming RUSTLING_DOCUMENTS_BACKEND:\n{}\n{}",
+        engine.seen_stdout.join("\n"),
+        engine.stderr_tail()
+    );
     Ok(())
 }
 
@@ -312,7 +343,7 @@ fn malformed_numeric_environment_exits_before_binding() -> Result<(), Box<dyn st
 #[cfg(unix)]
 #[test]
 fn non_unicode_auth_environment_exits_before_binding() -> Result<(), Box<dyn std::error::Error>> {
-    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt as _};
 
     let name = "RUSTLING_ENGINE_REQUIRE_AUTH";
     let output = engine_command()
@@ -349,14 +380,9 @@ fn engine_command() -> Command {
         .env("RUSTLING_ENGINE_PORT", "0")
         .env("RUSTLING_SMART_MODEL", "unsupported:smoke")
         .env("RUSTLING_FAST_MODEL", "unsupported:smoke")
-        .env("RUSTLING_RAG_EMBEDDING_MODEL", "test")
-        .env("RUSTLING_DOCUMENTS_BACKEND", "sqlite")
-        .env("RUSTLING_DOCUMENTS_SQLITE_PATH", ":memory:")
         .env_remove("RUSTLING_ENGINE_SHARED_SECRET")
         .env_remove("RUSTLING_ENGINE_REQUIRE_AUTH")
-        .env_remove("RUSTLING_REQUIRE_USER_ID")
         .env_remove("RUSTLING_ALLOW_CONFIG_PUSH")
-        .env_remove("RUSTLING_DOCUMENTS_PGVECTOR_DSN")
         .env_remove("ANTHROPIC_API_KEY")
         .env_remove("ANTHROPIC_BASE_URL")
         .env_remove("OPENAI_API_KEY")

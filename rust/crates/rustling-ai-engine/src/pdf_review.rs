@@ -8,7 +8,6 @@ use tokio::time::timeout;
 
 use crate::{
     contradiction::{ContradictionDetector, ContradictionLimits, ContradictionReport},
-    documents::{DocumentError, DocumentRepository},
     orchestrator::{MathVerdict, OrchestratorRequest},
     structured_output::{ModelError, StructuredOutputModel, ToolDefinition},
 };
@@ -39,6 +38,8 @@ pub struct PdfReviewLimits {
     pub bucket_overlap: usize,
     pub canonicaliser_batch_size: usize,
     pub max_output_tokens: u32,
+    pub max_pages: usize,
+    pub max_characters: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -97,7 +98,6 @@ struct CommentSpec {
 pub enum PdfReviewError {
     ModelUnavailable(String),
     Model(String),
-    Storage(String),
     InvalidSettings(String),
     InvalidArtifact(String),
 }
@@ -107,7 +107,6 @@ impl fmt::Display for PdfReviewError {
         match self {
             Self::ModelUnavailable(message)
             | Self::Model(message)
-            | Self::Storage(message)
             | Self::InvalidSettings(message)
             | Self::InvalidArtifact(message) => formatter.write_str(message),
         }
@@ -122,15 +121,8 @@ impl From<ModelError> for PdfReviewError {
     }
 }
 
-impl From<DocumentError> for PdfReviewError {
-    fn from(error: DocumentError) -> Self {
-        Self::Storage(error.to_string())
-    }
-}
-
 pub struct PdfReviewAgent {
     model: Result<Arc<dyn StructuredOutputModel>, ModelError>,
-    documents: Arc<dyn DocumentRepository>,
     limits: PdfReviewLimits,
 }
 
@@ -138,26 +130,17 @@ impl PdfReviewAgent {
     #[must_use]
     pub fn new(
         model: Result<Arc<dyn StructuredOutputModel>, ModelError>,
-        documents: Arc<dyn DocumentRepository>,
         limits: PdfReviewLimits,
     ) -> Self {
-        Self {
-            model,
-            documents,
-            limits,
-        }
+        Self { model, limits }
     }
 
     /// Routes a PDF review with contradiction taking precedence over math.
     ///
     /// # Errors
     ///
-    /// Returns an error for provider, storage, detector-settings, or artifact failures.
-    pub async fn handle(
-        &self,
-        request: &OrchestratorRequest,
-        principal: &str,
-    ) -> Result<Value, PdfReviewError> {
+    /// Returns an error for provider, detector-settings, or artifact failures.
+    pub async fn handle(&self, request: &OrchestratorRequest) -> Result<Value, PdfReviewError> {
         let verdict = request
             .math_verdict()
             .map_err(|error| PdfReviewError::InvalidArtifact(error.to_string()))?;
@@ -174,17 +157,23 @@ impl PdfReviewAgent {
             )
             .await?
         {
-            let missing = self.missing_files(request, principal).await?;
-            if !missing.is_empty() {
+            // The contradiction audit reasons over full page text supplied
+            // with the request; ask the caller to extract and resend it once.
+            let Some(pages) = request.extracted_pages() else {
                 return Ok(json!({
-                    "outcome": "need_ingest",
+                    "outcome": "need_content",
                     "resumeWith": "pdf_review",
-                    "reason": "Some files have not been ingested yet.",
-                    "filesToIngest": missing,
-                    "contentTypes": ["page_text"]
+                    "reason": "Page text is required to audit contradictions.",
+                    "files": request.files.iter().map(|file| json!({
+                        "file": file,
+                        "pageNumbers": [],
+                        "contentTypes": ["page_text"]
+                    })).collect::<Vec<_>>(),
+                    "maxPages": self.limits.max_pages,
+                    "maxCharacters": self.limits.max_characters
                 }));
-            }
-            return self.contradiction_comments_plan(request, principal).await;
+            };
+            return self.contradiction_comments_plan(request, &pages).await;
         }
         if self
             .classify(MATH_INTENT_PROMPT, &request.user_message, MATH_INTENT_TOOL)
@@ -205,32 +194,13 @@ impl PdfReviewAgent {
         }))
     }
 
-    async fn missing_files(
-        &self,
-        request: &OrchestratorRequest,
-        principal: &str,
-    ) -> Result<Vec<crate::pdf_question::AiFile>, PdfReviewError> {
-        let mut missing = Vec::new();
-        for file in &request.files {
-            if !self
-                .documents
-                .has_collection(file.id.clone(), vec![principal.to_owned()])
-                .await?
-            {
-                missing.push(file.clone());
-            }
-        }
-        Ok(missing)
-    }
-
     async fn contradiction_comments_plan(
         &self,
         request: &OrchestratorRequest,
-        principal: &str,
+        pages: &[(String, Vec<crate::orchestrator::StoredPage>)],
     ) -> Result<Value, PdfReviewError> {
         let detector = ContradictionDetector::new(
             Arc::clone(self.model_ref()?),
-            Arc::clone(&self.documents),
             ContradictionLimits {
                 chars_per_slice: self.limits.chars_per_slice,
                 extraction_concurrency: self.limits.extraction_concurrency,
@@ -243,10 +213,7 @@ impl PdfReviewAgent {
             },
         )
         .map_err(|error| PdfReviewError::InvalidSettings(error.to_string()))?;
-        let report = detector
-            .detect(&request.files, principal, &request.user_message)
-            .await
-            .map_err(|error| PdfReviewError::Storage(error.to_string()))?;
+        let report = detector.detect(pages, &request.user_message).await;
         let prompt = format!(
             "<user_message>{}</user_message>\n<verdict>{}</verdict>",
             escape_for_tag(&request.user_message),

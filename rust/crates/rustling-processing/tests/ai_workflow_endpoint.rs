@@ -257,7 +257,7 @@ async fn expands_multi_output_tool_results_into_individual_downloads()
 async fn returns_cannot_continue_for_an_unknown_content_request()
 -> Result<(), Box<dyn std::error::Error>> {
     let engine = MockEngine::start(vec![MockResponse::ndjson(
-        r#"{"event":"result","response":{"outcome":"need_content","files":[{"file":{"id":"missing","name":"missing.pdf"},"pageNumbers":[1],"contentTypes":["page_text"]}],"maxPages":1,"maxCharacters":1000,"resumeWith":"pdf_question"}}
+        r#"{"event":"result","response":{"outcome":"need_content","files":[{"file":{"id":"missing","name":"missing.pdf"},"pageNumbers":[1],"contentTypes":["page_text"]}],"maxPages":1,"maxCharacters":1000,"resumeWith":"pdf_review"}}
 "#,
     )])
     .await?;
@@ -299,7 +299,7 @@ async fn extracts_requested_content_and_resumes_the_engine()
     let file_id = content_id(&pdf);
     let engine = MockEngine::start(vec![
         MockResponse::ndjson(&format!(
-            "{{\"event\":\"result\",\"response\":{{\"outcome\":\"need_content\",\"files\":[{{\"file\":{{\"id\":\"{file_id}\",\"name\":\"invoice.pdf\"}},\"pageNumbers\":[1],\"contentTypes\":[\"page_text\"]}}],\"maxPages\":1,\"maxCharacters\":4000,\"resumeWith\":\"pdf_question\"}}}}\n"
+            "{{\"event\":\"result\",\"response\":{{\"outcome\":\"need_content\",\"files\":[{{\"file\":{{\"id\":\"{file_id}\",\"name\":\"invoice.pdf\"}},\"pageNumbers\":[1],\"contentTypes\":[\"page_text\"]}}],\"maxPages\":1,\"maxCharacters\":4000,\"resumeWith\":\"pdf_review\"}}}}\n"
         )),
         MockResponse::ndjson(
             r#"{"event":"result","response":{"outcome":"answer","answer":"The total is 120.00."}}
@@ -340,7 +340,7 @@ async fn extracts_requested_content_and_resumes_the_engine()
     let requests = engine.requests();
     assert_eq!(requests.len(), 2);
     let resumed: Value = serde_json::from_slice(&requests[1].body)?;
-    assert_eq!(resumed["resumeWith"], "pdf_question");
+    assert_eq!(resumed["resumeWith"], "pdf_review");
     assert_eq!(resumed["artifacts"][0]["kind"], "extracted_text");
     assert_eq!(
         resumed["artifacts"][0]["files"][0]["fileName"],
@@ -355,25 +355,20 @@ async fn extracts_requested_content_and_resumes_the_engine()
 }
 
 #[tokio::test]
-async fn ingests_requested_documents_with_owner_scope_and_resumes()
+async fn legacy_need_ingest_frames_fail_without_touching_a_document_store()
 -> Result<(), Box<dyn std::error::Error>> {
+    // The engine's document store and need_ingest protocol were removed with
+    // the PDF question-answer feature. A legacy engine that still emits
+    // need_ingest must produce a clean error — never a silent misread — and
+    // the processor must not call any /api/v1/documents ingest route.
     let pdf = text_pdf("Confidential project deadline")?;
     let file_id = content_id(&pdf);
-    let engine = MockEngine::start(vec![
-        MockResponse::ndjson(&format!(
-            "{{\"event\":\"result\",\"response\":{{\"outcome\":\"need_ingest\",\"filesToIngest\":[{{\"id\":\"{file_id}\",\"name\":\"project.pdf\"}}],\"resumeWith\":\"pdf_question\"}}}}\n"
-        )),
-        MockResponse::json(&format!(
-            "{{\"documentId\":\"{file_id}\",\"chunksIndexed\":1}}"
-        )),
-        MockResponse::ndjson(
-            r#"{"event":"result","response":{"outcome":"answer","answer":"Ingested"}}
-"#,
-        ),
-    ])
+    let engine = MockEngine::start(vec![MockResponse::ndjson(&format!(
+        "{{\"event\":\"result\",\"response\":{{\"outcome\":\"need_ingest\",\"filesToIngest\":[{{\"id\":\"{file_id}\",\"name\":\"project.pdf\"}}],\"resumeWith\":\"pdf_review\"}}}}\n"
+    ))])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-ingest-resume";
+    let boundary = "stirling-ai-ingest-legacy";
     let mut multipart = Vec::new();
     add_text_part(
         &mut multipart,
@@ -398,26 +393,18 @@ async fn ingests_requested_documents_with_owner_scope_and_resumes()
             None,
         )?)
         .await?;
-    assert_eq!(response.status(), StatusCode::OK);
-    let result: Value = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await?)?;
-    assert_eq!(result["outcome"], "answer");
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let body: Value = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await?)?;
+    assert!(
+        body["detail"]
+            .as_str()
+            .is_some_and(|detail| detail.contains("stream ended without a result")),
+        "unexpected error detail: {body}"
+    );
 
     let requests = engine.requests();
-    assert_eq!(requests.len(), 3);
-    assert_eq!(requests[1].path, "/api/v1/documents");
-    assert_eq!(requests[1].header("x-user-id"), None);
-    let ingest: Value = serde_json::from_slice(&requests[1].body)?;
-    assert_eq!(ingest["documentId"], file_id);
-    assert_eq!(ingest["ownerId"], Value::Null);
-    assert_eq!(ingest["readPrincipals"], serde_json::json!([]));
-    assert!(
-        ingest["pageText"][0]["text"]
-            .as_str()
-            .is_some_and(|text| text.contains("Confidential project deadline"))
-    );
-    let resumed: Value = serde_json::from_slice(&requests[2].body)?;
-    assert_eq!(resumed["resumeWith"], "pdf_question");
-    assert_eq!(resumed["artifacts"], serde_json::json!([]));
+    assert_eq!(requests.len(), 1, "no ingest follow-up request may happen");
+    assert_eq!(requests[0].path, "/api/v1/orchestrator");
     Ok(())
 }
 
