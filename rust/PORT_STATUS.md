@@ -589,9 +589,14 @@ points; the Java-oracle and SaaS Task paths existed in the upstream monorepo).
 Container distribution shipped in batch 3 (Docker image; batch 4 added the
 tag-driven GHCR release pipeline) and the desktop bundle ships the Rust
 sidecar since batch 4 (`task desktop:stage-sidecar` stages the release binary
-plus PDFium; a desktop CI workflow compiles and tests the shell). Windows
-PDFium staging (`install-pdfium.ps1` wiring) and a repo-controlled updater
-signing key remain follow-ups.
+plus PDFium — Windows dispatches to `install-pdfium.ps1` since batch 5; a
+desktop CI workflow compiles and tests the shell). Batch 5 completed the
+desktop release path: a tagged release now also builds and signs desktop
+bundles on a three-OS runner matrix (repo-controlled updater key) and
+publishes them with a composer-generated `latest.json`, and the Linux
+signed-upgrade e2e proof passed 8/8 including negative-signature tests
+(see `contracts/desktop-native-startup.md`). macOS/Windows upgrade-proof
+legs, mac-Intel, and notarization remain follow-ups.
 Java-compatible short-file recovery is now ported: a `settings.yml` with fewer than
 `MIN_SETTINGS_FILE_LINES` (31, matching `ConfigInitializer`) lines is treated as truncated by an
 interrupted write, backed up to `settings.yml.<epoch-millis>.bak`, and recreated from the template,
@@ -613,9 +618,10 @@ to a clean fail-open ephemeral identity — and admin/license settings
 persistence goes through the same comment-preserving editor with a pre-write
 reparse-plus-leaf-read-back proof instead of a comment-destroying serde
 round-trip (see `contracts/admin-settings.md`). Sidecar/PDFium packaging and
-the production default switch landed with batch 4; cross-platform
-signed-bundle upgrade proof and updater-keypair regeneration remain
-release-pipeline follow-ups. See
+the production default switch landed with batch 4; batch 5 added the signed
+desktop-bundle release matrix, a repo-controlled updater keypair, and the
+containerized Linux signed-upgrade e2e proof — macOS/Windows upgrade-proof
+legs remain. See
 `contracts/desktop-native-startup.md`. The
 hardware-signing capability route reports desktop mode
 and safely discovers on-disk PKCS#11 libraries without loading them. Windows desktop builds can

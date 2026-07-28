@@ -15,13 +15,54 @@ lands or the queue changes.
   0 failed** (1 ignored), **stirling-ai-engine 144 / 0**; Tauri desktop-shell
   gate (containerized webkit build: fmt/clippy/tests) **11 / 0**; frontend
   typecheck/eslint clean, **1647 vitest passed**, `vite build` (core) succeeds;
-  differential rust-only smoke **13/13**; actionlint clean across all five
-  workflows. Ships GitHub CI, single-binary SPA serving, a Docker image, a
-  tag-driven GHCR release pipeline, and a Rust-sidecar desktop shell.
+  differential rust-only smoke **13/13**; actionlint clean across all seven
+  workflows; `latest.json` composer fixture suite **21/21**; containerized
+  Linux signed-upgrade e2e **8/8** (incl. negative-signature tests). Ships
+  GitHub CI, single-binary SPA serving, a Docker image, a tag-driven release
+  pipeline (GHCR images + signed desktop bundles + updater manifest), and a
+  Rust-sidecar desktop shell.
 - Open mode is the supported runtime; secured mode is implemented + tested but
   **fail-closed** pending independent human security review.
 - Canonical app version lives in `rust/VERSION` (consumed by `build.rs`).
 - Verified quick start: `task rust:install && task dev`.
+
+## Landed — Batch 5 (2026-07-28, merged to `main`)
+
+Two dev+tester pairs (desktop release publishing; signed-upgrade e2e proof).
+The desktop-release pair signed off round 0; the e2e pair's only major was a
+proof-of-run gap (three tester rounds were force-finalized mid-run, never a
+harness failure) which the PM discharged by completing the canonical runs.
+
+- **Desktop release publishing**: `desktop-build.yml` (reusable
+  `workflow_call` three-OS matrix: linux-x86_64 AppImage+deb, windows-x86_64
+  msi, darwin-aarch64 app.tar.gz+dmg; signing via the repo secrets),
+  `desktop-release-dryrun.yml` (`workflow_dispatch` proof-run, no
+  publishing), `release.yml` gains `publish-desktop` and uploads bundles +
+  `.sig` files + `latest.json` to the GitHub release.
+  `scripts/compose_latest_json.py` composes the updater manifest — schema
+  and per-OS artifact choice derived from the vendored
+  `tauri-plugin-updater 2.10.1` source (incl. installer-specific keys like
+  `linux-x86_64-deb`; signature = verbatim `.sig` content), unit-tested
+  (`compose_latest_json_test.py`, incl. PM-added strict-RFC-3339 and
+  stray-file cases). Windows staging: `desktop:stage-sidecar` dispatches to
+  `install-pdfium.ps1` on Windows (layout traced to
+  `pdfium_runtime.rs` dll resolution); Linux/mac path byte-identical.
+- **Signed-upgrade e2e proof (Linux leg)**: containerized harness
+  (`run-e2e-container.sh`, only Docker required) proved **8/8** twice plus a
+  `--skip-build` determinism rerun: v0.0.1 AppImage with the real Rust
+  sidecar detects a signed v99.0.0 update; same-version and downgrade
+  manifests refused; wrong-key signature and byte-tampered artifact
+  **rejected with the exact expected reasons** (AppImage untouched); the
+  good update installs (sha256-asserted on-disk replacement) and the
+  relaunched app reports 99.0.0. Contract updated
+  (`desktop-native-startup.md`); evidence lands in `.e2e-work/evidence/`.
+- **PM pass**: composer validation tightened (strict RFC 3339 `pub_date`,
+  stray top-level files rejected), e2e startup probes bounded
+  (update-server + Xvfb retries), ledger/contract sync.
+
+Known scope limits (recorded in RELEASING.md): macOS is Apple-silicon only
+and unnotarized; Windows ships the WiX `.msi` only; macOS/Windows
+upgrade-proof legs are runner work still open.
 
 ## Landed — Batch 4 (2026-07-28, all tester-signed, merged to `main`)
 
@@ -118,15 +159,12 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
 
 ## Near-term queue (next batches, in rough priority order)
 
-1. **Desktop release completion** (unblocks shipping the desktop app):
-   ~~updater keypair~~ done 2026-07-28 (repo-controlled key
-   `9ADA2DC8FC4FAF0B` committed as `updater.pubkey`; private key outside the
-   repo + `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD` GitHub secrets). Remaining:
-   a desktop-bundle build+sign job in `release.yml` (multi-OS runners,
-   uploads bundles + `.sig` + `latest.json`); wire `install-pdfium.ps1` into
-   `desktop:stage-sidecar` for Windows bundles; cross-platform signed-bundle
-   upgrade proof (the reworked `dev-update-test` e2e run on a webkit-capable
-   host).
+1. **Desktop release polish** (core path landed in batches 4–5; keypair,
+   Windows staging, release matrix, and the Linux upgrade proof are done):
+   macOS/Windows upgrade-proof legs (runner work), mac-Intel build
+   (`macos-15-intel` leg or cross-compiled/universal target), macOS
+   notarization (Apple Developer ID), optional NSIS installer. First real
+   tagged release (`v2.14.2`) exercises the whole pipeline end to end.
 2. **Coordinated rename** `Stirling` → `Rustling` (crates, `STIRLING_*` env
    vars with back-compat aliases, config keys, UI strings, startup handshake
    line) — one deliberate pass with a compatibility window; do not rename
