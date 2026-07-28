@@ -10,12 +10,13 @@ an external reference oracle.
 **Status in one paragraph:** the Rust service serves the same `/api/v1/...` REST
 surface the unchanged web UI talks to, and it is the only backend here — all
 local development tasks (`task dev`, `task backend:dev`, `task dev:all`) run it.
-Open mode (no login) is the supported way to run it today. Secured mode
-(login/users/teams) exists behind an opt-in review gate and the binary
-deliberately **refuses to start** when `SECURITY_ENABLELOGIN=true` or
-`DOCKER_ENABLE_SECURITY=true` is set — see
-[Limitations](#what-does-not-run-on-rust-yet). The remaining gates before
-secured-mode/production packaging are tracked in
+The service has **no authentication and no server-side state** (maintainer
+decision, 2026-07-28): no accounts, no database, no durable storage — run it on
+a trusted network or behind your own auth proxy. Legacy `security.*`/`mcp.*`/
+`storage.*`/`policies.*` settings keys (including `SECURITY_ENABLELOGIN` and
+`DOCKER_ENABLE_SECURITY`) are **ignored with a one-line startup warning**,
+never refused, so pre-decision configs keep booting. Remaining limitations are
+listed in [Limitations](#7-what-does-not-run-on-rust) and tracked in
 [`PORT_STATUS.md`](PORT_STATUS.md).
 
 ---
@@ -176,10 +177,12 @@ contract as Java (`general/job/{jobId}`, `/result`, `/result/files`,
 
 ## 4. Optional: the Rust AI engine
 
-The AI features (`/api/v1/ai/*`, MCP, classification, PDF question answering,
-document creation, math audit, orchestration) are served by the separate
+The AI features (`/api/v1/ai/*`: classification, PDF edit/review/create
+agents, math audit, orchestration) are served by the separate
 `rustling-ai-engine` crate, the Rust replacement for upstream Stirling-PDF's
 Python engine (which stays in the upstream repo; it is not part of this one).
+The engine is stateless — it keeps no document store and answers every request
+from the content the client sends with it.
 
 ```bash
 task engine:dev       # Rust AI engine on localhost:5001
@@ -219,8 +222,8 @@ image targets to GitHub Container Registry, so building locally is optional:
 
 ```bash
 docker pull ghcr.io/hairbui76/rustlingpdf:latest             # or a specific vX.Y.Z tag
-docker run -d -p 8080:8080 -v "$(pwd)/data:/data" \
-    ghcr.io/hairbui76/rustlingpdf:latest
+docker run -d -p 8080:8080 ghcr.io/hairbui76/rustlingpdf:latest
+# optional read-only config mount: -v "$(pwd)/data:/data:ro"
 
 docker pull ghcr.io/hairbui76/rustlingpdf-ai-engine:latest   # optional AI sidecar
 ```
@@ -242,9 +245,8 @@ reproducible deployments; `latest` moves on every release.
   contract). No nginx, no separate frontend container.
 - **Frontend flavor: proprietary** — the same flavor upstream Stirling-PDF's
   self-hosted embedded image builds (`RUSTLING_FLAVOR=proprietary`) and this
-  repo's default dev/build mode. In open mode the runtime app-config flags keep
-  login/premium features off, so it behaves like the core UI plus
-  gracefully-gated extras.
+  repo's default dev/build mode: the core UI plus client-side extras
+  (heuristic classification, watched folders via the File System Access API).
 - **External tools** (Debian trixie packages): LibreOffice `-nogui`
   (writer/calc/impress/draw), Ghostscript, qpdf 12.2, Tesseract (+`eng`+OSD),
   OCRmyPDF (+unpaper/pngquant), WeasyPrint 62, poppler-utils (`pdftohtml`),
@@ -258,27 +260,28 @@ reproducible deployments; `latest` moves on every release.
 - **Non-root** (`stirling`, uid/gid 1000), `tini` as PID 1, `HEALTHCHECK`
   against `/api/v1/info/status`, `RUSTLING_HOST=0.0.0.0`.
 
-### State and configuration
+### Configuration (the container is stateless)
 
-`RUSTLING_BASE_PATH=/data` (declared `VOLUME`): `settings.yml` /
-`custom_settings.yml` are read from `/data/configs/` when present. An empty
-volume works out of the box — built-in template defaults plus environment
-overrides apply until you drop a `settings.yml` there (the automatic
-first-start materialization of the file is a desktop/Tauri-mode behavior, not
-a container one). Pipeline state and `customFiles/` overrides resolve beneath
-`/data` as well. When bind
-mounting (the compose example uses `./data:/data`), give the directory to
-uid/gid 1000: `mkdir -p data && chown 1000:1000 data`. All the environment
-variables from [Configuration](#3-configuration) apply unchanged; secured mode
-remains fail-closed (`SECURITY_ENABLELOGIN=true` refuses startup) — run the
-container in open mode on a trusted network or behind your own auth proxy.
+`RUSTLING_BASE_PATH=/data`: `settings.yml` / `custom_settings.yml` are read
+from `/data/configs/` when present, and `customFiles/` overrides (shared
+signature assets, static SPA overrides, disclaimer texts) resolve beneath
+`/data` as well. The server only ever **reads** from `/data`, so nothing needs
+to be mounted at all — with no mount, built-in template defaults plus
+environment overrides apply (the automatic first-start materialization of
+`settings.yml` is a desktop/Tauri-mode behavior, not a container one). To
+supply configuration, bind-mount it read-only (the compose example shows
+`./data:/data:ro`). No `VOLUME` is declared: job scratch space is
+TTL-swept inside the container's own tmp dir, and there is no database. All
+the environment variables from [Configuration](#3-configuration) apply
+unchanged; the server is unauthenticated by design — run it on a trusted
+network or behind your own auth proxy.
 
 ### The optional AI-engine sidecar
 
 The same Dockerfile has an `ai-engine` target with only the
 `rustling-ai-engine` binary (`task docker:build:ai-engine`, port 5001,
-`/health` healthcheck, its own `/data` volume for the documents store). The
-compose file wires it behind the `ai` profile:
+`/health` healthcheck; stateless — no volume). The compose file wires it
+behind the `ai` profile:
 
 ```bash
 task docker:up:ai     # or: docker compose -f docker/compose.yml --profile ai up -d
@@ -309,24 +312,23 @@ curl -s -o rotated.pdf -F fileInput=@some.pdf -F angle=90 \
 
 ---
 
-## 7. What does NOT run on Rust yet
+## 7. What does NOT run on Rust
 
 These are deliberate, documented limits — the authoritative list with rationale is
 [`PORT_STATUS.md`](PORT_STATUS.md):
 
-- **Secured mode (login/users/teams).** A reviewed opt-in security router exists
-  and is extensively tested, but production secure mode is gated on independent
-  human security review. Setting `SECURITY_ENABLELOGIN=true` or
-  `DOCKER_ENABLE_SECURITY=true` makes the Rust binary refuse startup (fail-closed,
-  including on malformed boolean values) instead of serving an unsecured
-  approximation. Run open mode; secured deployments must wait for the review
-  gate (or use the upstream Stirling-PDF Java product from its own repo).
+- **Authentication and every server-stateful feature** (login/users/teams/OIDC/
+  MFA, audit, durable storage, collaborative signing sessions, policies,
+  integrations, MCP, the AI document/RAG store): **removed by maintainer
+  decision on 2026-07-28**, not pending. The server is single-tenant,
+  unauthenticated, and stateless; deployments needing access control put it
+  behind their own auth proxy. Legacy settings keys for these features are
+  ignored with a startup warning. (Upstream Stirling-PDF's Java product, in
+  its own repo, still offers them.)
 - **SaaS / hosted-cloud layer** (upstream's `app/saas`, account-link billing):
-  deliberately not ported; depends on external cloud services unverifiable here.
-- **SAML2 SSO**: deferred pending a maintainer decision on a native XML-signature
-  dependency. (Generic OIDC login is ported inside the opt-in secured router;
-  Supabase JWT verification is ported.)
-- **H2 database backup/restore routes**: N/A — the Rust store is SQLite.
+  never ported, removed from scope with the same decision.
+- **SAML2 SSO**: removed from scope (it only existed as a secured-mode idea).
+- **H2 database backup/restore routes**: N/A — there is no database.
 - **PDF → video** route: implemented but an explicit opt-in
   (`RUSTLING_PROCESSING_FFMPEG_COMMAND`) while upstream FFmpeg CVEs are assessed —
   upstream's own Java route is itself commented out.
@@ -343,12 +345,11 @@ These are deliberate, documented limits — the authoritative list with rational
 
 ## 8. Production readiness position
 
-The Rust service is the only backend in this repository and open mode is
-production-usable today; the [Docker image](#5-docker) is the supported packaged
-form. The remaining gates before secured mode and full packaged distribution
-are: independent security review of the secured router and signing subsystem,
-cross-platform proof of the signed desktop bundles (the Rust binary + PDFium
-are now bundled as the desktop sidecar), and the residual fidelity gaps
-above. Follow `PORT_STATUS.md`,
-`SECURITY_MIGRATION_DESIGN.md`, and `SIGNING_MIGRATION_DESIGN.md` for the live
-state of each gate.
+The Rust service is the only backend in this repository and is
+production-usable today on a trusted network or behind an operator-provided
+auth proxy; the [Docker image](#5-docker) is the supported packaged form. The
+remaining gates before full packaged distribution are: cross-platform proof of
+the signed desktop bundles (the Rust binary + PDFium are now bundled as the
+desktop sidecar) and the residual fidelity gaps above. Follow
+`PORT_STATUS.md` and `SIGNING_MIGRATION_DESIGN.md` for the live state of each
+gate.

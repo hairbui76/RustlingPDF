@@ -5,28 +5,87 @@ Living planning document. A fresh working session should read this file plus
 feature/parity ledger) to get fully oriented. Update this file whenever a batch
 lands or the queue changes.
 
-## Snapshot (2026-07-28)
+## Snapshot (2026-07-29)
 
 - Repo: standalone product based on Stirling-PDF; **no Java anywhere** — the
   upstream checkout (if present at `../Stirling-PDF`) is a read-only reference
   oracle only.
-- `main` — full quality gate green after batch 4:
-  `cargo fmt`/`clippy -D warnings` clean, **rustling-processing 1535 passed /
-  0 failed** (1 ignored), **rustling-ai-engine 144 / 0**; Tauri desktop-shell
-  gate (containerized webkit build: fmt/clippy/tests) **11 / 0**; frontend
-  typecheck/eslint clean, **1647 vitest passed**, `vite build` (core) succeeds;
-  actionlint clean; `latest.json` composer fixture suite **21/21**. (The
-  differential harness and the dev-update e2e harness were removed by
-  maintainer decision on 2026-07-28 — their final green runs, smoke 13/13 and
-  upgrade e2e 8/8, are recorded in git history; a rebuilt harness is
-  planned.) Ships
-  GitHub CI, single-binary SPA serving, a Docker image, a tag-driven release
-  pipeline (GHCR images + signed desktop bundles + updater manifest), and a
-  Rust-sidecar desktop shell.
-- Open mode is the supported runtime; secured mode is implemented + tested but
-  **fail-closed** pending independent human security review.
+- Full quality gate green after batch 7:
+  `cargo fmt`/`clippy -D warnings` clean, **rustling-processing 809 passed /
+  0 failed** (1 ignored), **rustling-ai-engine 115 / 0**,
+  **rustling-operation-catalog 7 / 0**; Tauri desktop-shell gate
+  (containerized webkit build: fmt/clippy/tests) **TAURI_N / 0**; frontend
+  typecheck/eslint clean, **FRONTEND_TOTAL vitest passed**, `vite build`
+  (core) succeeds; actionlint clean. (The differential harness and the
+  dev-update e2e harness were removed by maintainer decision on 2026-07-28 —
+  their final green runs, smoke 13/13 and upgrade e2e 8/8, are recorded in
+  git history; a rebuilt harness is planned.) Ships GitHub CI, single-binary
+  SPA serving, a Docker image, a tag-driven release pipeline (GHCR images +
+  signed desktop bundles + updater manifest), and a Rust-sidecar desktop
+  shell.
+- **The product has no authentication and no server-side state** (batch 7,
+  maintainer decision 2026-07-28); legacy login/mcp/storage/policy settings
+  keys are ignored with a startup warning, never refused.
 - Canonical app version lives in `rust/VERSION` (consumed by `build.rs`).
 - Verified quick start: `task rust:install && task dev`.
+
+## Landed — Batch 7 (2026-07-29, `batch7/no-auth-stateless`)
+
+**Decision log (maintainer, final, 2026-07-28):** the product needs **no
+authentication** and **no server-side state** ("only local state on the
+client"); **MCP is deleted entirely**; **the AI PDF question-answer feature
+and its documents/RAG store are deleted entirely**; the desktop (Tauri-mode)
+sidecar keeps its `settings.yml` write-backs — that machine belongs to the
+user. Every server-stateful feature was deleted rather than moved
+server-side; client-side replacements (watched folders via the File System
+Access API, heuristic classification, localStorage signatures) already
+existed and remain.
+
+- **Backend (`rustling-processing`)**: the entire auth subsystem
+  (login/session/MFA/OIDC/invites/teams/user-admin, ~28 KLOC), the secured
+  router and its 14 captive subsystems (durable storage, workflow signing,
+  policies + webhook spool, integrations/purview, audit + fleet stats,
+  portal surfaces, admin settings, license admin, server certificate,
+  tessdata download, personal signatures, MCP), SQLite (`rusqlite` dropped;
+  no database at all), `JobOwner` (single-tenant ephemeral jobs), and the
+  watched-folder daemon are gone — 44 src modules, 18 integration-test
+  files, 19 contracts. The fail-closed startup guard was replaced by an
+  ignored-with-warning layer: legacy `security.*`/`mcp.*`/`storage.*`/
+  `policies.*`/audit/supabase keys warn once and never refuse (the shipped
+  template's `security.enableLogin: true` on existing desktop installs must
+  keep booting). Kept: all PDF processing + document crypto (password,
+  redact, sanitize, watermark), cert-sign + hardware signing + timestamping
+  (TSA env vars) + signature validation, SSRF guards (url_to_pdf's is
+  self-contained), per-IP/transport rate limits, robots.txt, mobile
+  scanner, pdf_json cache, settings READING (`RUSTLING_*`/`STIRLING_*`
+  aliases), and the desktop Tauri-mode settings write-backs
+  (`desktop_settings.rs`). Install identity persists only in Tauri mode;
+  in-memory otherwise.
+- **AI engine (`rustling-ai-engine`)**: PDF question-answer capability,
+  documents/RAG store (sqlite + pgvector), embeddings, per-user X-User-Id
+  gate, and the migrate-sqlite-vec bin deleted; contradiction detection and
+  pdf_review adapted to per-request content (need_content protocol);
+  capability manifest 8→7. The engine is stateless; `X-Engine-Auth` remains
+  the only transport credential. Legacy `RUSTLING_DOCUMENTS_*`/
+  `RUSTLING_RAG_*` env vars are ignored with a warning.
+- **Frontend + desktop**: `src/saas`, `src/cloud`, `src/portal`,
+  `src/portal-saas`, all auth routes/guards/forms, the admin-settings UI,
+  the server-side policies UI, license/upsell/billing, and the Shared
+  Signing tool deleted (single-shot cert-sign stays); flavor cascade
+  collapsed to desktop → proprietary → core; desktop is local-only (no
+  SetupWizard sign-in, no keyring, no deep-link plugin; sidecar + welcome
+  carousel); en-US locale pruned of 3,737 dead keys. 611+ files deleted.
+- **Docs/infra**: Dockerfile/compose are stateless (no VOLUMEs; config
+  mounts read-only), e2e login scaffolding replaced by open-mode setup,
+  `SECURITY_MIGRATION_DESIGN.md` deleted, `PORT_STATUS.md`/contracts
+  rewritten (census ≈321 → ≈164 route registrations).
+
+> The batch 3–5 sections below are **historical records** of what landed at
+> the time. Several features they mention (admin/license settings
+> persistence, integration-credential encryption, install-identity
+> persistence outside Tauri mode, secured-mode surfaces) were **removed
+> again in batch 7** — the batch 7 section and `rust/PORT_STATUS.md` are
+> authoritative for the current state.
 
 ## Landed — Batch 5 (2026-07-28, merged to `main`)
 
@@ -185,29 +244,22 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
    when both are set), the startup handshake prints
    `RustlingPDF running on port: <port>`, and user-visible branding is
    RustlingPDF. Deliberately kept for continuity: tauri bundle identifier
-   `stirling.pdf.dev`, deep-link scheme, `Stirling-PDF` app-data dir,
+   `stirling.pdf.dev`, `Stirling-PDF` app-data dir,
    persisted storage keys, `StirlingPDFClassification` PDF Info key,
-   `X-Stirling-*` wire headers, `stirling_*` MCP tool ids, and the pinned WiX
-   UpgradeCode. Follow-ups: replace the shipped brand image assets — the
-   login/sidebar/portal wordmark SVGs, PWA icons, and the desktop app icon
+   `X-Stirling-*` wire headers, and the pinned WiX
+   UpgradeCode (the deep-link scheme and `stirling_*` MCP tool ids died with
+   their features in batch 7). Follow-ups: replace the shipped brand image
+   assets — the sidebar wordmark SVG, PWA icons, and the desktop app icon
    set (`frontend/editor/src-tauri/icons/`) are still byte-identical to
    upstream Stirling artwork; the maintainer is supplying new artwork —
    migrate the app-data dir name, rename the internal frontend
    `StirlingFile*` identifier family, and localize the rename into non-en-US
    locale files (handled separately per house rules).
-3. **Independent security review** of the secured router + signing subsystem —
-   the only gate for enabling `SECURITY_ENABLELOGIN=true` in production. Human
-   task; `rust/SECURITY_MIGRATION_DESIGN.md` + `rust/SIGNING_MIGRATION_DESIGN.md`
-   are the briefing docs.
-4. **ResourceMonitor-style dynamic job-queue capacity** (memory/CPU sampling
+3. **ResourceMonitor-style dynamic job-queue capacity** (memory/CPU sampling
    feeding `JobQueueConfig`) — needs a design decision first: is the current
    static budget a deliberate divergence? Upstream reference:
    `ResourceMonitor`/`DynamicJobQueue` in Stirling-PDF `app/common`.
-5. **Optional SQLite-backed OIDC pending-login store** — beyond-upstream-parity
-   (upstream keeps this state in per-process HTTP sessions); only needed for
-   multi-process deployment. Needs wall-clock expiry + at-rest protection for
-   `code_verifier`/`client_secret`.
-6. **PDF-JSON deep-fidelity program** (multi-session, pick slices):
+4. **PDF-JSON deep-fidelity program** (multi-session, pick slices):
    - DeviceN DCT > 4 components — **probe first** whether PDFBox itself decodes
      5+-component JPEGs; if not, reclassify as parity-not-a-gap in the ledger.
    - CCITTFax/JBIG2/JPX inline-image decoding (needs new bounded decoders).
@@ -215,16 +267,26 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
      synthesis (upstream's own oracle is partially poisoned here — see
      PORT_STATUS "Remaining"; treat as beyond-parity work).
 
+## Removed by maintainer decision (2026-07-28) — not coming back
+
+- **Authentication + every server-stateful feature** (login/users/teams/OIDC/
+  MFA, audit, durable storage, workflow signing sessions, policies,
+  integrations, tessdata/license upload, personal-signature store) — batch 7.
+- **MCP** — batch 7 (deleted entirely, both the server routes and the OAuth
+  verifier).
+- **AI PDF question-answer + documents/RAG store** — batch 7.
+- **SAML2 SSO** — only ever existed as a secured-mode idea; removed from scope
+  with the auth subsystem.
+- **SaaS/hosted-cloud layer** (upstream `app/saas` + `accountlink`) — depends
+  on external Supabase/billing services; removed from scope (frontend `saas`/
+  `cloud`/`portal` layers deleted in batch 7).
+- **The differential harness + dev-update e2e harness** — removed 2026-07-28;
+  a rebuilt harness is planned (see queue).
+
 ## Explicitly deferred / not planned (with unblock conditions)
 
-- **SAML2 SSO** — blocked on a maintainer decision: native `libxmlsec1`
-  dependency vs a from-scratch C14N/XSW implementation. No route-shaped surface
-  exists upstream (Spring filter chain), so nothing is route-missing.
-- **SaaS/hosted-cloud layer** (upstream `app/saas` + `accountlink`) — depends on
-  external Supabase/billing services; out of scope for a self-hosted product
-  unless the product direction changes.
 - **H2 database routes** (`/api/v1/database/*`, `ui-data/database`) — N/A by
-  design: this backend's store is SQLite.
+  design: this backend keeps no database at all.
 - **`convert/pdf/video`** — implemented but opt-in
   (`RUSTLING_PROCESSING_FFMPEG_COMMAND`) while FFmpeg CVE exposure is assessed;
   upstream's own route is commented out.

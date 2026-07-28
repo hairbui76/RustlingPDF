@@ -6,12 +6,15 @@ contract. It contains three crates:
 
 - **`rustling-processing`** — the axum HTTP service mirroring the upstream
   `/api/v1/...` surface: the PDF-operation routes (merge/split/convert/security/
-  forms/redaction/…), configuration and UI-data endpoints, pipelines and
-  watched folders, async jobs, and — inside an opt-in reviewed secured router —
-  accounts, storage, collaborative signing, audit, policies, and MCP.
+  forms/redaction/…), configuration and UI-data endpoints, HTTP pipelines,
+  and async jobs. The service is deliberately **stateless and unauthenticated**:
+  no accounts, no database, no durable server-side storage (the former secured
+  router — accounts, storage, collaborative signing, audit, policies, MCP —
+  was removed by maintainer decision on 2026-07-28).
 - **`rustling-ai-engine`** — the Rust port of upstream Stirling-PDF's Python AI
-  engine (classification, PDF questions, document creation, math audit,
-  orchestration).
+  engine (classification, PDF edit/review/create agents, math audit,
+  orchestration). Stateless: the former document/RAG store and PDF
+  question-answer capability were removed in the same decision.
 - **`rustling-operation-catalog`** — generates the typed operation catalog from
   the frozen `SwaggerDoc.json` OpenAPI snapshot at the repo root
   (`task engine:tool-models`).
@@ -28,13 +31,13 @@ contract. It contains three crates:
 
 The route surface is deliberately **not** enumerated here — an earlier hand-kept
 list in this file drifted dozens of routes behind reality. A fixed route total is
-likewise deferred to the versioned baseline-to-Rust manifest so nested secured
-routers and conditional endpoints are counted by method and path rather than
-inferred from source literals. Illustrative examples of the breadth:
+likewise deferred to the versioned baseline-to-Rust manifest so conditional
+endpoints are counted by method and path rather than inferred from source
+literals. Illustrative examples of the breadth:
 `POST /api/v1/general/merge-pdfs`, `POST /api/v1/convert/pdf/img`,
 `POST /api/v1/security/redact-execute`, `POST /api/v1/pipeline/handleData`,
-`GET /api/v1/config/app-config`, `POST /api/v1/webhooks/{webhookId}`, and the
-secured `storage/`, `security/cert-sign/`, `audit/`, and `auth/oidc/` families.
+`GET /api/v1/config/app-config`, and the single-shot
+`POST /api/v1/security/cert-sign` + hardware-signing discovery family.
 
 ## Quick start
 

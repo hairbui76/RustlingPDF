@@ -21,10 +21,10 @@ The coordinated `Stirling` → `Rustling` rename has been executed: crates are
 `STIRLING_*` spelling keeps working as a deprecated alias; `RUSTLING_*` wins
 when both are set — see `env_compat` in each crate). Identifiers deliberately
 kept under the old spelling for continuity with shipped releases and existing
-installs — the tauri bundle identifier `stirling.pdf.dev`, the deep-link
-scheme, the `Stirling-PDF` desktop app-data directory, persisted storage keys,
-the `StirlingPDFClassification` PDF Info key, `X-Stirling-*` wire headers, and
-the `stirling_*` MCP tool ids — must not be renamed piecemeal.
+installs — the tauri bundle identifier `stirling.pdf.dev`, the `Stirling-PDF`
+desktop app-data directory, persisted storage keys, the
+`StirlingPDFClassification` PDF Info key, and `X-Stirling-*` wire headers —
+must not be renamed piecemeal.
 
 ## Taskfile
 
@@ -62,9 +62,16 @@ filters plus fmt/clippy) for the processing backend.
   Tesseract/OCRmyPDF, WeasyPrint, pdftohtml, Calibre, unrar) are discovered at
   startup; missing ones disable their endpoints with reason `DEPENDENCY` — never
   hard-fail on a missing optional tool.
-- **Secured mode is fail-closed by design**: the binary refuses to start when
-  `SECURITY_ENABLELOGIN=true`/`DOCKER_ENABLE_SECURITY=true` until the independent
-  security review gate is lifted. Do not weaken this.
+- **No authentication, no server-side state — by maintainer decision
+  (2026-07-28)**: the service has no login, no accounts, no database, and no
+  durable server-side storage; user state lives on the client. Legacy
+  login/mcp/storage/policy settings keys are **ignored with a one-line startup
+  warning, never refused** (a hard refusal would brick existing installs whose
+  settings.yml still carries them). PDF *document* security — password,
+  redact, sanitize, watermark, cert-sign/hardware signing, timestamping,
+  signature validation — is a processing feature and stays. The only
+  settings.yml write-backs are the desktop (Tauri-mode) sidecar's, which
+  target the user's own machine. Do not reintroduce auth or server state.
 - `rust/contracts/*.md` are the per-surface behavior contracts. When changing an
   endpoint's behavior, update its contract in the same change; when adding a
   surface, add one. `rust/PORT_STATUS.md` is the authoritative ledger of feature
