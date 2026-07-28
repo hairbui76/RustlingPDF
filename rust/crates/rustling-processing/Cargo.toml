@@ -39,7 +39,7 @@ moxcms = "0.8.1"
 notify = "8.2.0"
 image = { version = "0.25.9", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
 imageproc = { version = "0.27.0", default-features = false, features = ["text"] }
-jsonwebtoken = { version = "10.4.0", default-features = false, features = ["rust_crypto"] }
+jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust_crypto"] }
 jiff = "0.2.32"
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "hostname", "pool", "smtp-transport", "tokio1", "tokio1-rustls-tls"] }
 pdfium-render = { version = "0.9.3", default-features = false, features = ["image_latest", "pdfium_7543", "thread_safe"] }
