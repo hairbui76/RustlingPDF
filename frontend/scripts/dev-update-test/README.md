@@ -63,6 +63,9 @@ What it proves (the Linux leg of the signed-bundle upgrade proof):
 3. launches the v0.0.1 AppImage under Xvfb and drives the real updater IPC
    over the WebKit remote inspector (`e2e-driver.py`):
    - `check_for_update` offers 99.0.0 to the 0.0.1 app,
+   - a **same-version manifest** (0.0.1) and a **downgrade manifest** (0.0.0)
+     are refused with "No update is currently available" (strict
+     `remote > current` version gate),
    - an update signed by a **different valid key is rejected** (pubkey
      pinning) and the AppImage on disk is untouched,
    - a **byte-tampered artifact under the good signature is rejected**
@@ -70,6 +73,12 @@ What it proves (the Linux leg of the signed-bundle upgrade proof):
    - the good update downloads, signature-verifies, and **replaces the
      AppImage on disk** (sha256 asserted against the served artifact),
    - the **relaunched AppImage reports version 99.0.0**.
+
+   The negative tests assert the **specific rejection reason** ("created with
+   a different key" / "signature verification failed" / "No update is
+   currently available"), not merely that an error occurred — an unrelated
+   failure (endpoint down, fetch error) fails the test instead of
+   false-passing the security property.
 
 Assertion results + served manifests land in `.e2e-work/evidence/`; app and
 server logs in `.e2e-work/logs/`.
@@ -81,6 +90,14 @@ caches (`rust/target`, `rust/.pdfium`, `frontend/node_modules`, `.keys/`,
 `.update-dist/`, `.e2e-work/`). Deleting any or all of these is safe — the
 next run rebuilds them. The runner restores worktree file ownership on exit
 (the container runs as root over a bind mount).
+
+`--skip-build` reuse is idempotent across install runs: the cached v0.0.1
+build product is kept as `.e2e-work/base/RustlingPDF-0.0.1.pristine.AppImage`
+and every run drives a fresh working copy of it (the install test replaces
+the working copy in place — that is the install proof). The v99 artifact is
+resolved from the `latest.json` being served, so the sha the install test
+asserts always matches the manifest. The container toolchain downloads
+(Node.js, Task) are version- and sha256-pinned in `container/Dockerfile`.
 
 Container quirks handled for you: AppImage tooling and the built AppImage run
 with `APPIMAGE_EXTRACT_AND_RUN=1` (no FUSE in containers), `NO_STRIP=1` for

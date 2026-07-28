@@ -72,28 +72,41 @@ echo ""
 echo "=== [4/7] Build signed v99.0.0 updater artifact ==="
 V99_ARTIFACT=""
 find_v99_artifact() {
-  # Tauri v2 `createUpdaterArtifacts: true` signs the AppImage itself
-  # (foo.AppImage + foo.AppImage.sig); the legacy v1-compatible mode wraps it
-  # (foo.AppImage.tar.gz + .sig). Accept either; never pick up a stale
-  # tampered-* negative-test artifact from an earlier run.
-  V99_ARTIFACT="$(find "$DIST_DIR" -maxdepth 1 -name "*.AppImage.tar.gz" -not -name "tampered-*" | sort | tail -1)"
-  [ -n "$V99_ARTIFACT" ] || V99_ARTIFACT="$(find "$DIST_DIR" -maxdepth 1 -name "*.AppImage" -not -name "tampered-*" | sort | tail -1)"
+  # The authoritative artifact is the one latest.json points to — the driver
+  # asserts the installed AppImage's sha against it, so resolving it any
+  # other way (e.g. globbing the dist dir) can drift from the served manifest
+  # when stale artifacts from earlier runs sit next to the fresh one.
+  V99_ARTIFACT=""
+  [ -f "$DIST_DIR/latest.json" ] || return 0
+  local fname
+  fname="$(python3 -c '
+import json, sys, urllib.parse
+url = json.load(open(sys.argv[1]))["platforms"]["linux-x86_64"]["url"]
+print(urllib.parse.unquote(url.rsplit("/", 1)[-1]))
+' "$DIST_DIR/latest.json" 2>/dev/null)" || return 0
+  [ -n "$fname" ] && [ -f "$DIST_DIR/$fname" ] && V99_ARTIFACT="$DIST_DIR/$fname"
+  return 0
 }
 find_v99_artifact
-if [ "$SKIP_BUILD" = true ] && [ -n "$V99_ARTIFACT" ] && [ -f "$DIST_DIR/latest.json" ]; then
+if [ "$SKIP_BUILD" = true ] && [ -n "$V99_ARTIFACT" ]; then
   echo "  Reusing: $V99_ARTIFACT"
 else
   bash "$SCRIPT_DIR/build-dev-update.sh" 2>&1 | tail -8
   find_v99_artifact
 fi
-[ -n "$V99_ARTIFACT" ] || { echo "Error: v99 updater artifact not found in $DIST_DIR"; exit 1; }
+[ -n "$V99_ARTIFACT" ] || { echo "Error: v99 updater artifact (per latest.json) not found in $DIST_DIR"; exit 1; }
 cp "$DIST_DIR/latest.json" "$WORK_DIR/latest-good.json"
 
 echo ""
 echo "=== [5/7] Build v0.0.1 base AppImage (dev pubkey + localhost endpoint) ==="
+# The cached build product is the PRISTINE copy; every run gets its own
+# working copy. T5 replaces the working copy in place (that IS the install
+# proof), so reusing it directly would poison the next --skip-build run
+# with an already-upgraded v99 binary posing as the v0.0.1 base.
+BASE_PRISTINE="$WORK_DIR/base/RustlingPDF-0.0.1.pristine.AppImage"
 BASE_APPIMAGE="$WORK_DIR/base/RustlingPDF-0.0.1.AppImage"
-if [ "$SKIP_BUILD" = true ] && [ -f "$BASE_APPIMAGE" ]; then
-  echo "  Reusing: $BASE_APPIMAGE"
+if [ "$SKIP_BUILD" = true ] && [ -f "$BASE_PRISTINE" ]; then
+  echo "  Reusing: $BASE_PRISTINE"
 else
   (
     cd "$EDITOR_DIR"
@@ -107,8 +120,10 @@ else
   BUILT_BASE="$(find "$TAURI_DIR/target/release/bundle/appimage" -maxdepth 1 -name "*_0.0.1_*.AppImage" | sort | tail -1)"
   [ -n "$BUILT_BASE" ] || { echo "Error: v0.0.1 AppImage not found"; exit 1; }
   mkdir -p "$WORK_DIR/base"
-  cp "$BUILT_BASE" "$BASE_APPIMAGE"
+  cp "$BUILT_BASE" "$BASE_PRISTINE"
 fi
+cp "$BASE_PRISTINE" "$BASE_APPIMAGE"
+chmod +x "$BASE_APPIMAGE"
 
 echo ""
 echo "=== [6/7] Update server + negative-test artifacts ==="

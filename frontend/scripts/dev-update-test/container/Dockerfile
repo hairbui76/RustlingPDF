@@ -24,16 +24,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libgl1-mesa-dri libegl1 \
     fontconfig fonts-liberation \
     python3 python3-websockets \
-    curl wget ca-certificates file git procps \
+    curl wget ca-certificates file git procps xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 22 (the tauri CLI is node-based; host node is too old / absent)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
+# Node.js 22 (the tauri CLI is node-based; host node is too old / absent).
+# Pinned release tarball with a pinned sha256 (from nodejs.org SHASUMS256.txt)
+# instead of piping the nodesource setup script — a committed harness image
+# must not execute unpinned remote code at build time.
+ARG NODE_VERSION=22.23.1
+ARG NODE_SHA256=9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && node --version && npm --version
 
-# Task — the sidecar staging path is `task desktop:stage-sidecar`
-RUN curl -sSL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin
+# Task — the sidecar staging path is `task desktop:stage-sidecar`. Same
+# pinning rationale (sha256 from the release's task_checksums.txt).
+ARG TASK_VERSION=3.52.0
+ARG TASK_SHA256=02c679ffae53dca791804847d78b31731615894e292948397c971c87ac9e95bd
+RUN curl -fsSL "https://github.com/go-task/task/releases/download/v${TASK_VERSION}/task_linux_amd64.tar.gz" -o /tmp/task.tar.gz \
+    && echo "${TASK_SHA256}  /tmp/task.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/task.tar.gz -C /usr/local/bin task \
+    && rm /tmp/task.tar.gz \
+    && task --version
 
 # AppImage bundling helpers: linuxdeploy validates the .desktop file,
 # appimagetool can call zsyncmake for embedded update info, and the tauri

@@ -4,16 +4,26 @@
 Launches the v0.0.1 AppImage under the current DISPLAY (Xvfb), attaches to
 the WebKit remote inspector, and drives the Tauri updater IPC commands:
 
-  T1  get_app_version            == 0.0.1
-  T2  check_for_update           offers 99.0.0 (from the served latest.json)
-  T3  download_and_install_update with a wrong-key signature   -> REJECTED
-  T4  download_and_install_update with tampered artifact bytes -> REJECTED
-  T5  download_and_install_update with the good manifest       -> installs,
-      the AppImage on disk is byte-replaced with the v99 artifact
-  T6  relaunch the replaced AppImage -> get_app_version == 99.0.0
+  T1   get_app_version            == 0.0.1
+  T2   check_for_update           offers 99.0.0 (from the served latest.json)
+  T2a  download_and_install_update with a same-version manifest -> REFUSED
+       ("No update is currently available": strict `remote > current` gate)
+  T2b  download_and_install_update with a downgrade manifest    -> REFUSED
+  T3   download_and_install_update with a wrong-key signature   -> REJECTED
+       for the right reason ("created with a different key")
+  T4   download_and_install_update with tampered artifact bytes -> REJECTED
+       for the right reason ("signature verification failed")
+  T5   download_and_install_update with the good manifest       -> installs,
+       the AppImage on disk is byte-replaced with the v99 artifact
+  T6   relaunch the replaced AppImage -> get_app_version == 99.0.0
 
-T3-T6 only run with --install. Assertion results and raw evidence are
+T2a-T6 only run with --install. Assertion results and raw evidence are
 written to <work-dir>/evidence/.
+
+The negative tests assert the SPECIFIC rejection reason, not just "some
+error": a transient failure (e.g. the endpoint unreachable) also surfaces as
+an invoke error, and accepting any error would false-pass the security
+property while zero signature verification happened.
 
 Driving protocol: WebKitGTK >= 2.40 exposes the remote inspector over HTTP
 (WEBKIT_INSPECTOR_HTTP_SERVER): GET / lists inspectable targets, and a
@@ -44,6 +54,21 @@ import urllib.request
 import websockets
 
 DEBUG = os.environ.get("E2E_DRIVER_DEBUG", "") == "1"
+
+# Exact rejection reasons the negative tests must see. The sources of truth:
+#   - minisign-verify 0.2.5 Display strings ("The signature was created with a
+#     different key than the one provided" / "The signature verification
+#     failed"), surfaced transparently through tauri-plugin-updater 2.10.1's
+#     `#[error(transparent)] Minisign(...)` and the app's
+#     `download_and_install_update` error mapping;
+#   - tauri-plugin-updater's strict `remote.version > current` gate, surfaced
+#     by the app command as "No update is currently available" when check()
+#     offers nothing.
+# Any other error (fetch failure, endpoint typo, server down) must FAIL the
+# corresponding test — a rejection is only proven by its reason.
+WRONG_KEY_REJECTION = "created with a different key"
+TAMPERED_REJECTION = "signature verification failed"
+NO_UPDATE_REFUSAL = "No update is currently available"
 
 
 def log(msg):
@@ -343,13 +368,15 @@ async def wait_for_ready(insp, timeout=120):
 # ── manifest juggling ────────────────────────────────────────────────────────
 
 
-def write_manifest(dist_dir, base_manifest, signature=None, url=None, tag=""):
+def write_manifest(dist_dir, base_manifest, signature=None, url=None, version=None, tag=""):
     manifest = json.loads(json.dumps(base_manifest))
     plat = manifest["platforms"]["linux-x86_64"]
     if signature is not None:
         plat["signature"] = signature
     if url is not None:
         plat["url"] = url
+    if version is not None:
+        manifest["version"] = version
     path = os.path.join(dist_dir, "latest.json")
     with open(path, "w") as f:
         json.dump(manifest, f, indent=2)
@@ -457,17 +484,46 @@ async def main():
         evidence["check_for_update"] = update_info
 
         if not args.install:
-            log("\n  T3-T6 skipped (run with --install for the full proof)")
+            log("\n  T2a-T6 skipped (run with --install for the full proof)")
         else:
+            log("\n  T2a: REFUSE a same-version manifest (0.0.1 offered to 0.0.1)")
+            write_manifest(args.dist_dir, good_manifest, version="0.0.1", tag="same-version")
+            status, value = await insp.invoke_async(
+                "window.__TAURI_INTERNALS__.invoke('download_and_install_update')", timeout=120
+            )
+            unchanged = sha256(args.appimage) == base_sha
+            refused = NO_UPDATE_REFUSAL in str(value)
+            ok = status == "err" and refused and unchanged
+            record("T2a_refuse_same_version", ok,
+                   f"status={status} (want err), refusal reason matched={refused} "
+                   f"(want {NO_UPDATE_REFUSAL!r}), error={str(value)[:200]!r}, "
+                   f"appimage unchanged={unchanged}")
+
+            log("\n  T2b: REFUSE a downgrade manifest (0.0.0 offered to 0.0.1)")
+            write_manifest(args.dist_dir, good_manifest, version="0.0.0", tag="downgrade")
+            status, value = await insp.invoke_async(
+                "window.__TAURI_INTERNALS__.invoke('download_and_install_update')", timeout=120
+            )
+            unchanged = sha256(args.appimage) == base_sha
+            refused = NO_UPDATE_REFUSAL in str(value)
+            ok = status == "err" and refused and unchanged
+            record("T2b_refuse_downgrade", ok,
+                   f"status={status} (want err), refusal reason matched={refused} "
+                   f"(want {NO_UPDATE_REFUSAL!r}), error={str(value)[:200]!r}, "
+                   f"appimage unchanged={unchanged}")
+
             log("\n  T3: REJECT update signed by the wrong key (pubkey pinning)")
             write_manifest(args.dist_dir, good_manifest, signature=wrong_sig, tag="wrong-key")
             status, value = await insp.invoke_async(
                 "window.__TAURI_INTERNALS__.invoke('download_and_install_update')", timeout=300
             )
             unchanged = sha256(args.appimage) == base_sha
-            ok = status == "err" and unchanged
+            rejected = WRONG_KEY_REJECTION in str(value)
+            ok = status == "err" and rejected and unchanged
             record("T3_reject_wrong_key", ok,
-                   f"status={status} (want err), error={str(value)[:200]!r}, appimage unchanged={unchanged}")
+                   f"status={status} (want err), rejection reason matched={rejected} "
+                   f"(want {WRONG_KEY_REJECTION!r}), error={str(value)[:200]!r}, "
+                   f"appimage unchanged={unchanged}")
 
             log("\n  T4: REJECT tampered artifact bytes under the good signature")
             tampered_url = good_url.rsplit("/", 1)[0] + "/" + args.tampered_name
@@ -477,9 +533,12 @@ async def main():
                 "window.__TAURI_INTERNALS__.invoke('download_and_install_update')", timeout=300
             )
             unchanged = sha256(args.appimage) == base_sha
-            ok = status == "err" and unchanged
+            rejected = TAMPERED_REJECTION in str(value)
+            ok = status == "err" and rejected and unchanged
             record("T4_reject_tampered_bytes", ok,
-                   f"status={status} (want err), error={str(value)[:200]!r}, appimage unchanged={unchanged}")
+                   f"status={status} (want err), rejection reason matched={rejected} "
+                   f"(want {TAMPERED_REJECTION!r}), error={str(value)[:200]!r}, "
+                   f"appimage unchanged={unchanged}")
 
             log("\n  T5: install the good signed update (AppImage replaced on disk)")
             write_manifest(args.dist_dir, good_manifest, tag="good")

@@ -219,7 +219,8 @@ cd "$FRONTEND_DIR/editor"
 
 # Enable WebView remote debugging (platform-specific)
 if [ -n "$WEBVIEW_DEBUG_ENV" ]; then
-  export ${WEBVIEW_DEBUG_ENV}
+  # WEBVIEW_DEBUG_ENV holds a full NAME=value assignment.
+  export "${WEBVIEW_DEBUG_ENV?}"
 else
   export WEBKIT_INSPECTOR_SERVER="127.0.0.1:$DEBUG_PORT"
 fi
