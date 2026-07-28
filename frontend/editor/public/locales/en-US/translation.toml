@@ -1098,15 +1098,11 @@ description = "Use your own PKCS#12 certificate file. Provides full control over
 title = "Upload Custom P12"
 
 [certSign]
-awaitingSignatures = "Awaiting signatures"
 chooseCertificate = "Choose Certificate File"
 chooseJksFile = "Choose JKS File"
 chooseP12File = "Choose PKCS12 File"
 choosePfxFile = "Choose PFX File"
 choosePrivateKey = "Choose Private Key File"
-declined = "Declined"
-fetchFailed = "Failed to load signing data"
-finalized = "Finalized"
 location = "Location"
 logoTitle = "Logo"
 name = "Name"
@@ -1116,16 +1112,11 @@ password = "Certificate Password"
 passwordOptional = "Leave empty if no password"
 pemCertificateLabel = "Certificate (.pem / .crt)"
 pemPrivateKeyLabel = "Private key (.pem / .key)"
-pending = "Pending"
-readyToFinalize = "Ready to finalize"
 reason = "Reason"
 serverCertMessage = "Using server certificate - no files or password required"
 showLogo = "Show Logo"
-signatureProgress = "{{signedCount}}/{{totalCount}} signatures"
-signed = "Signed"
 tags = "authenticate,PEM,P12,official,encrypt,sign,certificate,PKCS12,JKS,server,manual,auto"
 title = "Certificate Signing"
-viewed = "Viewed"
 
 [certSign.appearance]
 invisible = "Invisible"
@@ -1179,73 +1170,29 @@ title = "Which option should I use?"
 [certSign.certTypeStep]
 stepTitle = "Certificate Format"
 
-[certSign.collab.addParticipants]
-add_one = "Add {{count}} Participant"
-add_other = "Add {{count}} Participants"
-reasonHelp = "Pre-set a signing reason for these participants (optional, they can override when signing)"
-reasonPlaceholder = "e.g. Approval, Review..."
-
-[certSign.collab.finalize]
-button = "Finalize and Load Signed PDF"
-early = "Finalize with Current Signatures"
-
 [certSign.collab.sessionCreation]
 includeSummaryPage = "Include Signature Summary Page"
 includeSummaryPageHelp = "A summary page will be added at the end with all signature metadata. The digital certificate signature boxes on individual pages will be suppressed (wet signatures are unaffected)."
-
-[certSign.collab.sessionDetail]
-addParticipants = "Add Participants"
-addParticipantsError = "Failed to add participants"
-backToList = "Back to Sessions"
-deleteConfirm = "Are you sure? This cannot be undone."
-deleteError = "Failed to delete session"
-deleteSession = "Delete Session"
-dueDate = "Due Date"
-finalizeError = "Failed to finalize session"
-loadPdfError = "Failed to load signed PDF"
-loadSignedPdf = "Load Signed PDF into Active Files"
-messageLabel = "Message"
-owner = "Owner"
-participantRemoved = "Participant removed"
-participants = "Participants"
-participantsAdded = "Participants added successfully"
-removeParticipant = "Remove"
-removeParticipantError = "Failed to remove participant"
-selectUsers = "Select users..."
-sessionInfo = "Session Info"
-
-[certSign.collab.sessionList]
-active = "Active"
-finalized = "Finalized"
 
 [certSign.collab.signatureSettings]
 description = "Configure how signatures will appear for all participants"
 title = "Signature Appearance"
 
 [certSign.collab.signRequest]
-addedToFiles = "Document added to active files"
-addToFiles = "Add to Active Files"
 advancedSettings = "Advanced Settings"
-backToList = "Back to Sign Requests"
 certificateChoice = "Select a certificate to sign with"
-changeSignature = "Change signature"
 clearSignature = "Clear Signature"
-completeAndSign = "Complete & Sign"
 createNewSignature = "Create New Signature"
 decline = "Decline Request"
 declineButton = "Decline"
-deleteSelected = "Delete selected signature"
 drawSignature = "Draw your signature below"
 fileTooLarge = "File size must be less than 5MB"
 fontFamily = "Font Family"
 fontSize = "Font Size: {{size}}px"
 fontSizePlaceholder = "Size"
-from = "From"
 invalidFileType = "Please select an image file"
 location = "Location (Optional)"
 locationPlaceholder = "Where are you signing from?"
-noCertificate = "Please select a certificate file"
-noSignatures = "Please place at least one signature on the PDF"
 p12File = "P12/PFX Certificate File"
 password = "Certificate Password"
 penColor = "Pen Color"
@@ -1262,7 +1209,6 @@ signatureText = "Signature Text"
 signatureTextPlaceholder = "Enter your name..."
 signatureTypeLabel = "Signature Type"
 signButton = "Sign Document"
-signingTitle = "Signing"
 textColor = "Text Color"
 typeSignature = "Type your name to create a signature"
 uploadCert = "Custom Certificate"
@@ -1272,7 +1218,6 @@ usePersonalCert = "Personal Certificate"
 usePersonalCertDesc = "Auto-generated for your account"
 useServerCert = "Organization Certificate"
 useServerCertDesc = "Shared organization certificate"
-useSignature = "Use signature"
 
 [certSign.collab.signRequest.certModal]
 certInvalid = "Certificate invalid: {{error}}"
@@ -1285,28 +1230,14 @@ description_other = "You have placed {{count}} signatures. Choose your certifica
 sign = "Sign Document"
 title = "Configure Certificate"
 
-[certSign.collab.signRequest.mode]
-move = "Move Signature"
-place = "Place Signature"
-title = "Sign or move mode"
-
 [certSign.collab.signRequest.modeTabs]
 draw = "Draw"
 image = "Upload"
 text = "Type"
 
-[certSign.collab.signRequest.preview]
-create = "Add signature"
-imageAlt = "Selected signature"
-textFallback = "Signature"
-
 [certSign.collab.signRequest.saved]
-defaultCanvasLabel = "Drawing signature"
-defaultImageLabel = "Uploaded signature"
 defaultLabel = "Signature"
-defaultTextLabel = "Typed signature"
 delete = "Delete signature"
-none = "No saved signatures"
 
 [certSign.collab.signRequest.signatureType]
 draw = "Draw"
@@ -1334,13 +1265,6 @@ signaturePlaced = "Signature placed on page {{page}}. You can adjust the positio
 visibility = "Visibility:"
 visible = "Visible"
 yourSignatures = "Your Signatures ({{count}})"
-
-[certSign.collab.userSelector]
-inviteUsers = "Add Users"
-loadError = "Failed to load users"
-noTeam = "No Team"
-noUsers = "No other users found."
-placeholder = "Select users..."
 
 [certSign.device]
 stepTitle = "This device"
@@ -1374,14 +1298,6 @@ selectDriver = "Select driver"
 slot = "Slot (optional)"
 windowsHint = "Pick a certificate from your Windows certificate store. Signing uses the key on your card/token - Windows will prompt for the PIN."
 windowsLoadError = "Could not read the Windows certificate store"
-
-[certSign.sessions]
-deleted = "Session deleted"
-fetchFailed = "Failed to load session details"
-finalized = "Session finalized"
-loaded = "Signed PDF loaded"
-pdfNotReady = "PDF Not Ready"
-pdfNotReadyDesc = "The signed PDF is being generated. Please try again in a moment."
 
 [certSign.sign]
 results = "Signed PDF"
@@ -1676,7 +1592,6 @@ collapse = "Collapse"
 copied = "Copied!"
 copy = "Copy"
 done = "Done"
-error = "Error"
 expand = "Expand"
 loading = "Loading..."
 next = "Next"
@@ -2917,55 +2832,6 @@ javaScript = "JavaScript"
 layers = "Layers"
 multimedia = "Multimedia"
 
-[groupSigning.steps]
-back = "Back"
-completed = "Completed"
-current = "Current"
-stepLabel = "Step {{number}}"
-
-[groupSigning.steps.configureDefaults]
-continue = "Continue"
-invisible = "Signatures will be invisible (metadata only)"
-locationLabel = "Location:"
-preview = "Preview"
-reasonLabel = "Reason:"
-title = "Configure Signature Settings"
-visible = "Signatures will be visible on page {{page}}"
-
-[groupSigning.steps.review]
-document = "Document"
-dueDate = "Due Date (Optional)"
-dueDatePlaceholder = "Select due date..."
-invisible = "Invisible (metadata only)"
-location = "Location:"
-logo = "Logo:"
-logoHidden = "No logo"
-logoShown = "RustlingPDF logo shown"
-participantCount_one = "{{count}} participant will sign in order"
-participantCount_other = "{{count}} participants will sign in order"
-participants = "Participants"
-reason = "Reason:"
-send = "Send Signing Requests"
-signatureSettings = "Signature Settings"
-title = "Review Session Details"
-titleShort = "Review & Send"
-visibility = "Visibility:"
-visible = "Visible on page {{page}}"
-
-[groupSigning.steps.selectDocument]
-continue = "Continue"
-noFile = "Please select a single PDF file from your active files to create a signing session."
-selectedFile = "Selected document"
-title = "Select Document"
-
-[groupSigning.steps.selectParticipants]
-continue = "Continue"
-count_one = "{{count}} participant selected"
-count_other = "{{count}} participants selected"
-label = "Select participants"
-placeholder = "Choose participants to sign..."
-title = "Choose Participants"
-
 [groupSigning.tooltip]
 header = "About Group Signing"
 
@@ -3279,7 +3145,6 @@ tags = "detect,split,photos,auto detect,detect photos,split photos,separate phot
 title = "Detect & Split Scanned Photos"
 
 [home.sharedSign]
-desc = "Request signatures from others and track signing sessions"
 title = "Shared Signing"
 
 [home.showJS]
@@ -5259,28 +5124,6 @@ people = "People"
 teams = "Teams"
 title = "Workspace"
 
-[sharedSign]
-backToSessions = "Back to sessions"
-createdOn = "Created {{date}}"
-disabledBody = "Collaborative signing isn't enabled on this server."
-disabledTitle = "Not enabled"
-due = "Due {{date}}"
-filterDeclined = "Declined"
-filterMine = "Mine"
-filterOverdue = "Overdue"
-filterSigned = "Signed"
-fromOwner = "From {{owner}}"
-newRequest = "Request signatures"
-signedCount = "{{signed}}/{{total}} signed"
-
-[sharedSign.empty]
-active = "No pending sign requests or active sessions"
-completed = "No completed sessions"
-
-[sharedSign.tab]
-active = "Active"
-completed = "Completed"
-
 [showJS]
 done = "JavaScript extracted"
 processing = "Extracting JavaScript..."
@@ -5457,15 +5300,6 @@ bullet2 = "<b>Invisible</b>: Certificate embedded without visual mark"
 bullet3 = "Invisible signatures still provide cryptographic validation"
 description = "Controls whether the signature is visible on the document or embedded invisibly."
 title = "Signature Visibility"
-
-[signRequest]
-declined = "Sign request declined"
-fetchFailed = "Failed to load sign request"
-signed = "Document signed successfully"
-
-[signSession]
-created = "Signing request sent"
-createFailed = "Failed to create signing request"
 
 [signup]
 title = "Create an account"
