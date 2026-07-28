@@ -1,79 +1,39 @@
 import { useEffect } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@app/auth/UseSession";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
 import HomePage from "@app/pages/HomePage";
 import { useBackendProbe } from "@app/hooks/useBackendProbe";
-import AuthLayout from "@app/routes/authShared/AuthLayout";
-import LoginHeader from "@app/routes/login/LoginHeader";
 import { useTranslation } from "react-i18next";
 import { Button } from "@app/ui/Button";
 
 /**
- * Landing component - Smart router based on authentication status
- *
- * If login is disabled: Show HomePage directly (anonymous mode)
- * If user is authenticated: Show HomePage
- * If user is not authenticated: Show Login or redirect to /login
+ * Landing component. The app has no login: every visitor lands on the
+ * HomePage. The only special case is a backend that is not reachable yet,
+ * which shows a branded status screen that auto-retries.
  */
 export default function Landing() {
-  const { session, loading: authLoading } = useAuth();
   const { config, loading: configLoading, refetch } = useAppConfig();
   const backendProbe = useBackendProbe();
-  const location = useLocation();
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const loading = authLoading || configLoading || backendProbe.loading;
+  const loading = configLoading || backendProbe.loading;
 
-  // Debug: Track Landing component lifecycle
+  // Periodically probe while the backend isn't up so the screen can
+  // auto-advance when it comes online.
   useEffect(() => {
-    const mountId = Math.random().toString(36).substring(7);
-    console.log(
-      `[Landing:${mountId}] 🔵 Component mounted at ${location.pathname}`,
-    );
-    console.log(`[Landing:${mountId}] Mount state:`, {
-      authLoading,
-      configLoading,
-      backendLoading: backendProbe.loading,
-      hasSession: !!session,
-    });
-    return () => {
-      console.log(`[Landing:${mountId}] 🔴 Component unmounting`);
-    };
-  }, [
-    location.pathname,
-    authLoading,
-    configLoading,
-    backendProbe.loading,
-    session,
-  ]);
-
-  // Periodically probe while backend isn't up so the screen can auto-advance when it comes online
-  useEffect(() => {
-    if (backendProbe.status === "up" || backendProbe.loginDisabled) {
+    if (backendProbe.status === "up") {
       return;
     }
     const tick = async () => {
       const result = await backendProbe.probe();
       if (result.status === "up") {
         await refetch();
-        if (result.loginDisabled) {
-          navigate("/", { replace: true });
-        }
       }
     };
     const intervalId = window.setInterval(() => {
       void tick();
     }, 5000);
     return () => window.clearInterval(intervalId);
-  }, [
-    backendProbe.status,
-    backendProbe.loginDisabled,
-    backendProbe.probe,
-    navigate,
-    refetch,
-  ]);
+  }, [backendProbe.status, backendProbe.probe, backendProbe, refetch]);
 
   useEffect(() => {
     if (backendProbe.status === "up") {
@@ -81,22 +41,7 @@ export default function Landing() {
     }
   }, [backendProbe.status, refetch]);
 
-  console.log("[Landing] ════════════════════════════════════");
-  console.log("[Landing] Render state:", {
-    pathname: location.pathname,
-    loading,
-    authLoading,
-    configLoading,
-    backendLoading: backendProbe.loading,
-    hasSession: !!session,
-    hasConfig: !!config,
-    loginEnabled: config?.enableLogin === true && !backendProbe.loginDisabled,
-    backendStatus: backendProbe.status,
-    timestamp: new Date().toISOString(),
-  });
-  console.log("[Landing] ════════════════════════════════════");
-
-  // Show loading while checking auth and config
+  // Show loading while resolving the app config
   if (loading) {
     return (
       <div
@@ -117,37 +62,41 @@ export default function Landing() {
     );
   }
 
-  // If login is disabled, show app directly (anonymous mode)
-  if (config?.enableLogin === false || backendProbe.loginDisabled) {
-    console.debug("[Landing] Login disabled - showing app in anonymous mode");
-    return <HomePage />;
-  }
-
-  // If backend is not up yet and user is not authenticated, show a branded status screen
-  if (!session && backendProbe.status !== "up") {
-    const backendTitle = t("backendStartup.notFoundTitle", "Backend not found");
+  // Backend not reachable and no config either: show a branded status screen
+  if (!config && backendProbe.status !== "up") {
     const handleRetry = async () => {
       const result = await backendProbe.probe();
       if (result.status === "up") {
         await refetch();
-        navigate("/", { replace: true });
       }
     };
     return (
-      <AuthLayout>
-        <LoginHeader title={backendTitle} />
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <div
-          className="auth-section"
           style={{
             padding: "1.5rem",
             marginTop: "1rem",
             borderRadius: "0.75rem",
+            maxWidth: "28rem",
             backgroundColor:
               "color-mix(in srgb, var(--c-primary) 8%, transparent)",
             border:
               "1px solid color-mix(in srgb, var(--c-primary) 20%, transparent)",
           }}
         >
+          <h2
+            style={{ margin: "0 0 0.75rem 0", color: "var(--c-text)" }}
+            className="text-lg font-semibold"
+          >
+            {t("backendStartup.notFoundTitle", "Backend not found")}
+          </h2>
           <p style={{ margin: "0 0 0.75rem 0", color: "var(--c-text)" }}>
             {t(
               "backendStartup.unreachable",
@@ -157,27 +106,15 @@ export default function Landing() {
           <Button
             type="button"
             onClick={handleRetry}
-            className="auth-cta-button px-4 py-[0.75rem] rounded-[0.625rem] text-base font-semibold mt-5 border-0 cursor-pointer"
+            className="px-4 py-[0.75rem] rounded-[0.625rem] text-base font-semibold mt-5 border-0 cursor-pointer"
             style={{ width: "fit-content" }}
           >
             {t("backendStartup.retry", "Retry")}
           </Button>
         </div>
-      </AuthLayout>
+      </div>
     );
   }
 
-  // If we have a session, show the main app
-  // Note: First login password change is now handled by the onboarding flow
-  if (session) {
-    return <HomePage />;
-  }
-
-  // No session - redirect to login page
-  // This ensures the URL always shows /login when not authenticated
-  return config?.enableLogin === true && !backendProbe.loginDisabled ? (
-    <Navigate to="/login" replace state={{ from: location }} />
-  ) : (
-    <HomePage />
-  );
+  return <HomePage />;
 }

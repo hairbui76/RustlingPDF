@@ -10,12 +10,7 @@ import {
 import apiClient from "@app/services/apiClient";
 import { isAxiosError } from "axios";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
-import { useAuth } from "@app/auth/UseSession";
-import { useLicense } from "@app/contexts/LicenseContext";
-import {
-  getSimulatedAdminUsage,
-  getSimulatedWauResponse,
-} from "@app/testing/serverExperienceSimulations";
+import { getSimulatedWauResponse } from "@app/testing/serverExperienceSimulations";
 
 const SELF_REPORTED_ADMIN_KEY = "stirling-self-reported-admin";
 const FREE_TIER_LIMIT = 5;
@@ -116,8 +111,6 @@ export function ServerExperienceProvider({
   children: ReactNode;
 }) {
   const { config } = useAppConfig();
-  const { user } = useAuth();
-  const { licenseInfo, loading: licenseLoading } = useLicense();
 
   const [selfReportedAdmin, setSelfReportedAdminState] = useState<boolean>(
     getStoredSelfReportedAdmin,
@@ -135,7 +128,8 @@ export function ServerExperienceProvider({
   const configIsAdmin = Boolean(config?.isAdmin);
   const effectiveIsAdmin =
     configIsAdmin || (!loginEnabled && selfReportedAdmin);
-  const isAuthenticated = Boolean(user);
+  // There is no login: nobody is ever "authenticated".
+  const isAuthenticated = false;
 
   const setSelfReportedAdmin = useCallback((value: boolean) => {
     setSelfReportedAdminState(value);
@@ -182,13 +176,8 @@ export function ServerExperienceProvider({
     if (!config.appVersion) {
       return;
     }
-    if (loginEnabled && !isAuthenticated) {
-      return;
-    }
-
-    const shouldUseAdminData = (config.enableLogin ?? true) && config.isAdmin;
-    // Use WAU estimate for no-login scenarios OR for login non-admin users
-    const shouldUseEstimate = config.enableLogin === false || !config.isAdmin;
+    // WAU estimate is the only user-count source (there are no admin accounts).
+    const shouldUseEstimate = true;
 
     setUserCountState((prev) => ({
       ...prev,
@@ -197,33 +186,6 @@ export function ServerExperienceProvider({
     }));
 
     try {
-      if (shouldUseAdminData) {
-        const testResponse = getSimulatedAdminUsage();
-        const responseData =
-          testResponse ??
-          (
-            await apiClient.get<{ totalUsers?: number }>(
-              "/api/v1/proprietary/ui-data/admin-settings",
-              {
-                suppressErrorToast: true,
-              },
-            )
-          ).data;
-        const totalUsers =
-          typeof responseData?.totalUsers === "number"
-            ? responseData.totalUsers
-            : null;
-        setUserCountState({
-          totalUsers,
-          weeklyActiveUsers: null,
-          loading: false,
-          source: "admin",
-          lastUpdated: Date.now(),
-          error: null,
-        });
-        return;
-      }
-
       if (shouldUseEstimate) {
         const testResponse = getSimulatedWauResponse();
         const responseData =
@@ -275,14 +237,11 @@ export function ServerExperienceProvider({
   }, [config?.license]);
 
   const licenseKeyValid = useMemo(() => {
-    if (licenseInfo) {
-      return licenseInfo.hasKey && licenseInfo.enabled;
-    }
     if (config?.premiumEnabled) {
       return true;
     }
     return null;
-  }, [config?.premiumEnabled, licenseInfo]);
+  }, [config?.premiumEnabled]);
 
   const overFreeTierLimit = useMemo(() => {
     if (typeof userCountState.totalUsers !== "number") {
@@ -348,8 +307,8 @@ export function ServerExperienceProvider({
     runningEE: config?.runningEE,
     hasPaidLicense,
     licenseKeyValid,
-    licenseLoading,
-    licenseInfoAvailable: Boolean(licenseInfo),
+    licenseLoading: false,
+    licenseInfoAvailable: false,
     totalUsers: userCountState.totalUsers,
     weeklyActiveUsers: userCountState.weeklyActiveUsers,
     userCountLoading: userCountState.loading,

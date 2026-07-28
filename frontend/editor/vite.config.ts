@@ -88,12 +88,8 @@ function compressStaticCopyPlugin(): PluginOption {
 // Pages). Otherwise URLs stay root-relative, which still resolves against whatever
 // origin serves the page (correct for self-hosted Docker). Logic lives in
 // scripts/og-prerender.mjs so it can be unit-tested without a full build.
-function prerenderOgPlugin(isSaas: boolean): PluginOption {
-  // SaaS (stirling.com) prerenders the marketing cards from a dedicated
-  // manifest; every other flavour uses the tool-registry manifest.
-  const manifestFile = isSaas
-    ? "public/og-metadata.saas.json"
-    : "public/og-metadata.json";
+function prerenderOgPlugin(): PluginOption {
+  const manifestFile = "public/og-metadata.json";
   return {
     name: "prerender-og",
     apply: "build" as const,
@@ -163,23 +159,12 @@ function subpathBareRedirectPlugin(subpath: string): PluginOption {
   };
 }
 
-// NOTE: cloud/ is a SHARED layer, not a runnable build flavor — it's compiled
-// into the saas and desktop builds. It has no entry here and no vite tsconfig;
-// it is only typechecked standalone via editor/src/cloud/tsconfig.json
-// (task frontend:typecheck:cloud) to prove it carries no saas/desktop-only deps.
-const VALID_MODES = [
-  "core",
-  "proprietary",
-  "saas",
-  "desktop",
-  "prototypes",
-] as const;
+const VALID_MODES = ["core", "proprietary", "desktop", "prototypes"] as const;
 type BuildMode = (typeof VALID_MODES)[number];
 
 const TSCONFIG_MAP: Record<BuildMode, string> = {
   core: "./tsconfig.core.vite.json",
   proprietary: "./tsconfig.proprietary.vite.json",
-  saas: "./tsconfig.saas.vite.json",
   desktop: "./tsconfig.desktop.vite.json",
   prototypes: "./tsconfig.prototypes.vite.json",
 };
@@ -201,7 +186,7 @@ export default defineConfig(async ({ mode, command }) => {
   const parentEnv = loadEnv(mode, resolve(import.meta.dirname, ".."), "");
 
   // Effective mode: --mode > RUSTLING_FLAVOR (legacy STIRLING_FLAVOR) >
-  // ENABLE_SAAS > DISABLE_ADDITIONAL_FEATURES > proprietary.
+  // DISABLE_ADDITIONAL_FEATURES > proprietary.
   const explicitMode = (VALID_MODES as readonly string[]).includes(mode)
     ? (mode as BuildMode)
     : null;
@@ -211,17 +196,15 @@ export default defineConfig(async ({ mode, command }) => {
     ""
   ).toLowerCase();
   const flavorMode: BuildMode | null =
-    flavor === "core" || flavor === "proprietary" || flavor === "saas"
+    flavor === "core" || flavor === "proprietary"
       ? (flavor as BuildMode)
       : null;
   const effectiveMode: BuildMode =
     explicitMode ??
     flavorMode ??
-    (process.env.ENABLE_SAAS === "true"
-      ? "saas"
-      : process.env.DISABLE_ADDITIONAL_FEATURES === "true"
-        ? "core"
-        : "proprietary");
+    (process.env.DISABLE_ADDITIONAL_FEATURES === "true"
+      ? "core"
+      : "proprietary");
 
   const tsconfigProject = TSCONFIG_MAP[effectiveMode];
 
@@ -339,7 +322,7 @@ export default defineConfig(async ({ mode, command }) => {
         ],
       }),
       compressStaticCopyPlugin(),
-      prerenderOgPlugin(effectiveMode === "saas"),
+      prerenderOgPlugin(),
     ],
     server: {
       host: true,

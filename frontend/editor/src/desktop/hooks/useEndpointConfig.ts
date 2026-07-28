@@ -3,11 +3,8 @@ import { isAxiosError } from "axios";
 import { useTranslation } from "react-i18next";
 import apiClient from "@app/services/apiClient";
 import { tauriBackendService } from "@app/services/tauriBackendService";
-import { selfHostedServerMonitor } from "@app/services/selfHostedServerMonitor";
-import { endpointAvailabilityService } from "@app/services/endpointAvailabilityService";
 import { isBackendNotReadyError } from "@app/constants/backendErrors";
 import type { EndpointAvailabilityDetails } from "@app/types/endpointAvailability";
-import { connectionModeService } from "@app/services/connectionModeService";
 import type { AppConfig } from "@app/contexts/AppConfigContext";
 
 interface EndpointConfig {
@@ -15,13 +12,6 @@ interface EndpointConfig {
 }
 
 const RETRY_DELAY_MS = 2500;
-
-function isSelfHostedOffline(): boolean {
-  return (
-    selfHostedServerMonitor.getSnapshot().status === "offline" &&
-    !!tauriBackendService.getBackendUrl()
-  );
-}
 
 function getErrorMessage(err: unknown): string {
   if (isAxiosError(err)) {
@@ -62,8 +52,8 @@ export function useEndpointEnabled(endpoint: string): {
   refetch: () => Promise<void>;
 } {
   const { t } = useTranslation();
-  // DESKTOP: Start optimistically as enabled (most desktop users are in SaaS mode)
-  // This prevents UI from being disabled while backend starts or checks are in progress
+  // DESKTOP: Start optimistically as enabled so the UI is not disabled while
+  // the bundled backend starts or checks are in progress.
   const [enabled, setEnabled] = useState<boolean | null>(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,22 +99,7 @@ export function useEndpointEnabled(endpoint: string): {
         },
       );
 
-      const locallyEnabled = response.data;
-
-      if (!locallyEnabled) {
-        const mode = await connectionModeService.getCurrentMode();
-        // DESKTOP ENHANCEMENT: In SaaS mode, assume all endpoints are available
-        // Even if not supported locally, they will route to SaaS backend
-        if (mode === "saas") {
-          console.debug(
-            `[useEndpointEnabled] Endpoint ${endpoint} not supported locally but available via SaaS routing`,
-          );
-          setEnabled(true);
-          return;
-        }
-      }
-
-      setEnabled(locallyEnabled);
+      setEnabled(response.data);
     } catch (err: unknown) {
       const isBackendStarting = isBackendNotReadyError(err);
       const message = getErrorMessage(err);
@@ -138,17 +113,6 @@ export function useEndpointEnabled(endpoint: string): {
           }, RETRY_DELAY_MS);
         }
       } else {
-        // DESKTOP ENHANCEMENT: In SaaS mode, assume available even on check failure
-        const mode = await connectionModeService.getCurrentMode();
-        if (mode === "saas") {
-          console.debug(
-            `[useEndpointEnabled] Endpoint ${endpoint} check failed but available via SaaS routing`,
-          );
-          setEnabled(true); // Available via SaaS
-          setError(null);
-          return;
-        }
-
         setError(message);
         setEnabled(false);
       }
@@ -162,20 +126,6 @@ export function useEndpointEnabled(endpoint: string): {
       setEnabled(null);
       setLoading(false);
       return;
-    }
-
-    // In self-hosted offline mode, enable optimistically when the local backend is ready.
-    // ConvertSettings already filters unsupported endpoints from the dropdown,
-    // so by the time the user has a valid endpoint selected it is supported locally.
-    if (isSelfHostedOffline()) {
-      setEnabled(true);
-      setLoading(false);
-      // Re-evaluate if the server comes back online
-      return selfHostedServerMonitor.subscribe(() => {
-        if (!isSelfHostedOffline() && tauriBackendService.isOnline) {
-          fetchEndpointStatus();
-        }
-      });
     }
 
     if (tauriBackendService.isOnline) {
@@ -243,41 +193,6 @@ export function useMultipleEndpointsEnabled(endpoints: string[]): {
       return;
     }
 
-    // Self-hosted offline: check each endpoint against the local backend directly.
-    // checkDependenciesReady() would fail here since it hits the offline remote server.
-    const { status: serverStatus } = selfHostedServerMonitor.getSnapshot();
-    const localUrl = tauriBackendService.getBackendUrl();
-    if (serverStatus === "offline" && localUrl) {
-      const results = await Promise.all(
-        [...new Set(endpoints)].map(async (ep) => {
-          try {
-            const supported =
-              await endpointAvailabilityService.isEndpointSupportedLocally(
-                ep,
-                localUrl,
-              );
-            return { ep, supported };
-          } catch {
-            return { ep, supported: false };
-          }
-        }),
-      );
-      if (!isMountedRef.current) return;
-      const statusMap: Record<string, boolean> = {};
-      const details: Record<string, EndpointAvailabilityDetails> = {};
-      for (const { ep, supported } of results) {
-        statusMap[ep] = supported;
-        details[ep] = {
-          enabled: supported,
-          reason: supported ? null : "NOT_SUPPORTED_LOCALLY",
-        };
-      }
-      setEndpointDetails((prev) => ({ ...prev, ...details }));
-      setEndpointStatus((prev) => ({ ...prev, ...statusMap }));
-      setLoading(false);
-      return;
-    }
-
     const dependenciesReady = await checkDependenciesReady();
     if (!dependenciesReady) {
       return; // Health monitor will trigger retry when truly ready
@@ -337,24 +252,6 @@ export function useMultipleEndpointsEnabled(endpoints: string[]): {
         {} as Record<string, boolean>,
       );
 
-      const mode = await connectionModeService.getCurrentMode();
-
-      // DESKTOP ENHANCEMENT: In SaaS mode, mark all disabled endpoints as available
-      // They will route to SaaS backend
-      if (mode === "saas") {
-        const disabledEndpoints = Object.keys(details).filter(
-          (key) => !details[key].enabled,
-        );
-
-        for (const endpoint of disabledEndpoints) {
-          console.debug(
-            `[useMultipleEndpointsEnabled] Endpoint ${endpoint} not supported locally but available via SaaS routing`,
-          );
-          statusMap[endpoint] = true; // Mark as enabled via SaaS
-          details[endpoint] = { enabled: true, reason: null };
-        }
-      }
-
       setEndpointDetails((prev) => ({ ...prev, ...details }));
       setEndpointStatus((prev) => ({ ...prev, ...statusMap }));
     } catch (err: unknown) {
@@ -387,18 +284,6 @@ export function useMultipleEndpointsEnabled(endpoints: string[]): {
           },
         );
 
-        // DESKTOP ENHANCEMENT: In SaaS mode, mark all endpoints as available
-        const mode = await connectionModeService.getCurrentMode();
-        if (mode === "saas") {
-          for (const endpoint of endpoints) {
-            console.debug(
-              `[useMultipleEndpointsEnabled] Endpoint ${endpoint} check failed but available via SaaS routing`,
-            );
-            fallbackStatus.status[endpoint] = true;
-            fallbackStatus.details[endpoint] = { enabled: true, reason: null };
-          }
-        }
-
         setEndpointStatus(fallbackStatus.status);
         setEndpointDetails((prev) => ({ ...prev, ...fallbackStatus.details }));
       }
@@ -413,16 +298,6 @@ export function useMultipleEndpointsEnabled(endpoints: string[]): {
       setEndpointDetails({});
       setLoading(false);
       return;
-    }
-
-    if (isSelfHostedOffline()) {
-      fetchAllEndpointStatuses();
-      const unsubServer = selfHostedServerMonitor.subscribe(() => {
-        if (!isSelfHostedOffline() && tauriBackendService.isOnline) {
-          fetchAllEndpointStatuses();
-        }
-      });
-      return unsubServer;
     }
 
     if (tauriBackendService.isOnline) {
@@ -454,29 +329,8 @@ const DEFAULT_BACKEND_URL =
   import.meta.env.VITE_DESKTOP_BACKEND_URL || import.meta.env.VITE_API_BASE_URL;
 
 /**
- * Desktop override exposing the backend URL based on connection mode.
- * - SaaS mode: Uses local bundled backend (from env vars)
- * - Self-hosted mode: Uses configured server URL from connection config
+ * Desktop override exposing the backend URL (always the local bundled backend).
  */
 export function useEndpointConfig(): EndpointConfig {
-  const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_BACKEND_URL);
-
-  useEffect(() => {
-    connectionModeService
-      .getCurrentConfig()
-      .then((config) => {
-        if (config.mode === "selfhosted" && config.server_config?.url) {
-          setBackendUrl(config.server_config.url);
-        } else {
-          // SaaS mode - use default from env vars (local backend)
-          setBackendUrl(DEFAULT_BACKEND_URL);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to get connection config:", err);
-        // Keep current URL on error
-      });
-  }, []);
-
-  return { backendUrl };
+  return { backendUrl: DEFAULT_BACKEND_URL };
 }

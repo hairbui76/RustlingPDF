@@ -110,15 +110,6 @@ tasks:
       - task: dev:_run
         vars: { MODE: proprietary, PORT: '{{.PORT}}', BACKEND_URL: '{{.BACKEND_URL}}', OPEN: '{{.OPEN}}' }
 
-  dev:saas:
-    desc: "Start frontend dev server in SaaS mode"
-    deps:
-      - task: prepare
-        vars: { MODE: saas }
-    cmds:
-      - task: dev:_run
-        vars: { MODE: saas, PORT: '{{.PORT}}', BACKEND_URL: '{{.BACKEND_URL}}', OPEN: '{{.OPEN}}' }
-
   dev:desktop:
     desc: "Start frontend dev server in desktop mode"
     deps:
@@ -158,14 +149,6 @@ tasks:
       PREVIEW: '{{.PREVIEW | default ""}}'
     cmds:
       - '{{if .PREVIEW}}VITE_BUILD_FOR_PREVIEW=1 {{end}}npx vite build editor --mode proprietary'
-
-  build:saas:
-    desc: "Build for SaaS mode"
-    deps:
-      - task: prepare
-        vars: { MODE: saas }
-    cmds:
-      - npx vite build editor --mode saas
 
   build:desktop:
     desc: "Build for desktop mode"
@@ -233,7 +216,7 @@ tasks:
     deps: [install]
     cmds:
       # Globs so dpdm walks the whole tree. dpdm expands the braces itself, so this is
-      # shell-agnostic. Covers the whole editor tree, including the portal layer.
+      # shell-agnostic. Covers the whole editor tree.
       - npx dpdm "editor/src/**/*.{ts,tsx}" --circular --no-warning --no-tree --exit-code circular:1
 
   lint:fix:
@@ -284,15 +267,6 @@ tasks:
       - task: typecheck:_run
         vars: { PROJECT: editor/src/proprietary/tsconfig.json }
 
-  typecheck:saas:
-    desc: "Typecheck SaaS build variant"
-    deps:
-      - task: prepare
-        vars: { MODE: saas }
-    cmds:
-      - task: typecheck:_run
-        vars: { PROJECT: editor/src/saas/tsconfig.json }
-
   typecheck:desktop:
     desc: "Typecheck desktop build variant"
     deps:
@@ -301,13 +275,6 @@ tasks:
     cmds:
       - task: typecheck:_run
         vars: { PROJECT: editor/src/desktop/tsconfig.json }
-
-  typecheck:cloud:
-    desc: "Typecheck cloud shared layer (standalone)"
-    deps: [prepare]
-    cmds:
-      - task: typecheck:_run
-        vars: { PROJECT: editor/src/cloud/tsconfig.json }
 
   typecheck:scripts:
     desc: "Typecheck scripts"
@@ -323,24 +290,14 @@ tasks:
       - task: typecheck:_run
         vars: { PROJECT: editor/src/prototypes/tsconfig.json }
 
-  typecheck:portal:
-    desc: "Typecheck developer portal build variant"
-    deps: [install]
-    cmds:
-      - task: typecheck:_run
-        vars: { PROJECT: editor/src/portal/tsconfig.json }
-
   typecheck:all:
     desc: "Typecheck all build variants"
     cmds:
       - task: typecheck:core
       - task: typecheck:proprietary
-      - task: typecheck:saas
       - task: typecheck:desktop
-      - task: typecheck:cloud
       - task: typecheck:scripts
       - task: typecheck:prototypes
-      - task: typecheck:portal
 
   # ============================================================
   # Quality Gate

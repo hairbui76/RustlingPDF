@@ -3,7 +3,6 @@
   "compilerOptions": {
     "paths": {
       "@app/*": ["../../src/proprietary/*", "../../src/core/*"],
-      "@portal/*": ["../../src/portal/*"],
       "@core/*": ["../../src/core/*"]
     }
   },

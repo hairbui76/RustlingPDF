@@ -5,11 +5,7 @@ import globals from "globals";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
-const srcGlobs = [
-  // The portal layers live under editor/src/portal (base) and
-  // editor/src/portal-saas (saas override), so editor/src/** covers them.
-  "editor/src/**/*.{js,mjs,jsx,ts,tsx}",
-];
+const srcGlobs = ["editor/src/**/*.{js,mjs,jsx,ts,tsx}"];
 const nodeGlobs = [
   "scripts/**/*.{js,ts,mjs,mts}",
   "editor/scripts/**/*.{js,ts,mjs,mts}",
@@ -22,8 +18,7 @@ const nodeGlobs = [
 const baseRestrictedImportPatterns = [
   {
     regex: "^\\.",
-    message:
-      "Use a workspace alias (@app/* for editor, @portal/* for portal) instead of relative imports.",
+    message: "Use a workspace alias (@app/*) instead of relative imports.",
   },
   {
     regex: "^src/",
@@ -72,7 +67,6 @@ export default defineConfig(
     // Everything that contains 3rd party code that we don't want to lint
     ignores: [
       "dist",
-      "dist-portal",
       "node_modules",
       "playwright-report",
       "storybook-static",
@@ -137,74 +131,10 @@ export default defineConfig(
       ],
     },
   },
-  // The cloud/ layer is the SHARED hosted/SaaS experience consumed by BOTH the
-  // saas and desktop leaves, so it must stay platform-portable. It must not
-  // reach platform-specific things directly (Supabase, Tauri, raw fetch,
-  // window.location, web storage, or import.meta.env.VITE_*) — those arrive via
-  // @app/* seams (services/apiClient, auth/session, platform/openExternal, ...)
-  // that each leaf provides for its own platform.
-  {
-    files: ["editor/src/cloud/**/*.{js,mjs,jsx,ts,tsx}"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            ...baseRestrictedImportPatterns,
-            {
-              regex: "^@supabase/",
-              message:
-                "cloud/ must stay platform-portable. Reach Supabase via an @app/* seam (e.g. @app/auth/supabase, @app/auth/session) provided per-platform in saas/ and desktop/.",
-            },
-            {
-              regex: "^@tauri-apps/",
-              message:
-                "cloud/ must stay platform-portable. Tauri APIs are desktop-only — reach native features via an @app/* seam (e.g. @app/platform/openExternal).",
-            },
-          ],
-        },
-      ],
-      "no-restricted-globals": [
-        "error",
-        {
-          name: "fetch",
-          message:
-            "cloud/ must not call raw fetch — use @app/services/apiClient so each platform supplies its own transport.",
-        },
-        {
-          name: "localStorage",
-          message:
-            "cloud/ must not touch localStorage — use an @app/* storage seam so desktop/web can differ.",
-        },
-        {
-          name: "sessionStorage",
-          message:
-            "cloud/ must not touch sessionStorage — use an @app/* storage seam so desktop/web can differ.",
-        },
-      ],
-      "no-restricted-syntax": [
-        "error",
-        ...sharedComponentSyntaxRestrictions,
-        {
-          selector:
-            "MemberExpression[object.name='window'][property.name='location']",
-          message:
-            "cloud/ must not touch window.location — use an @app/* seam (e.g. @app/platform/openExternal) so desktop/web can differ.",
-        },
-        {
-          selector:
-            "MemberExpression[property.name='env'][object.type='MetaProperty'][object.meta.name='import'][object.property.name='meta']",
-          message:
-            "cloud/ must not read import.meta.env — use @app/constants/app / @app/platform seams so config is supplied per-platform.",
-        },
-      ],
-    },
-  },
-  // app code must use shared DS Button/SegmentedControl/Chip; cloud/ covered above.
+  // app code must use shared DS Button/SegmentedControl/Chip.
   {
     files: ["editor/src/**/*.{js,mjs,jsx,ts,tsx}"],
     ignores: [
-      "editor/src/cloud/**/*.{js,mjs,jsx,ts,tsx}", // covered by cloud/ block above
       "editor/src/core/ui/**/*.{js,mjs,jsx,ts,tsx}", // the shared DS itself — wraps Mantine/raw elements
       "**/*.stories.{js,mjs,jsx,ts,tsx}", // stories may demo Mantine directly
       "**/*.test.{js,mjs,jsx,ts,tsx}", // tests may use raw elements as fixtures
@@ -225,62 +155,6 @@ export default defineConfig(
     ],
     rules: {
       "no-restricted-syntax": "off",
-    },
-  },
-  // TEMPORARY: the procurement feature was merged in from main and still uses
-  // bespoke CSS-styled raw <button>s. Exempt ONLY the raw-<button> rule here —
-  // the Mantine import bans stay in force so this feature can't regress to
-  // Mantine's Button/Chip/SegmentedControl — and migrate these to the shared
-  // Button in a follow-up PR. Do NOT add other folders to this block.
-  {
-    files: [
-      "editor/src/portal/components/procurement/**/*.{js,mjs,jsx,ts,tsx}",
-    ],
-    rules: {
-      "no-restricted-syntax": ["error", ...mantineComponentImportRestrictions],
-    },
-  },
-  // TEMPORARY: the portal user-management / integrations surface predates the
-  // button consolidation and uses bespoke CSS-styled raw <button>s (kebab
-  // triggers, inline text-link actions) that the shared Button can't represent
-  // without heavy overrides. Exempt ONLY the raw-<button> rule — the Mantine
-  // import bans stay in force — and migrate these in a follow-up PR.
-  {
-    files: ["editor/src/portal/components/users/UsersDirectory.tsx"],
-    rules: {
-      "no-restricted-syntax": ["error", ...mantineComponentImportRestrictions],
-    },
-  },
-  // TEMPORARY (same rationale as procurement above): the portal home hero +
-  // install modal reuse the same bespoke CSS-styled raw <button> controls as the
-  // procurement deal hero — status/invite/icon buttons, full-width checklist and
-  // install-option rows, and link-style guide actions that the shared Button
-  // can't represent. Exempt ONLY the raw-<button> rule; the Mantine import bans
-  // stay. Migrate these alongside the procurement buttons.
-  {
-    files: [
-      "editor/src/portal/components/EditorStatusCard.tsx",
-      "editor/src/portal/components/SetupChecklist.tsx",
-      "editor/src/portal/components/WelcomeBanner.tsx",
-      "editor/src/portal/components/DownloadEditorModal.tsx",
-    ],
-    rules: {
-      "no-restricted-syntax": ["error", ...mantineComponentImportRestrictions],
-    },
-  },
-  // TEMPORARY (same rationale as procurement above): the connection/operation catalogues render
-  // bespoke preset tiles (brand mark + two-line text), and the integrations
-  // page adds the same tiles as full-width expandable rows plus filter chips.
-  // Raw-<button> rule only; migrate later.
-  {
-    files: [
-      "editor/src/portal/components/sources/ConnectionTypePicker.tsx",
-      "editor/src/portal/components/sources/SourceModal.tsx",
-      "editor/src/portal/components/policies/PolicyExternalApiConfig.tsx",
-      "editor/src/portal/views/Integrations.tsx",
-    ],
-    rules: {
-      "no-restricted-syntax": ["error", ...mantineComponentImportRestrictions],
     },
   },
   // Stricter rules that not all sub-folders are conformant to yet.

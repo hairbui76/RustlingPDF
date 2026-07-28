@@ -6,7 +6,6 @@ import {
   desktopUpdateService,
   type CanInstallResult,
 } from "@app/services/desktopUpdateService";
-import { connectionModeService } from "@app/services/connectionModeService";
 
 const SNOOZE_KEY = "stirling-pdf-updater:snoozedUntil";
 const STARTUP_DELAY_MS = 15_000;
@@ -75,7 +74,6 @@ export function useDesktopUpdatePopup() {
     const timer = setTimeout(async () => {
       // In SaaS connection mode the cloud owns app versioning — the self-hosted
       // update check + popup must never run (no external call, no modal).
-      if ((await connectionModeService.getCurrentMode()) === "saas") return;
 
       let mode: Awaited<ReturnType<typeof desktopUpdateService.getUpdateMode>> =
         "prompt";
