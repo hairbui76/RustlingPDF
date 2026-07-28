@@ -1,37 +1,28 @@
-//! Team-scoped document-classification labels and PDF labelling workflow.
+//! Client-supplied document-classification labels and PDF labelling workflow.
 //!
-//! The vocabulary is durable and isolated by the trusted team identifier. The
-//! source PDF stays in this process: only a bounded first/last-page text window
-//! and the stored label names are sent to the configured Rust AI engine.
+//! The label vocabulary is owned by the client and supplied with each request.
+//! The source PDF stays in this process: only a bounded first/last-page text
+//! window and the supplied label names are sent to the configured Rust AI
+//! engine.
 
-use std::{
-    collections::BTreeSet,
-    fs,
-    io::Read as _,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::{collections::BTreeSet, fs, io::Read as _, path::Path, sync::Arc};
 
 use axum::{
-    Json, Router,
-    body::Bytes,
+    Router,
     extract::{Extension, Multipart},
     http::StatusCode,
-    response::{IntoResponse as _, Response},
-    routing::{get, post},
+    response::Response,
+    routing::post,
 };
-use chrono::Utc;
 use reqwest::{
     blocking::Client,
     header::{ACCEPT, CONTENT_TYPE},
 };
-use rusqlite::{Connection, OptionalExtension as _, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tempfile::TempDir;
 use thiserror::Error;
 use tokio::task;
-use tracing::warn;
 
 use crate::{
     AI_TOOL_MAX_INPUT_BYTES, ApiError, drain_field, file_response,
@@ -40,15 +31,11 @@ use crate::{
     pdfium_backend::{
         PdfiumAiPageWindowAttempt, PdfiumTextError, try_extract_ai_page_window_content,
     },
-    safe_filename,
-    security::AuthContext,
-    write_field_to_file_bounded,
+    safe_filename, write_field_to_file_bounded,
 };
 
-pub(crate) const LABELS_PATH: &str = "/api/v1/classification/labels";
 pub(crate) const CLASSIFY_AND_LABEL_PATH: &str = "/api/v1/ai/tools/classify-and-label";
 
-const NO_TEAM: i64 = 0;
 const MAX_LABELS: usize = 500;
 const MAX_TEXT_LENGTH: usize = 128;
 const WINDOW_PAGES_PER_EDGE: usize = 2;
@@ -94,18 +81,6 @@ pub(crate) enum ClassificationError {
     DuplicateId(String),
     #[error("Duplicate label name: {0}")]
     DuplicateName(String),
-    #[error("Could not resolve the current user's team")]
-    MissingTeam,
-    #[error("The team classification labels may only be changed by an administrator")]
-    MutationForbidden,
-    #[error("classification label store failed: {0}")]
-    Store(#[from] rusqlite::Error),
-    #[error("classification label store lock is poisoned")]
-    StorePoisoned,
-    #[error("could not create classification database directory: {0}")]
-    StoreDirectory(#[source] std::io::Error),
-    #[error("could not serialize classification labels: {0}")]
-    StoreJson(#[source] serde_json::Error),
     #[error("AI engine is not enabled")]
     EngineDisabled,
     #[error("AI engine URL is invalid: {0}")]
@@ -171,6 +146,9 @@ fn validate_labels(labels: &ClassificationLabels) -> Result<(), ClassificationEr
 }
 
 fn parse_labels_request(body: &[u8]) -> Result<ClassificationLabels, ClassificationError> {
+    if let Ok(labels) = serde_json::from_slice::<Vec<ClassificationLabel>>(body) {
+        return Ok(ClassificationLabels { labels });
+    }
     let request = serde_json::from_slice::<ClassificationLabelsRequest>(body)
         .map_err(|_| ClassificationError::LabelsRequired)?;
     Ok(ClassificationLabels {
@@ -189,109 +167,7 @@ fn validate_text(value: &str, field: &'static str) -> Result<(), ClassificationE
     Ok(())
 }
 
-pub(crate) struct ClassificationLabelStore {
-    database_path: PathBuf,
-    connection: Mutex<Option<Connection>>,
-}
-
-impl ClassificationLabelStore {
-    pub(crate) fn new(database_path: PathBuf) -> Self {
-        Self {
-            database_path,
-            connection: Mutex::new(None),
-        }
-    }
-
-    fn find(&self, team_id: i64) -> Result<Option<ClassificationLabels>, ClassificationError> {
-        self.with_connection(|connection| {
-            let json = connection
-                .query_row(
-                    "SELECT labels_json FROM classification_labels WHERE team_id = ?1",
-                    [team_id],
-                    |row| row.get::<_, String>(0),
-                )
-                .optional()?;
-            let Some(json) = json else {
-                return Ok(None);
-            };
-            match serde_json::from_str(&json) {
-                Ok(labels) => Ok(Some(labels)),
-                Err(error) => {
-                    warn!(team_id, %error, "discarding unparseable stored classification labels");
-                    Ok(None)
-                }
-            }
-        })
-    }
-
-    fn save(
-        &self,
-        team_id: i64,
-        labels: &ClassificationLabels,
-        updated_by: Option<&str>,
-    ) -> Result<(), ClassificationError> {
-        let json = serde_json::to_string(labels).map_err(ClassificationError::StoreJson)?;
-        self.with_connection(|connection| {
-            connection.execute(
-                "INSERT INTO classification_labels
-                    (team_id, labels_json, updated_at, updated_by)
-                 VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT(team_id) DO UPDATE SET
-                    labels_json = excluded.labels_json,
-                    updated_at = excluded.updated_at,
-                    updated_by = excluded.updated_by",
-                params![team_id, json, Utc::now().timestamp(), updated_by],
-            )?;
-            Ok(())
-        })
-    }
-
-    fn delete(&self, team_id: i64) -> Result<(), ClassificationError> {
-        self.with_connection(|connection| {
-            connection.execute(
-                "DELETE FROM classification_labels WHERE team_id = ?1",
-                [team_id],
-            )?;
-            Ok(())
-        })
-    }
-
-    fn with_connection<T>(
-        &self,
-        operation: impl FnOnce(&Connection) -> Result<T, ClassificationError>,
-    ) -> Result<T, ClassificationError> {
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| ClassificationError::StorePoisoned)?;
-        if connection.is_none() {
-            if let Some(parent) = self.database_path.parent() {
-                fs::create_dir_all(parent).map_err(ClassificationError::StoreDirectory)?;
-            }
-            let opened = Connection::open(&self.database_path)?;
-            opened.busy_timeout(std::time::Duration::from_secs(5))?;
-            opened.execute_batch(
-                "PRAGMA foreign_keys = ON;
-                 PRAGMA trusted_schema = OFF;
-                 CREATE TABLE IF NOT EXISTS classification_labels (
-                    team_id INTEGER PRIMARY KEY,
-                    labels_json TEXT NOT NULL,
-                    updated_at INTEGER NOT NULL,
-                    updated_by TEXT
-                 );",
-            )?;
-            *connection = Some(opened);
-        }
-        let connection = connection
-            .as_ref()
-            .ok_or(ClassificationError::StorePoisoned)?;
-        operation(connection)
-    }
-}
-
 pub(crate) struct ClassificationService {
-    store: ClassificationLabelStore,
-    policies_enabled: bool,
     page_extractor: Arc<dyn ClassificationPageExtractor>,
 }
 
@@ -325,59 +201,29 @@ impl ClassificationPageExtractor for PdfiumClassificationPageExtractor {
 }
 
 impl ClassificationService {
-    pub(crate) fn new(database_path: PathBuf, policies_enabled: bool) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            store: ClassificationLabelStore::new(database_path),
-            policies_enabled,
             page_extractor: Arc::new(PdfiumClassificationPageExtractor),
         }
     }
 
     #[cfg(test)]
-    fn with_page_extractor(
-        database_path: PathBuf,
-        page_extractor: Arc<dyn ClassificationPageExtractor>,
-    ) -> Self {
-        Self {
-            store: ClassificationLabelStore::new(database_path),
-            policies_enabled: true,
-            page_extractor,
-        }
-    }
-
-    fn labels(&self, team_id: i64) -> Result<Option<ClassificationLabels>, ClassificationError> {
-        self.store.find(team_id)
-    }
-
-    fn save_labels(
-        &self,
-        team_id: i64,
-        labels: ClassificationLabels,
-        updated_by: Option<&str>,
-    ) -> Result<ClassificationLabels, ClassificationError> {
-        validate_labels(&labels)?;
-        self.store.save(team_id, &labels, updated_by)?;
-        Ok(labels)
-    }
-
-    fn delete_labels(&self, team_id: i64) -> Result<(), ClassificationError> {
-        self.store.delete(team_id)
+    fn with_page_extractor(page_extractor: Arc<dyn ClassificationPageExtractor>) -> Self {
+        Self { page_extractor }
     }
 
     fn classify_pdf(
         &self,
-        team_id: i64,
-        username: Option<&str>,
+        labels: Option<ClassificationLabels>,
         input_path: &Path,
         filename: &str,
         settings: &AiCommentEngineSettings,
         output_path: &Path,
     ) -> Result<(), ClassificationError> {
-        if !self.policies_enabled {
-            fs::copy(input_path, output_path).map_err(ClassificationError::Copy)?;
-            return Ok(());
-        }
-        let Some(labels) = self.labels(team_id)? else {
+        // No client-supplied vocabulary means there is nothing to classify
+        // against; the PDF passes through unchanged, mirroring the previous
+        // behavior for a team without stored labels.
+        let Some(labels) = labels else {
             fs::copy(input_path, output_path).map_err(ClassificationError::Copy)?;
             return Ok(());
         };
@@ -429,7 +275,7 @@ impl ClassificationService {
             pages,
             labels: allowed,
         };
-        let metadata = request_classification(settings, username, &request)?;
+        let metadata = request_classification(settings, &request)?;
         let metadata = serde_json::to_string(&metadata).map_err(ClassificationError::EngineJson)?;
         set_classification_metadata_to_file(input_path, filename, &metadata, output_path)
             .map_err(ClassificationError::Metadata)
@@ -459,7 +305,6 @@ struct EngineLabel {
 
 fn request_classification(
     settings: &AiCommentEngineSettings,
-    username: Option<&str>,
     payload: &EngineClassifyRequest,
 ) -> Result<Value, ClassificationError> {
     let base_url = settings.base_url().trim().trim_end_matches('/');
@@ -483,9 +328,6 @@ fn request_classification(
         .body(request_body);
     if let Some(secret) = settings.shared_secret() {
         request = request.header("X-Engine-Auth", secret);
-    }
-    if let Some(username) = username.filter(|username| !username.trim().is_empty()) {
-        request = request.header("X-User-Id", username);
     }
     let mut response = request
         .send()
@@ -530,95 +372,21 @@ fn map_engine_transport_error(error: &reqwest::Error) -> ClassificationError {
     }
 }
 
-fn team_context(auth: Option<&AuthContext>) -> Result<(i64, Option<&str>), ClassificationError> {
-    match auth {
-        Some(auth) => auth
-            .team_id
-            .map(|team_id| (team_id, Some(auth.username.as_str())))
-            .ok_or(ClassificationError::MissingTeam),
-        None => Ok((NO_TEAM, None)),
-    }
-}
-
-fn require_mutation_permission(auth: Option<&AuthContext>) -> Result<(), ClassificationError> {
-    if auth.is_some_and(|auth| !auth.has_role("ROLE_ADMIN")) {
-        Err(ClassificationError::MutationForbidden)
-    } else {
-        Ok(())
-    }
-}
-
-pub(crate) fn routes(service: Arc<ClassificationService>, policies_enabled: bool) -> Router {
-    let router = Router::new().route(CLASSIFY_AND_LABEL_PATH, post(classify_and_label));
-    let router = if policies_enabled {
-        router.route(
-            LABELS_PATH,
-            get(get_labels).put(put_labels).delete(delete_labels),
-        )
-    } else {
-        router
-    };
-    router.layer(Extension(service))
-}
-
-async fn get_labels(
-    Extension(service): Extension<Arc<ClassificationService>>,
-    auth: Option<Extension<AuthContext>>,
-) -> Response {
-    let auth = auth.as_ref().map(|Extension(auth)| auth);
-    let result = team_context(auth).and_then(|(team_id, _)| service.labels(team_id));
-    match result {
-        Ok(Some(labels)) => Json(labels).into_response(),
-        Ok(None) => StatusCode::NO_CONTENT.into_response(),
-        Err(error) => classification_api_error(&error, LABELS_PATH).into_response(),
-    }
-}
-
-async fn put_labels(
-    Extension(service): Extension<Arc<ClassificationService>>,
-    auth: Option<Extension<AuthContext>>,
-    body: Bytes,
-) -> Response {
-    let auth = auth.as_ref().map(|Extension(auth)| auth);
-    let result = require_mutation_permission(auth)
-        .and_then(|()| team_context(auth))
-        .and_then(|(team_id, username)| {
-            let labels = parse_labels_request(&body)?;
-            service.save_labels(team_id, labels, username)
-        });
-    match result {
-        Ok(labels) => Json(labels).into_response(),
-        Err(error) => classification_api_error(&error, LABELS_PATH).into_response(),
-    }
-}
-
-async fn delete_labels(
-    Extension(service): Extension<Arc<ClassificationService>>,
-    auth: Option<Extension<AuthContext>>,
-) -> Response {
-    let auth = auth.as_ref().map(|Extension(auth)| auth);
-    let result = require_mutation_permission(auth)
-        .and_then(|()| team_context(auth))
-        .and_then(|(team_id, _)| service.delete_labels(team_id));
-    match result {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(error) => classification_api_error(&error, LABELS_PATH).into_response(),
-    }
+pub(crate) fn routes(service: Arc<ClassificationService>) -> Router {
+    Router::new()
+        .route(CLASSIFY_AND_LABEL_PATH, post(classify_and_label))
+        .layer(Extension(service))
 }
 
 async fn classify_and_label(
     Extension(service): Extension<Arc<ClassificationService>>,
     Extension(settings): Extension<Arc<AiCommentEngineSettings>>,
-    auth: Option<Extension<AuthContext>>,
     mut multipart: Multipart,
 ) -> Result<Response, ApiError> {
-    let auth = auth.as_ref().map(|Extension(auth)| auth);
-    let (team_id, username) = team_context(auth)
-        .map_err(|error| classification_api_error(&error, CLASSIFY_AND_LABEL_PATH))?;
-    let username = username.map(ToOwned::to_owned);
     let temp_dir = TempDir::new()
         .map_err(|error| ApiError::internal_at(CLASSIFY_AND_LABEL_PATH, error.to_string()))?;
     let mut input = None;
+    let mut labels = None;
     while let Some(mut field) = multipart
         .next_field()
         .await
@@ -646,6 +414,15 @@ async fn classify_and_label(
                 .await?;
                 input = Some((filename, path));
             }
+            "labels" => {
+                let body = field.bytes().await.map_err(|error| {
+                    ApiError::bad_request_at(CLASSIFY_AND_LABEL_PATH, error.body_text())
+                })?;
+                let parsed = parse_labels_request(&body)
+                    .and_then(|labels| validate_labels(&labels).map(|()| labels))
+                    .map_err(|error| classification_api_error(&error, CLASSIFY_AND_LABEL_PATH))?;
+                labels = Some(parsed);
+            }
             _ => drain_field(&mut field, CLASSIFY_AND_LABEL_PATH).await?,
         }
     }
@@ -657,8 +434,7 @@ async fn classify_and_label(
     let blocking_filename = filename.clone();
     task::spawn_blocking(move || {
         service.classify_pdf(
-            team_id,
-            username.as_deref(),
+            labels,
             &input_path,
             &blocking_filename,
             &settings,
@@ -693,16 +469,6 @@ fn classification_api_error(error: &ClassificationError, path: &'static str) -> 
         | ClassificationError::DuplicateId(_)
         | ClassificationError::DuplicateName(_)
         | ClassificationError::Pdfium(_) => ApiError::bad_request_at(path, error.to_string()),
-        ClassificationError::MissingTeam => ApiError {
-            status: StatusCode::UNAUTHORIZED,
-            message: error.to_string(),
-            path,
-        },
-        ClassificationError::MutationForbidden => ApiError {
-            status: StatusCode::FORBIDDEN,
-            message: error.to_string(),
-            path,
-        },
         ClassificationError::EngineDisabled
         | ClassificationError::EngineUrl(_)
         | ClassificationError::EngineClient(_)
@@ -728,12 +494,9 @@ fn classification_api_error(error: &ClassificationError, path: &'static str) -> 
             message: error.to_string(),
             path,
         },
-        ClassificationError::Store(_)
-        | ClassificationError::StorePoisoned
-        | ClassificationError::StoreDirectory(_)
-        | ClassificationError::StoreJson(_)
-        | ClassificationError::Copy(_)
-        | ClassificationError::Metadata(_) => ApiError::internal_at(path, error.to_string()),
+        ClassificationError::Copy(_) | ClassificationError::Metadata(_) => {
+            ApiError::internal_at(path, error.to_string())
+        }
     }
 }
 
@@ -748,8 +511,8 @@ mod tests {
     };
 
     use super::{
-        ClassificationLabel, ClassificationLabelStore, ClassificationLabels,
-        ClassificationPageExtractor, ClassificationService, parse_labels_request, validate_labels,
+        ClassificationLabel, ClassificationLabels, ClassificationPageExtractor,
+        ClassificationService, parse_labels_request, validate_labels,
     };
     use crate::{
         pdf_ai_comments::AiCommentEngineSettings,
@@ -759,7 +522,6 @@ mod tests {
         },
     };
     use lopdf::{Document, Object, dictionary};
-    use rusqlite::Connection;
     use serde_json::Value;
     use tempfile::tempdir;
 
@@ -813,36 +575,15 @@ mod tests {
             parse_labels_request(br#"{"labels":[]}"#),
             Ok(ClassificationLabels { labels }) if labels.is_empty()
         ));
-    }
-
-    #[test]
-    fn store_persists_and_isolates_teams_and_discards_corrupt_json()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let path = directory.path().join("classification.db");
-        {
-            let store = ClassificationLabelStore::new(path.clone());
-            store.save(7, &labels(), Some("admin"))?;
-            let mut other_team = labels();
-            other_team.labels[0].id = "statement".to_owned();
-            other_team.labels[0].name = "Statement".to_owned();
-            store.save(8, &other_team, Some("other-admin"))?;
-            assert_eq!(store.find(7)?, Some(labels()));
-            assert_eq!(store.find(8)?, Some(other_team));
-        }
-        let store = ClassificationLabelStore::new(path.clone());
-        assert_eq!(store.find(7)?, Some(labels()));
-        drop(store);
-
-        let connection = Connection::open(&path)?;
-        connection.execute(
-            "UPDATE classification_labels SET labels_json = 'not-json' WHERE team_id = 7",
-            [],
-        )?;
-        drop(connection);
-        let store = ClassificationLabelStore::new(path);
-        assert_eq!(store.find(7)?, None);
-        Ok(())
+        // The client may also send the label array directly.
+        assert!(matches!(
+            parse_labels_request(br"[]"),
+            Ok(ClassificationLabels { labels }) if labels.is_empty()
+        ));
+        assert!(matches!(
+            parse_labels_request(br#"[{"id":"invoice","name":"Invoice"}]"#),
+            Ok(ClassificationLabels { labels }) if labels.len() == 1
+        ));
     }
 
     struct StubPageExtractor;
@@ -880,17 +621,12 @@ mod tests {
         let engine = thread::spawn(move || stub_engine_request(&listener));
 
         let directory = tempdir()?;
-        let service = ClassificationService::with_page_extractor(
-            directory.path().join("classification.db"),
-            Arc::new(StubPageExtractor),
-        );
-        service.save_labels(7, labels(), Some("admin"))?;
+        let service = ClassificationService::with_page_extractor(Arc::new(StubPageExtractor));
         let input = directory.path().join("input.pdf");
         let output = directory.path().join("output.pdf");
         write_metadata_pdf(&input)?;
         service.classify_pdf(
-            7,
-            Some("alice"),
+            Some(labels()),
             &input,
             "source.pdf",
             &AiCommentEngineSettings::new(true, engine_url, Duration::from_secs(5), None),
@@ -898,7 +634,7 @@ mod tests {
         )?;
 
         let request = engine.join().map_err(|_| "engine stub panicked")??;
-        assert!(request.headers.contains("x-user-id: alice"));
+        assert!(!request.headers.contains("x-user-id"));
         assert_eq!(
             request.body["pages"],
             serde_json::json!([

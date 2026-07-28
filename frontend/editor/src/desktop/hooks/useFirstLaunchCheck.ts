@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { connectionModeService } from "@app/services/connectionModeService";
-import { authService } from "@app/services/authService";
 
 /**
  * First launch check hook
@@ -21,13 +20,9 @@ export function useFirstLaunchCheck(): {
       try {
         const firstLaunch = await connectionModeService.isFirstLaunch();
         setIsFirstLaunch(firstLaunch);
-
         if (!firstLaunch) {
-          // Not first launch - initialize auth state
-          await authService.initializeAuthState();
           setSetupComplete(true);
         }
-
         setupCheckCompleteRef.current = true;
       } catch (error) {
         console.error("Failed to check first launch:", error);

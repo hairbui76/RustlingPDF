@@ -18,10 +18,10 @@ tasks:
   live:
     desc: "Run live E2E tests"
     summary: |
-      Auto-spawns the Rust backend with isolated state under
+      Auto-spawns the Rust backend with an isolated base path under
       .test-state/playwright/ (purged on every run) so the suite doesn't
-      touch your local settings or databases. The backend is stopped
-      automatically when the runner exits.
+      touch your local settings. The backend is stopped automatically when
+      the runner exits.
 
       Pass extra Playwright flags via -- :
         task e2e:live -- --headed --grep merge
@@ -40,17 +40,10 @@ tasks:
       RUSTLING_HOST: "127.0.0.1"
       RUSTLING_PORT: "8080"
       RUSTLING_PROCESSING_PORT: "8080"
-      SECURITY_ENABLELOGIN: "true"
-      # Suppress the analytics opt-in modal that fires on first admin login.
-      # It renders a Mantine overlay that intercepts pointer events and blocks
-      # FirstLoginSlide from rendering, so the bootstrap spec times out waiting
-      # for the password-change prompt.
+      # Suppress the analytics opt-in prompt: it renders a Mantine overlay
+      # that intercepts pointer events and can block the first interaction a
+      # spec performs after load.
       SYSTEM_ENABLEANALYTICS: "false"
-      # NOTE: SECURITY_INITIALLOGIN_USERNAME/PASSWORD are intentionally NOT set.
-      # The live-setup project's bootstrap spec performs the real first-login
-      # flow against the backend's default admin/stirling user, exercising the
-      # forced-password-change UI and leaving the DB at admin/adminadmin for
-      # the rest of the live suite.
     cmds:
       # Ensure the pinned PDFium runtime is present before spawning the server.
       - task: :rust:pdfium:install

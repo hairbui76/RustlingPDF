@@ -18,7 +18,7 @@ use axum::{
     },
     routing::post,
 };
-use chrono::{SecondsFormat, Utc};
+use chrono::Utc;
 use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -31,7 +31,7 @@ use crate::{
     ai_proxy::{
         ProxyError, enabled_pdf_edit_endpoints, engine_endpoint, proxy_client, transport_error,
     },
-    job_manager::{JobFileSource, JobManager, JobOwner},
+    job_manager::{JobFileSource, JobManager},
     pdf_ai_comments::AiCommentEngineSettings,
     pdfium_backend::{PdfiumWorkflowTextAttempt, try_extract_workflow_page_text},
     pipeline::{
@@ -39,16 +39,13 @@ use crate::{
         PipelineProgress, PipelineProgressPhase,
     },
     runtime_config::RuntimeConfig,
-    security::{AuthContext, SecurityAuditContext},
 };
 
 pub(crate) const AI_ORCHESTRATE_PATH: &str = "/api/v1/ai/orchestrate";
 pub(crate) const AI_ORCHESTRATE_STREAM_PATH: &str = "/api/v1/ai/orchestrate/stream";
 
 const ENGINE_ORCHESTRATE_PATH: &str = "/api/v1/orchestrator";
-const ENGINE_DOCUMENTS_PATH: &str = "/api/v1/documents";
 const ENGINE_AUTH_HEADER: &str = "X-Engine-Auth";
-const USER_ID_HEADER: &str = "X-User-Id";
 const MAX_TEXT_FIELD_BYTES: usize = 1024 * 1024;
 const MAX_MULTIPART_INDEX: usize = 10_000;
 const MAX_ENGINE_FRAME_BYTES: usize = 1024 * 1024;
@@ -66,7 +63,6 @@ enum WorkflowOutcome {
     Answer,
     NotFound,
     NeedContent,
-    NeedIngest,
     Plan,
     NeedClarification,
     CannotDo,
@@ -138,8 +134,6 @@ struct WorkflowResponse {
     result_files: Vec<WorkflowResultFile>,
     #[serde(default)]
     files: Vec<WorkflowFileRequest>,
-    #[serde(default)]
-    files_to_ingest: Vec<AiFile>,
     max_pages: Option<usize>,
     max_characters: Option<usize>,
     resume_with: Option<String>,
@@ -170,7 +164,6 @@ impl WorkflowResponse {
             content_type: None,
             result_files: Vec::new(),
             files: Vec::new(),
-            files_to_ingest: Vec::new(),
             max_pages: None,
             max_characters: None,
             resume_with: None,
@@ -301,21 +294,18 @@ async fn orchestrate(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
     Extension(dispatcher): Extension<PipelineDispatcher>,
     Extension(jobs): Extension<Arc<JobManager>>,
-    auth: Option<Extension<AuthContext>>,
     multipart: Multipart,
 ) -> Response {
     let upload = match read_workflow_upload(multipart, AI_ORCHESTRATE_PATH).await {
         Ok(upload) => upload,
         Err(error) => return error.into_response(),
     };
-    let auth = auth.map(|Extension(context)| context);
     match run_workflow(
         upload,
         &settings,
         &runtime_config,
         &dispatcher,
         &jobs,
-        auth.as_ref(),
         ProgressSink::default(),
         AI_ORCHESTRATE_PATH,
     )
@@ -331,14 +321,12 @@ async fn orchestrate_stream(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
     Extension(dispatcher): Extension<PipelineDispatcher>,
     Extension(jobs): Extension<Arc<JobManager>>,
-    auth: Option<Extension<AuthContext>>,
     multipart: Multipart,
 ) -> Response {
     let upload = match read_workflow_upload(multipart, AI_ORCHESTRATE_STREAM_PATH).await {
         Ok(upload) => upload,
         Err(error) => return error.into_response(),
     };
-    let auth = auth.map(|Extension(context)| context);
     let timeout = runtime_config.ai_workflow_stream_timeout();
     let (sender, receiver) = mpsc::channel::<Result<Event, Infallible>>(32);
     let sink = ProgressSink {
@@ -351,7 +339,6 @@ async fn orchestrate_stream(
             &runtime_config,
             &dispatcher,
             &jobs,
-            auth.as_ref(),
             sink.clone(),
             AI_ORCHESTRATE_STREAM_PATH,
         );
@@ -390,7 +377,6 @@ async fn run_workflow(
     runtime_config: &RuntimeConfig,
     dispatcher: &PipelineDispatcher,
     jobs: &JobManager,
-    auth: Option<&AuthContext>,
     sink: ProgressSink,
     public_path: &'static str,
 ) -> Result<WorkflowResponse, ProxyError> {
@@ -419,14 +405,12 @@ async fn run_workflow(
         enabled_endpoints: enabled_pdf_edit_endpoints(runtime_config),
     };
     let mut extracted = false;
-    let mut ingested = false;
 
     for _ in 0..MAX_WORKFLOW_TURNS {
         sink.phase("calling_engine").await?;
         let response = invoke_engine(
             settings,
             runtime_config.ai_engine_long_running_timeout(),
-            auth,
             &turn,
             &sink,
             public_path,
@@ -484,33 +468,6 @@ async fn run_workflow(
                 extracted = true;
                 sink.phase("processing").await?;
             }
-            WorkflowOutcome::NeedIngest => {
-                if response.files_to_ingest.is_empty() {
-                    return Ok(WorkflowResponse::cannot_continue(
-                        "AI engine returned need_ingest without listing any files to ingest.",
-                    ));
-                }
-                if ingested {
-                    return Ok(WorkflowResponse::cannot_continue(
-                        "AI engine requested ingest after the workflow had already been resumed.",
-                    ));
-                }
-                sink.phase("extracting_content").await?;
-                for requested in &response.files_to_ingest {
-                    let Some(file) = upload.files.iter().find(|file| file.id == requested.id)
-                    else {
-                        return Ok(WorkflowResponse::cannot_continue(format!(
-                            "AI engine requested ingest for unknown file: {}",
-                            requested.name
-                        )));
-                    };
-                    ingest_file(settings, runtime_config, auth, file, public_path).await?;
-                }
-                turn.resume_with = response.resume_with;
-                turn.artifacts.clear();
-                ingested = true;
-                sink.phase("processing").await?;
-            }
             WorkflowOutcome::ToolCall => {
                 let Some(tool) = response
                     .tool
@@ -525,7 +482,6 @@ async fn run_workflow(
                 return execute_workflow_plan(
                     dispatcher,
                     jobs,
-                    auth,
                     &upload.files,
                     vec![workflow_operation(tool, parameters)],
                     response.rationale,
@@ -543,7 +499,7 @@ async fn run_workflow(
                 let summary = response.summary;
                 let resume_with = response.resume_with;
                 let execution =
-                    execute_raw_plan(dispatcher, auth, &upload.files, operations, &sink).await;
+                    execute_raw_plan(dispatcher, &upload.files, operations, &sink).await;
                 let output = match execution {
                     Ok(output) => output,
                     Err(error) => return Ok(plan_failure_response(error, true)),
@@ -563,7 +519,6 @@ async fn run_workflow(
                 }
                 return complete_pipeline_output(
                     jobs,
-                    auth,
                     &upload.files,
                     summary,
                     &output,
@@ -586,7 +541,6 @@ async fn run_workflow(
                 sink.phase("processing").await?;
                 return complete_generated_file(
                     jobs,
-                    auth,
                     response.summary,
                     &filename,
                     content.as_bytes(),
@@ -612,7 +566,6 @@ async fn run_workflow(
 async fn execute_workflow_plan(
     dispatcher: &PipelineDispatcher,
     jobs: &JobManager,
-    auth: Option<&AuthContext>,
     uploads: &[UploadedFile],
     operations: Vec<PipelineOperation>,
     summary: Option<String>,
@@ -620,15 +573,14 @@ async fn execute_workflow_plan(
     public_path: &'static str,
     is_plan: bool,
 ) -> Result<WorkflowResponse, ProxyError> {
-    match execute_raw_plan(dispatcher, auth, uploads, operations, sink).await {
-        Ok(output) => complete_pipeline_output(jobs, auth, uploads, summary, &output, public_path),
+    match execute_raw_plan(dispatcher, uploads, operations, sink).await {
+        Ok(output) => complete_pipeline_output(jobs, uploads, summary, &output, public_path),
         Err(error) => Ok(plan_failure_response(error, is_plan)),
     }
 }
 
 async fn execute_raw_plan(
     dispatcher: &PipelineDispatcher,
-    auth: Option<&AuthContext>,
     uploads: &[UploadedFile],
     operations: Vec<PipelineOperation>,
     sink: &ProgressSink,
@@ -655,7 +607,7 @@ async fn execute_raw_plan(
             progress_sink.try_tool_phase(operation, step_index, step_count);
         }
     });
-    pipeline::run_workflow_files(dispatcher, files, &operations, auth, progress).await
+    pipeline::run_workflow_files(dispatcher, files, &operations, progress).await
 }
 
 fn workflow_operation(tool: &str, parameters: Map<String, Value>) -> PipelineOperation {
@@ -771,20 +723,18 @@ fn pipeline_error_message(error: PipelineFailure) -> String {
 
 fn complete_pipeline_output(
     jobs: &JobManager,
-    auth: Option<&AuthContext>,
     uploads: &[UploadedFile],
     summary: Option<String>,
     output: &pipeline::PipelineWorkflowOutput,
     public_path: &'static str,
 ) -> Result<WorkflowResponse, ProxyError> {
     let report = output.report.clone();
-    let result_files = register_output_files(jobs, auth, uploads, &output.files, public_path)?;
+    let result_files = register_output_files(jobs, uploads, &output.files, public_path)?;
     Ok(completed_response(summary, result_files, report))
 }
 
 fn complete_generated_file(
     jobs: &JobManager,
-    auth: Option<&AuthContext>,
     summary: Option<String>,
     filename: &str,
     bytes: &[u8],
@@ -811,13 +761,12 @@ fn complete_generated_file(
         content_type: None,
         origin: None,
     };
-    let result_files = register_output_files(jobs, auth, &[], &[file], public_path)?;
+    let result_files = register_output_files(jobs, &[], &[file], public_path)?;
     Ok(completed_response(summary, result_files, None))
 }
 
 fn register_output_files(
     jobs: &JobManager,
-    auth: Option<&AuthContext>,
     uploads: &[UploadedFile],
     files: &[PipelineFile],
     public_path: &'static str,
@@ -849,15 +798,13 @@ fn register_output_files(
         source_indices.push(source_index);
     }
 
-    let submission = jobs
-        .create_job(JobOwner::from_auth_context(auth))
-        .map_err(|error| {
-            ProxyError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not create AI workflow result job: {error}"),
-                public_path,
-            )
-        })?;
+    let submission = jobs.create_job().map_err(|error| {
+        ProxyError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not create AI workflow result job: {error}"),
+            public_path,
+        )
+    })?;
     let stored = match jobs.complete_files(&submission.job_id, &sources) {
         Ok(stored) => stored,
         Err(error) => {
@@ -1064,69 +1011,9 @@ fn workflow_pages(
     }
 }
 
-async fn ingest_file(
-    settings: &AiCommentEngineSettings,
-    runtime_config: &RuntimeConfig,
-    auth: Option<&AuthContext>,
-    file: &UploadedFile,
-    public_path: &'static str,
-) -> Result<(), ProxyError> {
-    let path = file.path.clone();
-    let filename = file.name.clone();
-    let pages = task::spawn_blocking(move || {
-        try_extract_workflow_page_text(&path, &filename, &[], usize::MAX, usize::MAX, false)
-    })
-    .await
-    .map_err(|error| {
-        ProxyError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("document ingest extraction task failed: {error}"),
-            public_path,
-        )
-    })?
-    .map_err(|error| ProxyError::new(StatusCode::BAD_REQUEST, error.to_string(), public_path))?;
-    let pages = workflow_pages(pages, public_path)?;
-    let username = auth
-        .map(|context| context.username.trim())
-        .filter(|username| !username.is_empty());
-    let ttl =
-        chrono::Duration::from_std(runtime_config.ai_workflow_document_ttl()).map_err(|error| {
-            ProxyError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("AI document expiry is invalid: {error}"),
-                public_path,
-            )
-        })?;
-    let body = json!({
-        "documentId": file.id,
-        "source": file.name,
-        "pageText": pages
-            .into_iter()
-            .map(|page| json!({
-                "pageNumber": page.page_number,
-                "text": page.text,
-            }))
-            .collect::<Vec<_>>(),
-        "ownerId": username,
-        "readPrincipals": username.map_or_else(Vec::new, |username| vec![username]),
-        "expiresAt": (Utc::now() + ttl).to_rfc3339_opts(SecondsFormat::AutoSi, true),
-    });
-    post_engine_json(
-        settings,
-        runtime_config.ai_engine_long_running_timeout(),
-        auth,
-        ENGINE_DOCUMENTS_PATH,
-        &body,
-        public_path,
-    )
-    .await?;
-    Ok(())
-}
-
 async fn invoke_engine(
     settings: &AiCommentEngineSettings,
     timeout: Duration,
-    auth: Option<&AuthContext>,
     turn: &WorkflowTurn,
     sink: &ProgressSink,
     public_path: &'static str,
@@ -1140,12 +1027,6 @@ async fn invoke_engine(
         .json(turn);
     if let Some(secret) = settings.shared_secret() {
         request = request.header(ENGINE_AUTH_HEADER, secret);
-    }
-    if let Some(username) = auth
-        .map(|context| context.username.trim())
-        .filter(|username| !username.is_empty())
-    {
-        request = request.header(USER_ID_HEADER, username);
     }
     let response = request
         .send()
@@ -1252,65 +1133,6 @@ async fn handle_engine_line(
     Ok(())
 }
 
-async fn post_engine_json(
-    settings: &AiCommentEngineSettings,
-    timeout: Duration,
-    auth: Option<&AuthContext>,
-    engine_path: &str,
-    body: &Value,
-    public_path: &'static str,
-) -> Result<Value, ProxyError> {
-    let endpoint = engine_endpoint(settings, engine_path, public_path)?;
-    let client = proxy_client(timeout, public_path)?;
-    let mut request = client
-        .post(endpoint)
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::ACCEPT, "application/json")
-        .json(body);
-    if let Some(secret) = settings.shared_secret() {
-        request = request.header(ENGINE_AUTH_HEADER, secret);
-    }
-    if let Some(username) = auth
-        .map(|context| context.username.trim())
-        .filter(|username| !username.is_empty())
-    {
-        request = request.header(USER_ID_HEADER, username);
-    }
-    let response = request
-        .send()
-        .await
-        .map_err(|error| transport_error(&error, public_path))?;
-    let status = response.status();
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|error| transport_error(&error, public_path))?;
-    if status.is_server_error() {
-        return Err(ProxyError::new(
-            StatusCode::BAD_GATEWAY,
-            format!("AI engine returned error: {}", status.as_u16()),
-            public_path,
-        ));
-    }
-    if status.is_client_error() {
-        return Err(ProxyError::new(
-            status,
-            format!("AI engine returned error: {}", status.as_u16()),
-            public_path,
-        ));
-    }
-    if bytes.is_empty() {
-        return Ok(Value::Null);
-    }
-    serde_json::from_slice(&bytes).map_err(|error| {
-        ProxyError::new(
-            StatusCode::BAD_GATEWAY,
-            format!("AI engine returned invalid JSON: {error}"),
-            public_path,
-        )
-    })
-}
-
 #[allow(clippy::too_many_lines)]
 async fn read_workflow_upload(
     mut multipart: Multipart,
@@ -1383,13 +1205,6 @@ async fn read_workflow_upload(
                     public_path,
                 ));
             }
-            SecurityAuditContext::record_current_file_path(
-                &filename,
-                size,
-                content_type.as_deref(),
-                &path,
-            )
-            .await;
             let digest = short_hex_id(&hasher.finalize());
             files.insert(
                 index,
@@ -1488,7 +1303,6 @@ async fn read_text_field(
             public_path,
         )
     })?;
-    SecurityAuditContext::record_current_form_param(name, &value);
     Ok(value)
 }
 

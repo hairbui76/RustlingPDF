@@ -19,10 +19,7 @@ use lettre::{
 };
 use thiserror::Error;
 
-use crate::{
-    runtime_config::{SmtpHostnameVerification, SmtpMailConfig, SmtpTransportSecurity},
-    security::SecurityAuditContext,
-};
+use crate::runtime_config::{SmtpHostnameVerification, SmtpMailConfig, SmtpTransportSecurity};
 
 pub(crate) const SEND_EMAIL_PATH: &str = "/api/v1/general/send-email";
 
@@ -85,56 +82,6 @@ impl SmtpMailService {
             .await
             .map_err(|_| MailError::Delivery)?;
         Ok(())
-    }
-
-    pub(crate) async fn send_invite_link(
-        &self,
-        recipient: &str,
-        invite_url: &str,
-        expires_at: &str,
-    ) -> Result<(), MailError> {
-        let body = invite_link_body(invite_url, expires_at)?;
-        self.send(OutgoingMail {
-            recipient: parse_mailbox(recipient)?,
-            subject: "You've been invited to RustlingPDF".to_owned(),
-            body,
-            attachment: None,
-        })
-        .await
-    }
-
-    pub(crate) async fn send_user_invite(
-        &self,
-        recipient: &str,
-        username: &str,
-        temporary_password: &str,
-        login_url: &str,
-    ) -> Result<(), MailError> {
-        let body = user_invite_body(username, temporary_password, login_url)?;
-        self.send(OutgoingMail {
-            recipient: parse_mailbox(recipient)?,
-            subject: "Welcome to RustlingPDF".to_owned(),
-            body,
-            attachment: None,
-        })
-        .await
-    }
-
-    pub(crate) async fn send_password_changed(
-        &self,
-        recipient: &str,
-        username: &str,
-        temporary_password: Option<&str>,
-        login_url: &str,
-    ) -> Result<(), MailError> {
-        let body = password_changed_body(username, temporary_password, login_url)?;
-        self.send(OutgoingMail {
-            recipient: parse_mailbox(recipient)?,
-            subject: "Your RustlingPDF password has been updated".to_owned(),
-            body,
-            attachment: None,
-        })
-        .await
     }
 
     fn build_message(&self, outgoing: OutgoingMail) -> Result<Message, MailError> {
@@ -240,14 +187,13 @@ async fn read_request(mut multipart: Multipart) -> Result<OutgoingMail, MailErro
         .map_err(|_| MailError::InvalidText)?
     {
         match field.name().unwrap_or_default() {
-            "to" => recipient = Some(read_text(field, "to", MAX_ADDRESS_BYTES).await?),
+            "to" => recipient = Some(read_text(field, MAX_ADDRESS_BYTES).await?),
             "subject" => {
-                subject = Some(read_text(field, "subject", MAX_SUBJECT_BYTES).await?);
+                subject = Some(read_text(field, MAX_SUBJECT_BYTES).await?);
             }
-            "body" => body = Some(read_text(field, "body", MAX_BODY_BYTES).await?),
+            "body" => body = Some(read_text(field, MAX_BODY_BYTES).await?),
             "fileInput" => {
                 let filename = safe_attachment_filename(field.file_name())?;
-                let audit_content_type = field.content_type().map(ToOwned::to_owned);
                 let content_type = field
                     .content_type()
                     .and_then(|value| ContentType::parse(value).ok())
@@ -256,12 +202,6 @@ async fn read_request(mut multipart: Multipart) -> Result<OutgoingMail, MailErro
                             .map_err(|_| MailError::Message)?,
                     );
                 let bytes = field.bytes().await.map_err(|_| MailError::InvalidText)?;
-                SecurityAuditContext::record_current_file_bytes(
-                    &filename,
-                    u64::try_from(bytes.len()).unwrap_or(u64::MAX),
-                    audit_content_type.as_deref(),
-                    &bytes,
-                );
                 if bytes.is_empty() {
                     return Err(MailError::MissingAttachment);
                 }
@@ -287,188 +227,8 @@ async fn read_request(mut multipart: Multipart) -> Result<OutgoingMail, MailErro
     })
 }
 
-fn invite_link_body(invite_url: &str, expires_at: &str) -> Result<String, MailError> {
-    if invite_url.is_empty()
-        || invite_url.len() > MAX_BODY_BYTES / 4
-        || expires_at.len() > MAX_SUBJECT_BYTES
-        || invite_url.chars().any(char::is_control)
-        || expires_at.chars().any(char::is_control)
-    {
-        return Err(MailError::InvalidText);
-    }
-    let invite_url = escape_html(invite_url);
-    let expires_at = escape_html(expires_at);
-    let body = format!(
-        r#"<html><body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px;">
-  <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0;">
-    <div style="text-align: center; padding: 20px; background-color: #222;">
-      <span style="color: #ffffff; font-size: 24px; font-weight: bold;">RustlingPDF</span>
-    </div>
-    <div style="padding: 30px; color: #333;">
-      <h2 style="color: #222; margin-top: 0;">Welcome to RustlingPDF!</h2>
-      <p>Hi there,</p>
-      <p>You have been invited to join the RustlingPDF workspace. Click the button below to set up your account:</p>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="{invite_url}" style="display: inline-block; background-color: #007bff; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold;">Accept Invitation</a>
-      </div>
-      <p style="font-size: 14px; color: #666;">Or copy and paste this link in your browser:</p>
-      <div style="background-color: #f8f9fa; padding: 12px; margin: 15px 0; border-radius: 4px; word-break: break-all; font-size: 13px; color: #555;">
-        {invite_url}
-      </div>
-      <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
-        <p style="margin: 0; color: #856404; font-size: 14px;"><strong>⚠️ Important:</strong> This invitation link will expire on {expires_at}. Please complete your registration before then.</p>
-      </div>
-      <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-      <p style="margin-bottom: 0;">— The RustlingPDF Team</p>
-    </div>
-    <div style="text-align: center; padding: 15px; font-size: 12px; color: #777; background-color: #f0f0f0;">
-      &copy; 2025 RustlingPDF. All rights reserved.
-    </div>
-  </div>
-</div>
-</body></html>"#
-    );
-    (body.len() <= MAX_BODY_BYTES)
-        .then_some(body)
-        .ok_or(MailError::InputTooLarge)
-}
-
-fn password_changed_body(
-    username: &str,
-    temporary_password: Option<&str>,
-    login_url: &str,
-) -> Result<String, MailError> {
-    if username.is_empty()
-        || username.len() > MAX_ADDRESS_BYTES
-        || temporary_password.is_some_and(|password| password.len() > MAX_SUBJECT_BYTES)
-        || login_url.is_empty()
-        || login_url.len() > MAX_BODY_BYTES / 4
-        || login_url.chars().any(char::is_control)
-    {
-        return Err(MailError::InvalidText);
-    }
-    let username = escape_html(username);
-    let login_url = escape_html(login_url);
-    let password_section = temporary_password.map_or_else(String::new, |password| {
-        format!(
-            r#"<div style="background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 4px;">
-  <p style="margin: 0;"><strong>Temporary Password:</strong> {}</p>
-</div>"#,
-            escape_html(password)
-        )
-    });
-    let body = format!(
-        r#"<html><body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px;">
-  <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0;">
-    <div style="text-align: center; padding: 20px; background-color: #222;">
-      <span style="color: #ffffff; font-size: 24px; font-weight: bold;">RustlingPDF</span>
-    </div>
-    <div style="padding: 30px; color: #333;">
-      <h2 style="color: #222; margin-top: 0;">Your password was changed</h2>
-      <p>Hello {username},</p>
-      <p>An administrator has updated the password for your RustlingPDF account.</p>
-      {password_section}
-      <p>If you did not expect this change, please contact your administrator immediately.</p>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="{login_url}" style="display: inline-block; background-color: #007bff; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold;">Go to RustlingPDF</a>
-      </div>
-      <p style="font-size: 14px; color: #666;">Or copy and paste this link in your browser:</p>
-      <div style="background-color: #f8f9fa; padding: 12px; margin: 15px 0; border-radius: 4px; word-break: break-all; font-size: 13px; color: #555;">
-        {login_url}
-      </div>
-    </div>
-    <div style="text-align: center; padding: 15px; font-size: 12px; color: #777; background-color: #f0f0f0;">
-      &copy; 2025 RustlingPDF. All rights reserved.
-    </div>
-  </div>
-</div>
-</body></html>"#
-    );
-    (body.len() <= MAX_BODY_BYTES)
-        .then_some(body)
-        .ok_or(MailError::InputTooLarge)
-}
-
-fn user_invite_body(
-    username: &str,
-    temporary_password: &str,
-    login_url: &str,
-) -> Result<String, MailError> {
-    if username.is_empty()
-        || username.len() > MAX_ADDRESS_BYTES
-        || temporary_password.is_empty()
-        || temporary_password.len() > MAX_SUBJECT_BYTES
-        || login_url.is_empty()
-        || login_url.len() > MAX_BODY_BYTES / 4
-        || username.chars().any(char::is_control)
-        || temporary_password.chars().any(char::is_control)
-        || login_url.chars().any(char::is_control)
-    {
-        return Err(MailError::InvalidText);
-    }
-    let username = escape_html(username);
-    let temporary_password = escape_html(temporary_password);
-    let login_url = escape_html(login_url);
-    let body = format!(
-        r#"<html><body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px;">
-  <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0;">
-    <div style="text-align: center; padding: 20px; background-color: #222;">
-      <span style="color: #ffffff; font-size: 24px; font-weight: bold;">RustlingPDF</span>
-    </div>
-    <div style="padding: 30px; color: #333;">
-      <h2 style="color: #222; margin-top: 0;">Welcome to RustlingPDF!</h2>
-      <p>Hi there,</p>
-      <p>You have been invited to join the workspace. Below are your login credentials:</p>
-      <div style="background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 4px;">
-        <p style="margin: 0 0 10px 0;"><strong>Username:</strong> {username}</p>
-        <p style="margin: 0;"><strong>Temporary Password:</strong> {temporary_password}</p>
-      </div>
-      <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
-        <p style="margin: 0; color: #856404;"><strong>⚠️ Important:</strong> You will be required to change your password upon first login for security reasons.</p>
-      </div>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="{login_url}" style="display: inline-block; background-color: #007bff; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to RustlingPDF</a>
-      </div>
-      <p style="font-size: 14px; color: #666;">Or copy and paste this link in your browser:</p>
-      <div style="background-color: #f8f9fa; padding: 12px; margin: 15px 0; border-radius: 4px; word-break: break-all; font-size: 13px; color: #555;">
-        {login_url}
-      </div>
-      <p>Please keep these credentials secure and do not share them with anyone.</p>
-      <p style="margin-bottom: 0;">— The RustlingPDF Team</p>
-    </div>
-    <div style="text-align: center; padding: 15px; font-size: 12px; color: #777; background-color: #f0f0f0;">
-      &copy; 2025 RustlingPDF. All rights reserved.
-    </div>
-  </div>
-</div>
-</body></html>"#
-    );
-    (body.len() <= MAX_BODY_BYTES)
-        .then_some(body)
-        .ok_or(MailError::InputTooLarge)
-}
-
-fn escape_html(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for character in value.chars() {
-        match character {
-            '&' => escaped.push_str("&amp;"),
-            '<' => escaped.push_str("&lt;"),
-            '>' => escaped.push_str("&gt;"),
-            '"' => escaped.push_str("&quot;"),
-            '\'' => escaped.push_str("&#39;"),
-            _ => escaped.push(character),
-        }
-    }
-    escaped
-}
-
 async fn read_text(
     field: axum::extract::multipart::Field<'_>,
-    name: &str,
     limit: usize,
 ) -> Result<String, MailError> {
     let bytes = field.bytes().await.map_err(|_| MailError::InvalidText)?;
@@ -476,7 +236,6 @@ async fn read_text(
         return Err(MailError::InputTooLarge);
     }
     let value = String::from_utf8(bytes.to_vec()).map_err(|_| MailError::InvalidText)?;
-    SecurityAuditContext::record_current_form_param(name, &value);
     Ok(value)
 }
 
@@ -498,10 +257,6 @@ fn parse_mailbox(value: &str) -> Result<Mailbox, MailError> {
         return Err(MailError::InvalidAddress);
     }
     value.parse().map_err(|_| MailError::InvalidAddress)
-}
-
-pub(crate) fn is_valid_recipient(value: &str) -> bool {
-    parse_mailbox(value).is_ok()
 }
 
 fn mail_error_response(error: &MailError) -> Response {
@@ -526,10 +281,7 @@ fn text_response(status: StatusCode, text: &str) -> Response {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        MailError, invite_link_body, password_changed_body, safe_attachment_filename,
-        user_invite_body,
-    };
+    use super::{MailError, safe_attachment_filename};
 
     #[test]
     fn attachment_names_are_reduced_to_safe_basenames() -> Result<(), MailError> {
@@ -539,53 +291,6 @@ mod tests {
         );
         assert!(safe_attachment_filename(Some("bad\r\nname.pdf")).is_err());
         assert!(safe_attachment_filename(None).is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn invitation_template_escapes_dynamic_html() -> Result<(), MailError> {
-        let body = invite_link_body(
-            "https://pdf.example.test/invite/token?next=<admin>&team=R&D",
-            "2030-01-01T00:00:00+00:00",
-        )?;
-        assert!(!body.contains("next=<admin>"));
-        assert!(body.contains("next=&lt;admin&gt;&amp;team=R&amp;D"));
-        Ok(())
-    }
-
-    #[test]
-    fn password_template_escapes_values_and_controls_password_visibility() -> Result<(), MailError>
-    {
-        let hidden = password_changed_body(
-            "user<&>@example.test",
-            None,
-            "https://pdf.example.test/login?next=<admin>&team=R&D",
-        )?;
-        assert!(hidden.contains("Hello user&lt;&amp;&gt;@example.test"));
-        assert!(!hidden.contains("Temporary Password:"));
-        assert!(hidden.contains("next=&lt;admin&gt;&amp;team=R&amp;D"));
-
-        let included = password_changed_body(
-            "user@example.test",
-            Some("unsafe<&>password"),
-            "https://pdf.example.test/login",
-        )?;
-        assert!(included.contains("Temporary Password:</strong> unsafe&lt;&amp;&gt;password"));
-        assert!(!included.contains("unsafe<&>password"));
-        Ok(())
-    }
-
-    #[test]
-    fn account_invitation_template_escapes_credentials_and_login_url() -> Result<(), MailError> {
-        let body = user_invite_body(
-            "user<&>@example.test",
-            "unsafe<&>password",
-            "https://pdf.example.test/login?next=<admin>&team=R&D",
-        )?;
-        assert!(body.contains("Username:</strong> user&lt;&amp;&gt;@example.test"));
-        assert!(body.contains("Temporary Password:</strong> unsafe&lt;&amp;&gt;password"));
-        assert!(body.contains("next=&lt;admin&gt;&amp;team=R&amp;D"));
-        assert!(!body.contains("unsafe<&>password"));
         Ok(())
     }
 }

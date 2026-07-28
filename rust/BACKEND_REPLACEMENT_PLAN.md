@@ -4,6 +4,14 @@
 > executed inside the upstream Stirling-PDF monorepo. All Java sources it
 > describes live in the upstream Stirling-PDF repository; this repo contains
 > only the Rust result.
+>
+> **Batch-7 note (2026-07-29).** The security/auth track (A2) and every
+> server-stateful surface this plan sequenced (durable storage, policies,
+> audit, MCP, the watched-folder daemon, the AI document store) were built,
+> then **removed by maintainer decision on 2026-07-28** — the product is
+> deliberately unauthenticated and stateless. Their "Rust status" paragraphs
+> below are records of the pre-removal state; `SECURITY_MIGRATION_DESIGN.md`
+> was deleted with the subsystem. See `PORT_STATUS.md` for the current state.
 
 Decision (2026-07-15): the Rust service is to **replace the entire Java backend**,
 not act as a PDF-only sidecar. This document scopes that work so it can be reviewed
@@ -45,9 +53,10 @@ logic and each is a track of its own.
 - **Risk:** HIGH. Security-critical; needs its own design doc + threat review before
   any code. Do NOT auto-generate in a loop. Recommend: port with security disabled
   first (matches OSS default), design the secured mode separately.
-- **Design:** [`SECURITY_MIGRATION_DESIGN.md`](SECURITY_MIGRATION_DESIGN.md). The
-  Rust binary currently fails closed when `DOCKER_ENABLE_SECURITY=true` or the
-  compatible `SECURITY_ENABLELOGIN=true` alias is set.
+- **Design:** `SECURITY_MIGRATION_DESIGN.md` (deleted in batch 7 with the
+  subsystem). At the time, the Rust binary failed closed when
+  `DOCKER_ENABLE_SECURITY=true` or the compatible `SECURITY_ENABLELOGIN=true`
+  alias was set; since batch 7 those keys are ignored with a startup warning.
 
 ### A3. Pipeline
 - **Java:** `PipelineController`, `PipelineProcessor`, `PipelineDirectoryProcessor` —

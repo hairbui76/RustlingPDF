@@ -1,5 +1,5 @@
 import { test } from "@app/tests/helpers/test-base";
-import { loginAndSetup } from "@app/tests/helpers/login";
+import { openAppAndSetup } from "@app/tests/helpers/appSetup";
 import {
   switchToEditorIfViewerMode,
   runToolAndWaitForReview,
@@ -20,7 +20,7 @@ const SAMPLE_PDF = path.join(FIXTURES_DIR, "sample.pdf");
  */
 test.describe("Encrypted PDF: unlock then merge", () => {
   test.beforeEach(async ({ page }) => {
-    await loginAndSetup(page);
+    await openAppAndSetup(page);
   });
 
   test("unlocked encrypted PDF participates in a real merge", async ({

@@ -12,8 +12,8 @@ Java-facing multipart workflow state machine.
   `aiEngine.enabled` is false.
 - Otherwise sends `GET {aiEngine.url}/health` with `Accept: application/json`.
 - Sends `X-Engine-Auth` only when `RUSTLING_ENGINE_SHARED_SECRET` is nonblank.
-- Sends `X-User-Id` only from the trusted Rust `AuthContext.username`. An
-  inbound caller-supplied `X-User-Id` is never used as identity.
+- Never sends `X-User-Id` (the product has no user identity). An inbound
+  caller-supplied `X-User-Id` is never forwarded.
 - On a successful upstream response, returns status `200`, content type
   `application/json`, and the upstream JSON body. As in Java, a non-error 3xx
   upstream response is not followed and its body is surfaced as a 200.
@@ -30,7 +30,7 @@ Java-facing multipart workflow state machine.
   availability. Java sends every enabled Spring mapping and the engine drops
   unknown mappings, so the engine-visible planning catalog is equivalent.
 - Sends the rewritten JSON to `{aiEngine.url}/api/v1/pdf/edit` with the same
-  engine-auth and trusted-user rules as the health proxy.
+  engine-auth and identity rules as the health proxy.
 - Returns status `200`, content type `application/json`, and the successful
   upstream response body without interpreting the plan.
 
@@ -45,9 +45,11 @@ Java-facing multipart workflow state machine.
   bounded NDJSON stream incrementally, and preserves engine progress,
   heartbeat, result, and error semantics.
 - Resolves `need_content` by extracting the requested one-based PDF pages with
-  Java-compatible global page/UTF-16 character budgets. `need_ingest` extracts
-  raw page text, writes the caller-owned document to `/api/v1/documents`, and
-  resumes the requested capability.
+  Java-compatible global page/UTF-16 character budgets and resuming the
+  requested capability with an `extracted_text` artifact. The legacy
+  `need_ingest` protocol was removed with the engine's document store: a
+  legacy engine frame carrying it fails the turn cleanly (500,
+  `AI engine stream ended without a result`) and no ingest request is sent.
 - Executes `tool_call` and multi-step `plan` outcomes through the in-process
   policy dispatcher. Only configured processing endpoints and the exact
   `/api/v1/ai/tools/*` namespace are permitted; recursive orchestration and
@@ -94,12 +96,11 @@ The proxy retains `AiEngineClient` behavior:
 Errors use `application/problem+json` and include the Java-facing type, title,
 status, detail, timestamp, and request path fields.
 
-## Authentication boundary
+## Identity boundary
 
-The routes follow the existing processing security boundary. In reviewed
-secured mode they require normal authentication because they are not in the
-frozen public-route allowlist. In open mode they remain callable, and no user
-identity is fabricated for the engine.
+The routes are open like every processing route. No user identity exists or is
+fabricated for the engine; the only cross-service credential is the optional
+`X-Engine-Auth` shared secret.
 
 ## Resource bounds
 
@@ -108,8 +109,7 @@ indices are capped at 10,000, and workflows stop after 16 engine turns. Tool
 uploads and outputs remain streamed through files instead of accumulated in
 memory. Engine long-running calls use
 `aiEngine.longRunningTimeoutSeconds`/`AIENGINE_LONGRUNNINGTIMEOUTSECONDS`
-(default 600 seconds); ingested personal documents use the configured security
-JWT lifetime (default 1,440 minutes) as their expiry.
+(default 600 seconds).
 
 ## Processor→engine config push
 
@@ -118,15 +118,12 @@ processor pushes the engine-relevant `aiEngine.*` configuration to the
 engine's `POST /api/v1/config`:
 
 - **On startup** (fired from `spawn_background_maintenance`, the Rust analog
-  of `ApplicationReadyEvent`): the full models/rag/limits payload, retried up
+  of `ApplicationReadyEvent`): the full models/limits payload, retried up
   to 5 times with a 3-second delay, entirely off-thread — a down or
   still-booting engine never blocks startup and only produces warnings.
-- **After a successful bulk admin settings save** touching `aiEngine.*`
-  (see `contracts/admin-settings.md`): one attempt, overlaying the
-  accumulated pending `aiEngine.models.*`/`aiEngine.rag.*`/`aiEngine.limits.*`
-  values onto the live configuration.
 
-Both gates match Java: nothing is pushed unless `aiEngine.enabled` is true
+(The former after-admin-save live push was removed with the admin settings
+API.) The gates match Java: nothing is pushed unless `aiEngine.enabled` is true
 and `aiEngine.pushConfigToEngine` (default `true`, env
 `AIENGINE_PUSHCONFIGTOENGINE`) is on — pin it false for env-driven
 deployments so the engine stays environment-controlled. Pushes carry the
@@ -134,15 +131,17 @@ deployments so the engine stays environment-controlled. Pushes carry the
 are strictly serialized through one queue (Java's single-thread executor), so
 overlapping pushes cannot leave the engine on a stale payload.
 
-Payload rules ported verbatim from Java: camelCase spellings match the
-engine's tolerant wire contract; unconfigured model/RAG identity
+Payload rules ported from Java: camelCase spellings match the engine's
+tolerant wire contract; unconfigured model identity
 (provider/model/credential fields all at Java defaults with blank keys) is
 blanked to empty strings so the engine keeps its own env credentials, while a
-section that is configured — or whose identity keys were touched by this save
-— travels as-is so an explicit clear really clears. Settings resolution uses
-Spring's relaxed spellings (`AIENGINE_MODELS_SMARTMODEL`,
-`AIENGINE_RAG_EMBEDDINGPROVIDER`, `AIENGINE_LIMITS_MAXPAGES`, …) over the
-`aiEngine.models/rag/limits` YAML sections with Java's defaults
-(`anthropic`/`claude-haiku-4-5`, `voyageai`/`voyage-4`, 8192/2048 tokens,
-topK 20, maxSearches 5, maxPages 200, maxCharacters 200000,
-modelMaxConcurrency 32).
+section that is configured — or whose identity keys were touched — travels
+as-is so an explicit clear really clears. Settings resolution uses Spring's
+relaxed spellings (`AIENGINE_MODELS_SMARTMODEL`, `AIENGINE_LIMITS_MAXPAGES`,
+…) over the `aiEngine.models/limits` YAML sections with Java's defaults
+(`anthropic`/`claude-haiku-4-5`, 8192/2048 tokens, maxPages 200,
+maxCharacters 200000, modelMaxConcurrency 32). The historic `rag` section is
+no longer read or pushed: retrieval settings died with the engine's document
+store and PDF question-answer feature. A legacy `aiEngine.rag.*` block or
+`AIENGINE_RAG_*` variable in an existing install is ignored with a one-line
+startup warning, never refused.

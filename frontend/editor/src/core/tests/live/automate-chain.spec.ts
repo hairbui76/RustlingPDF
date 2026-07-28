@@ -1,5 +1,5 @@
 import { test, expect } from "@app/tests/helpers/test-base";
-import { loginAndSetup } from "@app/tests/helpers/login";
+import { openAppAndSetup } from "@app/tests/helpers/appSetup";
 
 /**
  * Automate is the "super tool" that lets a user chain multiple tools
@@ -11,7 +11,7 @@ import { loginAndSetup } from "@app/tests/helpers/login";
  */
 test.describe("Automate — multi-tool chain builder", () => {
   test.beforeEach(async ({ page }) => {
-    await loginAndSetup(page);
+    await openAppAndSetup(page);
   });
 
   test("builder opens and supports adding tools to the chain", async ({

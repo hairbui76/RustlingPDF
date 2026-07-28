@@ -1,4 +1,4 @@
-use std::{error::Error, fs, time::SystemTime};
+use std::{error::Error, time::SystemTime};
 
 use axum::{
     body::{Body, to_bytes},
@@ -10,11 +10,7 @@ use jks::{Certificate as JksCertificate, KeyStore as JksKeyStore, PrivateKeyEntr
 use lopdf::{Dictionary, Document, Object, Stream, dictionary};
 use p12_keystore::{Certificate, KeyStore, KeyStoreEntry, PrivateKey, PrivateKeyChain};
 use pkcs8::{LineEnding, PrivateKeyInfoRef};
-use rustling_processing::{
-    TimestampSettings, app, app_with_reviewed_security, runtime_config::RuntimeConfig,
-};
-use serde_json::Value;
-use tempfile::tempdir;
+use rustling_processing::app;
 use tower::ServiceExt;
 use x509_certificate::{Sign, testutil::self_signed_ecdsa_key_pair};
 
@@ -292,83 +288,6 @@ async fn signs_a_pdf_with_an_uploaded_jks_key() -> TestResult {
     let wrong_password =
         post_jks_sign(&single_page_pdf()?, &archive, "wrong-password", None).await?;
     assert_eq!(wrong_password.status(), StatusCode::BAD_REQUEST);
-    Ok(())
-}
-
-#[tokio::test]
-async fn signs_a_pdf_with_the_managed_server_certificate() -> TestResult {
-    let directory = tempdir()?;
-    let config_directory = directory.path().join("configs");
-    fs::create_dir_all(&config_directory)?;
-    let settings = config_directory.join("settings.yml");
-    fs::write(
-        &settings,
-        "security:\n  initialLogin:\n    username: admin@example.test\n    password: test-only-password\nsystem:\n  serverCertificate:\n    enabled: true\n    organizationName: RustlingPDF Endpoint Test\n    validity: 30\n",
-    )?;
-    let app = app_with_reviewed_security(
-        2 * 1024 * 1024,
-        TimestampSettings::default(),
-        RuntimeConfig::from_files(&settings, config_directory.join("missing.yml")),
-    )?;
-    let login = app
-        .clone()
-        .oneshot(
-            Request::post("/api/v1/auth/login")
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(
-                    r#"{"username":"admin@example.test","password":"test-only-password"}"#,
-                ))?,
-        )
-        .await?;
-    assert_eq!(login.status(), StatusCode::OK);
-    let login: Value = serde_json::from_slice(&to_bytes(login.into_body(), 64 * 1024).await?)?;
-    let access_token = login["session"]["access_token"]
-        .as_str()
-        .ok_or("missing access token")?;
-
-    let info = app
-        .clone()
-        .oneshot(
-            Request::get("/api/v1/admin/server-certificate/info")
-                .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
-                .body(Body::empty())?,
-        )
-        .await?;
-    assert_eq!(info.status(), StatusCode::OK);
-
-    let boundary = "stirling-server-sign-boundary";
-    let mut body = Vec::new();
-    append_value_part(&mut body, boundary, "certType", "SERVER");
-    append_file_part(
-        &mut body,
-        boundary,
-        "fileInput",
-        "input.pdf",
-        "application/pdf",
-        &single_page_pdf()?,
-    );
-    body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-    let response = app
-        .oneshot(
-            Request::post("/api/v1/security/cert-sign")
-                .header(
-                    header::CONTENT_TYPE,
-                    format!("multipart/form-data; boundary={boundary}"),
-                )
-                .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
-                .body(Body::from(body))?,
-        )
-        .await?;
-    if response.status() != StatusCode::OK {
-        let status = response.status();
-        let body = to_bytes(response.into_body(), usize::MAX).await?;
-        return Err(format!(
-            "managed certificate signing returned {status}: {}",
-            String::from_utf8_lossy(&body)
-        )
-        .into());
-    }
-    verify_pdf_signature(&to_bytes(response.into_body(), usize::MAX).await?)?;
     Ok(())
 }
 

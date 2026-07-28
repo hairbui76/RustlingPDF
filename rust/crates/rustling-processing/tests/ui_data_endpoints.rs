@@ -138,29 +138,13 @@ async fn response_json(response: Response) -> Result<Value, Box<dyn std::error::
 async fn assert_shared_signature_image_routes(
     app: &axum::Router,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let signature_image = request(app, "/api/v1/general/signatures/shared-signature.PNG").await?;
+    // The signature-serving route was removed with the personal-signature
+    // backend (signatures are client-owned now); the path must not resolve.
     assert_eq!(
-        signature_image
-            .headers()
-            .get("content-type")
-            .and_then(|value| value.to_str().ok()),
-        Some("image/png")
-    );
-    assert_eq!(
-        to_bytes(signature_image.into_body(), 1024).await?.as_ref(),
-        b"image"
-    );
-    assert_eq!(
-        raw_request(app, "/api/v1/general/signatures/missing.png")
+        raw_request(app, "/api/v1/general/signatures/shared-signature.PNG")
             .await?
             .status(),
         StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        raw_request(app, "/api/v1/general/signatures/unsafe..png")
-            .await?
-            .status(),
-        StatusCode::BAD_REQUEST
     );
     Ok(())
 }

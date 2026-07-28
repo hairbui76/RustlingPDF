@@ -63,8 +63,10 @@ CurrentUser certificate and runs the same independent verification.
 UTC date, and reason text. `showLogo=true` adds a vector mark without loading
 an external image. Missing pages and non-positive page numbers return `400`.
 
-Managed/server keys and less common traditional PEM ciphers/curves remain
-unimplemented and return `501` where applicable.
+The managed server certificate (`certType=SERVER`) was removed with
+server-side state; only caller-supplied material and desktop hardware tokens
+are supported. Less common traditional PEM ciphers/curves remain unimplemented
+and return `501` where applicable.
 Certificate algorithm, key-usage, validity, chain-trust, revocation, and PAdES
 policy review are also outstanding; this route must not yet be described as
 production PAdES support.

@@ -1,5 +1,4 @@
 pub mod additional_language;
-mod admin_settings;
 pub mod ai_document;
 pub mod ai_engine_config_sync;
 mod ai_proxy;
@@ -15,27 +14,15 @@ pub mod hardware_signing;
 pub mod html_sanitizer;
 pub mod html_to_pdf;
 pub mod image_to_pdf;
-mod integration_config;
-mod integration_http;
 mod job_manager;
 mod job_queue;
 pub mod license;
-mod license_admin;
-mod login_agreement_admin;
 mod maintenance;
 pub mod markdown_to_pdf;
-mod mcp;
-mod mcp_oauth;
 pub mod mobile_scanner;
 pub mod ocr_pdf;
 pub mod office_sanitizer;
 pub mod office_to_pdf;
-pub mod oidc_authorization;
-pub mod oidc_discovery;
-pub mod oidc_id_token;
-pub mod oidc_live_token;
-pub mod oidc_login;
-pub mod oidc_token;
 mod page_selection;
 pub mod pdf_ai_comments;
 pub mod pdf_analysis;
@@ -101,51 +88,20 @@ pub mod pdf_watermark;
 pub mod pdfa;
 mod pdfium_backend;
 mod pdfium_runtime;
-mod personal_signatures;
 mod pipeline;
-mod pipeline_directory;
-mod policy_config;
-mod policy_execution;
-mod policy_http;
-mod policy_ledger;
-mod policy_outputs;
-mod policy_s3;
-mod policy_sources;
-mod policy_triggers;
-mod portal_api_keys;
-mod portal_audit;
 mod process_executor;
-mod proprietary_external_api;
-mod proprietary_ui_data;
-mod purview;
-mod purview_http;
-mod resource_access;
 pub mod runtime_config;
 mod runtime_dependencies;
 pub mod runtime_metrics;
-pub mod security;
-mod security_audit_http;
-pub mod security_crypto;
-pub mod security_http;
-pub mod security_jwt;
-pub mod security_policy;
-mod server_certificate;
 pub mod settings_yaml;
-pub mod signature_assets;
 pub mod signing_key;
 mod smtp_mail;
 mod spa;
-mod storage;
-mod storage_http;
 pub mod svg_to_pdf;
 mod tessdata;
-mod tessdata_admin;
 pub mod ui_data;
 pub mod url_to_pdf;
 pub mod vector_conversion;
-mod webhook_receiver;
-mod workflow_signing;
-mod workflow_signing_http;
 
 use std::{
     cmp::Reverse,
@@ -165,8 +121,8 @@ use axum::{
     Json, Router,
     body::{Body, to_bytes},
     extract::{
-        ConnectInfo, DefaultBodyLimit, Extension, FromRequest, Multipart, Path as AxumPath, Query,
-        Request, State, connect_info::MockConnectInfo,
+        ConnectInfo, DefaultBodyLimit, Extension, Multipart, Path as AxumPath, Query, Request,
+        State, connect_info::MockConnectInfo,
     },
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     middleware::{self, Next},
@@ -214,7 +170,7 @@ use crate::{
     },
     html_to_pdf::{HtmlToPdfError, convert_html_to_pdf},
     image_to_pdf::{ImageInput, ImageToPdfError, ImageToPdfOptions, images_to_pdf_file},
-    job_manager::{CancelJob, JobFile, JobManager, JobOwner},
+    job_manager::{CancelJob, JobFile, JobManager},
     job_queue::{JobAdmission, JobQueue, JobQueueError, QueueCancellationResult},
     markdown_to_pdf::{MarkdownToPdfError, convert_markdown_to_pdf},
     mobile_scanner::{
@@ -326,17 +282,9 @@ use crate::{
         PdfiumAutoCropError, PdfiumAutoSplitError, PdfiumMergeError, PdfiumRemoveError,
         PdfiumRotateError, PdfiumToImageError,
     },
-    pipeline::{PIPELINE_PATH, PipelineDispatcher, PolicyAuditRecorder},
-    pipeline_directory::PipelineDirectoryWatcher,
+    pipeline::{PIPELINE_PATH, PipelineDispatcher},
     runtime_config::RuntimeConfig,
     runtime_metrics::{RuntimeMetrics, application_version},
-    security::{AuthContext, SecurityAuditContext, SecurityStore},
-    security_http::{
-        SecurityHttpConfig, SecurityStartupError, initialize_security_store,
-        secure_router_with_mail,
-    },
-    security_jwt::SupabaseJwtVerifier,
-    server_certificate::{ServerCertificateError, ServerCertificateService},
     signing_key::{
         JksSigningKey, PemSigningKey, Pkcs12SigningKey, SigningKey, SigningKeyError, SigningSecret,
     },
@@ -465,9 +413,7 @@ const SCALE_PAGES_PATH: &str = "/api/v1/general/scale-pages";
 const SANITIZE_PDF_PATH: &str = "/api/v1/security/sanitize-pdf";
 const SCANNER_EFFECT_PATH: &str = "/api/v1/misc/scanner-effect";
 const SETTINGS_ENDPOINT_STATUS_PATH: &str = "/api/v1/settings/get-endpoints-status";
-const SETTINGS_UPDATE_ANALYTICS_PATH: &str = "/api/v1/settings/update-enable-analytics";
 const SHOW_JAVASCRIPT_PATH: &str = "/api/v1/misc/show-javascript";
-const SIGNATURE_IMAGE_PATH: &str = "/api/v1/general/signatures/{filename}";
 const SPLIT_PATH: &str = "/api/v1/general/split-pages";
 const SPLIT_BY_SIZE_PATH: &str = "/api/v1/general/split-by-size-or-count";
 const SPLIT_CHAPTERS_PATH: &str = "/api/v1/general/split-pdf-by-chapters";
@@ -489,7 +435,6 @@ const FORM_VALUE_LIMIT_BYTES: usize = 8 * 1024;
 const AI_DOCUMENT_LIMIT_BYTES: usize = 1024 * 1024;
 const SIGNING_MATERIAL_LIMIT_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_CERT_SIGN_RESERVATION_BYTES: usize = 128 * 1024;
-const SETTINGS_FORM_LIMIT_BYTES: usize = 8 * 1024;
 const IMAGE_TO_PDF_PATH: &str = "/api/v1/convert/img/pdf";
 const FILE_TO_PDF_PATH: &str = "/api/v1/convert/file/pdf";
 const HTML_TO_PDF_PATH: &str = "/api/v1/convert/html/pdf";
@@ -702,7 +647,6 @@ enum UploadedSigningMaterial {
     Software(UploadedSoftwareSigningMaterial),
     Pkcs11(Pkcs11SigningRequest),
     WindowsStore { alias: String },
-    ManagedServer,
 }
 
 enum UploadedSoftwareSigningMaterial {
@@ -1275,8 +1219,6 @@ enum CertSignError {
     Pdf(#[from] PdfSigningError),
     #[error(transparent)]
     Hardware(#[from] HardwareSigningError),
-    #[error(transparent)]
-    ServerCertificate(#[from] ServerCertificateError),
     #[error("could not write the signed PDF: {0}")]
     Write(#[source] std::io::Error),
 }
@@ -1356,33 +1298,15 @@ impl IntoResponse for ApiError {
 
 /// Runtime-owned application resources.
 ///
-/// The router stays side-effect free. Background filesystem automation is only
+/// The router stays side-effect free; background maintenance loops are only
 /// started when the executable explicitly calls
-/// [`ProcessingRuntime::spawn_pipeline_directory_watcher`].
+/// [`ProcessingRuntime::spawn_background_maintenance`].
 pub struct ProcessingRuntime {
     router: Router,
-    pipeline_directory_watcher: PipelineDirectoryWatcher,
-    pipeline_dispatcher: PipelineDispatcher,
     job_manager: Arc<JobManager>,
-    job_queue: Arc<JobQueue>,
-    smtp_mail_service: Option<Arc<smtp_mail::SmtpMailService>>,
-    policy_trigger_runtime: Option<policy_triggers::PolicyTriggerRuntime>,
-    license_refresh_runtime: Option<license::LicenseRefreshRuntime>,
     mobile_scanner: Option<Arc<MobileScannerService>>,
-    policy_execution: Option<Arc<policy_execution::PolicyExecutionService>>,
-    audit_retention: Option<AuditRetentionMaintenance>,
-    storage_maintenance: Option<Arc<storage::StorageService>>,
     spa: Option<Arc<spa::SpaServing>>,
     ai_engine_config_sync: Arc<ai_engine_config_sync::AiEngineConfigSync>,
-}
-
-/// Handle for the periodic audit-retention sweep: the durable store plus the
-/// retention window captured from configuration at startup, exactly as Java's
-/// `AuditCleanupService` reads `premium.enterpriseFeatures.audit.retentionDays`.
-#[derive(Clone)]
-struct AuditRetentionMaintenance {
-    store: Arc<SecurityStore>,
-    retention_days: i64,
 }
 
 impl ProcessingRuntime {
@@ -1413,27 +1337,19 @@ impl ProcessingRuntime {
         timestamp_settings: TimestampSettings,
         runtime_config: RuntimeConfig,
     ) -> Self {
-        let pipeline_directory_config = runtime_config.pipeline_directory_config();
         let job_queue_config = runtime_config.job_queue_config();
         let job_result_ttl = runtime_config.job_result_ttl();
         let smtp_mail_config = runtime_config.smtp_mail_config();
         let smtp_mail_service = smtp_mail_config
             .enabled
             .then(|| Arc::new(smtp_mail::SmtpMailService::new(smtp_mail_config)));
-        let policies_enabled = runtime_config.policies_enabled();
         let ocr_process_controls = Arc::new(OcrProcessControls::new(
             runtime_config.ocr_process_settings(),
         ));
         let repair_runtime = Arc::new(RepairRuntime::from_runtime_config(&runtime_config));
-        let classification_service = Arc::new(classification::ClassificationService::new(
-            runtime_config.classification_database_path(),
-            policies_enabled,
-        ));
+        let classification_service = Arc::new(classification::ClassificationService::new());
         let runtime_config = Arc::new(runtime_config);
-        let runtime_metrics = Arc::new(RuntimeMetrics::new(
-            runtime_config.metrics_enabled(),
-            !runtime_config.login_disclaimer_requires_authentication(),
-        ));
+        let runtime_metrics = Arc::new(RuntimeMetrics::new(runtime_config.metrics_enabled(), true));
         let ai_comment_engine_settings = Arc::new(AiCommentEngineSettings::from_runtime_config(
             &runtime_config,
         ));
@@ -1456,7 +1372,6 @@ impl ProcessingRuntime {
             processing_routes_with_features(
                 smtp_mail_service.clone(),
                 Arc::clone(&classification_service),
-                policies_enabled,
             )
             .layer(DefaultBodyLimit::max(max_upload_bytes))
             .layer(Extension(timestamp_settings.clone()))
@@ -1478,315 +1393,36 @@ impl ProcessingRuntime {
                 record_runtime_metrics,
             )),
         );
-        let pipeline_directory_watcher =
-            PipelineDirectoryWatcher::new(pipeline_dispatcher.clone(), pipeline_directory_config);
-        let router = processing_routes_with_features(
-            smtp_mail_service.clone(),
-            classification_service,
-            policies_enabled,
-        )
-        .merge(pipeline_routes())
-        .layer(DefaultBodyLimit::max(max_upload_bytes))
-        .layer(TraceLayer::new_for_http())
-        .layer(Extension(timestamp_settings))
-        .layer(middleware::from_fn_with_state(
-            async_job_settings,
-            submit_async_job,
-        ))
-        .layer(middleware::from_fn(enforce_endpoint_availability))
-        .layer(Extension(runtime_config))
-        .layer(Extension(ocr_process_controls))
-        .layer(Extension(repair_runtime))
-        .layer(Extension(ai_comment_engine_settings))
-        .layer(Extension(Arc::clone(&runtime_metrics)))
-        .layer(Extension(Arc::clone(&job_manager)))
-        .layer(Extension(Arc::clone(&job_queue)))
-        .layer(Extension(mobile_scanner.clone()))
-        .layer(Extension(pipeline_dispatcher.clone()))
-        .layer(middleware::from_fn_with_state(
-            runtime_metrics,
-            record_runtime_metrics,
-        ));
+        let router =
+            processing_routes_with_features(smtp_mail_service.clone(), classification_service)
+                .merge(pipeline_routes())
+                .layer(DefaultBodyLimit::max(max_upload_bytes))
+                .layer(TraceLayer::new_for_http())
+                .layer(Extension(timestamp_settings))
+                .layer(middleware::from_fn_with_state(
+                    async_job_settings,
+                    submit_async_job,
+                ))
+                .layer(middleware::from_fn(enforce_endpoint_availability))
+                .layer(Extension(runtime_config))
+                .layer(Extension(ocr_process_controls))
+                .layer(Extension(repair_runtime))
+                .layer(Extension(ai_comment_engine_settings))
+                .layer(Extension(Arc::clone(&runtime_metrics)))
+                .layer(Extension(Arc::clone(&job_manager)))
+                .layer(Extension(Arc::clone(&job_queue)))
+                .layer(Extension(mobile_scanner.clone()))
+                .layer(Extension(pipeline_dispatcher.clone()))
+                .layer(middleware::from_fn_with_state(
+                    runtime_metrics,
+                    record_runtime_metrics,
+                ));
         Self {
             router,
-            pipeline_directory_watcher,
-            pipeline_dispatcher,
             job_manager,
-            job_queue,
-            smtp_mail_service,
-            policy_trigger_runtime: None,
-            license_refresh_runtime: None,
             mobile_scanner,
-            policy_execution: None,
-            audit_retention: None,
-            storage_maintenance: None,
             spa: spa_serving,
             ai_engine_config_sync,
-        }
-    }
-
-    /// Builds the standalone router behind the reviewed local authentication
-    /// boundary. The production executable remains fail-closed until the
-    /// remaining secured-mode capabilities have completed their review gates.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when durable security state cannot be initialized or an
-    /// empty repository has no explicitly configured first administrator.
-    #[allow(clippy::too_many_lines)]
-    pub fn with_reviewed_security(
-        max_upload_bytes: usize,
-        timestamp_settings: TimestampSettings,
-        runtime_config: RuntimeConfig,
-    ) -> Result<Self, SecurityStartupError> {
-        let initialized_license = initialize_verified_license(&runtime_config)?;
-        let security_store = initialize_security_store(&runtime_config)?;
-        security_store
-            .attach_license_state(&initialized_license.state)
-            .map_err(SecurityStartupError::Repository)?;
-        let policies_enabled = runtime_config.policies_enabled();
-        let policy_source_readiness = runtime_config.pipeline_directory_config().readiness;
-        let policy_trigger_settings = runtime_config.policy_trigger_settings();
-        let policy_stream_timeout = runtime_config.policy_stream_timeout();
-        let policy_webhook_max_bytes = runtime_config.policies_webhook_max_bytes();
-        let policy_install_root = runtime_config.installation_root();
-        let integration_service = Arc::new(integration_config::IntegrationConfigService::new(
-            Arc::clone(&security_store),
-            resource_access::DefaultAccessPolicy::from_config(
-                &runtime_config.security_portal_default_access(),
-            ),
-            true,
-            policies_enabled,
-            runtime_config.policies_allow_private_s3_endpoints(),
-            runtime_config.allow_custom_api_integrations(),
-        ));
-        // The external-API-call step's SSRF-safe caller: long-lived so its TOKEN_LOGIN
-        // token cache persists, gated by the `policies.allowPrivateApiEndpoints` opt-in.
-        let external_api_caller = Arc::new(proprietary_external_api::ExternalApiCaller::new(
-            runtime_config.policies_allow_private_api_endpoints(),
-        ));
-        let processed_ledger = initialize_policy_ledger(policies_enabled, &security_store)?;
-        let policy_service = processed_ledger.as_ref().map(|_| {
-            Arc::new(policy_config::PolicyConfigService::new(
-                Arc::clone(&security_store),
-                Arc::clone(&integration_service),
-                runtime_config.policies_allowed_folder_roots(),
-                runtime_config
-                    .settings_path()
-                    .parent()
-                    .unwrap_or_else(|| Path::new(".")),
-                policy_config::implied_folder_roots(
-                    &runtime_config
-                        .storage_config(u64::try_from(max_upload_bytes).unwrap_or(u64::MAX)),
-                    &runtime_config.pipeline_directory_config().watched_folders,
-                ),
-            ))
-        });
-        let mcp_config = runtime_config.mcp_config();
-        let mcp_engine_settings = AiCommentEngineSettings::from_runtime_config(&runtime_config);
-        // Cloned before `runtime_config` moves into `with_runtime_config`: the
-        // MCP category tools re-evaluate endpoint-enabled state per request.
-        let mcp_runtime_config = Arc::new(runtime_config.clone());
-        let security_http_config =
-            reviewed_security_http_config(&runtime_config, initialized_license.verification)?;
-        // One shared pusher serializes the startup push and every admin-save
-        // push, matching Java's single-thread executor ordering guarantee.
-        let engine_config_sync = Arc::new(
-            ai_engine_config_sync::AiEngineConfigSync::from_runtime_config(&runtime_config),
-        );
-        let admin_settings = Arc::new(
-            admin_settings::AdminSettingsService::new(
-                runtime_config.settings_path().to_path_buf(),
-                runtime_config.settings_snapshot(),
-            )
-            .with_ai_engine_sync(Arc::clone(&engine_config_sync)),
-        );
-        let license_admin = initialize_license_admin(
-            &runtime_config,
-            &initialized_license,
-            Arc::clone(&admin_settings),
-        );
-        let personal_signatures = Arc::new(personal_signatures::PersonalSignatureService::new(
-            runtime_config.signatures_dir(),
-        ));
-        let login_agreements = Arc::new(login_agreement_admin::LoginAgreementAdminService::new(
-            runtime_config.login_agreement_directory(),
-        ));
-        let tessdata_admin = Arc::new(tessdata_admin::TessdataAdminService::new(
-            runtime_config.tessdata_dir(),
-        ));
-        let server_certificate = Arc::new(
-            ServerCertificateService::new(runtime_config.server_certificate_config())
-                .map_err(|error| SecurityStartupError::ServerCertificate(Box::new(error)))?,
-        );
-        server_certificate
-            .initialize()
-            .map_err(|error| SecurityStartupError::ServerCertificate(Box::new(error)))?;
-        let storage_upload_bytes = u64::try_from(max_upload_bytes).unwrap_or(u64::MAX);
-        let storage_configuration = runtime_config.storage_config(storage_upload_bytes);
-        let workflow_signing_configuration = runtime_config.workflow_signing_config();
-        let storage_mail_enabled = runtime_config.smtp_mail_config().enabled;
-        let storage_bootstrap = runtime_config.security_bootstrap_config();
-        let storage_enabled = storage_configuration.enabled;
-        let storage_sharing_enabled = storage_enabled && storage_configuration.sharing.enabled;
-        let storage_app_config = storage::StorageAppConfig {
-            enabled: storage_enabled,
-            sharing_enabled: storage_sharing_enabled,
-            share_links_enabled: storage_sharing_enabled
-                && storage_configuration.sharing.link_enabled,
-            share_email_enabled: storage_sharing_enabled
-                && storage_configuration.sharing.email_enabled
-                && storage_mail_enabled,
-            group_signing_enabled: storage_enabled && workflow_signing_configuration.enabled,
-        };
-        let storage_service = Arc::new(
-            storage::StorageService::open(storage_configuration)
-                .map_err(|error| SecurityStartupError::Storage(Box::new(error)))?,
-        );
-        let workflow_secret_cipher =
-            crate::security_crypto::ProtectedSecretCipher::from_config_or_file(
-                storage_bootstrap
-                    .credential_encryption_key
-                    .as_ref()
-                    .map(|key| key.as_str()),
-                &storage_bootstrap.credential_encryption_key_path,
-            )
-            .map_err(|error| SecurityStartupError::WorkflowSigning(Box::new(error)))?;
-        let workflow_signing_service = Arc::new(
-            workflow_signing::WorkflowSigningService::open(
-                &workflow_signing_configuration,
-                Arc::clone(&storage_service),
-                workflow_secret_cipher,
-                Arc::clone(&server_certificate),
-            )
-            .map_err(|error| SecurityStartupError::WorkflowSigning(Box::new(error)))?,
-        );
-        // Snapshot the login/audit configuration before `runtime_config` is
-        // moved into the runtime; the read projections never re-parse settings.
-        let proprietary_ui_data_config =
-            proprietary_ui_data::UiDataConfig::from_runtime_config(&runtime_config);
-        let audit_retention_days = runtime_config.security_audit_retention_days();
-        let mut runtime =
-            Self::with_runtime_config(max_upload_bytes, timestamp_settings, runtime_config);
-        // Replace the runtime's own pusher with the instance already shared
-        // with the admin settings service so all pushes stay serialized.
-        runtime.ai_engine_config_sync = engine_config_sync;
-        runtime.license_refresh_runtime = Some(license::LicenseRefreshRuntime::new(
-            initialized_license.verifier,
-            Arc::clone(&initialized_license.config),
-            Arc::clone(&initialized_license.state),
-        ));
-        // Background retention sweeps, spawned later by the executable through
-        // `spawn_background_maintenance`. The audit sweep mirrors Java's
-        // `AuditCleanupService` gate on `audit.enabled`; the storage sweep only
-        // exists when durable storage is switched on.
-        runtime.audit_retention =
-            security_http_config
-                .audit_enabled
-                .then(|| AuditRetentionMaintenance {
-                    store: Arc::clone(&security_store),
-                    retention_days: audit_retention_days,
-                });
-        runtime.storage_maintenance = storage_enabled.then(|| Arc::clone(&storage_service));
-        runtime.router = runtime
-            .router
-            .merge(integration_http::routes(
-                Arc::clone(&integration_service),
-                external_api_caller,
-                max_upload_bytes,
-            ))
-            .merge(
-                purview_http::routes(integration_service)
-                    .layer(DefaultBodyLimit::max(max_upload_bytes)),
-            )
-            .merge(proprietary_ui_data::routes(proprietary_ui_data_config))
-            .merge(portal_api_keys::routes())
-            .merge(login_agreement_admin::routes(login_agreements))
-            .merge(tessdata_admin::routes(tessdata_admin))
-            .merge(personal_signatures::routes())
-            .merge(admin_settings::routes().layer(Extension(admin_settings)))
-            .merge(license_admin::routes(license_admin))
-            .merge(server_certificate::routes())
-            .merge(storage_http::routes(max_upload_bytes))
-            .merge(workflow_signing_http::owner_routes(max_upload_bytes))
-            .layer(Extension(personal_signatures))
-            .layer(Extension(server_certificate))
-            .layer(Extension(Arc::clone(&storage_service)))
-            .layer(Extension(Arc::clone(&workflow_signing_service)))
-            .layer(Extension(initialized_license.state));
-        let policy_audit = (security_http_config.audit_enabled
-            && security_http_config.license_tier
-                == crate::security_policy::LicenseTier::Enterprise
-            && security_http_config.audit_level >= 1)
-            .then(|| {
-                PolicyAuditRecorder::new(
-                    Arc::clone(&security_store),
-                    security_http_config.audit_level >= 2,
-                )
-                .with_file_capture(crate::security::SecurityAuditFileCapture {
-                    hash: security_http_config.audit_file_capture.file_hash,
-                    pdf_author: security_http_config.audit_file_capture.pdf_author,
-                })
-            });
-        attach_policy_routes(
-            &mut runtime,
-            policy_service,
-            processed_ledger,
-            PolicyRouteSettings {
-                audit: policy_audit,
-                readiness: policy_source_readiness,
-                trigger: policy_trigger_settings,
-                stream_timeout: policy_stream_timeout,
-                max_upload_bytes,
-                webhook_max_bytes: policy_webhook_max_bytes,
-                install_root: policy_install_root,
-            },
-        );
-        runtime.router = secure_router_with_mail(
-            runtime.router,
-            Arc::clone(&security_store),
-            security_http_config,
-            runtime.smtp_mail_service.clone(),
-        )
-        .merge(mcp::routes(
-            mcp_config,
-            security_store,
-            &mcp_engine_settings,
-            Arc::clone(&runtime.job_manager),
-            runtime.pipeline_dispatcher.router(),
-            mcp_runtime_config,
-        ))
-        .merge(
-            workflow_signing_http::participant_routes(max_upload_bytes)
-                .layer(Extension(Arc::clone(&workflow_signing_service))),
-        )
-        .layer(Extension(storage_app_config));
-        Ok(runtime)
-    }
-
-    pub fn spawn_pipeline_directory_watcher(&self) {
-        let watcher = self.pipeline_directory_watcher.clone();
-        tokio::spawn(async move { watcher.run_forever().await });
-    }
-
-    pub fn spawn_policy_triggers(&self) {
-        if let Some(triggers) = self.policy_trigger_runtime.clone() {
-            tokio::spawn(async move { Box::pin(triggers.run_forever()).await });
-        }
-    }
-
-    /// Spawns the periodic license re-verification loop, mirroring Java
-    /// `LicenseKeyChecker.checkLicensePeriodically` (`@Scheduled` every seven
-    /// days after a seven-day initial delay). Returns whether a refresh task
-    /// was actually spawned so callers and tests can verify the wiring; the
-    /// open (non-secured) runtime carries no license state and returns `false`.
-    #[must_use = "the flag reports whether license refresh is actually running"]
-    pub fn spawn_license_refresh(&self) -> bool {
-        if let Some(refresh) = self.license_refresh_runtime.clone() {
-            tokio::spawn(refresh.run_forever());
-            true
-        } else {
-            false
         }
     }
 
@@ -1845,82 +1481,14 @@ impl ProcessingRuntime {
             spawned += 1;
         }
 
-        if let Some(audit) = self.audit_retention.clone() {
-            maintenance::spawn_maintenance_loop(maintenance::MaintenanceLoop {
-                name: "audit-retention",
-                schedule: maintenance::schedule_from_environment(
-                    "AUDIT_RETENTION",
-                    maintenance::AUDIT_RETENTION_SCHEDULE,
-                ),
-                tick: Arc::new(move || {
-                    match maintenance::audit_cutoff(
-                        chrono::Utc::now().timestamp(),
-                        audit.retention_days,
-                    ) {
-                        // Java rule: retentionDays <= 0 retains indefinitely.
-                        None => Ok(0),
-                        Some(cutoff) => audit
-                            .store
-                            .delete_audit_events_before(cutoff)
-                            .map_err(|error| error.to_string()),
-                    }
-                }),
-            });
-            spawned += 1;
-        }
-
-        if let Some(storage) = self.storage_maintenance.clone() {
-            maintenance::spawn_maintenance_loop(maintenance::MaintenanceLoop {
-                name: "storage-cleanup",
-                schedule: maintenance::schedule_from_environment(
-                    "STORAGE_CLEANUP",
-                    maintenance::STORAGE_CLEANUP_SCHEDULE,
-                ),
-                tick: Arc::new(move || {
-                    // Both sweeps always run; one failing must not starve the other.
-                    let queue = storage.sweep_cleanup_queue();
-                    let shares = storage.purge_expired_share_links();
-                    match (queue, shares) {
-                        (Ok(reclaimed), Ok(purged)) => Ok(reclaimed + purged),
-                        (queue, shares) => Err([queue.err(), shares.err()]
-                            .into_iter()
-                            .flatten()
-                            .map(|error| error.to_string())
-                            .collect::<Vec<_>>()
-                            .join("; ")),
-                    }
-                }),
-            });
-            spawned += 1;
-        }
-
-        if let Some(policy) = self.policy_execution.clone() {
-            maintenance::spawn_maintenance_loop(maintenance::MaintenanceLoop {
-                name: "policy-run-registry",
-                schedule: maintenance::schedule_from_environment(
-                    "POLICY_RUNS",
-                    maintenance::POLICY_RUN_SCHEDULE,
-                ),
-                tick: Arc::new(move || {
-                    Ok(policy.evict_stale_runs(
-                        chrono::Utc::now().timestamp_millis(),
-                        maintenance::POLICY_RUN_EVICTION_GRACE_MILLIS,
-                    ))
-                }),
-            });
-            spawned += 1;
-        }
-
         spawned
     }
 
     pub fn into_router(self) -> Router {
         // Assembly boundary for the DoS transport guardrails: every production
-        // and test entry point funnels the fully-merged router through here, so
-        // wrapping it once covers BOTH the OSS router and the reviewed-security
-        // router without touching the individual route modules. The SPA
-        // fallback is attached first so unmatched requests reach it while API
-        // routes always win, and the transport limits still cover it.
+        // and test entry point funnels the fully-merged router through here.
+        // The SPA fallback is attached first so unmatched requests reach it
+        // while API routes always win, and the transport limits still cover it.
         apply_transport_limits(
             spa::attach_fallback(self.router, self.spa),
             TransportLimits::production(),
@@ -1934,184 +1502,6 @@ impl ProcessingRuntime {
         )
     }
 }
-
-struct InitializedLicense {
-    verifier: license::LicenseVerifier,
-    config: Arc<license::LicenseConfigState>,
-    state: Arc<license::LicenseState>,
-    verification: license::LicenseVerification,
-}
-
-fn initialize_license_admin(
-    runtime_config: &RuntimeConfig,
-    initialized: &InitializedLicense,
-    settings: Arc<admin_settings::AdminSettingsService>,
-) -> Arc<license_admin::LicenseAdminService> {
-    Arc::new(license_admin::LicenseAdminService::new(
-        initialized.verifier.clone(),
-        Arc::clone(&initialized.config),
-        Arc::clone(&initialized.state),
-        settings,
-        runtime_config
-            .settings_path()
-            .parent()
-            .unwrap_or_else(|| Path::new("configs"))
-            .to_path_buf(),
-    ))
-}
-
-fn initialize_verified_license(
-    runtime_config: &RuntimeConfig,
-) -> Result<InitializedLicense, SecurityStartupError> {
-    let config = runtime_config.license_config();
-    let verifier = license::LicenseVerifier::production()
-        .map_err(SecurityStartupError::LicenseVerification)?;
-    let verification = verifier
-        .verify_config(&config, config.initial_max_users)
-        .map_err(SecurityStartupError::LicenseVerification)?;
-    let config = Arc::new(license::LicenseConfigState::new(config));
-    let state = Arc::new(license::LicenseState::new(verification));
-    Ok(InitializedLicense {
-        verifier,
-        config,
-        state,
-        verification,
-    })
-}
-
-fn reviewed_security_http_config(
-    runtime_config: &RuntimeConfig,
-    verified_license: license::LicenseVerification,
-) -> Result<SecurityHttpConfig, SecurityStartupError> {
-    let external_jwt = runtime_config
-        .security_supabase_jwt_config()
-        .map(SupabaseJwtVerifier::new)
-        .transpose()
-        .map_err(SecurityStartupError::ExternalJwt)?
-        .map(Arc::new);
-    Ok(SecurityHttpConfig {
-        totp_issuer: runtime_config.security_totp_issuer(),
-        invites_enabled: runtime_config.security_invites_enabled(),
-        invite_expiry_hours: runtime_config.security_invite_expiry_hours(),
-        frontend_url: runtime_config.security_frontend_url(),
-        backend_url: runtime_config.security_backend_url(),
-        audit_enabled: runtime_config.security_audit_enabled(),
-        audit_level: runtime_config.security_audit_level(),
-        audit_file_capture: crate::security_http::SecurityAuditFileCaptureConfig {
-            file_hash: runtime_config.security_audit_capture_file_hash(),
-            pdf_author: runtime_config.security_audit_capture_pdf_author(),
-        },
-        audit_capture_operation_results: runtime_config.security_audit_capture_operation_results(),
-        license_tier: verified_license.tier,
-        external_jwt,
-        oidc_login_provider: runtime_config.oidc_login_provider_config(),
-    })
-}
-
-struct PolicyRouteSettings {
-    audit: Option<PolicyAuditRecorder>,
-    readiness: runtime_config::FileReadinessConfig,
-    trigger: runtime_config::PolicyTriggerSettings,
-    stream_timeout: Duration,
-    max_upload_bytes: usize,
-    webhook_max_bytes: u64,
-    install_root: PathBuf,
-}
-
-fn attach_policy_routes(
-    runtime: &mut ProcessingRuntime,
-    policy_service: Option<Arc<policy_config::PolicyConfigService>>,
-    processed_ledger: Option<Arc<policy_ledger::ProcessedLedger>>,
-    settings: PolicyRouteSettings,
-) {
-    let (Some(policy_service), Some(processed_ledger)) = (policy_service, processed_ledger) else {
-        return;
-    };
-    let s3 = policy_s3::S3ConnectionPool::new();
-    let output_service = Arc::new(policy_outputs::PolicyOutputService::new(
-        Arc::clone(&policy_service),
-        Arc::clone(&processed_ledger),
-        s3.clone(),
-    ));
-    let execution_service = Arc::new(policy_execution::PolicyExecutionService::new(
-        Arc::clone(&policy_service),
-        runtime.pipeline_dispatcher.clone(),
-        Arc::clone(&runtime.job_manager),
-        Arc::clone(&runtime.job_queue),
-        output_service,
-        settings.audit,
-    ));
-    runtime.policy_execution = Some(Arc::clone(&execution_service));
-    let source_runner = Arc::new(policy_sources::PolicySourceRunner::new(
-        Arc::clone(&policy_service),
-        Arc::clone(&execution_service),
-        Arc::clone(&processed_ledger),
-        settings.readiness,
-        s3,
-        // Cloned because `settings.install_root` is moved into the public webhook
-        // receiver below; the runner needs it to derive per-webhook spool dirs.
-        settings.install_root.clone(),
-    ));
-    let trigger_notifier = policy_triggers::PolicyChangeNotifier::default();
-    let trigger_runtime = policy_triggers::PolicyTriggerRuntime::new(
-        Arc::clone(&policy_service),
-        Arc::clone(&source_runner),
-        settings.trigger,
-        trigger_notifier.clone(),
-    );
-    runtime.policy_trigger_runtime = Some(trigger_runtime.clone());
-    runtime.router = runtime.router.clone().merge(
-        policy_http::routes(
-            Arc::clone(&policy_service),
-            execution_service,
-            source_runner,
-            processed_ledger,
-            trigger_notifier,
-            settings.stream_timeout,
-        )
-        .layer(DefaultBodyLimit::max(settings.max_upload_bytes)),
-    );
-    // The public inbound webhook receiver is mounted OUTSIDE the shared upload
-    // body limit: it is authenticated by an HMAC signature, not a session, and
-    // enforces its own `policies.webhookMaxBytes` bound via the declared
-    // Content-Length plus a capped read (see `webhook_receiver`).
-    runtime.router = runtime.router.clone().merge(webhook_receiver::routes(
-        policy_service,
-        trigger_runtime,
-        settings.install_root,
-        settings.webhook_max_bytes,
-    ));
-}
-
-fn initialize_policy_ledger(
-    policies_enabled: bool,
-    security_store: &Arc<SecurityStore>,
-) -> Result<Option<Arc<policy_ledger::ProcessedLedger>>, SecurityStartupError> {
-    if !policies_enabled {
-        return Ok(None);
-    }
-    let ledger = Arc::new(policy_ledger::ProcessedLedger::new(Arc::clone(
-        security_store,
-    )));
-    ledger
-        .recover_interrupted(chrono::Utc::now().timestamp_millis())
-        .map_err(SecurityStartupError::Repository)?;
-    Ok(Some(ledger))
-}
-
-/// Path prefix whose requests are metered against the stricter per-IP bucket.
-/// The auth routes drive bcrypt work and account lockout, so a flood there is
-/// far more expensive than ordinary traffic and is throttled early.
-const AUTH_ROUTE_PREFIX: &str = "/api/v1/auth";
-
-/// The one route metered against its own, even stricter per-IP bucket (on POST
-/// only — the mounted method). Every successful `/authorize` mints a pending
-/// entry in the bounded OIDC login-state store (capacity 4096, 10-minute TTL),
-/// so at the generic auth rate (5/s) a couple of IPs could keep the store full
-/// and starve honest logins into its refuse-newcomer 503. Matched EXACTLY: a
-/// confusable sibling path (`…/authorizeX`) falls through to the generic auth
-/// bucket rather than borrowing this one's tighter budget.
-const OIDC_AUTHORIZE_ROUTE: &str = "/api/v1/auth/oidc/authorize";
 
 /// How many rate-limit checks pass between opportunistic prunes of the keyed
 /// state stores. Pruning drops fully-replenished per-IP entries so a flood of
@@ -2138,17 +1528,6 @@ struct TransportLimits {
     general_per_second: u32,
     /// Per-IP burst capacity for general traffic before `429`s begin.
     general_burst: u32,
-    /// Sustained per-IP request rate for the authentication routes.
-    auth_per_second: u32,
-    /// Per-IP burst capacity for authentication traffic — deliberately far
-    /// smaller so a credential-stuffing / bcrypt flood from one IP is throttled.
-    auth_burst: u32,
-    /// Sustained per-IP rate for `POST /api/v1/auth/oidc/authorize` alone.
-    oidc_authorize_per_second: u32,
-    /// Per-IP burst for that route — tighter still than the auth bucket, because
-    /// each admitted request also consumes a slot in the bounded pending-login
-    /// state store (see [`OIDC_AUTHORIZE_ROUTE`]).
-    oidc_authorize_burst: u32,
 }
 
 impl TransportLimits {
@@ -2159,32 +1538,14 @@ impl TransportLimits {
             max_concurrent_requests: 1_024,
             general_per_second: 100,
             general_burst: 400,
-            auth_per_second: 5,
-            auth_burst: 30,
-            oidc_authorize_per_second: 1,
-            oidc_authorize_burst: 10,
         }
     }
-}
-
-/// Which per-IP bucket a request is metered against. Exactly one bucket is
-/// consumed per request: the OIDC-authorize bucket *replaces* (does not stack
-/// on) the generic auth bucket for its one route, so a burst of authorize calls
-/// cannot drain the budget honest `/login` traffic from the same IP relies on,
-/// and vice versa.
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum RateLimitBucket {
-    General,
-    Auth,
-    OidcAuthorize,
 }
 
 /// Per-IP rate-limit state shared by the enforcement middleware across every
 /// cloned copy of the router service.
 struct RateLimitState {
     general: DefaultKeyedRateLimiter<IpAddr>,
-    auth: DefaultKeyedRateLimiter<IpAddr>,
-    oidc_authorize: DefaultKeyedRateLimiter<IpAddr>,
     checks_since_prune: AtomicU64,
 }
 
@@ -2195,30 +1556,17 @@ impl RateLimitState {
                 limits.general_per_second,
                 limits.general_burst,
             )),
-            auth: RateLimiter::keyed(rate_quota(limits.auth_per_second, limits.auth_burst)),
-            oidc_authorize: RateLimiter::keyed(rate_quota(
-                limits.oidc_authorize_per_second,
-                limits.oidc_authorize_burst,
-            )),
             checks_since_prune: AtomicU64::new(0),
         }
     }
 
-    /// Records one request from `ip` against `bucket` and reports whether it is
-    /// allowed.
-    fn permit(&self, ip: IpAddr, bucket: RateLimitBucket) -> bool {
+    /// Records one request from `ip` and reports whether it is allowed.
+    fn permit(&self, ip: IpAddr) -> bool {
         if self.checks_since_prune.fetch_add(1, Ordering::Relaxed) >= RATE_LIMIT_PRUNE_INTERVAL {
             self.checks_since_prune.store(0, Ordering::Relaxed);
             self.general.retain_recent();
-            self.auth.retain_recent();
-            self.oidc_authorize.retain_recent();
         }
-        let limiter = match bucket {
-            RateLimitBucket::General => &self.general,
-            RateLimitBucket::Auth => &self.auth,
-            RateLimitBucket::OidcAuthorize => &self.oidc_authorize,
-        };
-        limiter.check_key(&ip).is_ok()
+        self.general.check_key(&ip).is_ok()
     }
 }
 
@@ -2240,28 +1588,13 @@ fn client_ip(request: &Request) -> IpAddr {
         })
 }
 
-/// Selects the per-IP bucket for a request. `POST` to the exact OIDC authorize
-/// route gets its dedicated bucket; any other spelling — a different method, a
-/// confusable path like `…/authorizeX`, or a sub-path — falls through to the
-/// prefix-matched generic auth bucket like every other auth route.
-fn rate_limit_bucket(method: &Method, path: &str) -> RateLimitBucket {
-    if method == Method::POST && path == OIDC_AUTHORIZE_ROUTE {
-        RateLimitBucket::OidcAuthorize
-    } else if path.starts_with(AUTH_ROUTE_PREFIX) {
-        RateLimitBucket::Auth
-    } else {
-        RateLimitBucket::General
-    }
-}
-
 async fn enforce_rate_limits(
     State(state): State<Arc<RateLimitState>>,
     request: Request,
     next: Next,
 ) -> Response {
     let ip = client_ip(&request);
-    let bucket = rate_limit_bucket(request.method(), request.uri().path());
-    if state.permit(ip, bucket) {
+    if state.permit(ip) {
         next.run(request).await
     } else {
         (StatusCode::TOO_MANY_REQUESTS, "Too many requests").into_response()
@@ -2270,9 +1603,8 @@ async fn enforce_rate_limits(
 
 /// Wraps a fully-assembled router in the transport-level `DoS` guardrails: a
 /// per-frame body read timeout (slowloris), an overall request timeout, a
-/// process-wide concurrency cap, and per-IP rate limiting (stricter on the auth
-/// routes). Applied at [`ProcessingRuntime::into_router`] so it covers the OSS
-/// and the reviewed-security routers alike.
+/// process-wide concurrency cap, and per-IP rate limiting. Applied at
+/// [`ProcessingRuntime::into_router`] so every entry point is covered.
 fn apply_transport_limits(router: Router, limits: TransportLimits) -> Router {
     let rate_limit_state = Arc::new(RateLimitState::new(&limits));
     router
@@ -2332,22 +1664,6 @@ pub fn app_with_runtime_config(
         )
         .into_router(),
     )
-}
-
-/// Constructs an opt-in secured router for integration tests and security
-/// review. The production executable does not call this entry point yet.
-///
-/// # Errors
-///
-/// Returns an error when the durable security repository cannot start safely.
-pub fn app_with_reviewed_security(
-    max_upload_bytes: usize,
-    timestamp_settings: TimestampSettings,
-    runtime_config: RuntimeConfig,
-) -> Result<Router, SecurityStartupError> {
-    ProcessingRuntime::with_reviewed_security(max_upload_bytes, timestamp_settings, runtime_config)
-        .map(ProcessingRuntime::into_router)
-        .map(with_test_connect_info)
 }
 
 fn processing_routes() -> Router {
@@ -2437,7 +1753,6 @@ fn processing_routes() -> Router {
         .route(SCALE_PAGES_PATH, post(scale_pages))
         .route(SANITIZE_PDF_PATH, post(sanitize_pdf))
         .route(SCANNER_EFFECT_PATH, post(scanner_effect))
-        .route(SIGNATURE_IMAGE_PATH, get(shared_signature_image))
         .route(SHOW_JAVASCRIPT_PATH, post(show_javascript))
         .route(SPLIT_PATH, post(split_pages))
         .route(SPLIT_BY_SIZE_PATH, post(split_by_size_or_count))
@@ -2462,12 +1777,8 @@ fn processing_routes_with_mail(service: Option<Arc<smtp_mail::SmtpMailService>>)
 fn processing_routes_with_features(
     mail_service: Option<Arc<smtp_mail::SmtpMailService>>,
     classification_service: Arc<classification::ClassificationService>,
-    policies_enabled: bool,
 ) -> Router {
-    processing_routes_with_mail(mail_service).merge(classification::routes(
-        classification_service,
-        policies_enabled,
-    ))
+    processing_routes_with_mail(mail_service).merge(classification::routes(classification_service))
 }
 
 fn pipeline_routes() -> Router {
@@ -2506,10 +1817,6 @@ fn config_routes() -> Router {
         .route(ENDPOINTS_AVAILABILITY_PATH, get(endpoint_availability))
         .route(GROUP_ENABLED_PATH, get(group_enabled))
         .route(SETTINGS_ENDPOINT_STATUS_PATH, get(settings_endpoint_status))
-        .route(
-            SETTINGS_UPDATE_ANALYTICS_PATH,
-            post(update_enable_analytics),
-        )
 }
 
 fn mobile_scanner_routes() -> Router {
@@ -2688,19 +1995,14 @@ async fn health() -> &'static str {
 
 async fn handle_pipeline(
     Extension(dispatcher): Extension<PipelineDispatcher>,
-    auth: Option<Extension<AuthContext>>,
     multipart: Multipart,
 ) -> Result<Response, ApiError> {
     let request = pipeline::read_request(multipart)
         .await
         .map_err(pipeline::PipelineFailure::into_api_error)?;
-    let output = pipeline::run(
-        &dispatcher,
-        request,
-        auth.as_ref().map(|Extension(auth)| auth),
-    )
-    .await
-    .map_err(pipeline::PipelineFailure::into_api_error)?;
+    let output = pipeline::run(&dispatcher, request)
+        .await
+        .map_err(pipeline::PipelineFailure::into_api_error)?;
     file_response(
         output.path,
         output.temp_dir,
@@ -2763,8 +2065,7 @@ async fn submit_async_job(
     }
 
     let endpoint_path = request.uri().path().to_owned();
-    let owner = JobOwner::from_auth_context(request.extensions().get::<AuthContext>());
-    let submission = match settings.job_manager.create_job(owner) {
+    let submission = match settings.job_manager.create_job() {
         Ok(submission) => submission,
         Err(error) => {
             return (
@@ -2841,8 +2142,6 @@ fn spawn_async_job(
     request: Request,
     next: Next,
 ) {
-    let audit_context = request.extensions().get::<SecurityAuditContext>().cloned();
-    let audit_completion = audit_context.as_ref().map(SecurityAuditContext::defer);
     tokio::spawn(async move {
         let worker = async move {
             let lease = match admission.wait().await {
@@ -2875,12 +2174,7 @@ fn spawn_async_job(
                 let _ = job_manager.fail(&worker_job_id, error);
             }
         };
-        let _audit_completion = audit_completion;
-        if let Some(audit_context) = audit_context {
-            audit_context.scope(worker).await;
-        } else {
-            worker.await;
-        }
+        worker.await;
     });
 }
 
@@ -3048,7 +2342,6 @@ const ASYNC_JOB_PROCESSING_PATHS: &[&str] = &[
     SCALE_PAGES_PATH,
     SCANNER_EFFECT_PATH,
     smtp_mail::SEND_EMAIL_PATH,
-    SETTINGS_UPDATE_ANALYTICS_PATH,
     SHOW_JAVASCRIPT_PATH,
     SPLIT_BY_SIZE_PATH,
     SPLIT_CHAPTERS_PATH,
@@ -3418,13 +2711,6 @@ async fn mobile_scanner_upload(
             return ApiError::internal_at(MOBILE_SCANNER_UPLOAD_PATH, error.to_string())
                 .into_response();
         }
-        SecurityAuditContext::record_current_file_path(
-            &filename,
-            size,
-            content_type.as_deref(),
-            &path,
-        )
-        .await;
         if size == 0 {
             let _ = tokio::fs::remove_file(&path).await;
             continue;
@@ -3605,7 +2891,6 @@ fn mobile_scanner_unique_filename(filename: &str, number: u16) -> String {
 async fn app_config(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
     license_state: Option<Extension<Arc<license::LicenseState>>>,
-    storage_app_config: Option<Extension<storage::StorageAppConfig>>,
     headers: HeaderMap,
 ) -> Json<serde_json::Value> {
     let host = headers
@@ -3617,16 +2902,6 @@ async fn app_config(
     let mut config = runtime_config.app_config(host, forwarded_proto);
     if let Some(Extension(license_state)) = license_state {
         license_state.apply_to_app_config(&mut config);
-    }
-    // The storage app-config extension is layered only by the reviewed secured
-    // router, so its presence marks an authenticated deployment where login and
-    // security are active.
-    if let Some(Extension(storage_app_config)) = storage_app_config {
-        if let Some(map) = config.as_object_mut() {
-            map.insert("enableLogin".to_owned(), true.into());
-            map.insert("activeSecurity".to_owned(), true.into());
-        }
-        storage_app_config.apply_to_app_config(&mut config);
     }
     Json(config)
 }
@@ -3713,57 +2988,6 @@ async fn ui_data_sign(
     Json(ui_data::sign_data(&runtime_config))
 }
 
-async fn shared_signature_image(
-    Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
-    personal_signatures: Option<Extension<Arc<personal_signatures::PersonalSignatureService>>>,
-    auth_context: Option<Extension<AuthContext>>,
-    AxumPath(filename): AxumPath<String>,
-) -> Response {
-    if let (Some(Extension(service)), Some(Extension(context))) =
-        (personal_signatures, auth_context)
-        && let Ok(directory) = service.personal_directory(&context)
-    {
-        match signature_assets::read_signature(&directory, &filename) {
-            Ok(asset) => {
-                return ([(header::CONTENT_TYPE, asset.media_type)], asset.bytes).into_response();
-            }
-            Err(signature_assets::SignatureAssetError::NotFound) => {}
-            Err(signature_assets::SignatureAssetError::InvalidFilename) => {
-                return ApiError::bad_request_at(
-                    SIGNATURE_IMAGE_PATH,
-                    "signature filename is invalid",
-                )
-                .into_response();
-            }
-            Err(signature_assets::SignatureAssetError::Read(error)) => {
-                return ApiError::internal_at(
-                    SIGNATURE_IMAGE_PATH,
-                    format!("could not read personal signature image: {error}"),
-                )
-                .into_response();
-            }
-        }
-    }
-    match signature_assets::read_shared_signature(
-        &runtime_config.shared_signatures_dir(),
-        &filename,
-    ) {
-        Ok(asset) => ([(header::CONTENT_TYPE, asset.media_type)], asset.bytes).into_response(),
-        Err(signature_assets::SignatureAssetError::InvalidFilename) => {
-            ApiError::bad_request_at(SIGNATURE_IMAGE_PATH, "signature filename is invalid")
-                .into_response()
-        }
-        Err(signature_assets::SignatureAssetError::NotFound) => {
-            StatusCode::NOT_FOUND.into_response()
-        }
-        Err(signature_assets::SignatureAssetError::Read(error)) => ApiError::internal_at(
-            SIGNATURE_IMAGE_PATH,
-            format!("could not read shared signature image: {error}"),
-        )
-        .into_response(),
-    }
-}
-
 async fn additional_language_javascript(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
 ) -> Response {
@@ -3794,9 +3018,6 @@ async fn login_disclaimer(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
     Query(query): Query<LoginDisclaimerQuery>,
 ) -> Response {
-    if runtime_config.login_disclaimer_requires_authentication() {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
     Json(runtime_config.login_disclaimer(query.lang.as_deref())).into_response()
 }
 
@@ -3840,144 +3061,6 @@ async fn settings_endpoint_status(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
 ) -> Json<BTreeMap<String, bool>> {
     Json(runtime_config.disabled_endpoint_statuses())
-}
-
-async fn update_enable_analytics(
-    Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
-    request: Request,
-) -> Response {
-    let enabled = match read_analytics_enabled(request).await {
-        Ok(enabled) => enabled,
-        Err(error) => return error.into_response(),
-    };
-    match runtime_config.update_analytics_enabled(enabled) {
-        Ok(true) => Json(serde_json::json!({ "message": "Updated" })).into_response(),
-        Ok(false) => {
-            let message = format!(
-                "Setting has already been set, To adjust please edit {}",
-                runtime_config.settings_path().display()
-            );
-            (
-                StatusCode::ALREADY_REPORTED,
-                Json(serde_json::json!({ "message": message })),
-            )
-                .into_response()
-        }
-        Err(error) => ApiError::internal_at(SETTINGS_UPDATE_ANALYTICS_PATH, error).into_response(),
-    }
-}
-
-async fn read_analytics_enabled(request: Request) -> Result<bool, ApiError> {
-    let content_type = request
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    let value = if content_type.starts_with("multipart/form-data") {
-        read_analytics_enabled_multipart(request).await?
-    } else if content_type.starts_with("application/x-www-form-urlencoded") {
-        let bytes = to_bytes(request.into_body(), SETTINGS_FORM_LIMIT_BYTES)
-            .await
-            .map_err(|error| {
-                ApiError::bad_request_at(
-                    SETTINGS_UPDATE_ANALYTICS_PATH,
-                    format!("could not read settings form: {error}"),
-                )
-            })?;
-        record_urlencoded_form_params(&bytes);
-        read_urlencoded_field(&bytes, "enabled").ok_or_else(|| {
-            ApiError::bad_request_at(
-                SETTINGS_UPDATE_ANALYTICS_PATH,
-                "enabled parameter is required",
-            )
-        })?
-    } else {
-        return Err(ApiError::bad_request_at(
-            SETTINGS_UPDATE_ANALYTICS_PATH,
-            "enabled must be sent as multipart form data or URL-encoded form data",
-        ));
-    };
-    parse_settings_boolean(&value).ok_or_else(|| {
-        ApiError::bad_request_at(
-            SETTINGS_UPDATE_ANALYTICS_PATH,
-            "enabled must be a boolean value",
-        )
-    })
-}
-
-async fn read_analytics_enabled_multipart(request: Request) -> Result<String, ApiError> {
-    let mut multipart = Multipart::from_request(request, &())
-        .await
-        .map_err(|error| {
-            ApiError::bad_request_at(
-                SETTINGS_UPDATE_ANALYTICS_PATH,
-                format!("could not read settings form: {error}"),
-            )
-        })?;
-    loop {
-        let field = multipart.next_field().await.map_err(|error| {
-            ApiError::bad_request_at(
-                SETTINGS_UPDATE_ANALYTICS_PATH,
-                format!("could not read settings form: {error}"),
-            )
-        })?;
-        let Some(field) = field else {
-            return Err(ApiError::bad_request_at(
-                SETTINGS_UPDATE_ANALYTICS_PATH,
-                "enabled parameter is required",
-            ));
-        };
-        if field.name() != Some("enabled") {
-            continue;
-        }
-        let value = field.text().await.map_err(|error| {
-            ApiError::bad_request_at(
-                SETTINGS_UPDATE_ANALYTICS_PATH,
-                format!("could not read enabled parameter: {error}"),
-            )
-        })?;
-        SecurityAuditContext::record_current_form_param("enabled", &value);
-        return Ok(value);
-    }
-}
-
-fn record_urlencoded_form_params(bytes: &[u8]) {
-    let Ok(form) = std::str::from_utf8(bytes) else {
-        return;
-    };
-    for pair in form.split('&') {
-        let Some((key, value)) = pair.split_once('=') else {
-            continue;
-        };
-        let (Ok(key), Ok(value)) = (urlencoding::decode(key), urlencoding::decode(value)) else {
-            continue;
-        };
-        SecurityAuditContext::record_current_form_param(&key, &value);
-    }
-}
-
-fn read_urlencoded_field(bytes: &[u8], name: &str) -> Option<String> {
-    let form = std::str::from_utf8(bytes).ok()?;
-    form.split('&').find_map(|pair| {
-        let (key, value) = pair.split_once('=')?;
-        let key = urlencoding::decode(key).ok()?;
-        (key == name)
-            .then(|| {
-                urlencoding::decode(value)
-                    .ok()
-                    .map(std::borrow::Cow::into_owned)
-            })
-            .flatten()
-    })
-}
-
-fn parse_settings_boolean(value: &str) -> Option<bool> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "true" | "on" | "yes" | "1" => Some(true),
-        "false" | "off" | "no" | "0" => Some(false),
-        _ => None,
-    }
 }
 
 fn parse_endpoint_list(endpoints: Option<&str>) -> Vec<String> {
@@ -4865,7 +3948,6 @@ async fn pdf_text_editor_metadata(multipart: Multipart) -> Result<Response, ApiE
 }
 
 async fn pdf_text_editor(
-    auth_context: Option<Extension<AuthContext>>,
     Extension(job_manager): Extension<Arc<JobManager>>,
     Extension(job_queue): Extension<Arc<JobQueue>>,
     Query(query): Query<TextEditorQuery>,
@@ -4873,16 +3955,8 @@ async fn pdf_text_editor(
 ) -> Result<Response, ApiError> {
     let request = read_single_pdf_request(multipart, PDF_TEXT_EDITOR_PATH).await?;
     if query.asynchronous {
-        let owner =
-            JobOwner::from_auth_context(auth_context.as_ref().map(|extension| &extension.0));
-        return submit_pdf_text_editor_job(
-            job_manager,
-            job_queue,
-            owner,
-            request,
-            query.lightweight,
-        )
-        .await;
+        return submit_pdf_text_editor_job(job_manager, job_queue, request, query.lightweight)
+            .await;
     }
     let input_path = request.file.path;
     let filename = request.file.filename;
@@ -4906,12 +3980,11 @@ async fn pdf_text_editor(
 async fn submit_pdf_text_editor_job(
     job_manager: Arc<JobManager>,
     job_queue: Arc<JobQueue>,
-    owner: JobOwner,
     request: UploadedSinglePdfRequest,
     lightweight: bool,
 ) -> Result<Response, ApiError> {
     let submission = job_manager
-        .create_job(owner)
+        .create_job()
         .map_err(|error| ApiError::internal_at(PDF_TEXT_EDITOR_PATH, error.to_string()))?;
     let input_path = submission.directory.join("input.pdf");
     tokio::fs::copy(&request.file.path, &input_path)
@@ -4990,13 +4063,11 @@ async fn submit_pdf_text_editor_job(
 }
 
 async fn job_status(
-    auth_context: Option<Extension<AuthContext>>,
     Extension(job_manager): Extension<Arc<JobManager>>,
     Extension(job_queue): Extension<Arc<JobQueue>>,
     AxumPath(job_id): AxumPath<String>,
 ) -> Response {
-    let owner = JobOwner::from_auth_context(auth_context.as_ref().map(|extension| &extension.0));
-    match job_manager.status(owner, &job_id) {
+    match job_manager.status(&job_id) {
         Ok(Some(status)) => {
             if !status.complete
                 && let Some(position) = job_queue.position(&job_id)
@@ -5018,12 +4089,10 @@ async fn job_status(
 }
 
 async fn job_result(
-    auth_context: Option<Extension<AuthContext>>,
     Extension(job_manager): Extension<Arc<JobManager>>,
     AxumPath(job_id): AxumPath<String>,
 ) -> Response {
-    let owner = JobOwner::from_auth_context(auth_context.as_ref().map(|extension| &extension.0));
-    let status = match job_manager.status(owner, &job_id) {
+    let status = match job_manager.status(&job_id) {
         Ok(Some(status)) => status,
         Ok(None) => return StatusCode::NOT_FOUND.into_response(),
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -5034,19 +4103,17 @@ async fn job_result(
     if let Some(error) = status.error {
         return (StatusCode::BAD_REQUEST, format!("Job failed: {error}")).into_response();
     }
-    match job_manager.result_file(owner, &job_id) {
+    match job_manager.result_file(&job_id) {
         Ok(Some(file)) => job_file_response(file).await,
         Ok(None) | Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
 async fn job_result_files(
-    auth_context: Option<Extension<AuthContext>>,
     Extension(job_manager): Extension<Arc<JobManager>>,
     AxumPath(job_id): AxumPath<String>,
 ) -> Response {
-    let owner = JobOwner::from_auth_context(auth_context.as_ref().map(|extension| &extension.0));
-    let status = match job_manager.status(owner, &job_id) {
+    let status = match job_manager.status(&job_id) {
         Ok(Some(status)) => status,
         Ok(None) => return StatusCode::NOT_FOUND.into_response(),
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -5057,7 +4124,7 @@ async fn job_result_files(
     if let Some(error) = status.error {
         return (StatusCode::BAD_REQUEST, format!("Job failed: {error}")).into_response();
     }
-    match job_manager.result_files(owner, &job_id) {
+    match job_manager.result_files(&job_id) {
         Ok(Some(files)) => Json(serde_json::json!({
             "jobId": job_id,
             "fileCount": files.len(),
@@ -5069,12 +4136,10 @@ async fn job_result_files(
 }
 
 async fn job_file_metadata(
-    auth_context: Option<Extension<AuthContext>>,
     Extension(job_manager): Extension<Arc<JobManager>>,
     AxumPath(file_id): AxumPath<String>,
 ) -> Response {
-    let owner = JobOwner::from_auth_context(auth_context.as_ref().map(|extension| &extension.0));
-    match job_manager.job_file(owner, &file_id) {
+    match job_manager.job_file(&file_id) {
         Ok(Some((_, file))) => Json(file).into_response(),
         Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -5082,12 +4147,10 @@ async fn job_file_metadata(
 }
 
 async fn download_job_file(
-    auth_context: Option<Extension<AuthContext>>,
     Extension(job_manager): Extension<Arc<JobManager>>,
     AxumPath(file_id): AxumPath<String>,
 ) -> Response {
-    let owner = JobOwner::from_auth_context(auth_context.as_ref().map(|extension| &extension.0));
-    match job_manager.job_file(owner, &file_id) {
+    match job_manager.job_file(&file_id) {
         Ok(Some((_, file))) => job_file_response(file).await,
         Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -5095,19 +4158,17 @@ async fn download_job_file(
 }
 
 async fn cancel_job(
-    auth_context: Option<Extension<AuthContext>>,
     Extension(job_manager): Extension<Arc<JobManager>>,
     Extension(job_queue): Extension<Arc<JobQueue>>,
     AxumPath(job_id): AxumPath<String>,
 ) -> Response {
-    let owner = JobOwner::from_auth_context(auth_context.as_ref().map(|extension| &extension.0));
-    match job_manager.status(owner, &job_id) {
+    match job_manager.status(&job_id) {
         Ok(Some(_)) => {}
         Ok(None) => return StatusCode::NOT_FOUND.into_response(),
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
     let queue_cancellation = job_queue.cancel(&job_id);
-    match job_manager.cancel(owner, &job_id) {
+    match job_manager.cancel(&job_id) {
         Ok(CancelJob::Cancelled) => Json(serde_json::json!({
             "message": "Job cancelled successfully",
             "wasQueued": matches!(queue_cancellation, QueueCancellationResult::Waiting { .. }),
@@ -7145,7 +6206,6 @@ fn map_signature_validation_error(error: SignatureValidationError) -> ApiError {
 }
 
 async fn cert_sign_pdf(
-    server_certificate: Option<Extension<Arc<ServerCertificateService>>>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     multipart: Multipart,
 ) -> Result<Response, ApiError> {
@@ -7163,13 +6223,11 @@ async fn cert_sign_pdf(
     let input_path = file.path;
     let output_path = temp_dir.path().join("signed.pdf");
     let blocking_output_path = output_path.clone();
-    let server_certificate = server_certificate.map(|Extension(service)| service);
     task::spawn_blocking(move || {
         sign_pdf_with_uploaded_material(
             &input_path,
             &blocking_output_path,
             signing_material,
-            server_certificate.as_deref(),
             appearance,
             PdfSignatureMetadata {
                 name: name.as_deref(),
@@ -7266,7 +6324,6 @@ fn sign_pdf_with_uploaded_material(
     input_path: &Path,
     output_path: &Path,
     signing_material: UploadedSigningMaterial,
-    server_certificate: Option<&ServerCertificateService>,
     appearance: Option<UploadedSignatureAppearance>,
     metadata: PdfSignatureMetadata<'_>,
     peer_is_loopback: bool,
@@ -7311,22 +6368,6 @@ fn sign_pdf_with_uploaded_material(
                 )
             })
             .map_err(CertSignError::Hardware)?
-        }
-        UploadedSigningMaterial::ManagedServer => {
-            let service = server_certificate.ok_or(ServerCertificateError::Missing)?;
-            let signing_key = service.signing_key()?;
-            complete_pdf_signature(
-                &input,
-                output_path,
-                appearance,
-                metadata,
-                signing_key
-                    .certificate_chain()
-                    .as_der()
-                    .first()
-                    .map(Vec::as_slice),
-                |signed_bytes| Ok(signing_key.detached_cms_der(signed_bytes)?),
-            )
         }
     }
 }
@@ -7379,9 +6420,6 @@ fn map_cert_sign_error(error: CertSignError) -> ApiError {
         }
         CertSignError::Pdf(error) => ApiError::bad_request_at(CERT_SIGN_PATH, error.to_string()),
         CertSignError::Hardware(error) => {
-            ApiError::bad_request_at(CERT_SIGN_PATH, error.to_string())
-        }
-        CertSignError::ServerCertificate(error) => {
             ApiError::bad_request_at(CERT_SIGN_PATH, error.to_string())
         }
         CertSignError::Read(error) | CertSignError::Write(error) => {
@@ -9072,7 +8110,6 @@ impl CertSignForm {
                 self.alias,
             )?,
             "WINDOWS_STORE" => windows_store_signing_material(self.alias)?,
-            "SERVER" => UploadedSigningMaterial::ManagedServer,
             _ => unreachable!("certificate type was validated above"),
         };
         Ok(UploadedCertSignRequest {
@@ -9163,13 +8200,13 @@ fn validated_cert_sign_type(cert_type: Option<String>) -> Result<String, ApiErro
         .ok_or_else(|| ApiError::bad_request_at(CERT_SIGN_PATH, "certType is required"))?;
     if matches!(
         cert_type.as_str(),
-        "PEM" | "PKCS12" | "PFX" | "JKS" | "PKCS11" | "WINDOWS_STORE" | "SERVER"
+        "PEM" | "PKCS12" | "PFX" | "JKS" | "PKCS11" | "WINDOWS_STORE"
     ) {
         Ok(cert_type)
     } else {
         Err(ApiError::unsupported_at(
             CERT_SIGN_PATH,
-            "certType must be PEM, PKCS12, PFX, JKS, PKCS11, WINDOWS_STORE, or SERVER in the Rust runtime",
+            "certType must be PEM, PKCS12, PFX, JKS, PKCS11, or WINDOWS_STORE in the Rust runtime",
         ))
     }
 }
@@ -12603,8 +11640,6 @@ async fn write_field_to_file_bounded(
     api_path: &'static str,
     limit: usize,
 ) -> Result<(), ApiError> {
-    let audit_filename = safe_filename(field.file_name());
-    let audit_content_type = field.content_type().map(ToOwned::to_owned);
     let mut output = File::create(path)
         .await
         .map_err(|error| ApiError::internal_at(api_path, error.to_string()))?;
@@ -12630,13 +11665,6 @@ async fn write_field_to_file_bounded(
         .flush()
         .await
         .map_err(|error| ApiError::internal_at(api_path, error.to_string()))?;
-    SecurityAuditContext::record_current_file_path(
-        &audit_filename,
-        u64::try_from(written).unwrap_or(u64::MAX),
-        audit_content_type.as_deref(),
-        path,
-    )
-    .await;
     Ok(())
 }
 
@@ -12652,7 +11680,6 @@ async fn read_form_value_bounded(
     api_path: &'static str,
     limit: usize,
 ) -> Result<String, ApiError> {
-    let audit_name = field.name().map(ToOwned::to_owned);
     let mut value = Vec::new();
     while let Some(chunk) = field
         .chunk()
@@ -12669,9 +11696,6 @@ async fn read_form_value_bounded(
     }
     let value = String::from_utf8(value)
         .map_err(|_| ApiError::bad_request_at(api_path, "multipart form value is not UTF-8"))?;
-    if let Some(name) = audit_name {
-        SecurityAuditContext::record_current_form_param(&name, &value);
-    }
     Ok(value)
 }
 
@@ -12687,9 +11711,6 @@ async fn read_field_bytes_bounded(
     api_path: &'static str,
     limit: usize,
 ) -> Result<Vec<u8>, ApiError> {
-    let audit_filename = field.file_name().map(|name| safe_filename(Some(name)));
-    let audit_name = field.name().map(ToOwned::to_owned);
-    let audit_content_type = field.content_type().map(ToOwned::to_owned);
     let mut value = Vec::new();
     while let Some(chunk) = field
         .chunk()
@@ -12704,16 +11725,6 @@ async fn read_field_bytes_bounded(
         }
         value.extend_from_slice(&chunk);
     }
-    if let Some(filename) = audit_filename {
-        SecurityAuditContext::record_current_file_bytes(
-            &filename,
-            u64::try_from(value.len()).unwrap_or(u64::MAX),
-            audit_content_type.as_deref(),
-            &value,
-        );
-    } else if let (Some(name), Ok(value)) = (audit_name, std::str::from_utf8(&value)) {
-        SecurityAuditContext::record_current_form_param(&name, value);
-    }
     Ok(value)
 }
 
@@ -12721,25 +11732,12 @@ async fn drain_field(
     field: &mut axum::extract::multipart::Field<'_>,
     api_path: &'static str,
 ) -> Result<(), ApiError> {
-    let audit_name = if field.file_name().is_none() {
-        field.name().map(ToOwned::to_owned)
-    } else {
-        None
-    };
-    let mut audit_value = Vec::new();
-    while let Some(chunk) = field
+    while field
         .chunk()
         .await
         .map_err(|error| ApiError::bad_request_at(api_path, error.body_text()))?
-    {
-        if audit_value.len() < FORM_VALUE_LIMIT_BYTES {
-            let remaining = FORM_VALUE_LIMIT_BYTES - audit_value.len();
-            audit_value.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
-        }
-    }
-    if let (Some(name), Ok(value)) = (audit_name, std::str::from_utf8(&audit_value)) {
-        SecurityAuditContext::record_current_form_param(&name, value);
-    }
+        .is_some()
+    {}
     Ok(())
 }
 
@@ -14262,8 +13260,8 @@ mod tests {
 
     use super::smtp_mail;
     use super::{
-        DEFAULT_MAX_UPLOAD_BYTES, SETTINGS_UPDATE_ANALYTICS_PATH, TimestampSettings,
-        is_async_job_request, parse_data_size, supports_async_jobs,
+        DEFAULT_MAX_UPLOAD_BYTES, TimestampSettings, is_async_job_request, parse_data_size,
+        supports_async_jobs,
     };
     use crate::runtime_config::RuntimeConfig;
 
@@ -14311,240 +13309,59 @@ mod tests {
             .body(Body::empty())?)
     }
 
-    // FINDING #2 (DoS): an auth flood from a single IP must be throttled with
+    // FINDING #2 (DoS): a request flood from a single IP must be throttled with
     // 429 by the per-IP rate limiter applied at the router assembly boundary.
     #[tokio::test]
-    async fn auth_flood_from_one_ip_is_rate_limited() -> Result<(), Box<dyn std::error::Error>> {
+    async fn request_flood_from_one_ip_is_rate_limited() -> Result<(), Box<dyn std::error::Error>> {
         use std::time::Duration;
 
-        use axum::{Router, http::StatusCode, routing::post};
+        use axum::{Router, body::to_bytes, http::StatusCode, routing::post};
         use tower::ServiceExt as _;
 
         use super::{TransportLimits, apply_transport_limits, with_test_connect_info};
 
-        // A tiny auth bucket makes the flood boundary deterministic; general
-        // traffic is left effectively unlimited so it cannot mask the result.
+        // A tiny general bucket makes the flood boundary deterministic.
         let limits = TransportLimits {
             request_timeout: Duration::from_secs(5),
             body_read_timeout: Duration::from_secs(5),
             max_concurrent_requests: 64,
-            general_per_second: 10_000,
-            general_burst: 10_000,
-            auth_per_second: 1,
-            auth_burst: 3,
-            oidc_authorize_per_second: 10_000,
-            oidc_authorize_burst: 10_000,
+            general_per_second: 1,
+            general_burst: 3,
         };
         let app = with_test_connect_info(apply_transport_limits(
-            Router::new().route("/api/v1/auth/login", post(|| async { StatusCode::OK })),
+            Router::new().route("/api/v1/misc/echo", post(|| async { StatusCode::OK })),
             limits,
         ));
 
         let mut ok = 0_usize;
         let mut limited = 0_usize;
+        let mut last_limited_body = None;
         for _ in 0..12 {
             let request = Request::builder()
                 .method(Method::POST)
-                .uri("/api/v1/auth/login")
+                .uri("/api/v1/misc/echo")
                 .body(Body::empty())?;
-            match app.clone().oneshot(request).await?.status() {
+            let response = app.clone().oneshot(request).await?;
+            match response.status() {
                 StatusCode::OK => ok += 1,
-                StatusCode::TOO_MANY_REQUESTS => limited += 1,
+                StatusCode::TOO_MANY_REQUESTS => {
+                    limited += 1;
+                    last_limited_body = Some(to_bytes(response.into_body(), 1024).await?);
+                }
                 other => panic!("unexpected status {other}"),
             }
         }
         // The burst of 3 (plus at most one cell replenished mid-run) is admitted;
         // the rest of the flood is rejected with 429.
-        assert!(ok <= 4, "expected the auth bucket to cap admits, got {ok}");
+        assert!(ok <= 4, "expected the bucket to cap admits, got {ok}");
         assert!(
             limited >= 7,
             "expected a throttled flood, got {limited} rejects"
         );
-        Ok(())
-    }
-
-    /// Transport wiring shared by the OIDC-authorize rate-limit tests: a tiny
-    /// dedicated OIDC bucket (1/s, burst 3), a roomier-but-bounded generic auth
-    /// bucket (10/s, burst 6), and effectively unlimited general traffic, over
-    /// stub routes for the authorize route, its confusable sibling, and login.
-    fn oidc_rate_limit_app() -> axum::Router {
-        use std::time::Duration;
-
-        use axum::{Router, http::StatusCode, routing::post};
-
-        use super::{TransportLimits, apply_transport_limits, with_test_connect_info};
-
-        let limits = TransportLimits {
-            request_timeout: Duration::from_secs(5),
-            body_read_timeout: Duration::from_secs(5),
-            max_concurrent_requests: 64,
-            general_per_second: 10_000,
-            general_burst: 10_000,
-            auth_per_second: 10,
-            auth_burst: 6,
-            oidc_authorize_per_second: 1,
-            oidc_authorize_burst: 3,
-        };
-        with_test_connect_info(apply_transport_limits(
-            Router::new()
-                .route(
-                    "/api/v1/auth/oidc/authorize",
-                    post(|| async { StatusCode::OK }),
-                )
-                .route(
-                    "/api/v1/auth/oidc/authorizeX",
-                    post(|| async { StatusCode::OK }),
-                )
-                .route("/api/v1/auth/login", post(|| async { StatusCode::OK })),
-            limits,
-        ))
-    }
-
-    async fn flood(
-        app: &axum::Router,
-        path: &str,
-        requests: usize,
-    ) -> Result<(usize, usize), Box<dyn std::error::Error>> {
-        use axum::http::StatusCode;
-        use tower::ServiceExt as _;
-
-        let (mut ok, mut limited) = (0_usize, 0_usize);
-        for _ in 0..requests {
-            let request = build_request(Method::POST, path)?;
-            match app.clone().oneshot(request).await?.status() {
-                StatusCode::OK => ok += 1,
-                StatusCode::TOO_MANY_REQUESTS => limited += 1,
-                other => panic!("unexpected status {other}"),
-            }
-        }
-        Ok((ok, limited))
-    }
-
-    // (a) A flood of POST /api/v1/auth/oidc/authorize from one IP is throttled
-    // by the dedicated bucket — after its small burst, the rest are 429s.
-    #[tokio::test]
-    async fn oidc_authorize_flood_from_one_ip_is_rate_limited()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = oidc_rate_limit_app();
-        let (ok, limited) = flood(&app, "/api/v1/auth/oidc/authorize", 12).await?;
-        // The burst of 3 (plus at most one cell replenished mid-run) is
-        // admitted; the rest of the flood is rejected.
-        assert!(
-            ok <= 4,
-            "expected the dedicated bucket to cap admits, got {ok}"
-        );
-        assert!(
-            limited >= 7,
-            "expected a throttled authorize flood, got {limited} rejects"
-        );
-        Ok(())
-    }
-
-    // (b) The buckets are independent in both directions: exhausting the
-    // dedicated authorize bucket leaves the generic auth budget for /login
-    // untouched, and exhausting the auth bucket leaves authorize's budget
-    // untouched — one bucket per request, never both.
-    #[tokio::test]
-    async fn the_oidc_authorize_and_generic_auth_buckets_are_independent()
-    -> Result<(), Box<dyn std::error::Error>> {
-        // Direction one: flood authorize into 429s, then login still has its
-        // full burst of 6 available.
-        let app = oidc_rate_limit_app();
-        let (_, limited) = flood(&app, "/api/v1/auth/oidc/authorize", 12).await?;
-        assert!(limited >= 7, "authorize flood should have been throttled");
-        let (login_ok, login_limited) = flood(&app, "/api/v1/auth/login", 6).await?;
         assert_eq!(
-            (login_ok, login_limited),
-            (6, 0),
-            "the authorize flood must not have consumed the generic auth budget"
-        );
-
-        // Direction two (fresh app = fresh buckets): drain the auth bucket via
-        // /login, then authorize still has its full burst of 3 available.
-        let app = oidc_rate_limit_app();
-        let (_, limited) = flood(&app, "/api/v1/auth/login", 12).await?;
-        assert!(limited >= 5, "login flood should have been throttled");
-        let (authorize_ok, authorize_limited) =
-            flood(&app, "/api/v1/auth/oidc/authorize", 3).await?;
-        assert_eq!(
-            (authorize_ok, authorize_limited),
-            (3, 0),
-            "the login flood must not have consumed the authorize budget"
-        );
-        Ok(())
-    }
-
-    // (c) A confusable sibling path must NOT ride the dedicated bucket: it is
-    // metered against the generic auth bucket (admitting the auth burst of 6,
-    // beyond the dedicated bucket's burst of 3, before throttling).
-    #[tokio::test]
-    async fn a_confusable_authorize_path_falls_to_the_generic_auth_bucket()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let app = oidc_rate_limit_app();
-        let (ok, limited) = flood(&app, "/api/v1/auth/oidc/authorizeX", 12).await?;
-        assert!(
-            ok >= 6,
-            "the confusable path must get the auth bucket's larger burst, got {ok} admits"
-        );
-        assert!(
-            limited >= 5,
-            "the confusable path is still auth traffic and must throttle, got {limited} rejects"
-        );
-        Ok(())
-    }
-
-    // (d) The dedicated bucket's rejection is byte-identical to the existing
-    // rate-limit response: 429 with the plain "Too many requests" body.
-    #[tokio::test]
-    async fn the_oidc_authorize_429_matches_the_existing_rate_limit_shape()
-    -> Result<(), Box<dyn std::error::Error>> {
-        use axum::{body::to_bytes, http::StatusCode};
-        use tower::ServiceExt as _;
-
-        let app = oidc_rate_limit_app();
-        let (_, limited) = flood(&app, "/api/v1/auth/oidc/authorize", 12).await?;
-        assert!(limited >= 7, "the flood should have produced 429s");
-        let response = app
-            .oneshot(build_request(Method::POST, "/api/v1/auth/oidc/authorize")?)
-            .await?;
-        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
-        let body = to_bytes(response.into_body(), 1024).await?;
-        assert_eq!(&body[..], b"Too many requests");
-        Ok(())
-    }
-
-    // (e) The exact-match bucket selection cannot be sidestepped by a
-    // percent-encoded spelling: axum routes on the RAW (undecoded) path — the
-    // same string `rate_limit_bucket` compares — so `%61uthorize` neither
-    // borrows the dedicated bucket nor reaches the authorize handler on the
-    // looser generic auth budget. This pins the raw-path-matching assumption
-    // the exact-match design rests on.
-    #[tokio::test]
-    async fn a_percent_encoded_authorize_spelling_cannot_reach_the_handler_on_the_auth_bucket()
-    -> Result<(), Box<dyn std::error::Error>> {
-        use axum::http::StatusCode;
-        use tower::ServiceExt as _;
-
-        let app = oidc_rate_limit_app();
-        // Well past the dedicated bucket's burst of 3: every request is
-        // admitted by the roomier auth bucket (proving it is NOT metered
-        // against the dedicated bucket) yet none routes to the handler.
-        for _ in 0..4 {
-            let request = build_request(Method::POST, "/api/v1/auth/oidc/%61uthorize")?;
-            let status = app.clone().oneshot(request).await?.status();
-            assert_eq!(
-                status,
-                StatusCode::NOT_FOUND,
-                "an encoded spelling must not route to the authorize handler"
-            );
-        }
-        // The dedicated bucket is untouched: the exact spelling still has its
-        // full burst of 3 available.
-        let (ok, limited) = flood(&app, "/api/v1/auth/oidc/authorize", 3).await?;
-        assert_eq!(
-            (ok, limited),
-            (3, 0),
-            "the encoded flood must not have consumed the dedicated budget"
+            last_limited_body.as_deref(),
+            Some(&b"Too many requests"[..]),
+            "the 429 body must keep the documented plain-text shape"
         );
         Ok(())
     }
@@ -14568,10 +13385,6 @@ mod tests {
             max_concurrent_requests: 64,
             general_per_second: 10_000,
             general_burst: 10_000,
-            auth_per_second: 10_000,
-            auth_burst: 10_000,
-            oidc_authorize_per_second: 10_000,
-            oidc_authorize_burst: 10_000,
         };
         let app = with_test_connect_info(apply_transport_limits(
             Router::new()
@@ -14598,10 +13411,9 @@ mod tests {
     }
 
     #[test]
-    fn analytics_and_send_email_paths_are_async_capable() {
-        // @AutoJobPostMapping parity: both handlers sit behind submit_async_job,
-        // so the allowlist must recognise them as async-capable.
-        assert!(supports_async_jobs(SETTINGS_UPDATE_ANALYTICS_PATH));
+    fn send_email_path_is_async_capable() {
+        // @AutoJobPostMapping parity: the handler sits behind submit_async_job,
+        // so the allowlist must recognise it as async-capable.
         assert!(supports_async_jobs(smtp_mail::SEND_EMAIL_PATH));
     }
 
@@ -14615,17 +13427,15 @@ mod tests {
     }
 
     #[test]
-    fn async_post_is_recognised_for_analytics_and_send_email()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn async_post_is_recognised_for_send_email() -> Result<(), Box<dyn std::error::Error>> {
         // Content-type-agnostic: the wrapper keys off method + path + ?async=true,
         // regardless of whether the POST body is form-encoded or JSON.
-        for path in [SETTINGS_UPDATE_ANALYTICS_PATH, smtp_mail::SEND_EMAIL_PATH] {
-            let request = build_request(Method::POST, format!("{path}?async=true"))?;
-            assert!(
-                is_async_job_request(&request),
-                "expected async recognition for {path}",
-            );
-        }
+        let path = smtp_mail::SEND_EMAIL_PATH;
+        let request = build_request(Method::POST, format!("{path}?async=true"))?;
+        assert!(
+            is_async_job_request(&request),
+            "expected async recognition for {path}",
+        );
         Ok(())
     }
 
@@ -14633,7 +13443,7 @@ mod tests {
     fn missing_async_flag_or_wrong_method_is_not_an_async_job()
     -> Result<(), Box<dyn std::error::Error>> {
         // No async flag -> synchronous, even on an allowlisted path.
-        let sync_post = build_request(Method::POST, SETTINGS_UPDATE_ANALYTICS_PATH)?;
+        let sync_post = build_request(Method::POST, smtp_mail::SEND_EMAIL_PATH)?;
         assert!(!is_async_job_request(&sync_post));
 
         // async=false is explicitly not async.
@@ -14646,7 +13456,7 @@ mod tests {
         // GET is never an async job, even with the flag set.
         let get = build_request(
             Method::GET,
-            format!("{SETTINGS_UPDATE_ANALYTICS_PATH}?async=true"),
+            format!("{}?async=true", smtp_mail::SEND_EMAIL_PATH),
         )?;
         assert!(!is_async_job_request(&get));
         Ok(())

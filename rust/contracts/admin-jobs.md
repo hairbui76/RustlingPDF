@@ -17,15 +17,12 @@ user-facing job API these administrate).
 | `GET` | `/api/v1/admin/job/queue/stats` | `AdminJobController.getQueueStats` | Queue counters: `queuedJobs`, `queueCapacity`, `runningJobs`, `resourceBudget`, `availableResourceUnits`, `totalQueuedJobs`, `rejectedJobs`, `resourceStatus` (`"BOUNDED"`). |
 | `POST` | `/api/v1/admin/job/cleanup` | `AdminJobController.cleanupOldJobs` | `{ "message": "Cleanup complete", "removedJobs": n, "remainingJobs": n }` after expiring completed jobs past their retention window. |
 
-## Auth gating
+## Access
 
-In secured mode `security_policy::is_administrator_path` matches every
-`/api/v1/admin/` path, so all three require `ROLE_ADMIN` — matching Java's
-class- and method-level `@PreAuthorize("hasRole('ADMIN')")`. Non-admin
-sessions receive `403`, unauthenticated callers `401`. The routes are part of
-the general (OSS) route set, so in the unsecured open-mode runtime they are
-reachable without authentication, mirroring Java's behavior when security is
-disabled.
+The product has no authentication or roles: the routes are part of the open
+route set and are reachable by any caller, mirroring Java's behavior when
+security is disabled. The `/admin/` path segment is retained only for wire
+compatibility with the Java API.
 
 ## Behavior and parity notes
 
@@ -42,11 +39,8 @@ disabled.
 
 ## Verification
 
-Administrator gating is covered by the secured-router tests in
-`security_http.rs` (`/api/v1/admin/job/stats` succeeds for an admin token and
-`/api/v1/admin/job/queue/stats` is denied for a non-admin token) and by the
-policy matrix in `security_policy.rs` tests. `job_manager.rs` `mod tests`
-covers stats derivation and expiry/cleanup behavior.
+`job_manager.rs` `mod tests` covers stats derivation and expiry/cleanup
+behavior.
 
 ## Open questions
 

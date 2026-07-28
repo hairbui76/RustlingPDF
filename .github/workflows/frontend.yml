@@ -61,7 +61,7 @@ jobs:
         run: npm ci
 
       # Typecheck the core flavor — the same flavor built below. The remaining
-      # flavors (proprietary/saas/desktop/cloud/portal) are covered by
+      # flavors (proprietary/desktop) are covered by
       # `task frontend:typecheck:all` in the full local gate.
       - name: Typecheck (core flavor)
         run: task frontend:typecheck:core

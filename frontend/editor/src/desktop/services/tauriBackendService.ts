@@ -150,30 +150,7 @@ export class TauriBackendService {
     }
   }
 
-  /**
-   * Initialize health monitoring for an external server (server mode)
-   * Does not start bundled backend, but enables health checks.
-   * Also discovers the local bundled backend port so it can be used as a fallback
-   * when the self-hosted server is offline.
-   */
-  async initializeExternalBackend(): Promise<void> {
-    if (this.backendStarted) {
-      return;
-    }
-
-    this.backendStarted = true; // Mark as active for health checks
-    this.setStatus("starting");
-    this.beginHealthMonitoring();
-
-    // Discover the local bundled backend port in the background.
-    // The Rust side always starts the local backend, so we can poll for its port
-    // even in self-hosted mode. This allows local fallback when the server is offline.
-    // Best-effort: when the local backend never starts, the bounded poll times
-    // out and local fallback simply stays unavailable.
-    void this.waitForPort().catch(() => {});
-  }
-
-  async startBackend(backendUrl?: string): Promise<void> {
+  async startBackend(): Promise<void> {
     if (this.backendStarted) {
       return;
     }
@@ -186,7 +163,7 @@ export class TauriBackendService {
 
     this.setStatus("starting");
 
-    this.startPromise = invoke("start_backend", { backendUrl })
+    this.startPromise = invoke("start_backend")
       .then(async () => {
         this.backendStarted = true;
         this.setStatus("starting");

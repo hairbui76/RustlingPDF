@@ -1,4 +1,3 @@
-use crate::state::connection_state::{AppConnectionState, ConnectionMode};
 use crate::utils::{add_log, app_data_dir};
 use std::path::{Path, PathBuf};
 use std::{
@@ -522,33 +521,8 @@ fn monitor_backend_output(
 
 // Command to start the bundled Rust processing backend.
 #[tauri::command]
-pub async fn start_backend(
-    app: tauri::AppHandle,
-    connection_state: tauri::State<'_, AppConnectionState>,
-) -> Result<String, String> {
+pub async fn start_backend(app: tauri::AppHandle) -> Result<String, String> {
     add_log("🚀 start_backend() called - starting the bundled Rust backend...".to_string());
-
-    // Check connection mode
-    let mode = {
-        let state = connection_state.0.lock().map_err(|e| {
-            let error_msg = format!("❌ Failed to access connection state: {}", e);
-            add_log(error_msg.clone());
-            error_msg
-        })?;
-        state.mode.clone()
-    };
-
-    match mode {
-        ConnectionMode::SaaS => {
-            add_log("☁️ Running in SaaS mode - starting local backend".to_string());
-        }
-        ConnectionMode::SelfHosted => {
-            add_log("🌐 Running in Self-Hosted mode - starting local backend (for hybrid execution support)".to_string());
-        }
-        ConnectionMode::Local => {
-            add_log("💻 Running in Local-only mode - starting local backend".to_string());
-        }
-    }
 
     // Check if backend is already running or starting
     if let Err(msg) = check_backend_status() {

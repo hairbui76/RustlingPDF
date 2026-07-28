@@ -9,7 +9,7 @@
 
 import type { Page } from "@playwright/test";
 import { test, expect } from "@app/tests/helpers/test-base";
-import { loginAndSetup } from "@app/tests/helpers/login";
+import { openAppAndSetup } from "@app/tests/helpers/appSetup";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -29,10 +29,8 @@ test.beforeEach(() => {
 });
 
 async function setupApp(page: Page): Promise<void> {
-  // Use the shared login helper (real UI login with the bootstrapped
-  // `admin / adminadmin` credentials). The previous bespoke /api/v1/auth/login
-  // call used the pre-bootstrap `stirling` password and always 401'd.
-  await loginAndSetup(page);
+  // Shared open-mode setup: home page with consent/onboarding pre-dismissed.
+  await openAppAndSetup(page);
   await page.waitForSelector('[data-testid="watchedFolders-button"]', {
     timeout: 30000,
   });

@@ -1,21 +1,18 @@
 //! Best-effort push of admin-configured AI settings to the engine.
 //!
 //! Port of Java `AiEngineConfigSync`: the processor pushes the engine-relevant
-//! `aiEngine.*` configuration (models, RAG, limits) to the engine's
-//! `POST /api/v1/config` on startup and after each successful bulk admin
-//! settings save, so model/RAG/limit changes apply without an engine restart.
-//! Pushes are strictly serialized (each carries the full configuration and the
-//! engine keeps whatever lands last), never block startup, and give up quietly
-//! when the engine is down — the engine then keeps running its environment
-//! configuration until the next restart.
+//! `aiEngine.*` configuration (models, limits) to the engine's
+//! `POST /api/v1/config` on startup, so model/limit changes apply without an
+//! engine restart. Pushes are strictly serialized (each carries the full
+//! configuration and the engine keeps whatever lands last), never block
+//! startup, and give up quietly when the engine is down — the engine then
+//! keeps running its environment configuration until the next restart. The
+//! historic `rag` section is gone: retrieval settings died with the document
+//! store / PDF question-answer feature.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::OnceLock,
-    time::Duration,
-};
+use std::{collections::BTreeSet, sync::OnceLock, time::Duration};
 
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use crate::runtime_config::{AiEnginePushSettings, RuntimeConfig};
@@ -32,8 +29,6 @@ const RETRY_DELAY: Duration = Duration::from_secs(3);
 const DEFAULT_MODEL_PROVIDER: &str = "anthropic";
 const DEFAULT_SMART_MODEL: &str = "claude-haiku-4-5";
 const DEFAULT_FAST_MODEL: &str = "claude-haiku-4-5";
-const DEFAULT_EMBEDDING_PROVIDER: &str = "voyageai";
-const DEFAULT_EMBEDDING_MODEL: &str = "voyage-4";
 
 const MODEL_IDENTITY_KEYS: &[&str] = &[
     "aiEngine.models.provider",
@@ -41,13 +36,6 @@ const MODEL_IDENTITY_KEYS: &[&str] = &[
     "aiEngine.models.fastModel",
     "aiEngine.models.apiKey",
     "aiEngine.models.baseUrl",
-];
-
-const RAG_IDENTITY_KEYS: &[&str] = &[
-    "aiEngine.rag.embeddingProvider",
-    "aiEngine.rag.embeddingModel",
-    "aiEngine.rag.embeddingApiKey",
-    "aiEngine.rag.embeddingBaseUrl",
 ];
 
 /// One queued push: the full JSON body plus how many delivery attempts it gets.
@@ -128,36 +116,6 @@ impl AiEngineConfigSync {
         self.submit(PushJob {
             body: node.to_string(),
             attempts: MAX_STARTUP_ATTEMPTS,
-        });
-    }
-
-    /// Pushes engine-relevant pending settings after an admin save so changes
-    /// apply without a restart, mirroring Java `pushLiveAfterSave`. No-op
-    /// unless AI is enabled and an engine-relevant `aiEngine.*` key changed.
-    pub(crate) fn push_live_after_save(&self, pending_ai_engine: &BTreeMap<String, Value>) {
-        // The save already persisted; a build/dispatch failure must not fail it.
-        if pending_ai_engine.is_empty()
-            || !self.settings.push_config_to_engine
-            || !self.settings.enabled
-        {
-            return;
-        }
-        let engine_keys: BTreeSet<String> = pending_ai_engine
-            .keys()
-            .filter(|key| is_engine_relevant_key(key))
-            .cloned()
-            .collect();
-        if engine_keys.is_empty() {
-            return;
-        }
-        let mut node = build_config_node(&self.settings);
-        for (key, value) in pending_ai_engine {
-            overlay_if_engine_relevant(&mut node, key, value);
-        }
-        keep_env_for_unconfigured_identity(&mut node, &engine_keys);
-        self.submit(PushJob {
-            body: node.to_string(),
-            attempts: 1,
         });
     }
 
@@ -247,13 +205,6 @@ async fn post_config(
     }
 }
 
-/// Only models/rag/limits reach the engine; the rest is processor-side.
-fn is_engine_relevant_key(key: &str) -> bool {
-    key.starts_with("aiEngine.models.")
-        || key.starts_with("aiEngine.rag.")
-        || key.starts_with("aiEngine.limits.")
-}
-
 /// The full engine payload from the live configuration, mirroring Java
 /// `buildConfigNode` (camelCase spellings match the engine's wire contract).
 fn build_config_node(settings: &AiEnginePushSettings) -> Value {
@@ -267,56 +218,12 @@ fn build_config_node(settings: &AiEnginePushSettings) -> Value {
             "apiKey": settings.models.api_key,
             "baseUrl": settings.models.base_url,
         },
-        "rag": {
-            "embeddingProvider": settings.rag.embedding_provider,
-            "embeddingModel": settings.rag.embedding_model,
-            "embeddingApiKey": settings.rag.embedding_api_key,
-            "embeddingBaseUrl": settings.rag.embedding_base_url,
-            "topK": settings.rag.top_k,
-            "maxSearches": settings.rag.max_searches,
-        },
         "limits": {
             "maxPages": settings.limits.max_pages,
             "maxCharacters": settings.limits.max_characters,
             "modelMaxConcurrency": settings.limits.model_max_concurrency,
         },
     })
-}
-
-/// Overlays one pending settings key onto the payload, mirroring Java
-/// `overlayIfEngineRelevant`: non-engine keys are ignored, and a key without a
-/// leaf under its section would overwrite the whole section, so it is skipped.
-fn overlay_if_engine_relevant(node: &mut Value, key: &str, value: &Value) {
-    if !is_engine_relevant_key(key) {
-        return;
-    }
-    let Some(path) = key.strip_prefix("aiEngine.") else {
-        return;
-    };
-    let parts: Vec<&str> = path.split('.').collect();
-    let Some((leaf, parents)) = parts.split_last() else {
-        return;
-    };
-    if parents.is_empty() {
-        return;
-    }
-    let mut current = node;
-    for part in parents {
-        let Some(map) = current.as_object_mut() else {
-            return;
-        };
-        let child = map
-            .entry((*part).to_owned())
-            .or_insert_with(|| Value::Object(Map::new()));
-        if !child.is_object() {
-            // Java putObject replaces a non-object child with a fresh object.
-            *child = Value::Object(Map::new());
-        }
-        current = child;
-    }
-    if let Some(map) = current.as_object_mut() {
-        map.insert((*leaf).to_owned(), value.clone());
-    }
 }
 
 fn text(section: &Value, field: &str) -> String {
@@ -342,9 +249,10 @@ fn blank_fields(section: &mut Value, fields: &[&str]) {
     }
 }
 
-/// Blanks the identity (provider/model/credentials) of unconfigured sections so
-/// the push keeps the engine's env values; edited sections are sent as-is so a
-/// cleared key really clears. Mirrors Java `keepEnvForUnconfiguredIdentity`.
+/// Blanks the identity (provider/model/credentials) of an unconfigured models
+/// section so the push keeps the engine's env values; edited sections are sent
+/// as-is so a cleared key really clears. Mirrors Java
+/// `keepEnvForUnconfiguredIdentity`.
 fn keep_env_for_unconfigured_identity(root: &mut Value, touched_keys: &BTreeSet<String>) {
     if let Some(models) = root.get_mut("models").filter(|value| value.is_object()) {
         let configured = touched_identity(touched_keys, MODEL_IDENTITY_KEYS)
@@ -357,24 +265,6 @@ fn keep_env_for_unconfigured_identity(root: &mut Value, touched_keys: &BTreeSet<
             blank_fields(
                 models,
                 &["provider", "smartModel", "fastModel", "apiKey", "baseUrl"],
-            );
-        }
-    }
-    if let Some(rag) = root.get_mut("rag").filter(|value| value.is_object()) {
-        let configured = touched_identity(touched_keys, RAG_IDENTITY_KEYS)
-            || !text(rag, "embeddingApiKey").trim().is_empty()
-            || !text(rag, "embeddingBaseUrl").trim().is_empty()
-            || text(rag, "embeddingProvider") != DEFAULT_EMBEDDING_PROVIDER
-            || text(rag, "embeddingModel") != DEFAULT_EMBEDDING_MODEL;
-        if !configured {
-            blank_fields(
-                rag,
-                &[
-                    "embeddingProvider",
-                    "embeddingModel",
-                    "embeddingApiKey",
-                    "embeddingBaseUrl",
-                ],
             );
         }
     }
@@ -434,16 +324,13 @@ pub(crate) mod test_support {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{BTreeMap, BTreeSet},
-        time::Duration,
-    };
+    use std::{collections::BTreeSet, time::Duration};
 
     use serde_json::{Value, json};
 
     use super::{
         AiEngineConfigSync, build_config_node, keep_env_for_unconfigured_identity,
-        overlay_if_engine_relevant, test_support::start_engine_stub,
+        test_support::start_engine_stub,
     };
     use crate::runtime_config::AiEnginePushSettings;
 
@@ -472,20 +359,8 @@ mod tests {
         ] {
             assert!(models.contains_key(key), "models.{key} missing");
         }
-        let rag = node
-            .get("rag")
-            .and_then(Value::as_object)
-            .ok_or("rag section")?;
-        for key in [
-            "embeddingProvider",
-            "embeddingModel",
-            "embeddingApiKey",
-            "embeddingBaseUrl",
-            "topK",
-            "maxSearches",
-        ] {
-            assert!(rag.contains_key(key), "rag.{key} missing");
-        }
+        // The removed retrieval settings must no longer be pushed.
+        assert!(node.get("rag").is_none(), "rag section should be gone");
         let limits = node
             .get("limits")
             .and_then(Value::as_object)
@@ -506,17 +381,8 @@ mod tests {
         for key in ["provider", "smartModel", "fastModel", "apiKey", "baseUrl"] {
             assert_eq!(node["models"][key], json!(""), "models.{key}");
         }
-        for key in [
-            "embeddingProvider",
-            "embeddingModel",
-            "embeddingApiKey",
-            "embeddingBaseUrl",
-        ] {
-            assert_eq!(node["rag"][key], json!(""), "rag.{key}");
-        }
         // Non-identity values keep their concrete defaults.
         assert_eq!(node["models"]["smartMaxTokens"], json!(8_192));
-        assert_eq!(node["rag"]["topK"], json!(20));
     }
 
     #[test]
@@ -528,8 +394,6 @@ mod tests {
         keep_env_for_unconfigured_identity(&mut node, &BTreeSet::new());
         assert_eq!(node["models"]["provider"], json!("anthropic"));
         assert_eq!(node["models"]["apiKey"], json!("sk-live"));
-        // Untouched rag section still defers to env.
-        assert_eq!(node["rag"]["embeddingProvider"], json!(""));
 
         // Touching an identity key keeps the section even at default values,
         // so an admin's explicit clear really clears.
@@ -537,25 +401,6 @@ mod tests {
         let touched = BTreeSet::from(["aiEngine.models.apiKey".to_owned()]);
         keep_env_for_unconfigured_identity(&mut node, &touched);
         assert_eq!(node["models"]["provider"], json!("anthropic"));
-        assert_eq!(node["rag"]["embeddingModel"], json!(""));
-    }
-
-    #[test]
-    fn overlay_applies_only_engine_relevant_leaves() {
-        let mut node = build_config_node(&default_settings());
-        overlay_if_engine_relevant(
-            &mut node,
-            "aiEngine.models.smartModel",
-            &json!("gpt-5-mini"),
-        );
-        overlay_if_engine_relevant(&mut node, "aiEngine.limits.maxPages", &json!(64));
-        // Non-engine keys and section-level keys are ignored.
-        overlay_if_engine_relevant(&mut node, "aiEngine.url", &json!("http://elsewhere"));
-        overlay_if_engine_relevant(&mut node, "system.enableAnalytics", &json!(true));
-        assert_eq!(node["models"]["smartModel"], json!("gpt-5-mini"));
-        assert_eq!(node["limits"]["maxPages"], json!(64));
-        assert!(node.get("url").is_none());
-        assert!(node.get("system").is_none());
     }
 
     #[tokio::test]
@@ -587,43 +432,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn live_push_overlays_pending_values_and_skips_irrelevant_saves()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let (address, mut received) = start_engine_stub(0).await?;
-        let sync = AiEngineConfigSync::new(
-            default_settings(),
-            format!("http://{address}"),
-            Duration::from_secs(5),
-            None,
-            Duration::from_millis(20),
-        );
-
-        // Only processor-side keys changed: nothing is pushed.
-        sync.push_live_after_save(&BTreeMap::from([(
-            "aiEngine.url".to_owned(),
-            json!("http://other:5001"),
-        )]));
-
-        sync.push_live_after_save(&BTreeMap::from([
-            ("aiEngine.models.apiKey".to_owned(), json!("sk-new")),
-            ("aiEngine.limits.maxPages".to_owned(), json!(33)),
-        ]));
-        let recorded = tokio::time::timeout(Duration::from_secs(10), received.recv())
-            .await?
-            .ok_or("stub records the push")?;
-        assert_eq!(recorded.body["models"]["apiKey"], json!("sk-new"));
-        assert_eq!(recorded.body["limits"]["maxPages"], json!(33));
-        // Touched models identity is sent concretely; untouched rag stays blank.
-        assert_eq!(recorded.body["models"]["provider"], json!("anthropic"));
-        assert_eq!(recorded.body["rag"]["embeddingProvider"], json!(""));
-        assert!(
-            received.try_recv().is_err(),
-            "the engine-irrelevant save must not have produced a push"
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn disabled_engine_or_push_flag_suppresses_all_pushes()
     -> Result<(), Box<dyn std::error::Error>> {
         let (address, mut received) = start_engine_stub(0).await?;
@@ -648,10 +456,6 @@ mod tests {
             Duration::from_millis(10),
         );
         sync.push_on_startup();
-        sync.push_live_after_save(&BTreeMap::from([(
-            "aiEngine.models.apiKey".to_owned(),
-            json!("sk"),
-        )]));
 
         tokio::time::sleep(Duration::from_millis(150)).await;
         assert!(received.try_recv().is_err());

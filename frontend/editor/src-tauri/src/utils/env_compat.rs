@@ -7,7 +7,7 @@
 //! itself — the sidecar inherits the launcher environment and warns once at
 //! its own startup.
 
-use std::env::{self, VarError};
+use std::env;
 use std::ffi::OsString;
 
 const PRIMARY_PREFIX: &str = "RUSTLING_";
@@ -20,20 +20,9 @@ fn legacy_alias(name: &str) -> Option<String> {
         .map(|suffix| format!("{LEGACY_PREFIX}{suffix}"))
 }
 
-/// [`std::env::var`] with the legacy-alias fallback: a `RUSTLING_*` name that
-/// is not present in the environment is retried under its `STIRLING_*`
+/// [`std::env::var_os`] with the legacy-alias fallback: a `RUSTLING_*` name
+/// that is not present in the environment is retried under its `STIRLING_*`
 /// spelling.
-pub fn var(name: &str) -> Result<String, VarError> {
-    match env::var(name) {
-        Err(VarError::NotPresent) => match legacy_alias(name) {
-            Some(alias) => env::var(alias),
-            None => Err(VarError::NotPresent),
-        },
-        primary => primary,
-    }
-}
-
-/// [`std::env::var_os`] with the same legacy-alias fallback as [`var`].
 pub fn var_os(name: &str) -> Option<OsString> {
     env::var_os(name).or_else(|| legacy_alias(name).and_then(env::var_os))
 }

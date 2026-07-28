@@ -1,5 +1,5 @@
 import { test, expect } from "@app/tests/helpers/test-base";
-import { loginAndSetup } from "@app/tests/helpers/login";
+import { openAppAndSetup } from "@app/tests/helpers/appSetup";
 import { runToolAndWaitForReview } from "@app/tests/helpers/ui-helpers";
 import * as path from "path";
 import * as fs from "fs";
@@ -26,9 +26,8 @@ import {
  *   7. Loads the produced PDF with pdf-lib and verifies it actually
  *      contains the new attachment / new bookmark.
  *
- * Requires a real Spring Boot backend on :8080 - registered under the
- * `live` Playwright project. The `live-setup` project bootstraps the
- * admin user before this runs.
+ * Requires a real backend on :8080 - registered under the `live`
+ * Playwright project.
  */
 
 function fixture(filename: string): string {
@@ -76,7 +75,7 @@ test.describe("Viewer sidebar add buttons - real PDF round-trip", () => {
   test.describe.configure({ timeout: 180_000 });
 
   test.beforeEach(async ({ page }) => {
-    await loginAndSetup(page);
+    await openAppAndSetup(page);
   });
 
   test("Add attachment from viewer sidebar embeds the chosen file in the produced PDF", async ({

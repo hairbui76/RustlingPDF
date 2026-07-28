@@ -21,27 +21,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     rustling_processing::env_compat::warn_once_on_legacy_environment();
     desktop_settings::initialize_from_environment()?;
     let bootstrap_config = RuntimeConfig::from_environment();
-    if bootstrap_config.security_mode_is_requested()? {
-        return Err(std::io::Error::other(
-            "secured login mode is not supported by the Rust runtime yet; refusing to start without authentication and authorization middleware",
-        )
-        .into());
-    }
-    // Persist the install identity (Java `InitialSetup`): a stable UUID and
-    // machine key in AutomaticallyGenerated.* plus the running app version.
-    // Unlike Java this is fail-open — a read-only settings file only costs
-    // identity stability across restarts, never startup.
-    match bootstrap_config.initialize_generated_identity() {
-        Ok(identity) => info!(
+    // Legacy login/MCP/server-state settings are ignored, never refused: the
+    // bundled desktop template still ships `security.enableLogin: true` on
+    // existing installs and a hard failure would brick them on upgrade.
+    bootstrap_config.warn_on_ignored_legacy_settings();
+    // Install identity (Java `InitialSetup`): a UUID and machine key in
+    // AutomaticallyGenerated.* plus the running app version. Only the desktop
+    // sidecar persists it into its own local settings.yml (fail-open there);
+    // the server deployment is stateless and resolves it in memory per boot.
+    if desktop_settings::tauri_mode_active() {
+        match bootstrap_config.initialize_generated_identity() {
+            Ok(identity) => info!(
+                uuid = %identity.uuid,
+                app_version = %identity.app_version,
+                is_new_server = identity.is_new_server,
+                "install identity ready"
+            ),
+            Err(error) => tracing::warn!(
+                %error,
+                "could not persist the generated install identity; continuing with an ephemeral one"
+            ),
+        }
+    } else {
+        let identity = bootstrap_config.ephemeral_generated_identity();
+        info!(
             uuid = %identity.uuid,
             app_version = %identity.app_version,
             is_new_server = identity.is_new_server,
-            "install identity ready"
-        ),
-        Err(error) => tracing::warn!(
-            %error,
-            "could not persist the generated install identity; continuing with an ephemeral one"
-        ),
+            "install identity ready (in-memory)"
+        );
     }
     let parent_process = parent_process::ParentProcessWatcher::from_environment()?;
 
@@ -51,19 +59,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let runtime = ProcessingRuntime::from_environment_with_dependency_discovery(
         max_upload_bytes_from_environment(),
     );
-    runtime.spawn_pipeline_directory_watcher();
-    runtime.spawn_policy_triggers();
-    // Periodic license re-verification (Java LicenseKeyChecker parity). The
-    // open runtime carries no license state, so this is a no-op until secured
-    // mode ships; the desktop sidecar shares this same entry point.
-    let license_refresh_active = runtime.spawn_license_refresh();
     // Background maintenance loops ported from the Java @Scheduled tasks plus
     // the one-shot startup sweep of crash-abandoned temp artifacts.
     let maintenance_loops = runtime.spawn_background_maintenance();
-    info!(
-        license_refresh_active,
-        maintenance_loops, "spawned background maintenance"
-    );
+    info!(maintenance_loops, "spawned background maintenance");
     info!(%address, "starting RustlingPDF processing service");
     // Desktop discovers an ephemeral sidecar port from this stable handshake.
     // It must not depend on RUST_LOG: EnvFilter defaults to ERROR when that

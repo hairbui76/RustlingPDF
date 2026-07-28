@@ -18,9 +18,7 @@ import { useSignature } from "@app/contexts/SignatureContext";
 import { useFileContext } from "@app/contexts/FileContext";
 import { useViewer } from "@app/contexts/ViewerContext";
 import { flattenSignatures } from "@app/utils/signatureFlattening";
-import SharedSigningLauncher from "@app/components/shared/signing/SharedSigningLauncher";
 import { SuggestedToolsSection } from "@app/components/tools/shared/SuggestedToolsSection";
-import { useGroupSigningEnabled } from "@app/hooks/useGroupSigningEnabled";
 
 export type StampToolConfig = {
   toolId: ToolId;
@@ -29,7 +27,6 @@ export type StampToolConfig = {
   defaultSignatureSource?: SignatureSource;
   defaultSignatureType?: SignParameters["signatureType"];
   enableApplyAction?: boolean;
-  enableSharedSigning?: boolean;
 };
 
 const STAMP_TOOL_DEFAULT_SOURCES: SignatureSource[] = [
@@ -47,7 +44,6 @@ export const createStampTool = (config: StampToolConfig) => {
     defaultSignatureSource,
     defaultSignatureType,
     enableApplyAction = false,
-    enableSharedSigning = false,
   } = config;
 
   const StampTool = (props: BaseToolProps) => {
@@ -81,7 +77,6 @@ export const createStampTool = (config: StampToolConfig) => {
       activeFileIndex,
       setActiveFileIndex,
     } = useViewer();
-    const groupSigningEnabled = useGroupSigningEnabled();
     const base = useBaseTool(
       toolId,
       useSignParameters,
@@ -255,16 +250,6 @@ export const createStampTool = (config: StampToolConfig) => {
             />
           ),
         });
-
-        // Optional step: send the document to others to sign instead.
-        if (enableSharedSigning && groupSigningEnabled) {
-          steps.push({
-            title: translateTool("sharedSigningRequest", "Request signatures"),
-            isCollapsed: false,
-            onCollapsedClick: undefined,
-            content: <SharedSigningLauncher />,
-          });
-        }
       }
 
       return steps;

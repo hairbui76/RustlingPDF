@@ -1,19 +1,12 @@
 // Classification override of the Files-sidebar grouping seam: Recent, one group
 // per visible category, then Other. Labels cache onto stubs via a lazy backfill.
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { useIndexedDB } from "@app/contexts/IndexedDBContext";
 import { useClassificationEnabled } from "@app/hooks/useClassificationEnabled";
 import { fileStorage } from "@app/services/fileStorage";
 import { readStubClassificationLabels } from "@app/services/fileClassification";
-import { hasInFlightPolicyRuns } from "@app/components/policies/policyRunStore";
 import {
   getSidebarCategories,
   subscribeSidebarCategories,
@@ -35,8 +28,6 @@ export { FileSidebarGroupControls } from "@app/components/shared/FileSidebarGrou
 
 /** Files read per effect pass, so a big library backfills over several ticks. */
 const BACKFILL_BATCH = 3;
-/** Recheck delay when the backfill yields to an active policy wave. */
-const BACKFILL_BUSY_RETRY_MS = 4000;
 
 export function useFileSidebarGroups(
   stubs: StirlingFileStub[],
@@ -49,11 +40,9 @@ export function useFileSidebarGroups(
   const attempted = useRef<Set<string>>(new Set());
   const attemptKey = (s: StirlingFileStub) =>
     `${s.id as string}:${s.lastModified ?? 0}`;
-  // Bumped to re-attempt a backfill pass that yielded to an active policy wave.
-  const [retryTick, setRetryTick] = useState(0);
 
-  // Backfill labels from file metadata onto stubs, a few per idle pass; yields
-  // while a policy wave is in flight. The heuristic path stamps stubs directly.
+  // Backfill labels from file metadata onto stubs, a few per idle pass.
+  // The heuristic path stamps stubs directly.
   useEffect(() => {
     if (!enabled) return;
     const pending = stubs
@@ -63,17 +52,8 @@ export function useFileSidebarGroups(
       .slice(0, BACKFILL_BATCH);
     if (pending.length === 0) return;
     let cancelled = false;
-    let retryTimer: number | undefined;
     const cancelIdle = scheduleIdle(() => {
       if (cancelled) return;
-      // Reading during a wave is wasted parsing; recheck after it. The timer
-      // self-heals when a wave ends without a stubs change.
-      if (hasInFlightPolicyRuns()) {
-        retryTimer = window.setTimeout(() => {
-          if (!cancelled) setRetryTick((n) => n + 1);
-        }, BACKFILL_BUSY_RETRY_MS);
-        return;
-      }
       void (async () => {
         let wrote = false;
         for (const stub of pending) {
@@ -94,9 +74,8 @@ export function useFileSidebarGroups(
     return () => {
       cancelled = true;
       cancelIdle();
-      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [enabled, stubs, bumpRevision, retryTick]);
+  }, [enabled, stubs, bumpRevision]);
 
   const categories = useSyncExternalStore(
     subscribeSidebarCategories,

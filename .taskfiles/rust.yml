@@ -30,8 +30,6 @@ tasks:
       AIENGINE_URL: '{{.AIENGINE_URL | default "http://localhost:5001"}}'
       AIENGINE_ENABLED: '{{.AIENGINE_ENABLED | default "false"}}'
       AIENGINE_TIMEOUTSECONDS: '{{.AIENGINE_TIMEOUTSECONDS | default "120"}}'
-      SECURITY_ENABLELOGIN: '{{.SECURITY_ENABLELOGIN | default "false"}}'
-      POLICIES_ENABLED: '{{.POLICIES_ENABLED | default "false"}}'
     env:
       RUSTLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
       RUSTLING_HOST: '{{.HOST}}'
@@ -40,8 +38,6 @@ tasks:
       AIENGINE_URL: '{{.AIENGINE_URL}}'
       AIENGINE_ENABLED: '{{.AIENGINE_ENABLED}}'
       AIENGINE_TIMEOUTSECONDS: '{{.AIENGINE_TIMEOUTSECONDS}}'
-      SECURITY_ENABLELOGIN: '{{.SECURITY_ENABLELOGIN}}'
-      POLICIES_ENABLED: '{{.POLICIES_ENABLED}}'
     cmds:
       - cargo run -p rustling-processing --locked
 
@@ -50,12 +46,6 @@ tasks:
     deps: [clean:deps]
     cmds:
       - cargo run -p rustling-ai-engine --bin rustling-ai-engine
-
-  ai-engine:migrate:
-    desc: "Migrate legacy AI-engine document data to Rust storage"
-    deps: [clean:deps]
-    cmds:
-      - cargo run -p rustling-ai-engine --bin migrate-sqlite-vec -- {{.CLI_ARGS}}
 
   build:
     desc: "Build Rust components"

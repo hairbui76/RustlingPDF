@@ -1,9 +1,11 @@
 # RustlingPDF
 
 A locally hosted PDF toolbox with a **pure-Rust backend**: one `axum` service
-serving 340+ PDF-processing REST endpoints (merge, split, convert, OCR, forms,
+serving 160+ PDF-processing REST endpoints (merge, split, convert, OCR, forms,
 redaction, signing, pipelines, async jobs, …), an optional Rust AI engine, and a
-React single-page UI.
+React single-page UI. The server keeps **no accounts and no server-side state**:
+every request is self-contained, results are ephemeral (TTL-swept scratch
+space), and all user preferences live client-side.
 
 RustlingPDF is an independent tool **based on [Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF)**.
 It began as a full Java→Rust port of Stirling-PDF's Spring Boot backend, verified
@@ -18,16 +20,18 @@ or run time. See [LICENSE](LICENSE) for upstream attribution.
 | Path | What it is |
 |---|---|
 | `rust/crates/rustling-processing` | The backend: axum HTTP service mirroring the `/api/v1/...` REST surface |
-| `rust/crates/rustling-ai-engine` | Optional AI engine (classification, PDF Q&A, document creation, orchestration, MCP) |
+| `rust/crates/rustling-ai-engine` | Optional AI engine (classification, PDF edit/review/create agents, math audit, orchestration) |
 | `rust/crates/rustling-operation-catalog` | Generates the typed operation catalog from the OpenAPI snapshot |
 | `rust/contracts/` | Per-surface behavior contracts (routes, semantics, documented divergences) |
 | `frontend/editor` | Vite + React + TypeScript + Mantine SPA |
 | `SwaggerDoc.json` | Frozen OpenAPI snapshot used for catalog regeneration |
 
-Internal names (crate names, `STIRLING_*` environment variables, `stirling.*`
-config keys) intentionally retain their upstream spellings for now so existing
-deployments, contracts, and tests keep working; a coordinated rename is a
-tracked roadmap item.
+The coordinated `Stirling` → `Rustling` rename has been executed: crates are
+`rustling-*` and `RUSTLING_*` is the primary env-var spelling (legacy
+`STIRLING_*` spellings keep working as deprecated aliases). A few identifiers
+deliberately keep the old spelling for continuity with shipped releases —
+the Tauri bundle identifier, desktop app-data directory, persisted storage
+keys, and `X-Stirling-*` wire headers.
 
 ## Quick start
 
@@ -53,13 +57,16 @@ Full operator guide, ports/binding, configuration and environment reference:
 
 ## Status
 
-- **Open mode (no login) is the supported way to run today.** The secured mode
-  (login/users/teams/OIDC/MFA/audit/storage/signing) is fully implemented and
-  extensively tested behind an opt-in review gate, but the binary deliberately
-  refuses to start with `SECURITY_ENABLELOGIN=true` until an independent human
-  security review signs off (fail-closed, including malformed values).
-- Test suite: 1535 + 144 backend tests, 0 failed (plus 1647 frontend vitest
-  and an 11-test desktop-shell gate).
+- **The product has no authentication and no server-side state — by design.**
+  The former opt-in secured mode (login/users/teams/OIDC/MFA/audit/durable
+  storage/policies/MCP) was removed entirely by maintainer decision on
+  2026-07-28; legacy `security.*`/`mcp.*`/`storage.*`/`policies.*` settings
+  keys are ignored with a one-line startup warning, never refused, so
+  existing configs and desktop installs keep booting. PDF *document* security
+  (password, redaction, sanitize, watermark, cert-sign + hardware signing,
+  timestamping, signature validation) is unaffected.
+- Test suite: 931 backend tests (809 processing + 115 AI engine + 7 catalog),
+  0 failed (plus 1051 frontend vitest and a 10-test desktop-shell gate).
 - The authoritative feature/parity ledger is
   [`rust/PORT_STATUS.md`](rust/PORT_STATUS.md); per-surface details live in
   [`rust/contracts/`](rust/contracts/).
@@ -70,11 +77,12 @@ The detailed, living plan — current batch, queue, deferred items with unblock
 conditions, and session hand-off instructions — is in [ROADMAP.md](ROADMAP.md).
 Headlines: GitHub CI, single-binary SPA serving, Docker packaging, the
 tag-driven GHCR release pipeline, and the Tauri Rust-sidecar desktop port have
-landed, and the coordinated `Stirling` → `Rustling` product rename has been
+landed; the coordinated `Stirling` → `Rustling` product rename has been
 executed (crates, env-var spellings with back-compat aliases, UI branding,
-startup handshake); next up are desktop release completion (updater signing +
-Windows staging) and the independent security review that unlocks secured
-mode.
+startup handshake); and the no-auth/stateless-server decision has been
+executed (auth subsystem, server-side state, MCP, and the AI PDF Q&A store
+all removed). Next up is desktop release completion (updater signing +
+Windows staging).
 
 ## Relationship to Stirling-PDF
 

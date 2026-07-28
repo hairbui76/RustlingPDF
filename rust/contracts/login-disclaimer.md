@@ -7,10 +7,8 @@ Rust compatibility contract for Java's `LoginDisclaimerController`.
 - Optional query parameter `lang` selects a locale.
 - A successful response is JSON with `enabled`, `showInAnonymousMode`, `content`,
   and `format: "markdown"`.
-- With `security.enableLogin: true`, Rust returns `401 Unauthorized` before
-  reading the agreement. The Rust authentication implementation is still a
-  separate migration track, so this avoids serving a post-login-only document to
-  an unauthenticated caller.
+- The legacy `security.enableLogin` key is ignored (authentication was removed
+  from the product); the agreement is always served openly.
 - All responses include `Cache-Control: private, no-store` through the shared
   API interceptor.
 
@@ -37,5 +35,5 @@ precedence.
 ## Verification
 
 HTTP tests cover requested/base-locale resolution, disabled agreements,
-oversized file and path-like locale rejection, unauthenticated login-configured
-operation, and the API cache policy.
+oversized file and path-like locale rejection, the ignored legacy
+`security.enableLogin` key, and the API cache policy.
