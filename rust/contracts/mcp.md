@@ -305,7 +305,7 @@ operation at all consult the AI capability manifest.
 
 `stirling_upload` (`{file: <base64>, fileName?}`) and `stirling_download`
 (`{fileId: <id>}`) store and retrieve a caller's own files. Both are implemented entirely
-in terms of the existing owner-scoped [`JobManager`](../crates/stirling-processing/src/job_manager.rs):
+in terms of the existing owner-scoped [`JobManager`](../crates/rustling-processing/src/job_manager.rs):
 an upload is a synthetic job whose single output is the stored file, so it gets the same
 private directory, `fileId` allocation, and result-TTL expiry as any real operation's
 result. There is no separate storage mechanism, no new ownership model, and no change to

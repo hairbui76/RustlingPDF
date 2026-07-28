@@ -4,15 +4,15 @@ This workspace is the backend of RustlingPDF: a pure-Rust port of the upstream
 Stirling-PDF Java backend, retaining the existing browser UI and its REST
 contract. It contains three crates:
 
-- **`stirling-processing`** — the axum HTTP service mirroring the upstream
+- **`rustling-processing`** — the axum HTTP service mirroring the upstream
   `/api/v1/...` surface: the PDF-operation routes (merge/split/convert/security/
   forms/redaction/…), configuration and UI-data endpoints, pipelines and
   watched folders, async jobs, and — inside an opt-in reviewed secured router —
   accounts, storage, collaborative signing, audit, policies, and MCP.
-- **`stirling-ai-engine`** — the Rust port of upstream Stirling-PDF's Python AI
+- **`rustling-ai-engine`** — the Rust port of upstream Stirling-PDF's Python AI
   engine (classification, PDF questions, document creation, math audit,
   orchestration).
-- **`stirling-operation-catalog`** — generates the typed operation catalog from
+- **`rustling-operation-catalog`** — generates the typed operation catalog from
   the frozen `SwaggerDoc.json` OpenAPI snapshot at the repo root
   (`task engine:tool-models`).
 

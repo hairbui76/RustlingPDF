@@ -6,7 +6,7 @@ Rust compatibility contract for the two Microsoft Purview label steps. Ported fr
 `PdfSensitivityLabels` pair (Java `SensitivityLabel` / `PdfSensitivityLabels`, with the
 15 `PdfSensitivityLabelsTest` cases — including save→reload round-trips — ported).
 
-Lives in `crates/stirling-processing/src/purview.rs` (settings + label read/write) and
+Lives in `crates/rustling-processing/src/purview.rs` (settings + label read/write) and
 `purview_http.rs` (the HTTP boundary). Both routes are mounted **only** in the opt-in
 reviewed secured router, like the rest of the proprietary surface; production secure-mode
 startup remains fail-closed pending independent security review.

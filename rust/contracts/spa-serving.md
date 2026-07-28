@@ -3,7 +3,7 @@
 Rust compatibility contract for serving the built React SPA directly from the
 processing binary, porting the Java `ReactRoutingController` and the
 `WebMvcConfig` static-resource pipeline. Implemented in
-`crates/stirling-processing/src/spa.rs` as a config-gated router fallback.
+`crates/rustling-processing/src/spa.rs` as a config-gated router fallback.
 
 ## Gate
 
@@ -114,13 +114,13 @@ GET-only path — documented, not ported).
 
 ## Tests
 
-- `crates/stirling-processing/tests/spa_serving_endpoint.rs` — synthetic-dist
+- `crates/rustling-processing/tests/spa_serving_endpoint.rs` — synthetic-dist
   integration suite: inertness when unset, index transformation, deep links,
   API/`/health`/`/robots.txt` precedence, cache tiers and MIME types,
   precompressed negotiation, `304` revalidation, traversal/encoded-traversal/
   symlink attacks, directory requests, forward-exclusion quirks, non-GET
   methods, missing-index fallback page, `customFiles/static/index.html`
   override.
-- `crates/stirling-processing/src/spa.rs` unit tests — path sanitizer,
+- `crates/rustling-processing/src/spa.rs` unit tests — path sanitizer,
   classifier, cache tiers, index transformation, `Accept-Encoding`
   negotiation, MIME table, and the desktop-mode `/mobile-scanner` variants.

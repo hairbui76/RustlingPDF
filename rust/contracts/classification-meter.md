@@ -14,7 +14,7 @@ the audit vocabulary with the labels/classify surface.
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/policies/classify/meter` | `ClassificationMeterController.meterClassification` | `202 Accepted`, empty body. |
 
-Implemented in `rust/crates/stirling-processing/src/policy_http.rs`
+Implemented in `rust/crates/rustling-processing/src/policy_http.rs`
 (`classify_meter`). The route is part of the policy router, so it exists only
 when policies are enabled (`policies.enabled` / `POLICIES_ENABLED`); in
 secured mode it requires an authenticated caller like the rest of the policy

@@ -19,7 +19,7 @@ bounded in-memory PowerShell/.NET bridge that keeps CSP/CNG keys in their provid
 keys are generated as RSA-2048/SHA-256 certificates or imported from strictly parsed PKCS#12/PFX,
 then re-wrapped under a random server-held password; the service and its administration routes are
 mounted only behind the opt-in secured router.
-The `stirling_processing::signing_key` boundary keeps request-private key bytes
+The `rustling_processing::signing_key` boundary keeps request-private key bytes
 opaque and zeroized where supported. The route lacks policy validation, a
 public compatibility suite, and security review, so it must not be represented
 as production-ready PAdES support.

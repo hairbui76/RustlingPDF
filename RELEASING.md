@@ -16,7 +16,7 @@ canonical version.
   the release workflow's guard by design — the pipeline publishes exact
   releases only, and pre-release tags must never overwrite the `latest`
   image tags.
-- `rust/VERSION` is the single source of truth: `stirling-processing`'s
+- `rust/VERSION` is the single source of truth: `rustling-processing`'s
   `build.rs` derives the served application version from it at compile time.
 
 ## Version-bump checklist
@@ -29,8 +29,8 @@ may drift; the content anchors are stable):
 |---|------|----------------|
 | 1 | `rust/VERSION` | The canonical version (single line, e.g. `2.14.2`). |
 | 2 | `frontend/editor/src-tauri/tauri.conf.json` | The `"version"` field (line 5). The release workflow cross-checks this against `rust/VERSION` and fails on mismatch. |
-| 3 | `rust/crates/stirling-processing/src/runtime_metrics.rs` | Test literal in `preserves_java_version_and_metric_filters`: `assert_eq!(application_version(), "2.14.2")` (~line 289). |
-| 4 | `rust/crates/stirling-processing/tests/info_endpoints.rs` | Test literal: `assert_eq!(status_json["version"], "2.14.2")` (~line 28). |
+| 3 | `rust/crates/rustling-processing/src/runtime_metrics.rs` | Test literal in `preserves_java_version_and_metric_filters`: `assert_eq!(application_version(), "2.14.2")` (~line 289). |
+| 4 | `rust/crates/rustling-processing/tests/info_endpoints.rs` | Test literal: `assert_eq!(status_json["version"], "2.14.2")` (~line 28). |
 | 5 | `frontend/editor/src/core/testing/serverExperienceSimulations.ts` | Fixture: `appVersion: "2.14.2"` in `BASE_NO_LOGIN_CONFIG` (~line 41). |
 | 6 | `frontend/editor/src/proprietary/testing/serverExperienceSimulations.ts` | Fixture: `appVersion: "2.14.2"` in `BASE_NO_LOGIN_CONFIG` (~line 51). |
 

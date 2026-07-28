@@ -43,19 +43,19 @@ tasks:
       SECURITY_ENABLELOGIN: '{{.SECURITY_ENABLELOGIN}}'
       POLICIES_ENABLED: '{{.POLICIES_ENABLED}}'
     cmds:
-      - cargo run -p stirling-processing --locked
+      - cargo run -p rustling-processing --locked
 
   ai-engine:run:
     desc: "Run the Rust AI engine"
     deps: [clean:deps]
     cmds:
-      - cargo run -p stirling-ai-engine --bin stirling-ai-engine
+      - cargo run -p rustling-ai-engine --bin rustling-ai-engine
 
   ai-engine:migrate:
     desc: "Migrate legacy AI-engine document data to Rust storage"
     deps: [clean:deps]
     cmds:
-      - cargo run -p stirling-ai-engine --bin migrate-sqlite-vec -- {{.CLI_ARGS}}
+      - cargo run -p rustling-ai-engine --bin migrate-sqlite-vec -- {{.CLI_ARGS}}
 
   build:
     desc: "Build Rust components"

@@ -1,6 +1,6 @@
 # Rust AI Engine Foundation Contract
 
-`stirling-ai-engine` owns the Rust process boundary and the current Python
+`rustling-ai-engine` owns the Rust process boundary and the current Python
 engine's HTTP agent surface. It binds to `127.0.0.1:5001` by default.
 `STIRLING_ENGINE_HOST` accepts an explicit IPv4 or IPv6 address and
 `STIRLING_ENGINE_PORT` accepts a port from `0` through `65535`; port `0` selects
@@ -64,7 +64,7 @@ Python-manifest capabilities: PDF question, PDF edit, agent draft, agent
 revision, both math-audit rounds, PDF comments, and agent next-action. The
 document-classifier route remains outside the MCP agent manifest. The public
 Math Auditor workflow is owned by
-`stirling-processing` at `POST /api/v1/ai/tools/math-auditor-agent`, which
+`rustling-processing` at `POST /api/v1/ai/tools/math-auditor-agent`, which
 retains the PDF and calls these two engine rounds; see
 `math-auditor-agent.md`.
 
@@ -92,7 +92,7 @@ empty response. Invalid client contracts return `422`.
 The route is published as the `pdf-comment-generate` MCP capability, matching
 the Python manifest. The separate public multipart PDF annotation workflow is
 owned by
-`stirling-processing` at `POST /api/v1/ai/tools/pdf-comment-agent`: it extracts
+`rustling-processing` at `POST /api/v1/ai/tools/pdf-comment-agent`: it extracts
 bounded PDFium text chunks, calls this engine route, resolves returned IDs
 locally, and writes PDF annotations. It remains a processing API rather than an
 engine capability. See `pdf-comment-agent.md` for the public contract.
@@ -150,7 +150,7 @@ Stop the Python engine and back up its database before migration. For a Rust
 SQLite destination:
 
 ```shell
-cargo run -p stirling-ai-engine --bin migrate-sqlite-vec --locked -- \
+cargo run -p rustling-ai-engine --bin migrate-sqlite-vec --locked -- \
   --source /data/python-rag.db \
   --target-sqlite /data/rust-rag.db \
   --model voyageai:voyage-4
@@ -311,7 +311,7 @@ agent capability either.
 
 ## Operational runtime
 
-All Task entry points run `stirling-ai-engine`: `task engine:dev`,
+All Task entry points run `rustling-ai-engine`: `task engine:dev`,
 `engine:run`, `engine:test`, and `engine:check`. Consequently `task dev:all`
 starts the Rust engine process and configures the processing backend's AI
 proxy with its selected port. (The former Python commands and the `engine/`
@@ -333,7 +333,7 @@ roadmap item and the description above is the reference shape for it.
 
 `task engine:tool-models` reads the committed `SwaggerDoc.json` OpenAPI
 snapshot at the repository root directly through the typed Rust
-`stirling-operation-catalog` generator and updates the compile-time
+`rustling-operation-catalog` generator and updates the compile-time
 `operation_catalog.json` without Python. The generator preserves the former
 endpoint allow/exclude rules, camel-case acronym aliases, optional
 field/default behavior, and transitive component schemas. (The parallel Python
@@ -349,7 +349,7 @@ substitute for verifying a deployment's PostgreSQL credentials, extension
 permissions and certificate chain.
 
 The provider-independent document-classifier contract is ported in
-`stirling_ai_engine::document_classifier`: request validation, bounded first/last
+`rustling_ai_engine::document_classifier`: request validation, bounded first/last
 page selection, prompt construction, provider-neutral structured-output agent,
 and caller-vocabulary output validation. `POST /api/v1/documents/classify` is
 available through the Anthropic Messages adapter when
@@ -364,7 +364,7 @@ invalid/missing provider configuration returns `503`; provider failures return
 `app_with_classifier` remains the explicit seam for provider adapters beyond
 Anthropic, OpenAI-compatible gateways, and Ollama.
 
-Provider adapters implement `stirling_ai_engine::structured_output`, which
+Provider adapters implement `rustling_ai_engine::structured_output`, which
 forces a named schema, tool, or function and returns only its JSON object to the
 agent. The classifier, ledger auditor, PDF comment agent, and PDF question
 synthesizer use that seam. Anthropic, OpenAI-compatible, and Ollama adapters all

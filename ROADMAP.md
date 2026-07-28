@@ -11,8 +11,8 @@ lands or the queue changes.
   upstream checkout (if present at `../Stirling-PDF`) is a read-only reference
   oracle only.
 - `main` — full quality gate green after batch 4:
-  `cargo fmt`/`clippy -D warnings` clean, **stirling-processing 1535 passed /
-  0 failed** (1 ignored), **stirling-ai-engine 144 / 0**; Tauri desktop-shell
+  `cargo fmt`/`clippy -D warnings` clean, **rustling-processing 1535 passed /
+  0 failed** (1 ignored), **rustling-ai-engine 144 / 0**; Tauri desktop-shell
   gate (containerized webkit build: fmt/clippy/tests) **11 / 0**; frontend
   typecheck/eslint clean, **1647 vitest passed**, `vite build` (core) succeeds;
   actionlint clean; `latest.json` composer fixture suite **21/21**. (The

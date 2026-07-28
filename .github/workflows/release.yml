@@ -7,7 +7,7 @@ name: Release
 #
 # Trigger contract: push a tag `v<version>` where `<version>` is exactly the
 # contents of rust/VERSION (the canonical version source, consumed by
-# stirling-processing's build.rs). The verify-version job fail-fasts when the
+# rustling-processing's build.rs). The verify-version job fail-fasts when the
 # tag and the versioned files disagree — including suffixed tags like
 # v2.14.2-rc1, which are rejected on purpose: this pipeline only publishes
 # exact releases, and RELEASING.md documents the full bump checklist.

@@ -3,7 +3,7 @@
 Rust compatibility contract for upstream Stirling-PDF's collaborative signing
 sessions: Java `SigningSessionController` and `WorkflowParticipantController`
 (upstream `app/proprietary/.../workflow/controller/`). The Rust surface lives in
-`rust/crates/stirling-processing/src/workflow_signing_http.rs` (19 route
+`rust/crates/rustling-processing/src/workflow_signing_http.rs` (19 route
 paths: 13 owner, 6 participant) backed by `workflow_signing.rs`
 (`WorkflowSigningService`). The single-shot, non-collaborative
 `POST /api/v1/security/cert-sign` route is a separate surface documented in

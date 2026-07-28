@@ -2,10 +2,10 @@
 # RustlingPDF container image.
 #
 # Targets (see docs in rust/RUNNING_WITH_RUST.md, "Docker" section):
-#   default (runtime)  — the full self-hosted image: stirling-processing release
+#   default (runtime)  — the full self-hosted image: rustling-processing release
 #                        binary + baked-in SPA dist + PDFium + the external
 #                        conversion tools, serving everything on :8080.
-#   ai-engine          — a slim optional sidecar with only the stirling-ai-engine
+#   ai-engine          — a slim optional sidecar with only the rustling-ai-engine
 #                        binary (AI features), serving on :5001. Built from the
 #                        same Dockerfile so the two share one Rust build stage:
 #                        `docker build --target ai-engine -f docker/Dockerfile .`
@@ -50,10 +50,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/build/rust/target,sharing=locked \
     cd rust \
     && cargo build --release --locked \
-         -p stirling-processing --bin stirling-processing \
-         -p stirling-ai-engine --bin stirling-ai-engine \
-    && install -D -m 0755 target/release/stirling-processing /out/stirling-processing \
-    && install -D -m 0755 target/release/stirling-ai-engine  /out/stirling-ai-engine
+         -p rustling-processing --bin rustling-processing \
+         -p rustling-ai-engine --bin rustling-ai-engine \
+    && install -D -m 0755 target/release/rustling-processing /out/rustling-processing \
+    && install -D -m 0755 target/release/rustling-ai-engine  /out/rustling-ai-engine
 
 ########################################################################
 # Stage 2: Frontend production build (Vite, proprietary flavor)
@@ -107,7 +107,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin stirling \
     && mkdir -p /data && chown stirling:stirling /data
 
-COPY --from=rust-build --chown=root:root /out/stirling-ai-engine /app/stirling-ai-engine
+COPY --from=rust-build --chown=root:root /out/rustling-ai-engine /app/rustling-ai-engine
 
 ENV STIRLING_ENGINE_HOST=0.0.0.0 \
     STIRLING_ENGINE_PORT=5001 \
@@ -135,7 +135,7 @@ WORKDIR /app
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=5 \
   CMD curl -fs --max-time 5 http://localhost:5001/health || exit 1
 
-ENTRYPOINT ["tini", "--", "/app/stirling-ai-engine"]
+ENTRYPOINT ["tini", "--", "/app/rustling-ai-engine"]
 
 ########################################################################
 # Final stage (default target): the RustlingPDF runtime image
@@ -178,7 +178,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p /data/configs && chown -R stirling:stirling /data
 
 # Application binary, PDFium, and the baked-in SPA dist.
-COPY --from=rust-build --chown=root:root /out/stirling-processing /app/stirling-processing
+COPY --from=rust-build --chown=root:root /out/rustling-processing /app/rustling-processing
 COPY --from=pdfium     --chown=root:root /build/.pdfium/current/  /app/pdfium/
 COPY --from=frontend-build --chown=root:root /build/frontend/editor/dist/ /app/frontend/
 
@@ -219,4 +219,4 @@ WORKDIR /app
 HEALTHCHECK --interval=30s --timeout=15s --start-period=15s --retries=5 \
   CMD curl -fs --max-time 10 http://localhost:8080/api/v1/info/status || exit 1
 
-ENTRYPOINT ["tini", "--", "/app/stirling-processing"]
+ENTRYPOINT ["tini", "--", "/app/rustling-processing"]

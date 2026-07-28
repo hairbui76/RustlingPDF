@@ -17,9 +17,9 @@ or run time. See [LICENSE](LICENSE) for upstream attribution.
 
 | Path | What it is |
 |---|---|
-| `rust/crates/stirling-processing` | The backend: axum HTTP service mirroring the `/api/v1/...` REST surface |
-| `rust/crates/stirling-ai-engine` | Optional AI engine (classification, PDF Q&A, document creation, orchestration, MCP) |
-| `rust/crates/stirling-operation-catalog` | Generates the typed operation catalog from the OpenAPI snapshot |
+| `rust/crates/rustling-processing` | The backend: axum HTTP service mirroring the `/api/v1/...` REST surface |
+| `rust/crates/rustling-ai-engine` | Optional AI engine (classification, PDF Q&A, document creation, orchestration, MCP) |
+| `rust/crates/rustling-operation-catalog` | Generates the typed operation catalog from the OpenAPI snapshot |
 | `rust/contracts/` | Per-surface behavior contracts (routes, semantics, documented divergences) |
 | `frontend/editor` | Vite + React + TypeScript + Mantine SPA |
 | `SwaggerDoc.json` | Frozen OpenAPI snapshot used for catalog regeneration |

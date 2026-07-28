@@ -46,7 +46,7 @@ filters plus fmt/clippy) for the processing backend.
 
 ## Backend architecture (rust/)
 
-- `rust/crates/stirling-processing` — the axum HTTP service. Routes mirror the
+- `rust/crates/rustling-processing` — the axum HTTP service. Routes mirror the
   `/api/v1/...` REST surface the SPA calls. Configuration comes from
   `configs/settings.yml` under `STIRLING_BASE_PATH` plus `SYSTEM_*`/`SECURITY_*`/
   `STIRLING_*` env overrides. PDFium is the native processing engine
@@ -62,10 +62,10 @@ filters plus fmt/clippy) for the processing backend.
   endpoint's behavior, update its contract in the same change; when adding a
   surface, add one. `rust/PORT_STATUS.md` is the authoritative ledger of feature
   status and documented divergences — keep it truthful (claims there are audited).
-- `rust/crates/stirling-ai-engine` — typed contracts in, typed contracts out, AI
+- `rust/crates/rustling-ai-engine` — typed contracts in, typed contracts out, AI
   only where it adds reasoning value. The frontend reaches it through the
   processing service as a proxy (`AIENGINE_URL`, `AIENGINE_ENABLED`).
-- `rust/crates/stirling-operation-catalog` — regenerates the typed operation
+- `rust/crates/rustling-operation-catalog` — regenerates the typed operation
   catalog from the frozen `SwaggerDoc.json` snapshot at the repo root. Generated
   catalog files are committed; keep them in sync via the taskfile target when the
   snapshot changes.

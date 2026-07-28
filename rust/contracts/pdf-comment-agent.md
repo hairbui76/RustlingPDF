@@ -58,5 +58,5 @@ suggested comments and anchors can differ on documents with fragmented text;
 the final annotation convention remains the same 20 × 20 point sticky-note box
 at the selected segment's lower-left position. The full route needs an actual
 PDFium runtime plus a configured structured-output provider in
-`stirling-ai-engine`; disabled-engine and input-contract paths are covered
+`rustling-ai-engine`; disabled-engine and input-contract paths are covered
 without either dependency.

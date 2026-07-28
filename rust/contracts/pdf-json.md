@@ -7,7 +7,7 @@ ported in phases; see `rust/BACKEND_REPLACEMENT_PLAN.md` Part B.
 
 ## Data model (Phase 1 — done)
 
-`crates/stirling-processing/src/pdf_json.rs` mirrors every Java `PdfJson*` type as a
+`crates/rustling-processing/src/pdf_json.rs` mirrors every Java `PdfJson*` type as a
 serde model. Serialization matches Jackson:
 
 - camelCase field names (`#[serde(rename_all = "camelCase")]`)

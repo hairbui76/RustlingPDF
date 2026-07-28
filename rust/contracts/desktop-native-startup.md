@@ -2,8 +2,8 @@
 
 The Tauri desktop launcher starts the Rust processing backend as its bundled
 sidecar by default. `task desktop:stage-sidecar` builds the release
-`stirling-processing` binary plus the pinned PDFium runtime and stages them
-into `src-tauri/` (`bundle.externalBin` entry `binaries/stirling-processing`,
+`rustling-processing` binary plus the pinned PDFium runtime and stages them
+into `src-tauri/` (`bundle.externalBin` entry `binaries/rustling-processing`,
 `bundle.resources` entry `resources/pdfium`); the bundler installs the sidecar
 next to the app executable, where the launcher resolves it via the shell
 plugin's sidecar API. `STIRLING_NATIVE_BACKEND_PATH` is a development-only

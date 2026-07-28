@@ -1,7 +1,7 @@
 # AI engine proxy contract
 
 This contract covers the proprietary Java `AiEngineController` surface ported
-into `stirling-processing`, including both transparent engine proxies and the
+into `rustling-processing`, including both transparent engine proxies and the
 Java-facing multipart workflow state machine.
 
 ## Mounted routes

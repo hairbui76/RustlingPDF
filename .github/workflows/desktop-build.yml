@@ -184,11 +184,11 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      # Builds the release stirling-processing binary, installs the pinned
+      # Builds the release rustling-processing binary, installs the pinned
       # PDFium runtime (install-pdfium.sh on linux/macos, install-pdfium.ps1
       # on windows — both lay the platform library + licenses out in
       # rust/.pdfium/current), and stages both into src-tauri
-      # (binaries/stirling-processing-<triple>[.exe], resources/pdfium/).
+      # (binaries/rustling-processing-<triple>[.exe], resources/pdfium/).
       - name: Stage the Rust sidecar and PDFium (task desktop:stage-sidecar)
         run: task desktop:stage-sidecar
 

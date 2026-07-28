@@ -13,7 +13,7 @@
 > describe this repository.
 
 Tracks the Java → Rust port of the Stirling-PDF backend (UI excluded). The Rust
-service lives in this `rust/` workspace as the `stirling-processing` crate — an
+service lives in this `rust/` workspace as the `rustling-processing` crate — an
 axum HTTP service mirroring the upstream Java `/api/v1/...` endpoints.
 
 **Latest validation (2026-07-28, RustlingPDF `main` after batch 3 — GitHub CI,
@@ -21,9 +21,9 @@ single-binary SPA serving, Docker packaging, the parity trio, and the identity-
 persistence fix pair):** `cargo fmt --check` and strict locked all-target workspace
 Clippy (`--workspace --all-targets --locked -- -D warnings`) are clean. With PDFium
 bound via `STIRLING_PDFIUM_LIBRARY_PATH` (as `task rust:test` does),
-`cargo test -p stirling-processing --locked` reports **1508 passed / 0 failed**
+`cargo test -p rustling-processing --locked` reports **1508 passed / 0 failed**
 (one pre-existing ignored test) across the library suite and all integration suites,
-`cargo test -p stirling-ai-engine --locked` reports **144 passed / 0 failed** across
+`cargo test -p rustling-ai-engine --locked` reports **144 passed / 0 failed** across
 all targets, and the frontend gate (typecheck/eslint/**1647 vitest**/`vite build`)
 is green (the differential rust-only smoke gate was **13/13** at its final run
 before the harness was removed by maintainer decision on 2026-07-28). (This is the standalone
@@ -32,7 +32,7 @@ port tree because a handful of upstream-CI-specific assertions were dropped in t
 repo split.) Four previously-red areas are now green rather than excused: the
 `pdf_markdown` heading test (it required PDFium — earlier snapshots ran without the
 library bound and misread the fallback as a pre-existing failure); the two
-`stirling-ai-engine` `process_smoke` timeouts (root-caused, not environmental:
+`rustling-ai-engine` `process_smoke` timeouts (root-caused, not environmental:
 `tracing-subscriber` wrote ANSI escapes into piped output and broke the handshake
 parse); and six endpoint tests that had rotted against later features (webhook
 trigger listing, P-521 signing message, admin-only custom-API authoring, and the
@@ -587,7 +587,7 @@ unconditional ephemeral-port handshake, desktop/base-path/login-agreement
 environment, legacy-workspace migration, a bounded startup wait, early-exit
 reporting, stale-port cleanup, PID/start-time parent-death enforcement, and
 atomic fresh-install settings/template initialization. Open-mode local `backend:dev`, `dev`, and default `dev:all` now
-launch `stirling-processing` (in this repository they are the only backend entry
+launch `rustling-processing` (in this repository they are the only backend entry
 points; the Java-oracle and SaaS Task paths existed in the upstream monorepo).
 Container distribution shipped in batch 3 (Docker image; batch 4 added the
 tag-driven GHCR release pipeline) and the desktop bundle ships the Rust
@@ -809,7 +809,7 @@ serving either an unsecured approximation or the not-yet-approved opt-in securit
 `SECURITY_MIGRATION_DESIGN.md` and `SIGNING_MIGRATION_DESIGN.md` for the review
 gates before either secure mode or signing is implemented.
 
-The separate `stirling-ai-engine` crate now ports the current Python HTTP agent
+The separate `rustling-ai-engine` crate now ports the current Python HTTP agent
 surface: health/auth, classification, PDF comments, both math-audit rounds,
 durable SQLite documents with ACL/TTL and provider embeddings, PDF questions,
 bounded long-document map/reduce, contradiction detection, schema-grounded PDF
@@ -857,7 +857,7 @@ authenticated remote endpoints, normalized OpenAI-compatible URLs, and
 schema-constrained native JSON output. A compiled-binary process test proves an
 HTTP agent request completes through a fake Ollama server without inventing an
 authorization header. The generated operation snapshot no longer passes through
-Pydantic: the typed `stirling-operation-catalog` crate translates Java OpenAPI
+Pydantic: the typed `rustling-operation-catalog` crate translates Java OpenAPI
 directly, retains validation/default semantics, and supplies a deterministic
 `--check` drift gate while the Python artifact remains an independent oracle.
 
@@ -936,13 +936,13 @@ See `contracts/ai-engine-foundation.md` and
 `contracts/pdf-comment-agent.md`.
 
 The dispatchable `create-pdf-from-html-agent` tool is also owned by
-`stirling-processing`. It keeps Java's multipart structured-document contract,
+`rustling-processing`. It keeps Java's multipart structured-document contract,
 requires the AI feature setting, and renders escaped fields only through a fixed
 template. It does not rely on an AI provider at request time. See
 `contracts/create-pdf-agent.md`.
 
 The public `math-auditor-agent` orchestration is likewise owned by
-`stirling-processing`: PDFium classifies/extracts local evidence, while the
+`rustling-processing`: PDFium classifies/extracts local evidence, while the
 Rust AI engine receives only the two typed protocol messages. See
 `contracts/math-auditor-agent.md`.
 

@@ -1,8 +1,8 @@
 # Running RustlingPDF (the Rust backend)
 
 This is the operator's guide to running this repository: the Rust processing
-service (`stirling-processing`) — a full port of upstream Stirling-PDF's Java
-Spring Boot backend — plus the optional Rust AI engine (`stirling-ai-engine`),
+service (`rustling-processing`) — a full port of upstream Stirling-PDF's Java
+Spring Boot backend — plus the optional Rust AI engine (`rustling-ai-engine`),
 which ports upstream's Python engine. This repository contains no Java and no
 Python engine; the upstream Stirling-PDF repo is a separate project used only as
 an external reference oracle.
@@ -101,7 +101,7 @@ Direct entry point without Task:
 ```bash
 cd rust
 STIRLING_PDFIUM_LIBRARY_PATH="$PWD/.pdfium/current" \
-  cargo run -p stirling-processing --locked
+  cargo run -p rustling-processing --locked
 ```
 
 Smoke-check a running instance:
@@ -165,7 +165,7 @@ contract as Java (`general/job/{jobId}`, `/result`, `/result/files`,
 
 The AI features (`/api/v1/ai/*`, MCP, classification, PDF question answering,
 document creation, math audit, orchestration) are served by the separate
-`stirling-ai-engine` crate, the Rust replacement for upstream Stirling-PDF's
+`rustling-ai-engine` crate, the Rust replacement for upstream Stirling-PDF's
 Python engine (which stays in the upstream repo; it is not part of this one).
 
 ```bash
@@ -184,7 +184,7 @@ The engine's quality gate is `task engine:check`.
 
 ## 5. Docker
 
-The repository ships a self-contained container image: the `stirling-processing`
+The repository ships a self-contained container image: the `rustling-processing`
 release binary, the built React SPA (served by the binary itself — see
 `contracts/spa-serving.md`), a pinned checksum-verified PDFium, and the external
 conversion tools, all in one image listening on `:8080`.
@@ -263,7 +263,7 @@ container in open mode on a trusted network or behind your own auth proxy.
 ### The optional AI-engine sidecar
 
 The same Dockerfile has an `ai-engine` target with only the
-`stirling-ai-engine` binary (`task docker:build:ai-engine`, port 5001,
+`rustling-ai-engine` binary (`task docker:build:ai-engine`, port 5001,
 `/health` healthcheck, its own `/data` volume for the documents store). The
 compose file wires it behind the `ai` profile:
 
@@ -319,7 +319,7 @@ These are deliberate, documented limits — the authoritative list with rational
   upstream's own Java route is itself commented out.
 - **Desktop packaging**: the Tauri desktop app bundles the Rust backend as its
   default sidecar (`task desktop:stage-sidecar` stages the release
-  `stirling-processing` binary and the pinned PDFium runtime into the bundle;
+  `rustling-processing` binary and the pinned PDFium runtime into the bundle;
   ephemeral-port handshake, workspace migration, bundled-PDFium wiring via
   `STIRLING_PDFIUM_LIBRARY_PATH`). `STIRLING_NATIVE_BACKEND_PATH` remains as a
   development-only override. Cross-platform signed-bundle upgrade proof is

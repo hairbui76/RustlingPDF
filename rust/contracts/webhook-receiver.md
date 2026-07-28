@@ -5,7 +5,7 @@ endpoint. Ported from Java `WebhookReceiverController` (+ `WebhookSignatures` fo
 check, `WebhookSpool` for the atomic spool, `WebhookIds` for the id format, and
 `RequestUriUtils` for the public allowlist).
 
-Lives in `crates/stirling-processing/src/webhook_receiver.rs`. The webhook *source* type
+Lives in `crates/rustling-processing/src/webhook_receiver.rs`. The webhook *source* type
 and the *trigger* this route dispatches are documented in `contracts/policy-config.md`;
 this contract covers only the public receiver.
 

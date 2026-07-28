@@ -164,7 +164,7 @@ Not ported (still deferred from this controller): the H2-only `ui-data/database`
 
 ## Cutover boundary
 
-`stirling-processing/build.rs` generates the response manifest from `rust/Cargo.lock`
+`rustling-processing/build.rs` generates the response manifest from `rust/Cargo.lock`
 and the local Cargo registry package metadata at build time, so it no longer embeds
 Java dependency notices. Packages whose source metadata has no SPDX `license` field
 are labelled `UNKNOWN`; release packaging must fail its compliance review until those

@@ -19,10 +19,10 @@ const NATIVE_BACKEND_STARTUP_TIMEOUT: Duration = Duration::from_secs(90);
 const BACKEND_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// Bundled sidecar program name. Must match the `bundle.externalBin` entry in
-/// `tauri.conf.json` (`binaries/stirling-processing`): the bundler strips the
+/// `tauri.conf.json` (`binaries/rustling-processing`): the bundler strips the
 /// target-triple suffix and installs the binary next to the app executable,
 /// which is exactly where `ShellExt::sidecar` resolves this name.
-const SIDECAR_PROGRAM: &str = "stirling-processing";
+const SIDECAR_PROGRAM: &str = "rustling-processing";
 
 /// Environment variable the processing backend reads to locate PDFium. The
 /// launcher points it at the bundled resource directory when one is packaged.
@@ -136,7 +136,7 @@ fn check_backend_status() -> Result<(), String> {
 /// Development-only override for the processing backend. When
 /// `STIRLING_NATIVE_BACKEND_PATH` is set, the launcher starts that executable
 /// instead of the bundled sidecar (useful for pointing the desktop shell at a
-/// freshly built `rust/target/{debug,release}/stirling-processing`).
+/// freshly built `rust/target/{debug,release}/rustling-processing`).
 fn native_backend_path() -> Result<Option<PathBuf>, String> {
     let Some(path) = env::var_os("STIRLING_NATIVE_BACKEND_PATH") else {
         return Ok(None);
@@ -155,7 +155,7 @@ fn native_backend_path() -> Result<Option<PathBuf>, String> {
 ///
 /// Resolution order:
 /// 1. `STIRLING_NATIVE_BACKEND_PATH` — explicit development override.
-/// 2. The bundled `stirling-processing` sidecar (`bundle.externalBin`).
+/// 2. The bundled `rustling-processing` sidecar (`bundle.externalBin`).
 ///
 /// There is no further fallback: a desktop bundle without the sidecar is a
 /// packaging error and must fail loudly.
