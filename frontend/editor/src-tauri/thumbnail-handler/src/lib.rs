@@ -1,4 +1,4 @@
-//! Stirling-PDF Windows Thumbnail Handler
+//! RustlingPDF Windows Thumbnail Handler
 //!
 //! A lightweight COM DLL that implements IThumbnailProvider for PDF files.
 //! Uses the built-in Windows.Data.Pdf WinRT API to render page 1 as a thumbnail.
