@@ -79,6 +79,13 @@ updates:
     commit-message:
       prefix: "build"
     groups:
+      # windows / windows-core / windows-* must move in lockstep — a lone
+      # windows-core major produced two windows_core versions in the graph
+      # and broke the v2.15.0 windows release leg. Group them across ALL
+      # update types so they always arrive as one PR.
+      windows-stack:
+        patterns: ["windows*"]
+        update-types: ["major", "minor", "patch"]
       thumbnail-handler-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]

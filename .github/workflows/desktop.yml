@@ -98,3 +98,20 @@ jobs:
       - name: Run tests
         working-directory: frontend/editor/src-tauri
         run: cargo test --locked
+
+      # The two standalone Windows-installer helper crates only ever compile
+      # on the windows release leg, so without this cross-check a broken
+      # dependency bump merges green and detonates the next tagged release
+      # (exactly what the windows-core 0.58/0.62 mismatch did to v2.15.0's
+      # first run). cargo check against the msvc target type-checks them
+      # from Linux without needing a Windows runner.
+      - name: Add the Windows msvc check target
+        run: rustup target add x86_64-pc-windows-msvc
+
+      - name: Cross-check the thumbnail-handler crate (windows-msvc)
+        working-directory: frontend/editor/src-tauri/thumbnail-handler
+        run: cargo check --locked --target x86_64-pc-windows-msvc
+
+      - name: Cross-check the provisioner crate (windows-msvc)
+        working-directory: frontend/editor/src-tauri/provisioner
+        run: cargo check --locked --target x86_64-pc-windows-msvc
