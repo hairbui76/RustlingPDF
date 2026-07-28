@@ -1806,7 +1806,10 @@ fn decode_qr_rgba(rgba: &[u8], width: u32, height: u32) -> Option<String> {
             u8::try_from(weighted / 4).unwrap_or(u8::MAX)
         })
         .collect::<Vec<_>>();
-    let source = Luma8LuminanceSource::new(luminance, width, height);
+    // rxing 0.9.2: `Luma8LuminanceSource::new` validates that `width * height`
+    // matches the buffer length and returns `Result`; a mismatch means the
+    // rendered image cannot hold a decodable QR code, so treat it as "no QR".
+    let source = Luma8LuminanceSource::new(luminance, width, height).ok()?;
     let hints = DecodeHints::default()
         .with(DecodeHintValue::PossibleFormats(HashSet::from([
             BarcodeFormat::QR_CODE,
