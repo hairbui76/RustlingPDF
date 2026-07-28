@@ -15,7 +15,7 @@ Rust compatibility contract for `CropController.cropPdf()`.
     out-of-crop content like the Java Ghostscript branch.
   - When Ghostscript is unavailable, it follows Java's disabled-group behavior
     and rebuilds clipped pages without invoking the external process.
-  - `STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND` may point to an explicit
+  - `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND` may point to an explicit
     Ghostscript executable; otherwise `gs` is used on Unix and
     `gswin64c`/`gswin32c`/`gs` are discovered on Windows.
 - Automatic mode ignores manual coordinates. It renders each page at 150 DPI

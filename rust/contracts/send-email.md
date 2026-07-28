@@ -36,7 +36,7 @@ Dynamic link and expiry text is HTML-escaped before entering the Java-compatible
 invitation template.
 
 `POST /api/v1/user/admin/inviteUsers` uses the same relay for the distinct
-account-creating invitation flow. It sends the Java `Welcome to Stirling PDF`
+account-creating invitation flow. It sends the `Welcome to RustlingPDF`
 credential message after durably creating each enabled web user. The username,
 generated `xxxxxxxx-xxx` temporary password, and `/login` URL are HTML-escaped.
 Delivery failure is reported as that address's partial failure while the

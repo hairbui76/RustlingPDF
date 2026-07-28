@@ -33,7 +33,7 @@ soffice -env:UserInstallation=file://<profile> --headless --nologo \
 ```
 
 A fresh temporary `UserInstallation` profile is used per request. The `soffice`
-binary is resolved from `STIRLING_PROCESSING_SOFFICE_COMMAND` when set, otherwise
+binary is resolved from `RUSTLING_PROCESSING_SOFFICE_COMMAND` when set, otherwise
 platform defaults. The accepted-format set matches the Java validation list
 (`doc`, `docx`, `odt`, `ppt`, `pptx`, `odp`, `rtf`, `xml`); an unknown value
 returns `400 Bad Request`.

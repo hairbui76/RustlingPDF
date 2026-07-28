@@ -18,7 +18,7 @@ The route invokes `WeasyPrint`:
 weasyprint -e utf-8 -v --pdf-forms <sanitized-input> <output.pdf>
 ```
 
-It resolves the executable from `STIRLING_PROCESSING_WEASYPRINT_COMMAND` when set,
+It resolves the executable from `RUSTLING_PROCESSING_WEASYPRINT_COMMAND` when set,
 otherwise `weasyprint` / `weasyprint.exe` on `PATH`.
 
 Before rendering, HTML is passed through the `ammonia` parser/sanitizer. Script,

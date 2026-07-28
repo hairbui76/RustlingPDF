@@ -10,7 +10,7 @@ and return `<source>_redacted.pdf` as `application/pdf`.
 - `redactions`: optional JSON array of `{ page, x, y, width, height, color }`. `page` is
   one-based; coordinates are PDF points with a top-left origin, matching `RedactionArea`.
   Areas with missing, non-finite, non-positive, or page-zero geometry are safely ignored.
-- `pageNumbers`: optional Stirling page-selection expression. Matching pages are fully redacted.
+- `pageNumbers`: optional RustlingPDF page-selection expression. Matching pages are fully redacted.
   Omit it or send an empty value to redact no whole pages.
 - `pageRedactionColor`: optional full-page colour; Java `Color.decode` compatible values are
   accepted, with black as the fallback.

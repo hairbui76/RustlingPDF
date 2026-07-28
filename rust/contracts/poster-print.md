@@ -42,7 +42,7 @@ left-to-right column order.
 - The output Info dictionary matches Java's default non-Pro fresh-document
   policy: title, author, subject, keywords, and valid source dates are retained;
   custom keys are dropped; missing dates receive the current time; and creator
-  and producer become `Stirling-PDF v<version>`.
+  and producer become `RustlingPDF v<version>`.
 
 ## Known Boundaries
 

@@ -18,7 +18,7 @@ tasks:
       # Both installers produce the same layout — the platform shared library
       # (libpdfium.so / libpdfium.dylib / pdfium.dll) at the directory root
       # plus the PDFium LICENSE files — which is exactly what the backend's
-      # directory-form STIRLING_PDFIUM_LIBRARY_PATH resolution expects.
+      # directory-form RUSTLING_PDFIUM_LIBRARY_PATH resolution expects.
       - cmd: bash ../rust/scripts/install-pdfium.sh
         platforms: [linux, darwin]
       - cmd: pwsh -NoProfile -ExecutionPolicy Bypass -File ../rust/scripts/install-pdfium.ps1

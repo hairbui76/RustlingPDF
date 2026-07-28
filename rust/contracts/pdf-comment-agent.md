@@ -19,14 +19,14 @@ part, or an invalid prompt returns `400`; an oversize PDF returns `413`.
 
 The route is disabled unless `aiEngine.enabled: true` is configured in
 `settings.yml`/`custom_settings.yml`, or the equivalent `AIENGINE_ENABLED` or
-`STIRLING_AI_ENGINE_ENABLED` environment override is set. It resolves the
+`RUSTLING_AI_ENGINE_ENABLED` environment override is set. It resolves the
 engine base URL and timeout from `aiEngine.url`/`aiEngine.timeoutSeconds`, with
-`AIENGINE_URL`, `STIRLING_AI_ENGINE_URL`, `AIENGINE_TIMEOUTSECONDS`, and
+`AIENGINE_URL`, `RUSTLING_AI_ENGINE_URL`, `AIENGINE_TIMEOUTSECONDS`, and
 `AIENGINE_TIMEOUT_SECONDS` overrides. Defaults are `http://localhost:5001` and
 120 seconds.
 
 Processing calls `POST /api/v1/ai/pdf-comment-agent/generate` and forwards
-`STIRLING_ENGINE_SHARED_SECRET` only as `X-Engine-Auth`; it never includes the
+`RUSTLING_ENGINE_SHARED_SECRET` only as `X-Engine-Auth`; it never includes the
 source PDF in that request. The request contains at most 2,000 PDFium text
 segments, each truncated to 500 Unicode scalar values, plus the prompt. The
 engine returns opaque chunk IDs. Rust resolves them against its original

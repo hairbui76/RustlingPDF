@@ -26,8 +26,8 @@ tasks:
       HOST: '{{.HOST | default "127.0.0.1"}}'
       PORT: '{{.PORT | default "5001"}}'
     env:
-      STIRLING_ENGINE_HOST: '{{.HOST}}'
-      STIRLING_ENGINE_PORT: '{{.PORT}}'
+      RUSTLING_ENGINE_HOST: '{{.HOST}}'
+      RUSTLING_ENGINE_PORT: '{{.PORT}}'
     cmds:
       - cargo run --manifest-path rust/Cargo.toml -p rustling-ai-engine --bin rustling-ai-engine --locked
 
@@ -39,8 +39,8 @@ tasks:
       HOST: '{{.HOST | default "127.0.0.1"}}'
       PORT: '{{.PORT | default "5001"}}'
     env:
-      STIRLING_ENGINE_HOST: '{{.HOST}}'
-      STIRLING_ENGINE_PORT: '{{.PORT}}'
+      RUSTLING_ENGINE_HOST: '{{.HOST}}'
+      RUSTLING_ENGINE_PORT: '{{.PORT}}'
     cmds:
       - cargo run --manifest-path rust/Cargo.toml -p rustling-ai-engine --bin rustling-ai-engine --locked
 

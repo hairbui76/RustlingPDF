@@ -18,8 +18,8 @@ Rust compatibility contract for `AddCommentsController`,
 - Rectangle coordinates use the existing bottom-left PDF coordinate system.
 - Blank text, text over 100,000 UTF-16 code units, non-positive dimensions,
   null entries, and out-of-range pages are skipped independently.
-- Blank/missing author defaults to `Stirling AI`; blank/missing subject defaults
-  to `Stirling AI Comment`.
+- Blank/missing author defaults to `RustlingPDF AI`; blank/missing subject defaults
+  to `RustlingPDF AI Comment`.
 - Notes use RGB `[1, 0.95, 0.4]`, constant opacity `0.9`, one shared creation
   timestamp per request, and Unicode-safe PDF strings.
 - Existing page annotations are retained.

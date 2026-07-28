@@ -203,7 +203,7 @@ normalization candidates, unavailable predefined CMaps, and full glyph layout re
 conservative.
 
 Predefined CMaps are selected from the descendant font's `/CIDSystemInfo` collection. Rust checks
-the platform path list in `STIRLING_PROCESSING_CMAP_PATH` first, followed by
+the platform path list in `RUSTLING_PROCESSING_CMAP_PATH` first, followed by
 `/usr/share/poppler/cMap` and `/usr/local/share/poppler/cMap`. Each canonicalized lookup stays
 inside its collection directory, reads at most 16 MiB, follows at most eight files/depth levels,
 caps the resulting map at 65,536 entries, and uses an eight-map process cache. The production

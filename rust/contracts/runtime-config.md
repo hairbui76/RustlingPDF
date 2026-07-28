@@ -1,15 +1,15 @@
 # Runtime configuration compatibility
 
 Rust owns the public configuration surface used by the unchanged React client. It loads `configs/settings.yml` and then
-`configs/custom_settings.yml` below `STIRLING_BASE_PATH` (or the working
+`configs/custom_settings.yml` below `RUSTLING_BASE_PATH` (or the working
 directory when unset). The custom file recursively overrides the base file.
 The corresponding all-caps Spring-style environment variables take precedence
 for the settings that this slice exposes.
 
-The standalone service binds loopback by default. `STIRLING_HOST`, followed by the
+The standalone service binds loopback by default. `RUSTLING_HOST`, followed by the
 Spring-compatible `SERVER_ADDRESS`, selects an explicit IPv4 or IPv6 bind address;
-`STIRLING_PORT`, followed by `SERVER_PORT`, selects the port. Port `0` requests an
-ephemeral port for desktop startup. A container can set `STIRLING_HOST=0.0.0.0`
+`RUSTLING_PORT`, followed by `SERVER_PORT`, selects the port. Port `0` requests an
+ephemeral port for desktop startup. A container can set `RUSTLING_HOST=0.0.0.0`
 without weakening the loopback default used by local and desktop launches. Present
 malformed or non-Unicode bind values fail startup instead of falling back silently.
 
@@ -45,7 +45,7 @@ and the global API availability interceptor. It remains disabled by default, so
 the normal router returns `403 This endpoint is disabled` before a controller
 can process it. All `/api/` responses receive `Cache-Control: private, no-store`,
 matching Java's `EndpointInterceptor`. The existing
-`STIRLING_PROCESSING_ENABLE_URL_TO_PDF` and `SYSTEM_ENABLE_URL_TO_PDF`
+`RUSTLING_PROCESSING_ENABLE_URL_TO_PDF` and `SYSTEM_ENABLE_URL_TO_PDF`
 environment aliases take precedence.
 
 ## Runtime dependency discovery
@@ -68,7 +68,7 @@ process-free; the service binary selects the discovery-enabled constructor.
 
 The PDF editor's predefined Type0 CID mappings are passive data rather than an
 executable dependency. It searches the path list in
-`STIRLING_PROCESSING_CMAP_PATH`, then the standard Poppler locations
+`RUSTLING_PROCESSING_CMAP_PATH`, then the standard Poppler locations
 `/usr/share/poppler/cMap` and `/usr/local/share/poppler/cMap`. The production
 image already supplies the first location through `poppler-data`. Missing data
 does not prevent startup; affected fonts retain conservative source-code metrics.

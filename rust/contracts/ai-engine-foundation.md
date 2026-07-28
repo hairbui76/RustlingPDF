@@ -2,8 +2,8 @@
 
 `rustling-ai-engine` owns the Rust process boundary and the current Python
 engine's HTTP agent surface. It binds to `127.0.0.1:5001` by default.
-`STIRLING_ENGINE_HOST` accepts an explicit IPv4 or IPv6 address and
-`STIRLING_ENGINE_PORT` accepts a port from `0` through `65535`; port `0` selects
+`RUSTLING_ENGINE_HOST` accepts an explicit IPv4 or IPv6 address and
+`RUSTLING_ENGINE_PORT` accepts a port from `0` through `65535`; port `0` selects
 an ephemeral port and the startup log reports the address actually assigned.
 SQLite and pgvector deployments can cut over after their provider and Java
 proxy configuration is switched; the included migration binary converts legacy
@@ -13,10 +13,10 @@ sqlite-vec files.
 
 - `GET /health` is public and returns `status`, `smart_model`, and `fast_model`.
 - Non-health routes use `X-Engine-Auth` when
-  `STIRLING_ENGINE_SHARED_SECRET` is configured. The comparison is constant-time.
-- When `STIRLING_ENGINE_REQUIRE_AUTH=true` but no secret is configured, non-health
+  `RUSTLING_ENGINE_SHARED_SECRET` is configured. The comparison is constant-time.
+- When `RUSTLING_ENGINE_REQUIRE_AUTH=true` but no secret is configured, non-health
   routes return `503` rather than run without authentication.
-- When `STIRLING_REQUIRE_USER_ID=true`, non-health routes require a non-empty
+- When `RUSTLING_REQUIRE_USER_ID=true`, non-health routes require a non-empty
   `X-User-Id` after shared-secret authentication. The identity is carried to
   handlers as the typed `UserId` request extension; a missing identity returns
   Python-compatible `401`. `POST /api/v1/config` is the one exception: it is
@@ -26,7 +26,7 @@ sqlite-vec files.
 - Environment-backed booleans and numeric limits are parsed strictly before the
   listener binds. A present malformed or non-Unicode value terminates startup
   instead of substituting a default; this applies in particular to
-  `STIRLING_ENGINE_REQUIRE_AUTH` and `STIRLING_REQUIRE_USER_ID`, so a typo cannot
+  `RUSTLING_ENGINE_REQUIRE_AUTH` and `RUSTLING_REQUIRE_USER_ID`, so a typo cannot
   silently weaken either request gate. Existing chunk, worker, contradiction,
   concurrency, token, document-backend, and pgvector-pool bounds are validated at the same
   boundary.
@@ -117,7 +117,7 @@ and stored as finite little-endian `f32` values; cosine retrieval resolves the
 readable owner through the ACL before it reads any chunk. The same collection
 identifier may safely exist under multiple owners.
 
-`STIRLING_RAG_EMBEDDING_MODEL` supports `voyageai:`, `openai:` and `ollama:`
+`RUSTLING_RAG_EMBEDDING_MODEL` supports `voyageai:`, `openai:` and `ollama:`
 providers. Voyage uses retrieval-specific `document`/`query` input types;
 OpenAI-compatible and Ollama endpoints retain their native wire contracts.
 Hosted providers fail closed when their native credential is missing.
@@ -133,15 +133,15 @@ endpoint. Rust sends the caller-supplied schema through the native
 `response_format.json_schema` contract, matching the Python oracle's
 `NativeOutput` behavior; response content may be a JSON string or object and is
 validated again by each typed agent after transport parsing.
-`STIRLING_DOCUMENTS_BACKEND=pgvector` uses the Python-compatible PostgreSQL
+`RUSTLING_DOCUMENTS_BACKEND=pgvector` uses the Python-compatible PostgreSQL
 tables, installs the `vector` extension, performs atomic replace-ingest, and
 resolves ACL ownership before pages or vectors are read. Connections use a
 bounded verified-recycling pool and rustls with native trust roots; pool bounds
-come from `STIRLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE` and `_MAX_SIZE`. The
+come from `RUSTLING_DOCUMENTS_PGVECTOR_POOL_MIN_SIZE` and `_MAX_SIZE`. The
 embedded Rust SQLite schema is not an in-place migration of Python's
 per-collection `sqlite-vec` virtual tables. Use the migration command below to
 create a separate Rust database or populate pgvector. Set
-`STIRLING_TEST_PGVECTOR_DSN` to run the optional live lifecycle/ACL/search
+`RUSTLING_TEST_PGVECTOR_DSN` to run the optional live lifecycle/ACL/search
 integration test.
 
 ### Migrating Python sqlite-vec data
@@ -181,7 +181,7 @@ branch inspects tenant-scoped storage. Missing collections are reported by
 file with `resumeWith=pdf_question` and `page_text` as the requested content.
 
 When all documents are present, Rust reads complete ordered pages while their
-combined text fits `STIRLING_MAX_CHARACTERS`; larger document sets use bounded
+combined text fits `RUSTLING_MAX_CHARACTERS`; larger document sets use bounded
 ACL-scoped semantic retrieval. Model output refers only to zero-based evidence
 indices supplied by Rust. Invalid or invented indices are discarded, so file
 names, page numbers and snippets in the response always originate in storage.
@@ -209,7 +209,7 @@ model-concurrency permit.
 Identity is enforced after capability routing: PDF question and review require
 `X-User-Id` before any ACL-backed delegate runs, while edit, create, saved-agent
 drafting, and unsupported-capability responses can run anonymously unless the
-deployment-wide `STIRLING_REQUIRE_USER_ID` guard is enabled. Non-document
+deployment-wide `RUSTLING_REQUIRE_USER_ID` guard is enabled. Non-document
 capabilities also remain available if document storage failed to initialize.
 Resume capability dispatch is deterministic. PDF edit parameters are validated
 against the generated snapshot of all current Java operation schemas and only
@@ -249,14 +249,14 @@ camel-case summary and never echo credentials.
 
 Gating and authorization match Python:
 
-- `STIRLING_ALLOW_CONFIG_PUSH` defaults to `true` (Python default) and is
+- `RUSTLING_ALLOW_CONFIG_PUSH` defaults to `true` (Python default) and is
   strict-parsed at the fail-closed env boundary; when false the route returns
   `403` naming the flag.
 - With a shared secret configured, the normal `X-Engine-Auth` middleware
   protects the route. With no secret, only a direct loopback transport peer is
   trusted; any forwarding header (`x-forwarded-for`, `x-forwarded-host`,
   `x-real-ip`, `forwarded`) or a non-loopback/unknown peer returns `403`
-  naming `STIRLING_ENGINE_SHARED_SECRET`. Peer addresses come from
+  naming `RUSTLING_ENGINE_SHARED_SECRET`. Peer addresses come from
   `into_make_service_with_connect_info`; a build without connect info (e.g.
   embedded router tests) fails closed.
 - Out-of-range numbers (zero where the oracle requires `ge=1`; negative
@@ -278,7 +278,7 @@ they started with.
 The applied push is persisted encrypted as `data/ai_config_cache.enc` (with an
 `ai_config_cache.key` 0600 fallback keyfile when no shared secret is set —
 same filenames and location convention as Python) and re-applied at boot when
-`STIRLING_ALLOW_CONFIG_PUSH` is enabled; an unreadable, corrupt, or
+`RUSTLING_ALLOW_CONFIG_PUSH` is enabled; an unreadable, corrupt, or
 wrong-key cache logs a warning and boots from env. Deliberate divergences from
 the oracle, chosen because the cache is engine-private (neither Java nor
 Python ever reads the Rust file):
@@ -319,7 +319,7 @@ dotenv-loading convenience existed only in the upstream Stirling-PDF monorepo,
 whose Python `engine/` tree is not part of this repository; provider
 credentials are supplied through the process environment.)
 
-`STIRLING_MODEL_MAX_CONCURRENCY` defaults to `32` and limits all structured
+`RUSTLING_MODEL_MAX_CONCURRENCY` defaults to `32` and limits all structured
 model completions through one process-wide semaphore shared by the smart and
 fast model tiers. Agent-specific worker limits remain additional, narrower
 bounds; switching tiers cannot bypass the provider-account ceiling.
@@ -344,7 +344,7 @@ upstream Stirling-PDF monorepo alongside the Python oracle.)
 
 Python sqlite-vec databases are migrated rather than read in place. The live
 pgvector integration test still requires an externally supplied
-`STIRLING_TEST_PGVECTOR_DSN`; unit and local SQLite migration coverage do not
+`RUSTLING_TEST_PGVECTOR_DSN`; unit and local SQLite migration coverage do not
 substitute for verifying a deployment's PostgreSQL credentials, extension
 permissions and certificate chain.
 
@@ -353,11 +353,11 @@ The provider-independent document-classifier contract is ported in
 page selection, prompt construction, provider-neutral structured-output agent,
 and caller-vocabulary output validation. `POST /api/v1/documents/classify` is
 available through the Anthropic Messages adapter when
-`STIRLING_FAST_MODEL=anthropic:<model-id>` and `ANTHROPIC_API_KEY` are set. An
+`RUSTLING_FAST_MODEL=anthropic:<model-id>` and `ANTHROPIC_API_KEY` are set. An
 OpenAI-compatible and self-hosted gateways can instead use
-`STIRLING_FAST_MODEL=openai:<model-id>`, `OPENAI_API_KEY`, and (when needed)
+`RUSTLING_FAST_MODEL=openai:<model-id>`, `OPENAI_API_KEY`, and (when needed)
 `OPENAI_BASE_URL`. Native keyless Ollama uses
-`STIRLING_FAST_MODEL=ollama:<model-id>` plus optional `OLLAMA_BASE_URL`. An
+`RUSTLING_FAST_MODEL=ollama:<model-id>` plus optional `OLLAMA_BASE_URL`. An
 invalid/missing provider configuration returns `503`; provider failures return
 `502`; invalid classifier input returns `422`.
 

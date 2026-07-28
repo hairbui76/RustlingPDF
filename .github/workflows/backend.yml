@@ -92,5 +92,5 @@ jobs:
       - name: Run tests (PDFium bound)
         working-directory: rust
         env:
-          STIRLING_PDFIUM_LIBRARY_PATH: ${{ github.workspace }}/rust/.pdfium/current
+          RUSTLING_PDFIUM_LIBRARY_PATH: ${{ github.workspace }}/rust/.pdfium/current
         run: cargo test --workspace --locked

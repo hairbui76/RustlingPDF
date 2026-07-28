@@ -33,10 +33,10 @@ tasks:
       SECURITY_ENABLELOGIN: '{{.SECURITY_ENABLELOGIN | default "false"}}'
       POLICIES_ENABLED: '{{.POLICIES_ENABLED | default "false"}}'
     env:
-      STIRLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
-      STIRLING_HOST: '{{.HOST}}'
-      STIRLING_PORT: '{{.PORT}}'
-      STIRLING_PROCESSING_PORT: '{{.PORT}}'
+      RUSTLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
+      RUSTLING_HOST: '{{.HOST}}'
+      RUSTLING_PORT: '{{.PORT}}'
+      RUSTLING_PROCESSING_PORT: '{{.PORT}}'
       AIENGINE_URL: '{{.AIENGINE_URL}}'
       AIENGINE_ENABLED: '{{.AIENGINE_ENABLED}}'
       AIENGINE_TIMEOUTSECONDS: '{{.AIENGINE_TIMEOUTSECONDS}}'
@@ -69,7 +69,7 @@ tasks:
       - clean:deps
       - pdfium:install
     env:
-      STIRLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
+      RUSTLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
     cmds:
       - cargo test --workspace --locked
 

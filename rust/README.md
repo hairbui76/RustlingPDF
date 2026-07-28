@@ -48,16 +48,16 @@ task backend:dev
 `task backend:dev`, `task dev`, and `task dev:all` all run the Rust processing
 service — it is the only backend in this repository. `backend:dev` listens
 on `127.0.0.1:8080` by default; `task rust:run` provides the same direct Rust
-entry point. Set `PORT` on either Task command, or set `STIRLING_PORT` (or the
+entry point. Set `PORT` on either Task command, or set `RUSTLING_PORT` (or the
 Spring-compatible `SERVER_PORT`) when invoking the binary directly. Port `0`
 requests an OS-assigned ephemeral port, and startup reports the bound port in
-the desktop-compatible `Stirling-PDF running on port: <port>` format. The
+the desktop-compatible `RustlingPDF running on port: <port>` format. The
 upstream Java implementation lives in the separate Stirling-PDF repository
 and remains the behavior reference the contracts were verified against.
 
-The binary remains loopback-only unless `STIRLING_HOST` or the Spring-compatible
+The binary remains loopback-only unless `RUSTLING_HOST` or the Spring-compatible
 `SERVER_ADDRESS` is set to an explicit IP address. Container-shaped runs use
-`STIRLING_HOST=0.0.0.0`; malformed or non-Unicode host/port values fail startup.
+`RUSTLING_HOST=0.0.0.0`; malformed or non-Unicode host/port values fail startup.
 
 The Tauri desktop app launches this Rust processing binary as its bundled
 sidecar by default: `task desktop:stage-sidecar` builds the release binary plus
@@ -68,9 +68,9 @@ from either output stream, and fails a bounded startup on early process exit.
 The processing binary prints that handshake even when `RUST_LOG` is unset,
 exits when the PID/start-time identity of its Tauri parent disappears, and
 atomically initializes the packaged settings template plus empty override only
-on a fresh install. The launcher points `STIRLING_PDFIUM_LIBRARY_PATH` at the
+on a fresh install. The launcher points `RUSTLING_PDFIUM_LIBRARY_PATH` at the
 bundled PDFium resource directory unless the environment already provides one.
-`STIRLING_NATIVE_BACKEND_PATH` is a development-only override that swaps the
+`RUSTLING_NATIVE_BACKEND_PATH` is a development-only override that swaps the
 bundled sidecar for any locally built processing executable; there is no other
 launch fallback (the upstream Java JRE/JAR path has been removed).
 Cross-platform signed-bundle upgrade proof is a tracked roadmap item. See
@@ -78,7 +78,7 @@ Cross-platform signed-bundle upgrade proof is a tracked roadmap item. See
 
 `task rust:install` downloads PDFium revision 7543 for the current platform, verifies
 its pinned SHA-256 digest, and keeps the runtime under the ignored `rust/.pdfium`
-directory. Deployments may instead set `STIRLING_PDFIUM_LIBRARY_PATH` to an absolute
+directory. Deployments may instead set `RUSTLING_PDFIUM_LIBRARY_PATH` to an absolute
 PDFium shared-library path or its containing directory. A configured runtime is treated
 as required; a bad path fails the request instead of silently switching engines.
 

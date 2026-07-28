@@ -70,9 +70,11 @@ The detailed, living plan — current batch, queue, deferred items with unblock
 conditions, and session hand-off instructions — is in [ROADMAP.md](ROADMAP.md).
 Headlines: GitHub CI, single-binary SPA serving, Docker packaging, the
 tag-driven GHCR release pipeline, and the Tauri Rust-sidecar desktop port have
-landed; next up are desktop release completion (updater signing + Windows
-staging), the coordinated `Stirling` → `Rustling` rename, and the independent
-security review that unlocks secured mode.
+landed, and the coordinated `Stirling` → `Rustling` product rename has been
+executed (crates, env-var spellings with back-compat aliases, UI branding,
+startup handshake); next up are desktop release completion (updater signing +
+Windows staging) and the independent security review that unlocks secured
+mode.
 
 ## Relationship to Stirling-PDF
 

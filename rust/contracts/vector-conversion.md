@@ -42,7 +42,7 @@ The response is named `<base>_converted.<format>`.
 Ghostscript is invoked directly with an argument vector, never through a shell,
 and always receives `-dSAFER`, `-dNOPAUSE`, and `-dBATCH`. On Windows the
 adapter searches `gswin64c`, `gswin32c`, then `gs`; elsewhere it searches `gs`.
-Deployments can set `STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND` to an explicit
+Deployments can set `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND` to an explicit
 executable path.
 
 An absent auto-discovered executable returns `501`. A configured executable

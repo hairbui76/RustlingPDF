@@ -32,7 +32,7 @@ secured-mode/production packaging are tracked in
 `task rust:install` fetches the Cargo dependencies and downloads the pinned PDFium
 build for your platform into the git-ignored `rust/.pdfium/` directory, verifying
 its SHA-256 digest. Deployments can instead point
-`STIRLING_PDFIUM_LIBRARY_PATH` at an absolute PDFium shared-library path (or its
+`RUSTLING_PDFIUM_LIBRARY_PATH` at an absolute PDFium shared-library path (or its
 containing directory). A configured PDFium is treated as required: a bad path fails
 the request rather than silently switching engines. Without any PDFium, the service
 still starts and uses pure-Rust fallbacks where they exist, but the native
@@ -58,11 +58,11 @@ mechanism.
 | Poppler (`pdftohtml`) | PDF → HTML, and Calibre's PDF→EPUB engine | |
 | Calibre (`ebook-convert`) | ebook ↔ PDF | |
 | `unrar` (or 7-Zip fallback) / `rar` | CBR → PDF / PDF → CBR (creating CBR requires `rar`) | |
-| FFmpeg | PDF → video (route is an explicit opt-in, see below) | set `STIRLING_PROCESSING_FFMPEG_COMMAND` |
-| veraPDF | strict PDF/A validation (optional) | set `STIRLING_PROCESSING_VERAPDF_COMMAND` |
+| FFmpeg | PDF → video (route is an explicit opt-in, see below) | set `RUSTLING_PROCESSING_FFMPEG_COMMAND` |
+| veraPDF | strict PDF/A validation (optional) | set `RUSTLING_PROCESSING_VERAPDF_COMMAND` |
 
 Every tool's executable can be overridden explicitly with
-`STIRLING_PROCESSING_<TOOL>_COMMAND` (e.g. `STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND`,
+`RUSTLING_PROCESSING_<TOOL>_COMMAND` (e.g. `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND`,
 `..._SOFFICE_COMMAND`, `..._QPDF_COMMAND`, `..._WEASYPRINT_COMMAND`,
 `..._OCRMYPDF_COMMAND`, `..._TESSERACT_COMMAND`, `..._PDFTOHTML_COMMAND`,
 `..._EBOOK_CONVERT_COMMAND`, `..._UNRAR_COMMAND`, `..._RAR_COMMAND`).
@@ -100,7 +100,7 @@ Direct entry point without Task:
 
 ```bash
 cd rust
-STIRLING_PDFIUM_LIBRARY_PATH="$PWD/.pdfium/current" \
+RUSTLING_PDFIUM_LIBRARY_PATH="$PWD/.pdfium/current" \
   cargo run -p rustling-processing --locked
 ```
 
@@ -115,13 +115,22 @@ curl http://127.0.0.1:8080/api/v1/config/app-config
 
 - `task backend:dev` / `task rust:run` default to `127.0.0.1:8080`; pass
   `PORT=<n>` to either Task command.
-- Invoking the binary directly: `STIRLING_PORT` (or the Spring-compatible
+- Invoking the binary directly: `RUSTLING_PORT` (or the Spring-compatible
   `SERVER_PORT`) selects the port; `0` requests an OS-assigned ephemeral port.
-  Startup prints `Stirling-PDF running on port: <port>`.
-- The binary binds **loopback only** unless `STIRLING_HOST` (or Spring-compatible
+  Startup prints `RustlingPDF running on port: <port>`.
+- The binary binds **loopback only** unless `RUSTLING_HOST` (or Spring-compatible
   `SERVER_ADDRESS`) is set to an explicit IP. Container-shaped runs use
-  `STIRLING_HOST=0.0.0.0`. Malformed host/port values fail startup instead of
+  `RUSTLING_HOST=0.0.0.0`. Malformed host/port values fail startup instead of
   falling back.
+
+### Environment-variable spellings (`RUSTLING_*` vs legacy `STIRLING_*`)
+
+`RUSTLING_*` is the primary spelling for every product environment variable in
+this guide. Deployments configured before the product rename can keep their
+`STIRLING_*` spellings: each one is accepted as a deprecated alias for the same
+variable (`STIRLING_PORT` ≙ `RUSTLING_PORT`, and so on). When both spellings
+are set, `RUSTLING_*` wins. A process started with legacy spellings logs a
+single deprecation line on stderr listing them.
 
 ---
 
@@ -129,7 +138,7 @@ curl http://127.0.0.1:8080/api/v1/config/app-config
 
 The Rust service reads the same YAML files as upstream Stirling-PDF:
 `configs/settings.yml` then `configs/custom_settings.yml`, resolved below
-`STIRLING_BASE_PATH` (default: the working directory). Behavior matches upstream
+`RUSTLING_BASE_PATH` (default: the working directory). Behavior matches upstream
 Java's `ConfigInitializer`, including:
 
 - template merge on upgrade (new template keys arrive with defaults; user-set leaf
@@ -143,16 +152,16 @@ Commonly used environment variables:
 
 | Variable | Purpose |
 |---|---|
-| `STIRLING_BASE_PATH` | root for `configs/` settings files |
-| `STIRLING_HOST` / `SERVER_ADDRESS` | bind address (default loopback) |
-| `STIRLING_PORT` / `SERVER_PORT` | port (default 8080; `0` = ephemeral) |
-| `STIRLING_PDFIUM_LIBRARY_PATH` | PDFium shared library (file or directory) |
-| `STIRLING_PROCESSING_MAX_UPLOAD_BYTES` | multipart upload cap |
+| `RUSTLING_BASE_PATH` | root for `configs/` settings files |
+| `RUSTLING_HOST` / `SERVER_ADDRESS` | bind address (default loopback) |
+| `RUSTLING_PORT` / `SERVER_PORT` | port (default 8080; `0` = ephemeral) |
+| `RUSTLING_PDFIUM_LIBRARY_PATH` | PDFium shared library (file or directory) |
+| `RUSTLING_PROCESSING_MAX_UPLOAD_BYTES` | multipart upload cap |
 | `SYSTEM_MAXFILESIZE`, `SYSTEM_MAXDPI` | Java-compatible processing limits |
 | `SYSTEM_GOOGLEVISIBILITY` | `robots.txt` policy |
 | `SYSTEM_ENABLEMOBILESCANNER` | mobile-scanner QR transfer feature gate |
-| `STIRLING_PROCESSING_ENABLE_URL_TO_PDF` / `SYSTEM_ENABLEURLTOPDF` | opt-in URL→PDF (SSRF-guarded) |
-| `STIRLING_JOB_QUEUE_*`, `STIRLING_JOB_RESULT_EXPIRY_MINUTES` | async job queue/result tuning |
+| `RUSTLING_PROCESSING_ENABLE_URL_TO_PDF` / `SYSTEM_ENABLEURLTOPDF` | opt-in URL→PDF (SSRF-guarded) |
+| `RUSTLING_JOB_QUEUE_*`, `RUSTLING_JOB_RESULT_EXPIRY_MINUTES` | async job queue/result tuning |
 | `AIENGINE_URL`, `AIENGINE_ENABLED`, `AIENGINE_TIMEOUTSECONDS` | AI-engine proxy wiring |
 
 Async processing works on the ported POST endpoints via the same `?async=true`
@@ -177,7 +186,7 @@ Point the processing service at it with `AIENGINE_URL` (default
 `http://localhost:5001`) and `AIENGINE_ENABLED=true`. Provider credentials follow
 the engine's own configuration (structured-output-capable providers, including
 Anthropic/OpenAI-compatible APIs and native `ollama:<model>` for local models).
-`STIRLING_ENGINE_SHARED_SECRET` protects the engine boundary when set.
+`RUSTLING_ENGINE_SHARED_SECRET` protects the engine boundary when set.
 The engine's quality gate is `task engine:check`.
 
 ---
@@ -224,11 +233,11 @@ reproducible deployments; `latest` moves on every release.
 ### What the image contains
 
 - **One process, one port.** The Rust binary serves the REST API and the web UI
-  (`STIRLING_FRONTEND_DIST=/app/frontend` bakes the Vite `dist/` in; the SPA
+  (`RUSTLING_FRONTEND_DIST=/app/frontend` bakes the Vite `dist/` in; the SPA
   index, deep links, and static-asset serving follow the single-binary SPA
   contract). No nginx, no separate frontend container.
 - **Frontend flavor: proprietary** — the same flavor upstream Stirling-PDF's
-  self-hosted embedded image builds (`STIRLING_FLAVOR=proprietary`) and this
+  self-hosted embedded image builds (`RUSTLING_FLAVOR=proprietary`) and this
   repo's default dev/build mode. In open mode the runtime app-config flags keep
   login/premium features off, so it behaves like the core UI plus
   gracefully-gated extras.
@@ -241,13 +250,13 @@ reproducible deployments; `latest` moves on every release.
   (Java-era needs), unrar (non-free), ffmpeg (PDF→video stays opt-in). Add a
   missing tool with your own derived image; the backend picks it up at startup.
 - **PDFium** installed by `rust/scripts/install-pdfium.sh` inside the build for
-  the image's architecture (`STIRLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so`).
+  the image's architecture (`RUSTLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so`).
 - **Non-root** (`stirling`, uid/gid 1000), `tini` as PID 1, `HEALTHCHECK`
-  against `/api/v1/info/status`, `STIRLING_HOST=0.0.0.0`.
+  against `/api/v1/info/status`, `RUSTLING_HOST=0.0.0.0`.
 
 ### State and configuration
 
-`STIRLING_BASE_PATH=/data` (declared `VOLUME`): `settings.yml` /
+`RUSTLING_BASE_PATH=/data` (declared `VOLUME`): `settings.yml` /
 `custom_settings.yml` are read from `/data/configs/` when present. An empty
 volume works out of the box — built-in template defaults plus environment
 overrides apply until you drop a `settings.yml` there (the automatic
@@ -315,13 +324,13 @@ These are deliberate, documented limits — the authoritative list with rational
   Supabase JWT verification is ported.)
 - **H2 database backup/restore routes**: N/A — the Rust store is SQLite.
 - **PDF → video** route: implemented but an explicit opt-in
-  (`STIRLING_PROCESSING_FFMPEG_COMMAND`) while upstream FFmpeg CVEs are assessed —
+  (`RUSTLING_PROCESSING_FFMPEG_COMMAND`) while upstream FFmpeg CVEs are assessed —
   upstream's own Java route is itself commented out.
 - **Desktop packaging**: the Tauri desktop app bundles the Rust backend as its
   default sidecar (`task desktop:stage-sidecar` stages the release
   `rustling-processing` binary and the pinned PDFium runtime into the bundle;
   ephemeral-port handshake, workspace migration, bundled-PDFium wiring via
-  `STIRLING_PDFIUM_LIBRARY_PATH`). `STIRLING_NATIVE_BACKEND_PATH` remains as a
+  `RUSTLING_PDFIUM_LIBRARY_PATH`). `RUSTLING_NATIVE_BACKEND_PATH` remains as a
   development-only override. Cross-platform signed-bundle upgrade proof is
   still outstanding — see `contracts/desktop-native-startup.md`.
 - **Deep PDF-fidelity edges** in the PDF↔JSON editor model (e.g. Type3 glyph

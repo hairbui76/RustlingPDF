@@ -59,7 +59,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
 # Stage 2: Frontend production build (Vite, proprietary flavor)
 ########################################################################
 # Flavor decision: upstream Stirling-PDF's self-hosted embedded image builds
-# with STIRLING_FLAVOR=proprietary (docker/embedded/Dockerfile, the default),
+# with RUSTLING_FLAVOR=proprietary (docker/embedded/Dockerfile, the default),
 # and this repository's own default dev/build mode is proprietary too
 # (vite.config.ts falls back to "proprietary"; `task frontend:dev` runs it).
 # The proprietary build degrades to core behavior at runtime via
@@ -109,9 +109,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=rust-build --chown=root:root /out/rustling-ai-engine /app/rustling-ai-engine
 
-ENV STIRLING_ENGINE_HOST=0.0.0.0 \
-    STIRLING_ENGINE_PORT=5001 \
-    STIRLING_DOCUMENTS_SQLITE_PATH=/data/ai-engine-documents.db
+ENV RUSTLING_ENGINE_HOST=0.0.0.0 \
+    RUSTLING_ENGINE_PORT=5001 \
+    RUSTLING_DOCUMENTS_SQLITE_PATH=/data/ai-engine-documents.db
 
 # Stage-local redeclarations pick up the global defaults above (or the
 # release workflow's --build-arg values). licenses matches the root LICENSE.
@@ -182,17 +182,17 @@ COPY --from=rust-build --chown=root:root /out/rustling-processing /app/rustling-
 COPY --from=pdfium     --chown=root:root /build/.pdfium/current/  /app/pdfium/
 COPY --from=frontend-build --chown=root:root /build/frontend/editor/dist/ /app/frontend/
 
-# STIRLING_BASE_PATH=/data: settings are read from /data/configs/settings.yml
+# RUSTLING_BASE_PATH=/data: settings are read from /data/configs/settings.yml
 # (and custom_settings.yml) when present, and pipeline/customFiles state
 # resolves beneath /data too — one volume owns all mutable state. An empty
 # volume works out of the box: built-in template defaults plus SYSTEM_*/
-# SECURITY_*/STIRLING_* env overrides apply until an operator drops a
+# SECURITY_*/RUSTLING_* env overrides (legacy STIRLING_* aliases) apply until an operator drops a
 # settings.yml into the volume.
-ENV STIRLING_HOST=0.0.0.0 \
-    STIRLING_PORT=8080 \
-    STIRLING_BASE_PATH=/data \
-    STIRLING_FRONTEND_DIST=/app/frontend \
-    STIRLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so \
+ENV RUSTLING_HOST=0.0.0.0 \
+    RUSTLING_PORT=8080 \
+    RUSTLING_BASE_PATH=/data \
+    RUSTLING_FRONTEND_DIST=/app/frontend \
+    RUSTLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so \
     HOME=/home/stirling
 
 # Stage-local redeclarations pick up the global defaults above (or the

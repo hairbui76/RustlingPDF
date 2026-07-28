@@ -32,7 +32,7 @@ The uploaded PDF remains in Rust processing. The service:
    tolerance.
 
 The internal requests carry `X-Engine-Auth` only when
-`STIRLING_ENGINE_SHARED_SECRET` is configured. The raw PDF is never sent to the
+`RUSTLING_ENGINE_SHARED_SECRET` is configured. The raw PDF is never sent to the
 engine. A missing PDFium runtime returns `501` rather than an approximate audit.
 
 ## Compatibility notes

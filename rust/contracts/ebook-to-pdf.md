@@ -20,7 +20,7 @@ Rust invokes Calibre with the same rendering flags as Java:
 ebook-convert <input> <output.pdf> [--embed-all-fonts] [--pdf-add-toc] [--pdf-page-numbers]
 ```
 
-It resolves the executable from `STIRLING_PROCESSING_EBOOK_CONVERT_COMMAND` when
+It resolves the executable from `RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND` when
 set, otherwise `ebook-convert` / `ebook-convert.exe` on `PATH`. The result must be
 a non-empty PDF before it is returned.
 

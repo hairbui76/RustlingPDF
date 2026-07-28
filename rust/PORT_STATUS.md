@@ -16,11 +16,34 @@ Tracks the Java → Rust port of the Stirling-PDF backend (UI excluded). The Rus
 service lives in this `rust/` workspace as the `rustling-processing` crate — an
 axum HTTP service mirroring the upstream Java `/api/v1/...` endpoints.
 
+**Coordinated product rename (2026-07-28, batch 6):** the workspace crates are
+`rustling-processing` / `rustling-ai-engine` / `rustling-operation-catalog`,
+`RUSTLING_*` is the primary environment-variable spelling (every legacy
+`STIRLING_*` spelling is accepted as a deprecated alias resolved by the
+per-crate `env_compat` module — `RUSTLING_*` wins when both are set, and the
+binaries log one stderr deprecation line at startup listing legacy spellings),
+the startup handshake prints `RustlingPDF running on port: <port>` (the desktop
+launcher parses the name-agnostic `running on port: ` suffix, so both spellings
+parse), and user-visible branding — UI strings, PDF producer/creator labels
+(`RustlingPDF v<version>`), TOTP issuer, SMTP defaults, MCP server
+self-description (`rustling-pdf-mcp`) — says RustlingPDF. **Documented
+divergences from the frozen upstream `SwaggerDoc.json` defaults:** stamp and
+watermark `stampText`/`watermarkText` default to `RustlingPDF` (upstream
+documents `Stirling Software`), producer/creator labels are
+`RustlingPDF v<version>` (upstream: `Stirling-PDF v<version>`), and the SMTP
+notification defaults drop the Stirling Software marketing body. **Deliberately
+kept under the old spelling** (continuity with shipped v2.14.2 apps and
+existing installs): the tauri bundle identifier `stirling.pdf.dev`, deep-link
+scheme, `Stirling-PDF` desktop app-data directory, the pinned WiX UpgradeCode,
+persisted browser-storage keys, the `StirlingPDFClassification` PDF Info key,
+`StirlingSig*`/`StirlingPageNumber*` XObject names, `X-Stirling-*` HTTP
+headers, and the `stirling_*` MCP tool identifiers.
+
 **Latest validation (2026-07-28, RustlingPDF `main` after batch 3 — GitHub CI,
 single-binary SPA serving, Docker packaging, the parity trio, and the identity-
 persistence fix pair):** `cargo fmt --check` and strict locked all-target workspace
 Clippy (`--workspace --all-targets --locked -- -D warnings`) are clean. With PDFium
-bound via `STIRLING_PDFIUM_LIBRARY_PATH` (as `task rust:test` does),
+bound via `RUSTLING_PDFIUM_LIBRARY_PATH` (as `task rust:test` does),
 `cargo test -p rustling-processing --locked` reports **1508 passed / 0 failed**
 (one pre-existing ignored test) across the library suite and all integration suites,
 `cargo test -p rustling-ai-engine --locked` reports **144 passed / 0 failed** across
@@ -151,7 +174,7 @@ auto-rename/auto-split, plus:
   retaining startup-discovered executable paths and using the shared bounded
   process runner with qpdf warning-exit handling; the normalized in-process
   rewrite remains the fallback when neither external tool is available.
-- Fresh-PDF metadata parity — image-to-PDF now writes the versioned Stirling
+- Fresh-PDF metadata parity — image-to-PDF now writes the versioned RustlingPDF
   creator/producer label and creation/modification dates; booklet and poster
   outputs retain Java's selected standard source fields and valid dates while
   dropping custom Info keys. Form-only and full-raster flattening now apply the
@@ -351,7 +374,7 @@ auto-rename/auto-split, plus:
   readers now report through the same explicit typed enrichment boundary. See
   `contracts/portal-audit.md`.
 - Secured `GET /api/v1/admin/settings/policies/implied-folder-roots` (ADMIN) — read-only list of the
-  Stirling-owned folder roots always permitted for folder automations: the local server-storage base
+  RustlingPDF-owned folder roots always permitted for folder automations: the local server-storage base
   path (reason `serverStorage`) and each pipeline watched folder (reason `watchedFolder`), each
   `{path, reason}` with an absolute path. Ports Java `FolderAccessSettingsController` +
   `FolderAccessGuard.impliedRoots`. Paired parity fix: the Rust folder-access decision now models those
@@ -580,8 +603,8 @@ the production routers today (an earlier revision of this paragraph predated the
 Generic SAML/desktop identity remain (OIDC is ported — see below). The
 Tauri desktop shell now launches the Rust binary as its **packaged sidecar by
 default** (batch 4): the Java JRE/JAR launch path is deleted,
-`STIRLING_NATIVE_BACKEND_PATH` is demoted to a dev-only override, and the
-launcher wires bundled PDFium (`STIRLING_PDFIUM_LIBRARY_PATH` pointed at the
+`RUSTLING_NATIVE_BACKEND_PATH` is demoted to a dev-only override, and the
+launcher wires bundled PDFium (`RUSTLING_PDFIUM_LIBRARY_PATH` pointed at the
 bundle's `resources/pdfium` unless the operator already set it) alongside the
 unconditional ephemeral-port handshake, desktop/base-path/login-agreement
 environment, legacy-workspace migration, a bounded startup wait, early-exit
@@ -819,7 +842,7 @@ the next-action contract (which, matching the Python oracle, is a live stub:
 `cannot_continue`/"Execution planning is not implemented yet" — see
 `contracts/ai-engine-foundation.md`), and the NDJSON orchestrator with
 math-audit resume. The smart and fast model tiers share the Python-compatible
-process-wide `STIRLING_MODEL_MAX_CONCURRENCY` ceiling, in addition to narrower
+process-wide `RUSTLING_MODEL_MAX_CONCURRENCY` ceiling, in addition to narrower
 per-agent worker limits. Its MCP manifest publishes all eight completed Python
 capabilities. Model-selected evidence and comment anchors are mapped back to
 trusted local indices, while edit parameters are validated against a generated
@@ -839,7 +862,7 @@ The engine also ports the Python oracle's admin config-push subsystem (Python
 PR #7069): `POST /api/v1/config` accepts Java's `AiEngineConfigSync` body (both
 camelCase and snake_case field spellings; unknown fields tolerated, matching
 the oracle's `TolerantApiModel`), is gated by the Python-compatible
-`STIRLING_ALLOW_CONFIG_PUSH` flag (default on, same as Python; flag-off → 403
+`RUSTLING_ALLOW_CONFIG_PUSH` flag (default on, same as Python; flag-off → 403
 naming the flag), rebuilds the live model tiers with a fresh shared semaphore
 while in-flight requests keep their runtime snapshot, and persists the pushed
 config through an encrypted at-rest cache restored on boot (0600 files;
@@ -880,7 +903,7 @@ The reviewed secured router now owns API-key MCP phase one at `POST /mcp`, inclu
 bounded JSON-RPC transport, protocol negotiation, trusted API-key identity, capability
 manifest caching/filtering, and the two executable AI tools. It also now owns reusable
 file artifacts (`stirling_upload`/`stirling_download`, reusing the existing owner-scoped
-async-job store verbatim) and direct dispatch of a real Stirling processing operation by
+async-job store verbatim) and direct dispatch of a real RustlingPDF processing operation by
 its API path (`stirling_operation`, reusing the pipeline runner's own in-process router
 dispatch — a Rust-only convenience; Java's server exposes eight tools without it). Phase two
 has landed: Java's four per-category tools (`stirling_pages`/`stirling_convert`/

@@ -26,7 +26,7 @@ ocrmypdf --verbose 2 --output-type pdf --pdf-renderer <hocr|sandwich> \
          --language <l1+l2+…> <input> <output>
 ```
 
-The `ocrmypdf` binary is resolved from `STIRLING_PROCESSING_OCRMYPDF_COMMAND` when
+The `ocrmypdf` binary is resolved from `RUSTLING_PROCESSING_OCRMYPDF_COMMAND` when
 set, otherwise platform defaults. The known restricted-kernel multiprocessing
 failure is retried once with `--jobs 1`. When `removeImagesAfter` is set the OCR'd
 PDF is post-processed with Ghostscript (`-sDEVICE=pdfwrite -dFILTERIMAGE`), matching
@@ -45,7 +45,7 @@ The generated and retained page PDFs are merged in source order. Exit zero witho
 the expected generated PDF retains the source page. `force-ocr` and all values
 other than `skip-text` OCR every page. Matching Java, fallback mode ignores the
 OCRmyPDF-only cleanup flags and creates an empty text member when `sidecar=true`.
-`STIRLING_PROCESSING_TESSERACT_COMMAND` can select an explicit executable.
+`RUSTLING_PROCESSING_TESSERACT_COMMAND` can select an explicit executable.
 
 Both command paths use shared process pools with the same Java configuration
 surface. `processExecutor.sessionLimit.ocrMyPdfSessionLimit` defaults to 2 and

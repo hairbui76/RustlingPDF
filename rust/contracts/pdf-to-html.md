@@ -20,7 +20,7 @@ pdftohtml -c <input> <base>
 
 `-c` selects complex output (layout-preserving HTML). Every file produced in the
 working directory is added to the ZIP, flat, matching the Java implementation. The
-`pdftohtml` binary is resolved from `STIRLING_PROCESSING_PDFTOHTML_COMMAND` when
+`pdftohtml` binary is resolved from `RUSTLING_PROCESSING_PDFTOHTML_COMMAND` when
 set, otherwise platform defaults.
 
 ## Availability

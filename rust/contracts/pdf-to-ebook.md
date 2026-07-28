@@ -26,7 +26,7 @@ ebook-convert <input.pdf> <output.epub|azw3> \
   --output-profile tablet|kindle
 ```
 
-It resolves Calibre from `STIRLING_PROCESSING_EBOOK_CONVERT_COMMAND` when set,
+It resolves Calibre from `RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND` when set,
 otherwise from `ebook-convert` / `ebook-convert.exe` on `PATH`. The converter
 receives a private temporary input copy and output is returned only when Calibre
 produces a non-empty file.

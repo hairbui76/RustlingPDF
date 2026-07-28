@@ -16,9 +16,15 @@ edit that repo from here, and never add build-time dependencies on it. (The
 differential harness that drove a live upstream instance was removed by maintainer
 decision on 2026-07-28; a replacement harness is planned.)
 
-Internal names (crates `stirling-*`, `STIRLING_*` env vars, `stirling.*` config keys)
-deliberately retain upstream spellings until the coordinated rename roadmap item;
-do not rename them piecemeal.
+The coordinated `Stirling` → `Rustling` rename has been executed: crates are
+`rustling-*` and `RUSTLING_*` is the primary env-var spelling (every legacy
+`STIRLING_*` spelling keeps working as a deprecated alias; `RUSTLING_*` wins
+when both are set — see `env_compat` in each crate). Identifiers deliberately
+kept under the old spelling for continuity with shipped releases and existing
+installs — the tauri bundle identifier `stirling.pdf.dev`, the deep-link
+scheme, the `Stirling-PDF` desktop app-data directory, persisted storage keys,
+the `StirlingPDFClassification` PDF Info key, `X-Stirling-*` wire headers, and
+the `stirling_*` MCP tool ids — must not be renamed piecemeal.
 
 ## Taskfile
 
@@ -48,9 +54,10 @@ filters plus fmt/clippy) for the processing backend.
 
 - `rust/crates/rustling-processing` — the axum HTTP service. Routes mirror the
   `/api/v1/...` REST surface the SPA calls. Configuration comes from
-  `configs/settings.yml` under `STIRLING_BASE_PATH` plus `SYSTEM_*`/`SECURITY_*`/
-  `STIRLING_*` env overrides. PDFium is the native processing engine
-  (`STIRLING_PDFIUM_LIBRARY_PATH`, or `task rust:install`); pure-Rust fallbacks
+  `configs/settings.yml` under `RUSTLING_BASE_PATH` plus `SYSTEM_*`/`SECURITY_*`/
+  `RUSTLING_*` env overrides (legacy `STIRLING_*` spellings are accepted as
+  deprecated aliases). PDFium is the native processing engine
+  (`RUSTLING_PDFIUM_LIBRARY_PATH`, or `task rust:install`); pure-Rust fallbacks
   exist where implemented. External tools (LibreOffice, Ghostscript, qpdf,
   Tesseract/OCRmyPDF, WeasyPrint, pdftohtml, Calibre, unrar) are discovered at
   startup; missing ones disable their endpoints with reason `DEPENDENCY` — never

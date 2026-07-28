@@ -7,7 +7,7 @@ into `src-tauri/` (`bundle.externalBin` entry `binaries/rustling-processing`,
 `bundle.resources` entry `resources/pdfium`); the bundler installs the sidecar
 next to the app executable, where the launcher resolves it via the shell
 plugin's sidecar API. `RUSTLING_NATIVE_BACKEND_PATH` (legacy alias
-`STIRLING_NATIVE_BACKEND_PATH`) is a development-only override that points the
+`RUSTLING_NATIVE_BACKEND_PATH`) is a development-only override that points the
 launcher at an arbitrary processing executable instead. There is no further fallback: the upstream Java JRE/JAR launch path
 has been removed, and a bundle without the sidecar fails startup with a
 reported error.

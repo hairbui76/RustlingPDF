@@ -21,7 +21,7 @@ is `{ "enabled": false, "content": "", "format": "markdown" }` while
 preserving the configured/default `showInAnonymousMode` value. When enabled,
 content is read live from:
 
-`$STIRLING_BASE_PATH/customFiles/disclaimer/<locale>.md`
+`$RUSTLING_BASE_PATH/customFiles/disclaimer/<locale>.md`
 
 The resolver tries the requested locale, its base language, the configured
 `system.defaultLocale`, its base language, and finally

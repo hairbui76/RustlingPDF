@@ -35,11 +35,11 @@ tasks:
     vars:
       BASE_DIR: '{{.ROOT_DIR}}/.test-state/playwright'
     env:
-      STIRLING_BASE_PATH: '{{.BASE_DIR}}'
-      STIRLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
-      STIRLING_HOST: "127.0.0.1"
-      STIRLING_PORT: "8080"
-      STIRLING_PROCESSING_PORT: "8080"
+      RUSTLING_BASE_PATH: '{{.BASE_DIR}}'
+      RUSTLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
+      RUSTLING_HOST: "127.0.0.1"
+      RUSTLING_PORT: "8080"
+      RUSTLING_PROCESSING_PORT: "8080"
       SECURITY_ENABLELOGIN: "true"
       # Suppress the analytics opt-in modal that fires on first admin login.
       # It renders a Mantine overlay that intercepts pointer events and blocks

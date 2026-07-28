@@ -8,7 +8,7 @@ Rust compatibility contract for `ConvertWebsiteToPDF`.
 - `urlInput`: one absolute HTTP or HTTPS URL, required
 - The endpoint is disabled by default, matching Java. Set
   `system.enableUrlToPDF: true` in `configs/settings.yml` or
-  `configs/custom_settings.yml`, or use `STIRLING_PROCESSING_ENABLE_URL_TO_PDF`
+  `configs/custom_settings.yml`, or use `RUSTLING_PROCESSING_ENABLE_URL_TO_PDF`
   (or compatible `SYSTEM_ENABLEURLTOPDF` / `SYSTEM_ENABLE_URL_TO_PDF`) to enable it.
 - Success returns a Java-style, alphanumeric URL-derived `.pdf` filename with
   `application/pdf` content type.
@@ -31,7 +31,7 @@ not followed. This prevents local-network SSRF and DNS-rebinding between validat
 and connection.
 
 The request uses Java-compatible time bounds (10 s connect, 20 s total), does not
-follow redirects, identifies itself as `Stirling-PDF/URL-to-PDF`, and limits the HTML
+follow redirects, identifies itself as `RustlingPDF/URL-to-PDF`, and limits the HTML
 body to 20 MiB. The downloaded HTML goes through the shared parser sanitizer and
 WeasyPrint renderer. Remote assets, stylesheets, and renderer fetches are removed;
 only the initial safe HTTP request is permitted.

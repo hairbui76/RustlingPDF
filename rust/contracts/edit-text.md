@@ -9,7 +9,7 @@ attachment named `<source>_edited.pdf`.
 - `edits`: required JSON array of ordered objects with a non-empty literal `find`
   property and a `replace` property. A missing or null `replace` is treated as an
   empty string, allowing deletion.
-- `pageNumbers`: optional Stirling one-based page expression; blank or `all`
+- `pageNumbers`: optional RustlingPDF one-based page expression; blank or `all`
   selects every page.
 - `wholeWordSearch`: optional boolean, default `false`. When true, a match must
   not have ASCII letters, digits, or `_` immediately before or after it, matching
