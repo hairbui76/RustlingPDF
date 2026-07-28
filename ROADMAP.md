@@ -60,6 +60,18 @@ harness failure) which the PM discharged by completing the canonical runs.
   stray top-level files rejected), e2e startup probes bounded
   (update-server + Xvfb retries), ledger/contract sync.
 
+**Real-runner proof (PM dry-runs, 2026-07-28)**: the full signed matrix is
+green in a single `desktop-release-dryrun` run (actions/runs/30332343674 —
+linux-x86_64 + windows-x86_64 + darwin-aarch64, artifacts 237/78/159 MB
+incl. `.sig` files; the Windows leg is also the first-ever Windows MSVC
+build of the Rust backend). Three real-runner defects were found and fixed
+along the way: Git Bash's GNU tar hijacking `tar` in `install-pdfium.ps1`
+(drive letter parsed as hostname → now calls `System32\tar.exe`),
+linuxdeploy tool deps missing on ubuntu-24.04 (package set mirrored from
+the proven e2e container + `--verbose` kept so bundler errors surface),
+and appimagetool treating the workflow's `SIGN` env flag as a GPG-signing
+request (renamed to `UPDATER_SIGN`).
+
 Known scope limits (recorded in RELEASING.md): macOS is Apple-silicon only
 and unnotarized; Windows ships the WiX `.msi` only; macOS/Windows
 upgrade-proof legs are runner work still open.
