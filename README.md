@@ -65,8 +65,8 @@ Full operator guide, ports/binding, configuration and environment reference:
   existing configs and desktop installs keep booting. PDF *document* security
   (password, redaction, sanitize, watermark, cert-sign + hardware signing,
   timestamping, signature validation) is unaffected.
-- Test suite: BACKEND_TOTALS backend tests, 0 failed (plus FRONTEND_TOTAL
-  frontend vitest and an 11-test desktop-shell gate).
+- Test suite: 931 backend tests (809 processing + 115 AI engine + 7 catalog),
+  0 failed (plus 1051 frontend vitest and a 10-test desktop-shell gate).
 - The authoritative feature/parity ledger is
   [`rust/PORT_STATUS.md`](rust/PORT_STATUS.md); per-surface details live in
   [`rust/contracts/`](rust/contracts/).

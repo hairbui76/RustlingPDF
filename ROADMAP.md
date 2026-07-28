@@ -14,8 +14,8 @@ lands or the queue changes.
   `cargo fmt`/`clippy -D warnings` clean, **rustling-processing 809 passed /
   0 failed** (1 ignored), **rustling-ai-engine 115 / 0**,
   **rustling-operation-catalog 7 / 0**; Tauri desktop-shell gate
-  (containerized webkit build: fmt/clippy/tests) **TAURI_N / 0**; frontend
-  typecheck/eslint clean, **FRONTEND_TOTAL vitest passed**, `vite build`
+  (containerized webkit build: fmt/clippy/tests) **10 / 0**; frontend
+  typecheck/eslint clean, **1051 vitest passed**, `vite build`
   (core) succeeds; actionlint clean. (The differential harness and the
   dev-update e2e harness were removed by maintainer decision on 2026-07-28 —
   their final green runs, smoke 13/13 and upgrade e2e 8/8, are recorded in

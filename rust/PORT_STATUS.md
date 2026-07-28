@@ -16,6 +16,41 @@ Tracks the Java → Rust port of the Stirling-PDF backend (UI excluded). The Rus
 service lives in this `rust/` workspace as the `rustling-processing` crate — an
 axum HTTP service mirroring the upstream Java `/api/v1/...` endpoints.
 
+> **Batch 7 (2026-07-29) — no auth, no server-side state.** By maintainer
+> decision (final, 2026-07-28) the product has **no authentication and no
+> server-side state**: the entire auth subsystem
+> (login/sessions/MFA/OIDC/invites/teams/user-admin), the opt-in secured
+> router and every subsystem mounted only inside it (durable storage,
+> collaborative/workflow signing, policies + webhook receiver,
+> integrations/purview/external-API, audit + fleet stats, portal surfaces,
+> admin settings, license admin, server certificate, tessdata download,
+> personal-signature store), **MCP** (routes, OAuth verifier, and tool
+> catalog supplement), SQLite itself (`rusqlite` is gone — the backend keeps
+> no database), the watched-folder daemon, and the AI engine's document/RAG
+> store + PDF question-answer capability were **removed**. Legacy
+> `security.*`/`mcp.*`/`storage.*`/`policies.*`/audit/supabase settings keys
+> and their env spellings are **ignored with a one-line startup warning,
+> never refused** (existing installs keep booting). Kept: every PDF
+> processing endpoint, PDF *document* security (password/redact/sanitize/
+> watermark), single-shot cert-sign + hardware signing + RFC 3161
+> timestamping + signature validation, SSRF guards, transport rate limits,
+> robots.txt, mobile scanner, the pdf-json cache, single-tenant ephemeral
+> async jobs, settings *reading* (`RUSTLING_*`/`STIRLING_*` aliases), and
+> the desktop (Tauri-mode) settings write-backs. Sections below that
+> describe the removed surfaces are retained as **historical record** and
+> are marked as such — they no longer describe running code.
+
+**Batch-7 validation (2026-07-29, `batch7/no-auth-stateless`):**
+`cargo fmt --check` and strict locked all-target workspace Clippy are clean.
+With PDFium bound via `RUSTLING_PDFIUM_LIBRARY_PATH`,
+`cargo test --workspace --locked` reports **931 passed / 0 failed / 1
+ignored** (`rustling-processing` **809 / 0** with 1 ignored,
+`rustling-ai-engine` **115 / 0**, `rustling-operation-catalog` **7 / 0**).
+The containerized `src-tauri` gate (fmt + strict clippy + tests) is green at
+**10 / 0**, and the frontend gate (typecheck / eslint / **1051 vitest** /
+`vite build`) is green. The pre-removal totals quoted by the historical
+validation blocks below (1508/144/1647 etc.) are records of their time.
+
 **Coordinated product rename (2026-07-28, batch 6):** the workspace crates are
 `rustling-processing` / `rustling-ai-engine` / `rustling-operation-catalog`,
 `RUSTLING_*` is the primary environment-variable spelling (every legacy
@@ -25,21 +60,23 @@ binaries log one stderr deprecation line at startup listing legacy spellings),
 the startup handshake prints `RustlingPDF running on port: <port>` (the desktop
 launcher parses the name-agnostic `running on port: ` suffix, so both spellings
 parse), and user-visible branding — UI strings, PDF producer/creator labels
-(`RustlingPDF v<version>`), TOTP issuer, SMTP defaults, MCP server
-self-description (`rustling-pdf-mcp`) — says RustlingPDF. **Documented
+(`RustlingPDF v<version>`), SMTP defaults (the TOTP issuer and MCP server
+self-description were rebranded too, then removed with their features in
+batch 7) — says RustlingPDF. **Documented
 divergences from the frozen upstream `SwaggerDoc.json` defaults:** stamp and
 watermark `stampText`/`watermarkText` default to `RustlingPDF` (upstream
 documents `Stirling Software`), producer/creator labels are
 `RustlingPDF v<version>` (upstream: `Stirling-PDF v<version>`), and the SMTP
 notification defaults drop the Stirling Software marketing body. **Deliberately
 kept under the old spelling** (continuity with shipped v2.14.2 apps and
-existing installs): the tauri bundle identifier `stirling.pdf.dev`, deep-link
-scheme, `Stirling-PDF` desktop app-data directory, the pinned WiX UpgradeCode,
+existing installs): the tauri bundle identifier `stirling.pdf.dev`,
+`Stirling-PDF` desktop app-data directory, the pinned WiX UpgradeCode,
 persisted browser-storage keys, the `StirlingPDFClassification` PDF Info key,
-`StirlingSig*`/`StirlingPageNumber*` XObject names, `X-Stirling-*` HTTP
-headers, and the `stirling_*` MCP tool identifiers.
+`StirlingSig*`/`StirlingPageNumber*` XObject names, and `X-Stirling-*` HTTP
+headers (the deep-link scheme and `stirling_*` MCP tool identifiers were on
+this list until their features were removed in batch 7).
 
-**Batch-6 validation (2026-07-28, on the rename branch):** `cargo fmt --check`
+**Batch-6 validation (2026-07-28, historical — pre-batch-7 totals):** `cargo fmt --check`
 and strict locked all-target workspace Clippy are clean; the full workspace
 suite (`cargo test --workspace --locked` with PDFium bound via
 `RUSTLING_PDFIUM_LIBRARY_PATH`) reports **1692 passed / 0 failed / 1 ignored**
@@ -51,7 +88,7 @@ precedence). The frontend gate (typecheck/eslint/1647 vitest/`vite build` +
 `og:check`) and the containerized `src-tauri` gate (fmt + strict clippy +
 tests, with the renamed `rustling-processing` sidecar stub) are green.
 
-**Latest validation (2026-07-28, RustlingPDF `main` after batch 3 — GitHub CI,
+**Batch-3 validation (2026-07-28, historical — pre-batch-7 totals; RustlingPDF `main` after batch 3 — GitHub CI,
 single-binary SPA serving, Docker packaging, the parity trio, and the identity-
 persistence fix pair):** `cargo fmt --check` and strict locked all-target workspace
 Clippy (`--workspace --all-targets --locked -- -D warnings`) are clean. With PDFium
@@ -74,23 +111,23 @@ trigger listing, P-521 signing message, admin-only custom-API authoring, and the
 OIDC login-CSRF browser-binding cookie). The clean-checkout build defect is fixed:
 `build.rs` now stages `version.properties` into `OUT_DIR` from the committed
 `rust/VERSION` file (in this repository; the upstream monorepo variant staged
-the Gradle-generated file), so the crate compiles on a fresh clone. The security-mode guard now reads every
-boolean spelling Spring accepts (`1`/`on`/`yes`, YAML-1.1 strings, numeric `1`) and
-**fails closed on unreadable values** — a present-but-malformed
-`SECURITY_ENABLELOGIN`/`security.enableLogin` refuses startup, matching Java's
-relaxed-binding boot failure, instead of silently starting unauthenticated.
+the Gradle-generated file), so the crate compiles on a fresh clone. (At the
+time, a security-mode guard read every boolean spelling Spring accepts and
+failed closed on `SECURITY_ENABLELOGIN`/`security.enableLogin`; batch 7
+replaced that guard with the ignored-with-warning layer described at the top
+of this file — those keys never refuse startup now.)
 External-runtime happy paths remain conditional on their respective tools and
 services.
 
-**Security-review hardening (2026-07-25):** an AI-assisted security review of the secured/crypto/SSRF
-surface (adversarially verified) found the surface broadly sound (no critical/high; no auth-bypass /
-priv-esc / cross-tenant leak / key leakage / forgeable signature / remote traversal) and surfaced 4 Medium
-issues, all now fixed and test-proven: (1) bcrypt no longer runs under the global `Mutex<Connection>` +
-per-IP auth rate-limiting; (2) tower-http request/body timeouts + concurrency limit at `into_router()`
-(covering the OSS and secured routers) + a bounded webhook body assemble (no 100 MiB pre-HMAC buffer);
-(3) OIDC callback `state` is now bound to the initiating browser via a cookie (login-CSRF, RFC 9700);
-(4) the cloud-metadata SSRF deny now covers all embedded-IPv4 forms and applies to result URLs. This is
-AI-assisted and does not replace the independent human security review the production cutover requires.
+**Security-review hardening (2026-07-25, historical):** an AI-assisted security review of the
+then-present secured/crypto/SSRF surface (adversarially verified) found it broadly sound (no
+critical/high) and surfaced 4 Medium issues, all fixed and test-proven at the time: (1) bcrypt off
+the global connection mutex + per-IP auth rate-limiting; (2) tower-http request/body timeouts +
+concurrency limit at `into_router()` + a bounded webhook body assemble; (3) the OIDC callback
+login-CSRF browser-binding cookie; (4) the cloud-metadata SSRF deny extended to all
+embedded-IPv4 forms. Of these, only (2) still describes running code — the auth, OIDC, and
+webhook surfaces were removed in batch 7, and with them the planned independent human security
+review became moot (its queue item was deleted).
 
 **Live Java-vs-Rust parity signal (historical — 2026-07-26; the differential harness was removed
 from this repo by maintainer decision on 2026-07-28, final state preserved in git history):** the
@@ -107,39 +144,34 @@ the packet through xmpbox while Rust returns it verbatim (equivalent content, un
 per-run timestamps). The registry does not blind the gate: a pinned value that drifts, or any unregistered
 field, still fails; a declared difference that disappears is reported STALE.
 
-**Route-count scoping note:** the Rust service registers approximately 321 HTTP
-routes as of 2026-07-26 (production registrations; an earlier 313 figure was an
-undercount that dropped the routes declared after inner `#[cfg(test)]` attributes
-in `server_certificate.rs` and `classification.rs`). This figure is a hand count,
-not test-pinned — no route-census test asserts it, and a fixed total is
-deliberately deferred to the versioned baseline-to-Rust manifest (see `README.md`)
-so nested secured routers and conditional endpoints are counted by method and
-path rather than inferred from source literals.
-Only a subset of those are directly comparable to Java's OSS `controller/api`
+**Route-count scoping note:** the Rust service registers approximately **164**
+HTTP route paths as of 2026-07-29 (production registrations, hand-recounted
+after the batch-7 removal; the pre-removal census was ~321 as of 2026-07-26 —
+the ~157-route drop is the deleted auth/MCP/stateful surface). This figure is
+a hand count, not test-pinned — no route-census test asserts it, and a fixed
+total is deliberately deferred to the versioned baseline-to-Rust manifest
+(see `README.md`) so conditional endpoints are counted by method and path
+rather than inferred from source literals.
+Most of these are directly comparable to Java's OSS `controller/api`
 PDF-operation surface (~140 endpoint mappings, several of which are the
-project's composed `@AutoJobPostMapping` annotation rather than the four plain
-Spring mapping annotations). The remaining Rust routes are non-PDF
-infrastructure — license/entitlement administration, MCP, durable storage,
-audit, workflow signing sessions, tessdata administration, hardware signing
-discovery — that has no Java OSS-core equivalent because that logic lives in
-`app/proprietary`/`app/saas`. "PDF processing operations are ~90% done" refers
-to the PDF-operation-comparable subset, not the raw 313-route total; citing the
-raw total as the denominator would understate actual coverage.
+project's composed `@AutoJobPostMapping` annotation rather than the four
+plain Spring mapping annotations); the remainder are job control, config/info
+/ui-data, mobile scanner, the AI proxy, and hardware-signing discovery.
+"PDF processing operations are ~90% done" refers to the
+PDF-operation-comparable subset.
 
 ## Ported compatibility endpoints
 
-Every ported surface now has a `contracts/<name>.md` compatibility document, and
-all have focused unit/integration coverage. The previously listed contract-doc
-gaps are closed: `contracts/durable-storage.md` (`storage_http.rs`),
-`contracts/workflow-signing.md` (`workflow_signing_http.rs`, beyond the single
-route `cert-sign.md` covers), `contracts/admin-settings.md` (settings
-delta/section/key plus `admin/server-certificate`), `contracts/admin-jobs.md`
-(`admin/job/*`), `contracts/classification-meter.md` (`policies/classify/meter`),
-and `contracts/account-admin-routes.md` (the `security_http`
-account/team/invite/user-admin/credential-change/API-key routes that
-`account-lifecycle.md` deliberately does not enumerate — it covers register,
-inviteUsers, settings/initial-setup, OIDC, and MFA recovery codes). Each route in
-those docs was verified against the Rust registrations and the Java counterpart
+Every surviving surface has a `contracts/<name>.md` compatibility document,
+and all have focused unit/integration coverage. (Batch 7 deleted the
+contracts of the removed surfaces with their code — durable-storage,
+workflow-signing, admin-settings, account-lifecycle/account-admin-routes,
+audit, portal-audit, fleet-usage, login-agreement-admin, license-entitlement,
+mcp, policy-config, webhook-receiver, purview, resource-access-integrations,
+personal-signatures, classification-labels, and classification-meter — and
+rewrote the survivors that referenced them.)
+Each route in the surviving docs was verified against the Rust registrations
+and the Java counterpart
 controllers, with the residual divergences recorded in the docs themselves. Coverage spans merge/split/rearrange/remove/rotate,
 crop/scale/layout/booklet/poster, page numbers/stamp/watermark/comments/AI comments/attachments,
 metadata/info/analysis/filters, forms (inspect/fill/modify/delete/export), password/
@@ -166,12 +198,14 @@ auto-rename/auto-split, plus:
   `contracts/math-auditor-agent.md`.
 - `ai/health`, `ai/pdf/edit`, `ai/orchestrate`, and `ai/orchestrate/stream` —
   Java-compatible integration with the separately deployed Rust AI engine. The
-  multipart workflow routes drive bounded NDJSON turns, content extraction/RAG
-  ingest, local policy tool execution, report resume, owner-scoped multi-file
+  multipart workflow routes drive bounded NDJSON turns, per-request content
+  extraction (the RAG ingest arm was removed with the engine's document store
+  in batch 7), local tool execution, report resume, job-scoped multi-file
   downloads, and SSE progress/heartbeat/result/error delivery with disconnect
-  cancellation. Engine auth and user identity come only from trusted runtime
-  state, and anonymous create/edit/draft orchestration remains available while
-  ACL-backed question/review routing requires identity. See `contracts/ai-proxy.md`.
+  cancellation. The only engine-boundary credential is the shared
+  `X-Engine-Auth` secret; there is no per-user identity. PDF question
+  answering was removed; edit/review/create/draft orchestration remains. See
+  `contracts/ai-proxy.md`.
 - `convert/file/pdf` — office/text → PDF via LibreOffice shell-out, with strict HTML
   sanitization and bounded OOXML/ODF package rewriting that removes external relationships.
 - `convert/pdf/word`, `convert/pdf/presentation`, `convert/pdf/xml` — PDF → office
@@ -191,7 +225,8 @@ auto-rename/auto-split, plus:
   outputs retain Java's selected standard source fields and valid dates while
   dropping custom Info keys. Form-only and full-raster flattening now apply the
   corresponding loaded/rebuilt Java policies after PDFium writes the result.
-  Pro user-aware metadata substitution remains tied to the secured-mode cutover.
+  (Pro user-aware metadata substitution was a secured-mode idea and died with
+  it in batch 7.)
 - `convert/pdf/html` — PDF → HTML via `pdftohtml -c` shell-out, all output files
   bundled into a ZIP.
 - `convert/pdf/markdown` — Markdown in page order with literal escaping, bullets, and
@@ -243,34 +278,29 @@ auto-rename/auto-split, plus:
   apply complete resource/content/annotation updates in place, and regenerate edited text/images
   over bounded retained vector content while preserving untouched pages, forms, and catalog data.
 - `general/job/{jobId}`, its `/result` and `/result/files` children, and
-  `general/files/{fileId}`/`metadata` — configurable-TTL private single-node async job storage and
-  result download. `convert/pdf/text-editor?async=true` retains its specialized worker; the
-  other ported processing POST endpoints now support generic `?async=true` by streaming their
-  original multipart request and result through the job directory instead of RAM. Secured-mode
-  jobs carry their request audit context through queued background replay, deferring the event
-  write until streamed file metadata is available. Jobs and files are isolated by durable local
-  user ID and return 404 across owners. A bounded
+  `general/files/{fileId}`/`metadata` — configurable-TTL single-node ephemeral async job storage
+  and result download. `convert/pdf/text-editor?async=true` retains its specialized worker; the
+  other ported processing POST endpoints support generic `?async=true` by streaming their
+  original multipart request and result through the job directory instead of RAM. Jobs are
+  single-tenant (batch 7 deleted `JobOwner` with the auth subsystem — there are no owners to
+  isolate). A bounded
   resource-weighted queue gates light/medium/heavy/extra-heavy work, supports queued cancellation
   and queue positions, and exposes Java-compatible admin job/queue stats and cleanup.
 - `edit-text` — ordered literal find/replace in selected-page PDF text-showing content streams,
   whole-word filtering, and strict active-font encoding validation.
-- `config/app-config`, endpoint/group status/availability,
-  `settings/get-endpoints-status`, and `settings/update-enable-analytics` —
-  base/custom YAML configuration, public bootstrap values, endpoint-disable status,
-  timestamp configuration, and one-time persisted anonymous analytics consent.
-- Secured `admin/settings`, `/delta`, `/section/{section}`, and `/key/{key}` — bounded YAML
-  delta mutation with section/key allowlisting, transactional nested writes, pipeline-path overlap
-  validation, secret masking, masked-placeholder rejection, pending-restart tracking, and
-  administrator-only HTTP coverage. Rust delegates restart to its process supervisor.
-- Secured `admin/server-certificate/{info,upload,generate,certificate,enabled}` plus the base
-  delete route — RSA-2048/SHA-256 self-signed generation, strict PKCS#12/PFX upload validation,
-  private-key/leaf-certificate matching, re-wrapping under a random server-held password, bounded
-  link-safe storage, and administrator-only mutation. `security/cert-sign` now accepts
-  `certType=SERVER`; an authenticated endpoint fixture independently verifies the returned PDF CMS.
+- `config/app-config`, endpoint/group status/availability, and
+  `settings/get-endpoints-status` —
+  base/custom YAML configuration, public bootstrap values, endpoint-disable
+  status, and timestamp configuration. (`settings/update-enable-analytics` —
+  the server-persisted analytics consent — was removed in batch 7; consent is
+  client-side state now. The secured `admin/settings` mutation family and
+  `admin/server-certificate` routes, with cert-sign's `certType=SERVER`, were
+  removed with the secured router.)
 - `config/login-disclaimer` — live bounded markdown lookup with Java-compatible
-  locale fallback. The reviewed secured router also exposes administrator-only
-  list/read/update/clear management under `admin/login-agreement`, using atomic
-  link-safe writes. See `contracts/login-agreement-admin.md`.
+  locale fallback, served to anonymous users from operator-provisioned
+  `customFiles/disclaimer/` files. (The administrator management routes under
+  `admin/login-agreement` were removed in batch 7; the desktop shell still
+  provisions disclaimer files locally.) See `contracts/login-disclaimer.md`.
 - `info/status`, `info/health`, request/load counters, uptime, and `info/wau` —
   process-local Java-compatible metrics and no-login weekly-active-browser tracking,
   governed by `metrics.enabled`.
@@ -284,197 +314,48 @@ auto-rename/auto-split, plus:
   build-time bundled locales and the configured `ui.languages` allowlist.
 - `GET /robots.txt` — Java-compatible search-engine policy, controlled by
   `system.googlevisibility` or `SYSTEM_GOOGLEVISIBILITY`.
-- `general/signatures/{filename}` — shared PNG/JPEG signature-asset retrieval in
-  no-login mode, with basename validation and symlink rejection.
-- Secured `proprietary/signatures` management plus authenticated
-  `general/signatures/{filename}` lookup — bounded personal/shared PNG/JPEG assets,
-  Java-compatible JSON sidecars and legacy-image fallback, personal quotas,
-  personal-first reads, and administrator-only shared mutations. See
-  `contracts/personal-signatures.md`.
+- `general/signatures/{filename}` — shared PNG/JPEG signature-asset retrieval
+  from operator-provisioned `customFiles/signatures/` files, with basename
+  validation and symlink rejection. (The secured `proprietary/signatures`
+  personal-signature store was removed in batch 7; the SPA stores personal
+  signatures in browser localStorage.)
 - `mobile-scanner/*` — anonymous QR-session transfer with multipart upload,
   safe temporary storage, ten-minute inactivity expiry, download-after-read cleanup,
   and `system.enableMobileScanner` feature gating.
 - `pipeline/handleData` — synchronous multipart pipelines through the in-process
   Rust router, streamed intermediate files, ZIP fan-out, endpoint allowlisting,
   and confirmed SISO/MISO execution shapes. See `contracts/pipeline.md`.
-- Watched-folder pipelines — 60-second runtime-owned scans, stable-file and exclusive-lock
-  readiness checks, safe `processing` handoff/rollback, and Java-compatible output naming.
+- (Watched-folder pipelines — the server-side 60-second directory-scan daemon
+  — were removed in batch 7. The SPA's client-side watched folders, via the
+  File System Access API, are the replacement and watch the user's real
+  folders.)
 - Conditional `general/send-email` — bounded HTML MIME plus one attachment through the existing
   `mail.*` SMTP relay settings, including authentication and plaintext/STARTTLS/implicit-TLS
-  modes. The same relay now delivers invitation links and administrator-generated password-change
-  notifications with optional temporary credentials. Rust deliberately rejects wildcard
+  modes. (The invitation-link and password-change notification mails died with accounts in
+  batch 7.) Rust deliberately rejects wildcard
   certificate trust and disabled hostname verification.
   See `contracts/send-email.md`.
-- Secured audit APIs — all six `/api/v1/audit/*` dashboard routes plus the eight proprietary
-  UI-data audit routes query the durable Rust store with Java-compatible pagination,
-  single/multi-value and local-date filters, chart/KPI aggregation, CSV/JSON exports, retention,
-  clear-all behavior, and endpoint-visit statistics. One post-handler production event now replaces
-  the old mutation pair, including Java's GET/type, WEB/API/AI/AUTOMATION, polling, and fail-open
-  semantics. Principal/source/JSON attribution survives user deletion and legacy Rust-schema
-  migration; queries and exports have explicit resource bounds. Every route and audit capture
-  itself require a verified Enterprise tier. Client IP capture follows Java's forwarded-for,
-  real-IP, then peer-address precedence. STANDARD/VERBOSE direct processing, pipeline,
-  AI-workflow, and policy uploads now contribute bounded streamed name/size/type context without
-  request replay, feeding live portal document rows. Generic async jobs preserve that context
-  across their worker boundary without rescanning uploads. Custom storage, collaborative-signing,
-  certificate, license, mail, and mobile-scanner upload readers use the same typed hook, and
-  storage file mutations retain Java's `FILE_OPERATION` category. Java's default-off operation
-  result setting is supported through bounded finite text/JSON/XML capture while streaming,
-  binary, UI-data, and explicit auth responses stay excluded. VERBOSE request arguments use the
-  typed redacted form map rather than AspectJ-style raw object stringification. See
-  `contracts/audit.md`.
-- Secured self-hosted `usage/fleet-stats` — administrator-only deployed-editor, active-WEB-editor,
-  and cumulative processed-PDF aggregates with Java's STANDARD-audit nullability, internal-user
-  exclusion, active/deployed clamp, indexed durable queries, and live typed processing-event
-  capture, guarded by the verified Enterprise tier. See `contracts/fleet-usage.md`.
-- Commercial entitlement policy — exact Java `@PremiumEndpoint` and `@EnterpriseEndpoint`
-  method/path matrices, immutable Normal/Server/Enterprise tiers, Java-compatible license
-  ProblemDetails, and Enterprise-only audit capture. The reviewed runtime now derives its startup
-  tier from pinned-key Ed25519 certificate/`key/` verification or the fixed-account online Keygen
-  validation and floating-machine activation flow. Dynamic status refreshes every seven days while
-  route aspects retain Java's startup snapshot. See `contracts/license-entitlement.md`.
-- Secured administrator license lifecycle — installation fingerprint, direct-key save/clear,
-  one-shot resync, live license information, and bounded offline `.lic`/`.cert` upload with
-  backup-before-atomic-replacement. Mutations persist through the shared settings writer and update
-  the same live configuration consumed by weekly refresh without treating a configured key as an
-  entitlement. See `contracts/license-entitlement.md`.
-- Secured `ui-data/tessdata-languages` and `ui-data/tessdata/download` — administrator-only
-  installed/official language discovery with a ten-minute cache plus bounded, atomic, link-safe
-  `.traineddata` installation under the configured runtime directory. See `contracts/ui-data.md`.
-- Secured durable storage (`storage/files`, `storage/files/{id}` + `/download` + `/folder`,
-  `storage/files/folder` bulk move, `storage/folders` + `/{id}`, and user/link shares under
-  `storage/files/{id}/shares/*` and `storage/share-links/*`) — owner-scoped local-provider
-  file storage that shares the durable security database (so ownership joins `security_users`).
-  Java-compatible `storage.*` config (provider, `local.basePath`, `quotas.*`, `sharing.*`),
-  path-traversal-safe object keys, per-user/total/file quotas, folder trees, and share-link /
-  user-share ACLs with roles. Mounted in the reviewed secured router; unauthenticated access is
-  401 and cross-owner access is 404. `config/app-config` now reports the resolved
-  `storageEnabled`/`storageSharingEnabled`/`storageShareLinksEnabled`/`storageShareEmailEnabled`/
-  `storageGroupSigningEnabled` flags (plus `enableLogin`/`activeSecurity`) in secured mode.
-  Closes Java `FileStorageController`, `FolderController`, `FileFolderPlacementController`.
-- Secured collaborative (group) signing — owner session/participant lifecycle under
-  `security/cert-sign/{sessions,sign-requests}/*` (authenticated) and public token-scoped
-  participant access under `workflow/participant/*`. Encrypted participant submissions
-  (`ProtectedSecretCipher`), server-certificate-backed signing, wet-signature overlays (typed
-  text via Helvetica + raster images, normalized page-relative placement — see the new
-  `overlay_signatures_to_file` in `pdf_image_overlay.rs`), an optional summary page, and an
-  invisible incremental CMS signature over the finalized PDF. Gated by `storage.signing.enabled`;
-  fails closed (403) when disabled. Closes Java `SigningSessionController`,
-  `WorkflowParticipantController`.
-- Enterprise-gated portal audit views — `GET /api/v1/proprietary/ui-data/documents` (Documents
-  review queue) and `GET /api/v1/proprietary/ui-data/infrastructure/audit-log` (Infrastructure →
-  Audit tab), matching Java's `@ProprietaryUiDataApi` class prefix and the frontend's calls (an
-  earlier Rust registration at the bare unprefixed paths was a live 404 against the portal and is
-  fixed; the bare paths are now pinned 404 by test): read-only projections of
-  the durable audit store with the faithful Java category/action/target/status/pretty-tool
-  shaping, policy-dispatch detection, and read-noise (`UI_DATA`/`HTTP_REQUEST`) exclusion.
-  Enforced through the same central Enterprise entitlement + `enforce_security` gate as
-  `/api/v1/audit/*`; scope resolves admin → whole-server, team owner → team-principal-scoped,
-  else 403. Closes Java `PortalDocumentsController`, `PortalInfraAuditController`. Live policy
-  traffic now stamps bounded `policyName`/`policySteps` on parent runs and records each internal
-  tool call as `AUTOMATION` with streamed input/supporting `files`, so both projections receive
-  real policy events. Shared direct processing uploads and direct pipelines now record bounded
-  streamed `files`; Java's opt-in audit flags add streaming lowercase SHA-256 and bounded PDF Info
-  Author metadata, while their default-off state adds no file scan. Generic async workers defer
-  their event until replay supplies the same context and capture settings. STANDARD/VERBOSE also
-  records bounded Java-shaped multipart/URL-encoded `formParams`, preserving repeats and omitting
-  `_csrf`; credential-shaped names are intentionally persisted as `[REDACTED]` instead of copying
-  Java's secret-disclosure behavior. Default-off operation-result capture adds bounded finite
-  textual responses without consuming binary or streaming document bodies.
-  An authenticated real repair request proves the durable event creates the corresponding
-  documents row, and an async rotate proves queued preservation. Custom administrative multipart
-  readers now report through the same explicit typed enrichment boundary. See
-  `contracts/portal-audit.md`.
-- Secured `GET /api/v1/admin/settings/policies/implied-folder-roots` (ADMIN) — read-only list of the
-  RustlingPDF-owned folder roots always permitted for folder automations: the local server-storage base
-  path (reason `serverStorage`) and each pipeline watched folder (reason `watchedFolder`), each
-  `{path, reason}` with an absolute path. Ports Java `FolderAccessSettingsController` +
-  `FolderAccessGuard.impliedRoots`. Paired parity fix: the Rust folder-access decision now models those
-  implied roots — a server-storage/watched-folder path is permitted even with an empty/absent
-  `policies.allowedFolderRoots` — porting `FolderAccessGuard.requirePermitted` ordering (protected-config
-  reject → implied allow → empty-allowlist reject → allowlist membership). See `contracts/policy-config.md`.
-- Webhook policy subsystem — a secured-router control plane (a fourth `webhook` input-source type via
-  `/api/v1/sources`, with server-minted CSPRNG `webhookId`/`signingSecret`, reveal-on-create-then-mask,
-  and the secret encrypted at rest; a matching `webhook` trigger listed by `GET /api/v1/policies/triggers`,
-  enabled-only LIGHT delivery dispatch, and a FULL reconcile safety-net) plus the port's **only new PUBLIC
-  route** — the HMAC-authenticated receiver `POST /api/v1/webhooks/{webhookId}` (constant-time HMAC-SHA256
-  over the raw body, anti-enumeration 404s, Content-Length/DoS bounds enforced before the signature,
-  path-safe atomic spool, `@Hidden`, and fail-closed on a missing secret). The public allowlist exposes
-  exactly `POST /api/v1/webhooks/*` (other verbs stay Authenticated). Ports Java `WebhookReceiverController`,
-  `WebhookSignatures`, `WebhookSpool`, `WebhookIds`, `WebhookConfig`, `WebhookInputSource`, `WebhookTrigger`.
-  The subsystem is now **end-to-end**: `resolve_source` has a real `"webhook"` arm, so a fired webhook
-  policy consumes the spooled delivery via the folder-consume lifecycle (spool-dir read, `.part`/dotfile
-  skip, ledger claim/settle, display-name pipeline filename, cross-policy delete, retain-on-failure;
-  `WebhookInputSource.resolve`/`completeConsumed` ported). See `contracts/webhook-receiver.md` and
-  `contracts/policy-config.md`.
-- Portal-gated `GET /api/v1/integrations/capabilities` — reports `{customApi: allowCustomApiIntegrations
-  && isAdmin}` so the portal offers the free-form custom-API option only to callers who can use it. Ports
-  Java `IntegrationConfigController.capabilities`; `policies.allowCustomApiIntegrations` defaults `true`.
-  Paired parity fix: `IntegrationConfigService::create`/`update` now enforce `requireCustomApiAllowed`
-  server-side for `API`-type configs (flag on + admin) rather than merely hiding the option in the
-  capability response. See `contracts/resource-access-integrations.md`.
-- Secured `GET /api/v1/proprietary/ui-data/{login, account, audit-dashboard, teams, teams/{id}, admin-settings}` — thin
-  read projections over already-ported stores (`SecurityStore`) plus a startup snapshot of server-owned
-  config, porting the non-mutating routes of Java `ProprietaryUIDataController` (new
-  `proprietary_ui_data.rs`). `login` is public (first-time-setup/default-credentials + OAuth2 provider
-  list); `account` is an `/auth/me` superset with the MFA secret masked; `audit-dashboard` (admin +
-  verified Enterprise) projects the audit config plus the `AuditLevel`/`AuditEventType` enum listings and
-  `retentionDays`; `teams`/`teams/{id}` (admin) reuse `list_teams` plus new per-team latest-activity and
-  team-leader queries in `security.rs`; `admin-settings` (admin) aggregates the admin roster with
-  locked-user enumeration, the full `user_seat_metrics` license/seat block, per-principal session
-  activity, and mail/premium config (two documented divergences: `updatedAt` is always omitted — no
-  such column — and locked users derive from the persistent lockout store rather than Java's in-memory
-  count-threshold that honors a `-1` disable). SAML2 provider entries are deliberately omitted (SAML2 deferred),
-  so the login `altLogin` flag is OAuth2-only — a documented divergence for a SAML2-only config; OAuth2
-  providers are unaffected. Two minor divergences: an unknown `teams/{id}` returns `404` (Java accidentally
-  `500`s) and "last activity" derives from session `created_at` (the Rust store has no per-request
-  `lastRequest`). `PortalApiKeysController` (`/proprietary/ui-data/infrastructure/api-keys`, GET/POST/DELETE)
-  is now ported — digest-only personal API-key list/create/revoke with a per-user active cap (50 → 429),
-  the secret returned once, cross-owner access `404`, and best-effort usage/last-used recorded on key auth;
-  authenticated non-anonymous callers only (no admin/Enterprise/demo gate). Only the H2-only
-  `ui-data/database` route remains deferred from this controller. See `contracts/ui-data.md`.
-- Secured `POST /api/v1/policies/classify/meter` — audit-only classification meter (accepts an optional
-  body, clamps `documentCount` to `[1,10000]`, defaults the policy name, stamps a policy-run audit record
-  carrying the `classify-and-label` step, and returns `202`); the SaaS billing side is a deliberate no-op
-  in proprietary mode. Ports Java `ClassificationMeterController`.
-- `settings/update-enable-analytics` and `general/send-email` now honor `?async=true` (added to the
-  async-job allowlist), matching Java's `@AutoJobPostMapping`. With these plus `admin-settings`, a
-  systematic route cross-check finds no remaining bounded parity gap in the OSS-core + proprietary
-  `controller/api` route surface. What remains: the standing deferred-external set (SaaS/cloud, SAML2),
-  upstream-blocked items (Windows-cert async), the H2-only `ui-data/database`, and
-  unbounded PDF-fidelity work (Type3 glyph synthesis, Type0/Type3 byte-parity — the latter now confirmed
-  blocked, needing a net-new embedded-font-program parser AND poisoned by the Java oracle's C0-stripping
-  of 2-byte CIDs). The proprietary `external-api-call` step (`API` integration type) was executed
-  as a bounded staircase — **all four slices are landed and the feature is COMPLETE** (route
-  `POST /api/v1/integration/external-api-call` live; the previously fail-closed policy step now dispatches
-  through the ported caller; ConsignO is covered via the generic `bodyTemplate`). Slice 4 added verdict
-  enforcement (`requireTrue` must be JSON `true` or fail-closed), report/replace modes, the
-  security-sensitive `ResultUrls` validation (http(s)-only, no userinfo, exact-or-subdomain allowlist host
-  match — no naive suffix — then SSRF-vet the *resolved* address so an allowlisted-but-internal host and
-  raw metadata IPs are still blocked, result fetched with no credentials), and `ResultFiles` archive
-  member selection (glob/index, empty/multi-match are errors). All oracle-verified against a loopback mock.
-  The earlier slices (`proprietary_external_api.rs`):
-  slice 1 = pure request-construction + config primitives; slice 2 = the `DocumentContext` namespace
-  (base/run facts + best-effort PDF Info metadata + classification + sensitivity-label, omit-not-fatal on
-  non-PDF) and the four `buildBody` modes (multipart / json / binary / bodyTemplate); slice 3 = the
-  SSRF-safe outbound caller (redirect=NEVER, 64 MiB bounded read, credential-free errors) with
-  NONE/BEARER/BASIC/HEADER/TOKEN_LOGIN auth and a login-once token cache (401→evict→retry-once),
-  reusing the OIDC `resolve_to_addrs` pin + `ip_addr_is_reserved`, gated by an **unconditional
-  cloud-metadata deny** (169.254.169.254/.253/.250, `fd00:ec2::254`) that runs before the new
-  `policies.allowPrivateApiEndpoints` opt-in (default false). See `contracts/resource-access-integrations.md`.
-- Secured `integration/purview-apply-label` and `integration/purview-read-label` — fully offline
-  Microsoft Purview sensitivity-labelling (no Microsoft Graph call on the label path; the
-  app-registration `clientId`/`clientSecret` only gate an unbuilt taxonomy lookup). Apply writes the
-  label's `MSIP_Label_<GUID>_<Attr>` pairs onto both the Info dictionary and the XMP packet (replacing
-  only the same tenant's labels, refusing a protected/`ENCRYPT` label) and returns the re-saved PDF;
-  read returns the PDF byte-for-byte unchanged plus an `X-Stirling-Tool-Report` JSON report. A step's
-  `connectionId` resolves to the `PURVIEW` connection through one opaque anti-enumeration error.
-  That same confused-deputy guard now also runs at policy **save** and ad-hoc-run time (Java
-  `IntegrationStepValidator`): a policy whose step references an inaccessible / wrong-type / disabled
-  Purview connection is rejected with `400`, fail-closed for any other `/api/v1/integration/*` op.
-  Secured-router-gated (mounts only in the opt-in secured runtime). Ports Java `PurviewLabelController`,
-  `ApiConnectionResolver`, `PdfSensitivityLabels`, `IntegrationStepValidator`, and `AiToolResponseHeaders`. See
-  `contracts/purview.md`.
+- (Removed in batch 7 — recorded here as history: the secured audit APIs and
+  fleet-usage statistics, the commercial entitlement policy and administrator
+  license lifecycle, the tessdata download routes, durable storage,
+  collaborative (group) signing, the portal audit views and
+  `proprietary/ui-data` projections + portal API keys, the policy subsystem
+  with its webhook receiver/spool and implied-folder-roots route,
+  integrations/resource grants with the `external-api-call` step, Purview
+  labelling, and the classification meter. Their `contracts/*.md` files were
+  deleted with them; per-surface history lives in git.)
+- `general/send-email` honors `?async=true` (async-job allowlist), matching
+  Java's `@AutoJobPostMapping`. Before batch 7, a systematic route
+  cross-check had found no remaining bounded parity gap in the OSS-core +
+  proprietary `controller/api` route surface; batch 7 then deliberately
+  removed the auth/stateful part of that surface, so parity with upstream's
+  account/storage/policy controllers is an explicit non-goal now, not a gap.
+  What remains open on the kept surface: upstream-blocked items
+  (Windows-cert async), the H2-only `ui-data/database` (N/A — no database),
+  and unbounded PDF-fidelity work (Type3 glyph synthesis, Type0/Type3
+  byte-parity — the latter confirmed blocked, needing a net-new
+  embedded-font-program parser AND poisoned by the Java oracle's C0-stripping
+  of 2-byte CIDs).
 
 ## Remaining (not yet ported)
 
@@ -610,9 +491,8 @@ entry, no new mechanism); Windows certificate enumeration cannot use it because 
 and the wrapper's shared detection is POST-only for the whole allowlist — matching Java's own
 `AutoJobPostMapping` annotation, itself hardcoded POST-only, so this is genuine upstream parity, not
 a Rust-specific limitation. Job/control routes (`general/job/*` plus the admin job
-stats/queue/cleanup trio), the mobile-scanner API, and admin settings mutation are all wired in
-the production routers today (an earlier revision of this paragraph predated them).
-Generic SAML/desktop identity remain (OIDC is ported — see below). The
+stats/queue/cleanup trio) and the mobile-scanner API are wired in
+the production router today (admin settings mutation was removed in batch 7). The
 Tauri desktop shell now launches the Rust binary as its **packaged sidecar by
 default** (batch 4): the Java JRE/JAR launch path is deleted,
 `RUSTLING_NATIVE_BACKEND_PATH` is demoted to a dev-only override, and the
@@ -652,10 +532,11 @@ has no block sequences) falls back to the template default, a documented scalar/
 limitation. Hostile hand-authored settings shapes (flow-collection roots and
 sections, block-sequence roots and sections, block-scalar leaves) are refused
 with the file left byte-for-byte untouched — identity initialization degrades
-to a clean fail-open ephemeral identity — and admin/license settings
-persistence goes through the same comment-preserving editor with a pre-write
-reparse-plus-leaf-read-back proof instead of a comment-destroying serde
-round-trip (see `contracts/admin-settings.md`). Sidecar/PDFium packaging and
+to a clean fail-open ephemeral identity. (These `settings.yml` write-backs —
+template creation, truncation recovery, upgrade merge, install identity — run
+**only in Tauri desktop mode** since batch 7; a server boot never writes
+settings. The admin/license settings persistence that shared the
+comment-preserving editor was removed with its routes.) Sidecar/PDFium packaging and
 the production default switch landed with batch 4; batch 5 added the signed
 desktop-bundle release matrix, a repo-controlled updater keypair, and the
 containerized Linux signed-upgrade e2e proof — macOS/Windows upgrade-proof
@@ -671,133 +552,23 @@ opaque token handle after strict `CKA_ID` selection and mechanism-capability che
 RSA/SHA-256 and P-256/P-384 ECDSA with safe raw-mechanism fallbacks. Windows-store signing now
 selects an exact CurrentUser thumbprint and uses a bounded PowerShell/.NET `SignedCms` bridge over
 anonymous pipes, preserving CSP/CNG ownership and native PIN prompts. A live ECC certificate smoke
-test passed end-to-end, including independent PDF byte-range/CMS verification. The production
-configuration slice only supports the one-time analytics onboarding choice and deliberately
-reports login and storage capabilities as disabled while secure-mode cutover remains gated;
-hardware signing remains desktop-loopback gated.
+test passed end-to-end, including independent PDF byte-range/CMS verification. `config/app-config`
+reports login and storage capabilities as permanently disabled (`enableLogin: false` is a frozen
+compatibility key the SPA still reads); hardware signing remains desktop-loopback gated.
 
-An opt-in secured router now provides durable local BCrypt identities, persistent lockout,
-revocable rotating opaque sessions, digest-only one-time-issued API keys, AES-GCM-protected TOTP
-seeds with replay protection, MFA recovery/backup codes (a net-new hardening with no Java
-equivalent: 10 single-use codes auto-issued when MFA is enabled, stored only as SHA-256 digests,
-substitutable for the TOTP factor at login — never a password bypass — atomically consumed one-time,
-feeding the shared MFA lockout on failure; regeneration requires a fresh non-replayable TOTP and the
-remaining count surfaces on `/api/v1/auth/me`), roles, teams, one-time invitations, local-user
-administration, typed post-handler audit records, and administrator audit
-retrieval/export/retention/statistics.
-Password, username, role, team, and account-state changes
-revoke live sessions, and the repository preserves at least one enabled administrator. Existing
-foundation databases are backfilled into the Default team. Java-compatible local user/team/invite
-routes are covered by negative and end-to-end HTTP tests. Public self-registration now creates a
-disabled Default-team user under the Java-compatible five-user community ceiling; authenticated
-users can transactionally replace their durable settings and complete initial setup through the
-legacy route names. Administrator bulk invitations now create forced-change accounts, deliver
-Java-compatible generated credentials, preserve partial-result and missing-team behavior, and
-enforce the same community ceiling transactionally. See `contracts/account-lifecycle.md`.
-Optional invite-link delivery now reuses
-the bounded SMTP relay, reports confirmed delivery without discarding tokens on relay failure, and
-uses the configured frontend/backend URL precedence. Administrator password changes support random
-credentials, optional SMTP delivery, durable forced-change state, and atomic session revocation;
-self-service completion clears the flag. API-key retrieval intentionally does not
-recreate Java's recoverable plaintext storage: callers rotate to receive a new value exactly once.
-Supabase/SaaS bearer JWTs now use a strict public-key JWKS verifier with HTTPS issuer controls,
-bounded response/cache/key selection, explicit algorithm allowlisting, issuer/expiry/audience and
-required-claim validation. Verified subjects are persisted by `(issuer, subject)`, never linked by
-email, receive isolated personal teams, support one-way anonymous upgrade, and retain live local
-role/disable policy on every request. Deleted external subjects receive tombstones so a still-live
-upstream token cannot silently recreate them. Async jobs, status, cancellation, metadata, and
-downloads are now owner-scoped by trusted `AuthContext`. Generic OIDC login has its first slice:
-`oidc_discovery` fetches and validates a provider's `.well-known/openid-configuration` (issuer
-match, required-endpoint presence, the same HTTPS/loopback-only scheme policy Supabase JWKS
-fetching already uses, a hard response-size cap enforced independent of a server's own
-`Content-Length`, and no-redirect fetching), mirroring Java's
-`OAuth2Configuration.oidcClientRegistration()`. `oidc_authorization` now builds the authorization
-redirect request: CSRF `state`, replay-protection `nonce`, and a PKCE `code_verifier`/`code_challenge`
-pair (RFC 7636 S256, cross-checked against the RFC's own worked example), all generated with the
-same CSPRNG/base64url-no-pad convention already used for session/API-key tokens elsewhere in this
-crate, assembled into the full authorization URL via proper query encoding (not string
-concatenation, which would mishandle a `redirect_uri` carrying its own query string). `oidc_token`
-now builds the token-exchange request (RFC 6749 §4.1.3 `grant_type=authorization_code` form body for
-the public-client PKCE case — constructed, not sent, since the live fetch is SSRF-gated and a later
-slice) and parses the token response into typed success/error/malformed shapes, enforcing OIDC
-Core's `id_token`-required rule and classifying fail-closed (a contradictory or nonconformant body
-is rejected, never mis-accepted). `oidc_live_token` performs the actual token exchange SSRF-safely:
-it resolves the `token_endpoint` host, rejects before connecting if ANY resolved address is
-reserved/private (reusing the same reviewed reserved-IP predicate as discovery — now shared via a
-`pub(crate) ip_addr_is_reserved`, a pure extraction verified to leave all 19 discovery SSRF tests
-green), then pins the vetted address via `resolve_to_addrs` so the live TCP connection cannot be
-re-resolved (anti DNS-rebinding); the same primitive now also does the JWKS GET. This closes the
-DNS-name→private-IP hole for these live-fetch paths (discovery-time validation remains
-literal-IP-only, a separate path). The earlier http-path residual is now closed: rather than
-skipping the reserved check on `http`, the fetch requires every resolved address to be loopback on
-`http` (rejecting a non-loopback resolution of `localhost`), preserving the dev/test loopback seam
-while removing the http-downgrade-to-loopback asymmetry. `oidc_id_token` verifies an ID token as a
-sibling of the Supabase verifier (which it leaves untouched): it fetches the JWKS SSRF-safely,
-checks the signature against a JWK selected by `kid`, and enforces a public-key-only algorithm
-allowlist that (double-gated with jsonwebtoken's own key-family guard, and verified against forged
-HS256-with-public-key, `alg=none`, oct-key-in-JWKS, and cross-family tokens) prevents algorithm
-confusion, plus exact `iss`, `aud`==`client_id` (array membership), `exp` with leeway, `azp` when
-present, and — the OIDC-specific check the Supabase verifier lacks — a constant-time `nonce` match
-against the expected nonce. `oidc_login` ties these together into the login flow as library
-functions (no HTTP route yet): `initiate_oidc_login` discovers the provider, builds the
-authorization request, and persists `{state → (nonce, code_verifier, redirect_uri, discovered
-metadata, client_id, expiry)}` in an in-memory single-use TTL store (modeled on the mobile-scanner
-session store); `complete_oidc_login` consumes the `state` entry *before any network call* (an
-unknown/expired/replayed `state` is rejected — this is the CSRF defense, since `state` is CSPRNG),
-then exchanges the code, verifies the id_token against the stored nonce, and provisions the user +
-issues a session by REUSING the exact reviewed external-identity path the Supabase JWT login uses
-(`resolve_external_user`/`context_for_user`/`issue_session`, keyed by `(issuer, subject)` so an
-OIDC identity can never collide with a Supabase one; role/permissions are server-derived, not
-token-controllable). A minimal `security.oauth2.*` provider config (issuer/client_id/redirect_uri/
-scopes, public-client PKCE) drives it, off unless an issuer is set. Both HTTP routes now exist in
-the opt-in reviewed secured router: `POST /api/v1/auth/oidc/authorize` (returns the authorization
-URL + state) and `GET /api/v1/auth/oidc/callback` (issues a session identically to the password
-login handler — same `AuthenticationResponse`/opaque tokens). They are public (a pre-session
-browser flow), scoped to exactly those verb+path pairs, mounted only when a provider is configured
-(absent → 404), and a callback failure (unknown/expired/replayed state, exchange/verify/nonce
-failure) returns one generic 401 that doesn't distinguish CSRF-state-miss from verification failure.
-This completes the generic OIDC login path within the opt-in secured router (which still fails
-closed in production). The public `/authorize` route is now DoS-hardened: the login-state store has
-an absolute size cap (4096 entries; a new login is refused with a generic 503 when full, never
-evicting a pending honest login), and OIDC discovery is cached per issuer (5-min TTL, bounded)
-instead of refetched per call — so an unauthenticated flood can neither grow memory unboundedly nor
-amplify outbound fetches at the IdP. The pre-production hardening trio has landed:
-`POST /api/v1/auth/oidc/authorize` now has its own per-IP governor bucket (production 1 req/s,
-burst 10 — stricter than the generic auth bucket, selected by exact raw-path match so encoded
-spellings fall to the generic bucket instead of bypassing it), closing the refuse-newcomer flood
-residual; ID-token verification uses a bounded `OidcJwksCache` (5-min TTL, 64 entries, kid-miss
-refresh under a 60-second per-entry cooldown, poisoned-lock degrades to uncached, only
-pre-validated key sets admitted); and confidential clients are supported via
-`security.oauth2.clientSecret` with the RFC 6749 §2.3.1 Basic header (Appendix B
-form-urlencoding before base64, `Zeroizing` secrets, Debug-redacted, blank ⇒ public client),
-keeping PKCE for confidential clients per RFC 9700 as a deliberate, documented divergence from
-Spring's public-client-only PKCE. Durable cross-process login-flow state would be
-beyond-Java-parity, not a gap: Java keeps its OAuth2 authorization-request state in per-process
-in-memory HTTP sessions (no persistent session repository is configured), so the Rust in-memory
-single-use TTL store is equivalent; a SQLite-backed store remains an optional enhancement for
-multi-process deployment. The browser-facing callback UX is ported: browser flows get
-Java's exact 302-to-SPA redirect with the token in the URL fragment, honoring
-and then clearing the `stirling_redirect_path` cookie — since batch 4 with
-Spring's byte-exact clearing attributes including the
-`Expires=Thu, 01 Jan 1970 00:00:00 GMT` segment `ResponseCookie#toString`
-emits after a non-negative `Max-Age` (see `contracts/account-lifecycle.md`). The discovery document's own returned endpoint URLs
-(`authorization_endpoint`/`token_endpoint`/`jwks_uri` — untrusted, provider-controlled values,
-unlike the admin-configured issuer itself) are now hardened against SSRF: rejected when the literal
-host is a private/reserved IPv4 or IPv6 address, including RFC 1918/loopback/link-local, CGNAT,
-IETF-benchmarking/protocol-assignment ranges, and every IANA-registered IPv4-embedded-in-IPv6 form
-(mapped, compatible, both NAT64 fixed prefixes, 6to4, Teredo including its XOR-obfuscated client
-slot, and ISATAP for either scope-bit value). An adversarially-verified pass against real RFC text
-found and closed three successive bypasses of this check before landing here (a missed embedding
-form each time), which is itself informative: literal-address enumeration is a whack-a-mole shape,
-not a one-and-done fix. Explicitly and deliberately still open: operator-configurable NAT64/6rd
-prefixes and DNS-name resolution (a domain that resolves to a private address) are undetectable
-without out-of-band deployment knowledge or an actual, TOCTOU-safe resolve-and-pin mechanism neither
-of which exist here yet; native IPv6 special-purpose ranges beyond the embedding forms above (e.g.
-IPv6 benchmarking, Discard-Only) were not audited. SAML2 (scoped and deferred — no sound pure-Rust
-XML-signature/canonicalization foundation exists; it needs a `libxmlsec1` native dependency or a
-from-scratch C14N/XSW build, a decision left to the maintainers), desktop callbacks, device
-identities, ownership for additional durable proprietary resources, and independent security review
-remain.
+**Removed in batch 7 (historical):** an opt-in secured router used to provide
+the full account subsystem — durable local BCrypt identities, persistent
+lockout, rotating opaque sessions, digest-only API keys, AES-GCM-protected
+TOTP with recovery codes, roles/teams/invitations, user administration, audit
+retrieval/export/retention, Supabase JWT verification, and a complete generic
+OIDC login flow (discovery, PKCE authorization, SSRF-pinned token exchange,
+JWKS-cached ID-token verification, single-use state store, DoS-hardened
+public routes, confidential-client support, and the browser-binding
+login-CSRF cookie). All of it was deleted by the batch-7 maintainer decision;
+the adversarially-reviewed SSRF machinery it pioneered survives where live
+consumers remain (`url_to_pdf`'s self-contained resolve-and-pin guard). SAML2
+was never built and is out of scope with the rest of the identity layer.
+
 
 The standalone Rust runtime now performs bounded startup discovery for its optional
 command-line dependencies, including Java-compatible QPDF and WeasyPrint minimum
@@ -816,11 +587,9 @@ The same incremental writer now supports visible page widgets with bounded
 signer/date/reason text and an optional vector mark while preserving the CMS
 byte range. Desktop-loopback PKCS#11 signing now keeps PIN and key use inside one
 serialized login/sign/logout session. Windows-store signing similarly keeps the key in its native
-provider and has an opt-in live endpoint fixture. Managed server signing uses an encrypted
-PKCS#12 file re-wrapped with a separately generated password (or an explicit deployment secret),
-rejects links and malformed key/certificate pairs, and is mounted only in the opt-in secured
-router. Static proprietary route entitlement and trusted Keygen tier derivation are ported; Windows
-secret-file ACL hardening plus an external KMS/HSM option remain review gates. Traditional (non-PKCS#8)
+provider and has an opt-in live endpoint fixture. (Managed server signing — the generated
+server-held PKCS#12 behind `certType=SERVER` — and the proprietary route entitlement/Keygen tier
+derivation were removed with the secured router in batch 7.) Traditional (non-PKCS#8)
 EC PEM signing supports P-256 and P-384. Its DEK-Info cipher coverage (AES-128/192/256-CBC,
 DES-EDE3-CBC, DES-CBC) already matches everything realistically produced by current tooling — RC2/RC4/
 CAMELLIA are deprecated legacy PEM ciphers nobody deliberately picks for a signing workflow and are not
@@ -834,41 +603,39 @@ also fixed** (2026-07-25): the P-384 path used to emit a SHA-256 `digestAlgorith
 It now emits SHA-384, verified the same way (OpenSSL `cms -verify` passes where the pre-fix output failed).
 Every EC curve is now digest-consistent: P-256/SHA-256, P-384/SHA-384, P-521/SHA-512.
 A live SoftHSM/token compatibility matrix and broader Windows smart-card coverage
-remain explicit gaps. It also lacks certificate policy validation,
-public Java/Acrobat compatibility fixtures, and security review, so it is not
-full signing or PAdES parity.
+remain explicit gaps. It also lacks certificate policy validation and
+public Java/Acrobat compatibility fixtures, so it is not
+full signing or PAdES parity. See `SIGNING_MIGRATION_DESIGN.md`.
 
-When `DOCKER_ENABLE_SECURITY=true`, `SECURITY_ENABLELOGIN=true`, or its underscored
-alias is requested, the Rust binary still refuses to start instead of silently
-serving either an unsecured approximation or the not-yet-approved opt-in security router. See
-`SECURITY_MIGRATION_DESIGN.md` and `SIGNING_MIGRATION_DESIGN.md` for the review
-gates before either secure mode or signing is implemented.
+(Historical: until batch 7 the binary refused to start when
+`DOCKER_ENABLE_SECURITY`/`SECURITY_ENABLELOGIN` was set, pending an
+independent security review of an opt-in secured router. Batch 7 deleted the
+secured router and the guard: those keys are now ignored with a one-line
+startup warning, and `SECURITY_MIGRATION_DESIGN.md` was deleted with them.)
 
-The separate `rustling-ai-engine` crate now ports the current Python HTTP agent
+The separate `rustling-ai-engine` crate serves the surviving (stateless) agent
 surface: health/auth, classification, PDF comments, both math-audit rounds,
-durable SQLite documents with ACL/TTL and provider embeddings, PDF questions,
-bounded long-document map/reduce, contradiction detection, schema-grounded PDF
+per-request contradiction detection, schema-grounded PDF
 edit planning, PDF review, structured PDF creation, saved-agent draft/revision,
 the next-action contract (which, matching the Python oracle, is a live stub:
 `POST /api/v1/agents/next-action` always returns
 `cannot_continue`/"Execution planning is not implemented yet" — see
 `contracts/ai-engine-foundation.md`), and the NDJSON orchestrator with
-math-audit resume. The smart and fast model tiers share the Python-compatible
+math-audit resume. (Batch 7 removed the Python oracle's stateful arm: the
+durable SQLite/pgvector document store, embeddings, PDF question answering,
+long-document map/reduce, per-user identity, and the `migrate-sqlite-vec`
+binary. The capability manifest advertises the seven surviving capabilities;
+`pdf_review`'s contradiction branch requests page content per turn via the
+`need_content` protocol instead of reading a store.) The smart and fast model
+tiers share the Python-compatible
 process-wide `RUSTLING_MODEL_MAX_CONCURRENCY` ceiling, in addition to narrower
-per-agent worker limits. Its MCP manifest publishes all eight completed Python
-capabilities. Model-selected evidence and comment anchors are mapped back to
+per-agent worker limits. Model-selected evidence and comment anchors are mapped back to
 trusted local indices, while edit parameters are validated against a generated
 snapshot of the Java operation schemas. Deterministic saved-agent steps reuse
 that catalog plus the three typed Python agent operations, while `ai_tool`
 steps remain restricted to generated processing endpoints; both reject unknown
 endpoints, and deterministic steps reject mismatched parameter objects on
-inbound requests and model output. PostgreSQL/pgvector now uses the
-Python-compatible schema with atomic replace-ingest, bounded pooled TLS
-connections, TTL and ACL-gated page/vector reads. The `migrate-sqlite-vec`
-binary now performs idempotent Python-store cutover to Rust SQLite or pgvector:
-it preserves pages, metadata, TTL and read ACLs while re-embedding content
-without loading the sqlite-vec extension, and fails closed on unreconstructable
-legacy records.
+inbound requests and model output.
 
 The engine also ports the Python oracle's admin config-push subsystem (Python
 PR #7069): `POST /api/v1/config` accepts Java's `AiEngineConfigSync` body (both
@@ -896,77 +663,35 @@ Pydantic: the typed `rustling-operation-catalog` crate translates Java OpenAPI
 directly, retains validation/default semantics, and supplies a deterministic
 `--check` drift gate while the Python artifact remains an independent oracle.
 
-Environment-backed AI-engine booleans and numeric limits now parse strictly before the listener
+Environment-backed AI-engine booleans and numeric limits still parse strictly before the listener
 binds. Malformed or non-Unicode auth flags terminate startup instead of substituting the permissive
-default, and token/concurrency/chunking/contradiction/pgvector bounds plus the typed document-backend
-selection are validated at the same fail-closed boundary.
+default, and token/concurrency/contradiction bounds are validated at the same fail-closed boundary
+(the chunking/pgvector/document-backend settings died with the store; their legacy env vars are
+ignored with a startup warning).
 
-The processing service now owns the complete Java-facing AI controller surface.
+The processing service owns the surviving Java-facing AI controller surface.
 Its orchestration routes are a real state-machine port rather than a multipart
-pass-through: uploads receive stable content IDs; requested pages are extracted
-or ingested; plans run through the same bounded internal policy dispatcher;
-structured reports can resume the engine; every output receives an owned file ID;
-and engine NDJSON is translated to sync JSON or SSE with disconnect cancellation.
-The engine defers identity enforcement until capability routing, allowing
-anonymous edit/create/draft work while still returning 401 before ACL-backed
-question/review delegation. See `contracts/ai-proxy.md`.
+pass-through: uploads receive stable content IDs; requested pages are
+extracted per request; plans run through the same bounded internal dispatcher;
+structured reports can resume the engine; every output receives a job file ID;
+and engine NDJSON is translated to sync JSON or SSE with disconnect
+cancellation. There is no per-user identity anywhere on this path since
+batch 7. See `contracts/ai-proxy.md`.
 
-The reviewed secured router now owns API-key MCP phase one at `POST /mcp`, including
-bounded JSON-RPC transport, protocol negotiation, trusted API-key identity, capability
-manifest caching/filtering, and the two executable AI tools. It also now owns reusable
-file artifacts (`stirling_upload`/`stirling_download`, reusing the existing owner-scoped
-async-job store verbatim) and direct dispatch of a real RustlingPDF processing operation by
-its API path (`stirling_operation`, reusing the pipeline runner's own in-process router
-dispatch — a Rust-only convenience; Java's server exposes eight tools without it). Phase two
-has landed: Java's four per-category tools (`stirling_pages`/`stirling_convert`/
-`stirling_misc`/`stirling_security`) and `stirling_describe_operation` are ported with
-byte-matched `operationListError`, input-schema, and describe texts. Their operation-id sets
-reproduce Java's `McpToolCatalog.extractOpId` exactly: because the curated AI operation
-catalog deliberately excludes eleven flat POST paths, a generated
-`mcp_operation_supplement.json` restores them and an enum-completeness test pins the union
-against Java's id set (the empty `stirling_convert` enum is genuine Java behavior — every
-convert path has a nested tail). The scope framing previously recorded here was wrong and is
-corrected: Java's `McpApiKeyAuthFilter` statically grants both `mcp.tools.read`/
-`mcp.tools.write` to every valid API key — Java has no per-key scope store either — so
-sharing phase one's authorization boundary is exact parity in apikey mode, and granular
-scopes only become meaningful in the unported OAuth/JWT mode. OAuth/JWT metadata and
-production secured-mode cutover remain explicit later phases. See `contracts/mcp.md`.
+(Removed in batch 7 — historical: the MCP server — JSON-RPC transport, the
+`stirling_*` tool set with its generated `mcp_operation_supplement.json`, and
+the OAuth/API-key verification modes — plus resource-grant administration,
+encrypted S3/MCP/API integration configs, the entire policy subsystem with
+its processed-file ledger, folder/S3/webhook sources, triggers, sinks, and
+public HMAC webhook receiver, and the classification-label CRUD store. The
+operation-catalog crate still carries the unused MCP-supplement generator; it
+is inert.)
 
-The same reviewed router now owns resource-grant administration and encrypted
-S3/MCP/API integration-config CRUD. Ownership, team-leader/default/grant rules,
-disabled/locked behavior, recursive secret masking/merge, Java-compatible AES-GCM
-rows, and transactional cleanup are covered. Conditional team-scoped policy/source
-configuration now uses the Java logical tables, encrypted JSON rows, UUID/order semantics,
-folder allowlists, source document-count projections, S3 `connectionId` resolution, source/
-integration deletion conflicts, policy-overview projections, and schedule/folder-watch definition
-validation. Ad-hoc and stored uploaded runs now use the shared bounded job queue and pipeline
-dispatcher, including named supporting assets, owner-scoped status/listing, generic file downloads,
-result MIME preservation, and admitted editor-counter writes. A Java-compatible durable processed-
-file ledger now supplies atomic claims, bounded interrupted retries, settlement/output consensus,
-presence cleanup, and boot recovery. `FULL`/`LIGHT` folder and S3 source sweeps consume that ledger;
-inline, atomic folder, and conditional S3 sinks complete delivery. Manual trigger/history routes,
-trigger metadata, wall-clock schedules, debounced folder events, startup reconciliation, and
-periodic reconciliation are active in the reviewed runtime. The webhook input-source type, its
-enabled-only trigger dispatch, the FULL reconcile safety-net, and the public HMAC receiver/spool
-(`POST /api/v1/webhooks/{webhookId}`) are now ported. **The webhook subsystem is now end-to-end: a
-delivery is spooled by the receiver and consumed by a webhook policy run — `resolve_source` has a real
-`"webhook"` arm that reads the per-webhook spool dir through the folder-consume lifecycle (ledger
-claim/settle, display-name filename, cross-policy delete, retain-on-failure), porting
-`WebhookInputSource.resolve`/`completeConsumed`.** Ad-hoc streamed runs emit
-Java-compatible started/completed step events and a terminal owner-scoped run view without
-cancelling work on disconnect. Java's dormant `WAITING_FOR_INPUT` scaffolding has no live resume
-route to port, while automatic trigger state is process-local pending the broader distributed
-runtime. See
-`contracts/resource-access-integrations.md`,
-`contracts/policy-config.md`, and
-`contracts/webhook-receiver.md`.
-
-The processing service now also ports team-scoped classification-label CRUD
-and the `classify-and-label` PDF bridge. Label mutation is administrator-only in
-the reviewed secured router, open mode uses team sentinel `0`, and the bridge
-reads only a bounded de-duplicated first-two/last-two page window before writing
-the focused `StirlingPDFClassification` Info entry. See
-`contracts/classification-labels.md`.
+The `classify-and-label` PDF bridge survives as a pure function: the label
+vocabulary arrives in the request body (the SPA owns label storage
+client-side), and the bridge reads only a bounded de-duplicated
+first-two/last-two page window before writing the focused
+`StirlingPDFClassification` Info entry.
 See `contracts/ai-engine-foundation.md` and
 `contracts/pdf-comment-agent.md`.
 
@@ -983,26 +708,27 @@ Rust AI engine receives only the two typed protocol messages. See
 
 The self-contained document-classifier route is also live:
 it is available at `POST /api/v1/documents/classify` only with a configured
-structured-output provider (Anthropic Messages or OpenAI-compatible). The curated
-MCP capability manifest intentionally excludes this internal classification
-primitive; it advertises only the eight user-facing capabilities shared with the
-legacy oracle.
+structured-output provider (Anthropic Messages or OpenAI-compatible). It is a
+stateless internal primitive (it shares only the `/documents` path prefix
+with the deleted store routes) and is deliberately excluded from the engine's
+capability manifest, which advertises the seven user-facing capabilities.
 
-### SaaS hosted-cloud layer (`app/saas/`) — PAUSED, unverifiable in this env
+### SaaS hosted-cloud layer (`app/saas/`) — REMOVED from scope (batch 7)
 
-With durable storage and collaborative signing ported, the OSS core, the
-proprietary `controller/api` route surface, and the processing backend are ported.
-The remaining unported Java controllers live in the hosted-SaaS product **plus one
-proprietary-module subsystem**: `stirling.software.proprietary.accountlink` — the
+This layer was never ported (originally PAUSED as unverifiable in this dev
+environment), and the batch-7 no-auth/stateless decision removed it from
+scope permanently — the frontend `saas`/`cloud`/`portal` layers were deleted
+in the same batch. The controller inventory below is kept as the historical
+record of what upstream has and this product will not build:
+`stirling.software.proprietary.accountlink` — the
 `@Profile("!saas")` self-hosted combined-billing `AccountLinkController`
 (`/api/v1/account-link`: `link`/`status`/`unlink`/`usage`/`sync-now`, admin-only,
 gated behind `stirling.billing.account-link.enabled`) and its
 `InstanceEntitlementInterceptor`, which `AccountLinkWebMvcConfig` registers over
-`/api/v1/**` as a request-time 402 entitlement gate with per-request metering.
-Both call the same un-ported external cloud-billing domain as the SaaS layer
-(Supabase auth, payment gateways, cloud billing/entitlement, instance registry)
-that cannot be exercised or verified in this dev environment — the same rationale
-that PAUSED the external-tool converters. All are deliberately deferred:
+`/api/v1/**` as a request-time 402 entitlement gate with per-request metering,
+both calling the same external cloud-billing domain as the SaaS layer
+(Supabase auth, payment gateways, cloud billing/entitlement, instance
+registry); plus:
 
 - `AiCreateController` / `AiCreateInternalController` — `ai/create/sessions/*`
   (AI document-creation sessions + `JobChargeService` metering).
@@ -1013,11 +739,11 @@ that PAUSED the external-tool converters. All are deliberately deferred:
 - `AccountLinkController` (`account-link/*`), `InstanceController`,
   `Payg{Wallet,Invoices,PaymentMethod}Controller`, `PricingPolicyAdminController`,
   `ProcurementController`, `SaasTeamController`, `SaasFleetUsageController` (a `@Profile("saas")`
-  team-scoped alternative on the already-served `usage/fleet-stats` path — needs a saas-mode
-  switch, not a standalone port).
+  team-scoped alternative on the `usage/fleet-stats` path this backend no
+  longer serves).
 - `DatabaseController`/`DatabaseControllerEnterprise` — H2-only
-  (`@Conditional(H2SQLCondition)`) DB backup/restore; N/A for the Rust sqlite store
-  (a sqlite-backup equivalent would be net-new, not strict parity).
+  (`@Conditional(H2SQLCondition)`) DB backup/restore; N/A — the Rust backend
+  keeps no database at all since batch 7.
 - `PaygCucumberThrowController` — a `@Profile("payg-cucumber")` hidden test stub
   that forces a 500 for cucumber runs; never registered in production, nothing to port.
 
@@ -1027,12 +753,16 @@ cert-sign routes are ported and the Java print-file mapping is commented out (in
 
 ## How to find gaps precisely
 
-Use `docs/contracts/legacy-runtime-baseline.md` for the cross-surface baseline and
+Use `docs/contracts/legacy-runtime-baseline.md` (an upstream Stirling-PDF
+path — see the repository note at the top) for the cross-surface baseline and
 the contract files in `rust/contracts/` for implemented behavior and explicit
 gaps. Source-literal counts are not authoritative because Spring composes class
-and method mappings while the Rust service composes public, conditional, and
-review-only secured routers. When diffing Java `@*Mapping` literals against the Rust
-route constants, STRIP Java comments first — several controllers keep inactive
+and method mappings while the Rust service composes public and conditional
+routers. When diffing Java `@*Mapping` literals against the Rust
+route constants, remember two things: (1) batch 7 made upstream's
+account/storage/policy/audit/MCP controllers an explicit non-goal, so those
+Java routes are *removed-by-decision*, not "unported gaps"; (2) STRIP Java
+comments first — several controllers keep inactive
 endpoints commented out (e.g. `AuditDashboardController`'s `/stats/range`,
 `/principals`, `/latest`; `PrintFileController`'s `/print-file`), and a naive grep
 reports those as false "unported" gaps.
