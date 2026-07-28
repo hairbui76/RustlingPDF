@@ -9,7 +9,7 @@ use imageproc::{
     contours::{BorderType, Contour, find_contours},
     distance_transform::Norm,
     edges::canny,
-    geometric_transformations::{Interpolation, warp_into_with},
+    geometric_transformations::{Border, Interpolation, warp_into_with},
     hough::{LineDetectionOptions, detect_lines},
     morphology::dilate,
 };
@@ -429,7 +429,7 @@ fn rotate_with_replicated_border(
         &padded,
         mapping,
         Interpolation::Bicubic,
-        Rgb([0, 0, 0]),
+        Border::Constant(Rgb([0, 0, 0])),
         &mut rotated,
     );
     Ok(rotated)
