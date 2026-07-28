@@ -36,6 +36,13 @@ updates:
       rust-backend-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      # sha2 0.11 rides the digest-0.11 RustCrypto line; hkdf (and friends)
+      # have no compatible release yet, so the bump cannot compile until the
+      # ecosystem moves together (dependabot PR #11, closed 2026-07-28).
+      # Revisit when hkdf/hmac ship digest-0.11-compatible majors.
+      - dependency-name: "sha2"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "cargo"
     directory: "/frontend/editor/src-tauri"
@@ -88,6 +95,18 @@ updates:
       frontend-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      # vite 8 conflicts with the installed plugin family's peer ranges
+      # (dependabot PR #12, closed 2026-07-28); a vite major is a deliberate
+      # coordinated upgrade with its plugins, not a drive-by bump.
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      # Mantine majors must move as one family (@mantine/core, /hooks,
+      # /dropzone, ...): a lone @mantine/dropzone 9 fails @mantine/core 8
+      # peer deps (dependabot PR #14, closed 2026-07-28). Coordinated
+      # Mantine-9 upgrade is a roadmap follow-up.
+      - dependency-name: "@mantine/*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
