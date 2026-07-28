@@ -104,20 +104,20 @@ export function ProcurementAgreement({
 
         <h4>5. Data Processing Agreement</h4>
         <p>
-          Where RustlingPDF processes personal data on Customer's behalf, it does
-          so only on Customer's documented instructions and applies appropriate
-          technical and organisational measures. Sub-processors, international
-          transfers, and security commitments are as described in RustlingPDF's
-          Data Processing Agreement and Trust Center, incorporated here by
-          reference.
+          Where RustlingPDF processes personal data on Customer's behalf, it
+          does so only on Customer's documented instructions and applies
+          appropriate technical and organisational measures. Sub-processors,
+          international transfers, and security commitments are as described in
+          RustlingPDF's Data Processing Agreement and Trust Center, incorporated
+          here by reference.
         </p>
 
         <h4>6. Acceptance</h4>
         <p>
           By agreeing below, Customer accepts this Agreement and the Order Form.
-          On acceptance, RustlingPDF will issue the committed annual subscription
-          and its first invoice. This preview stands in for e-signature during
-          the pilot.
+          On acceptance, RustlingPDF will issue the committed annual
+          subscription and its first invoice. This preview stands in for
+          e-signature during the pilot.
         </p>
       </div>
 

@@ -792,7 +792,7 @@ description = "Timeout for standard AI requests to the engine."
 label = "Request timeout (seconds)"
 
 [admin.settings.ai.general.url]
-description = "Internal URL of the Python AI engine, e.g. http://stirling-pdf-engine:5001."
+description = "Internal URL of the Python AI engine, e.g. http://rustlingpdf-ai-engine:5001."
 label = "AI engine URL"
 
 [admin.settings.ai.limits]
@@ -8098,7 +8098,7 @@ label = "Headers"
 
 [portal.policies.operations.fields.index]
 label = "Index"
-placeholder = "stirling-audit"
+placeholder = "rustling-audit"
 
 [portal.policies.operations.fields.issueKey]
 label = "Issue key"
@@ -8147,7 +8147,7 @@ placeholder = "records@acme.com"
 
 [portal.policies.operations.fields.username]
 label = "Nextcloud username"
-placeholder = "svc-stirling"
+placeholder = "svc-rustling"
 
 [portal.policies.operations.googlechatNotify]
 description = "Tells a space that the policy handled a document."

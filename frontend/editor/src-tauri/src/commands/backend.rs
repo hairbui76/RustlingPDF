@@ -2,7 +2,6 @@ use crate::state::connection_state::{AppConnectionState, ConnectionMode};
 use crate::utils::{add_log, app_data_dir};
 use std::path::{Path, PathBuf};
 use std::{
-    env,
     sync::Mutex,
     time::{Duration, Instant},
 };

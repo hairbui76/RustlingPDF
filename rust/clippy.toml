@@ -1,0 +1,3 @@
+# Product names are prose, not code items: keep rustdoc prose free of
+# spurious backtick requirements from clippy::doc_markdown.
+doc-valid-idents = ["RustlingPDF", ".."]

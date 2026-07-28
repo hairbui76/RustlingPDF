@@ -130,7 +130,11 @@ this guide. Deployments configured before the product rename can keep their
 `STIRLING_*` spellings: each one is accepted as a deprecated alias for the same
 variable (`STIRLING_PORT` ≙ `RUSTLING_PORT`, and so on). When both spellings
 are set, `RUSTLING_*` wins. A process started with legacy spellings logs a
-single deprecation line on stderr listing them.
+single deprecation line on stderr listing them. The same policy applies to the
+product-rooted settings-file keys: `rustling.*` (e.g.
+`rustling.job.queue.baseCapacity`, `rustling.ai.streamTimeoutMs`) is the
+primary root, and the pre-rename `stirling.*` root keeps working as a legacy
+alias with `rustling.*` winning when both are present.
 
 ---
 

@@ -82,8 +82,8 @@ export class UpdateService {
       return (
         DOWNLOAD_BASE_URL +
         (machineInfo.activeSecurity
-          ? "RustlingPDF-with-login.jar"
-          : "RustlingPDF.jar")
+          ? "Stirling-PDF-with-login.jar"
+          : "Stirling-PDF.jar")
       );
     }
 

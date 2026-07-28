@@ -51,7 +51,11 @@ export function ShellHero({
 }) {
   if (appIcon) {
     return (
-      <img src={stirlingMark} alt="RustlingPDF" className={styles.heroAppIcon} />
+      <img
+        src={stirlingMark}
+        alt="RustlingPDF"
+        className={styles.heroAppIcon}
+      />
     );
   }
   return <div className={styles.heroTile}>{children}</div>;

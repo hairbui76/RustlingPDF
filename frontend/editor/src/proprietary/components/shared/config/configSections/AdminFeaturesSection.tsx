@@ -258,8 +258,7 @@ export default function AdminFeaturesSection() {
                   "Organization name for generated certificates",
                 )}
                 value={
-                  settings.serverCertificate?.organizationName ||
-                  "RustlingPDF"
+                  settings.serverCertificate?.organizationName || "RustlingPDF"
                 }
                 onChange={(e) =>
                   setSettings({

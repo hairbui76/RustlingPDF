@@ -615,8 +615,7 @@ impl RuntimeConfig {
             .or_else(|| crate::env_compat::var("RUSTLING_AI_STREAM_TIMEOUT_MS").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
-                value_at(&self.settings, &["stirling", "ai", "streamTimeoutMs"])
-                    .and_then(Value::as_u64)
+                product_value_at(&self.settings, &["ai", "streamTimeoutMs"]).and_then(Value::as_u64)
             })
             .unwrap_or(1_800_000)
             .max(1);
@@ -746,22 +745,22 @@ impl RuntimeConfig {
     /// for the Rust scheduler.
     pub(crate) fn job_queue_config(&self) -> JobQueueConfig {
         let queue_capacity = self
-            .u64(
-                &["stirling", "job", "queue", "baseCapacity"],
+            .product_u64(
+                &["job", "queue", "baseCapacity"],
                 "RUSTLING_JOB_QUEUE_BASE_CAPACITY",
                 10,
             )
             .clamp(1, 10_000) as usize;
         let resource_budget = self
-            .u64(
-                &["stirling", "job", "queue", "resourceBudget"],
+            .product_u64(
+                &["job", "queue", "resourceBudget"],
                 "RUSTLING_JOB_QUEUE_RESOURCE_BUDGET",
                 10,
             )
             .clamp(1, 1_000) as u32;
         let max_wait_millis = self
-            .u64(
-                &["stirling", "job", "queue", "maxWaitTimeMs"],
+            .product_u64(
+                &["job", "queue", "maxWaitTimeMs"],
                 "RUSTLING_JOB_QUEUE_MAX_WAIT_TIME_MS",
                 600_000,
             )
@@ -775,8 +774,8 @@ impl RuntimeConfig {
 
     pub(crate) fn job_result_ttl(&self) -> Duration {
         let minutes = self
-            .u64(
-                &["stirling", "jobResultExpiryMinutes"],
+            .product_u64(
+                &["jobResultExpiryMinutes"],
                 "RUSTLING_JOB_RESULT_EXPIRY_MINUTES",
                 30,
             )
@@ -2519,6 +2518,17 @@ impl RuntimeConfig {
             .unwrap_or_default()
     }
 
+    /// [`Self::u64`] against the product-rooted settings keys: `rustling.*`
+    /// is the primary root and the pre-rename `stirling.*` root keeps working
+    /// as a legacy alias (`rustling.*` wins when both are present).
+    fn product_u64(&self, path_below_root: &[&str], environment: &str, default: u64) -> u64 {
+        crate::env_compat::var(environment)
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .or_else(|| product_value_at(&self.settings, path_below_root).and_then(Value::as_u64))
+            .unwrap_or(default)
+    }
+
     fn u64(&self, path: &[&str], environment: &str, default: u64) -> u64 {
         crate::env_compat::var(environment)
             .ok()
@@ -2923,6 +2933,18 @@ fn merge_json(target: &mut Value, overlay: Value) {
         }
         (target, overlay) => *target = overlay,
     }
+}
+
+/// Product-rooted settings lookup: `rustling.*` is the primary key root and
+/// the pre-rename `stirling.*` root is honoured as a legacy alias.
+fn product_value_at<'a>(value: &'a Value, path_below_root: &[&str]) -> Option<&'a Value> {
+    let lookup = |root: &'static str| {
+        let mut path = Vec::with_capacity(path_below_root.len() + 1);
+        path.push(root);
+        path.extend_from_slice(path_below_root);
+        value_at(value, &path)
+    };
+    lookup("rustling").or_else(|| lookup("stirling"))
 }
 
 fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
@@ -4411,5 +4433,27 @@ mod tests {
         ] {
             assert!(!super::is_valid_settings_uuid(invalid), "{invalid:?}");
         }
+    }
+
+    #[test]
+    fn product_rooted_keys_prefer_rustling_and_accept_legacy_stirling() {
+        let both = json!({
+            "rustling": {"jobResultExpiryMinutes": 5},
+            "stirling": {"jobResultExpiryMinutes": 9}
+        });
+        assert_eq!(
+            super::product_value_at(&both, &["jobResultExpiryMinutes"])
+                .and_then(serde_json::Value::as_u64),
+            Some(5),
+            "rustling.* must win when both roots are present"
+        );
+        let legacy = json!({"stirling": {"job": {"queue": {"baseCapacity": 7}}}});
+        assert_eq!(
+            super::product_value_at(&legacy, &["job", "queue", "baseCapacity"])
+                .and_then(serde_json::Value::as_u64),
+            Some(7),
+            "pre-rename stirling.* keys must keep working"
+        );
+        assert!(super::product_value_at(&json!({}), &["jobResultExpiryMinutes"]).is_none());
     }
 }

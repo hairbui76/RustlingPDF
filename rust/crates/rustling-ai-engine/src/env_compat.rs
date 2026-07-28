@@ -36,6 +36,10 @@ fn legacy_alias(name: &str) -> Option<String> {
 /// Exactly the [`std::env::var`] errors: [`VarError::NotPresent`] when neither
 /// spelling is set, [`VarError::NotUnicode`] when the value that won the
 /// lookup is not valid Unicode.
+// The closure is load-bearing, not redundant: `std::env::var` is generic over
+// its key type, so the plain fn item only implements `Fn` for one specific
+// lifetime and cannot be passed where a higher-ranked `Fn(&str)` is needed.
+#[allow(clippy::redundant_closure)]
 pub fn var(name: &str) -> Result<String, VarError> {
     var_with(|candidate| env::var(candidate), name)
 }

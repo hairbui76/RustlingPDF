@@ -207,7 +207,10 @@ export default function AdminMcpSection() {
               )}
               data={[
                 { value: "oauth", label: "OAuth 2.1 (external IdP)" },
-                { value: "apikey", label: "API key (RustlingPDF per-user key)" },
+                {
+                  value: "apikey",
+                  label: "API key (RustlingPDF per-user key)",
+                },
               ]}
               value={authMode}
               onChange={(v) => setAuth({ mode: v || "oauth" })}

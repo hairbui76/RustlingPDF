@@ -21,12 +21,12 @@ const WINGET = "winget install StirlingTools.StirlingPDF";
 const BREW = "brew install --cask stirling-pdf";
 const dockerCmd = (tag: string) =>
   `docker run -d --name stirling-pdf -p 8080:8080 \\\n  -v ./stirling-data:/configs \\\n  stirlingtools/stirling-pdf:${tag}`;
-const HELM = `helm repo add stirling-pdf https://stirling-tools.github.io/RustlingPDF/
+const HELM = `helm repo add stirling-pdf https://stirling-tools.github.io/Stirling-PDF/
 helm repo update
 helm install stirling-pdf stirling-pdf/stirling-pdf-chart \\\n  --namespace stirling-pdf --create-namespace`;
-const JAR_URL = "https://files.stirlingpdf.com/RustlingPDF-with-login.jar";
+const JAR_URL = "https://files.stirlingpdf.com/Stirling-PDF-with-login.jar";
 const JAR =
-  "java -Xmx2g -jar RustlingPDF-with-login.jar\n# then open http://localhost:8080";
+  "java -Xmx2g -jar Stirling-PDF-with-login.jar\n# then open http://localhost:8080";
 
 const GUIDES = {
   windows: "https://docs.stirlingpdf.com/Installation/Windows%20Installation/",

@@ -250,7 +250,7 @@ pub fn can_install_updates() -> CanInstallResult {
         };
 
         let dir_display = parent.display().to_string();
-        let probe = parent.join(".stirling-auto-update-probe.tmp");
+        let probe = parent.join(".rustling-auto-update-probe.tmp");
         match std::fs::File::create(&probe) {
             Ok(_) => {
                 let _ = std::fs::remove_file(&probe);

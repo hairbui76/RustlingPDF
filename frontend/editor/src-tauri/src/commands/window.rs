@@ -27,7 +27,7 @@ fn queue_file_ids(label: &str, ids: Vec<String>) {
     map.entry(label.to_string()).or_default().extend(ids);
 }
 
-// Shared window builder: every Stirling window must use identical WebView2
+// Shared window builder: every RustlingPDF window must use identical WebView2
 // browser args so they can share one user-data folder (see the note below),
 // so all spawn paths funnel through here.
 fn build_window(app: &AppHandle, label: &str, url: &str) -> Result<WebviewWindow, String> {

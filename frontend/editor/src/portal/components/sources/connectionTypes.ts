@@ -67,12 +67,7 @@ export interface CreatableConnectionType {
 }
 
 export type ConnectionCategory =
-  | "storage"
-  | "signing"
-  | "security"
-  | "audit"
-  | "notify"
-  | "advanced";
+  "storage" | "signing" | "security" | "audit" | "notify" | "advanced";
 
 /** Display order of the category sections in the picker. */
 // Substantial sections first; the two deliberate one-card sections (signing = the ConsignO
