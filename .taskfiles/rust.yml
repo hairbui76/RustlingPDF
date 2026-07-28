@@ -51,12 +51,6 @@ tasks:
     cmds:
       - cargo run -p rustling-ai-engine --bin rustling-ai-engine
 
-  ai-engine:migrate:
-    desc: "Migrate legacy AI-engine document data to Rust storage"
-    deps: [clean:deps]
-    cmds:
-      - cargo run -p rustling-ai-engine --bin migrate-sqlite-vec -- {{.CLI_ARGS}}
-
   build:
     desc: "Build Rust components"
     deps: [clean:deps]

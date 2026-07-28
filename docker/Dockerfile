@@ -104,14 +104,14 @@ FROM debian:trixie-slim AS ai-engine
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl tini \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin stirling \
-    && mkdir -p /data && chown stirling:stirling /data
+    && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin stirling
 
 COPY --from=rust-build --chown=root:root /out/rustling-ai-engine /app/rustling-ai-engine
 
+# The engine is stateless: the document/RAG store was removed with the PDF
+# question-answer feature, so no /data volume is needed.
 ENV RUSTLING_ENGINE_HOST=0.0.0.0 \
-    RUSTLING_ENGINE_PORT=5001 \
-    RUSTLING_DOCUMENTS_SQLITE_PATH=/data/ai-engine-documents.db
+    RUSTLING_ENGINE_PORT=5001
 
 # Stage-local redeclarations pick up the global defaults above (or the
 # release workflow's --build-arg values). licenses matches the root LICENSE.
@@ -127,7 +127,6 @@ LABEL org.opencontainers.image.title="RustlingPDF AI engine" \
       org.opencontainers.image.revision="${REVISION}" \
       org.opencontainers.image.created="${CREATED}"
 
-VOLUME /data
 EXPOSE 5001/tcp
 USER stirling
 WORKDIR /app
