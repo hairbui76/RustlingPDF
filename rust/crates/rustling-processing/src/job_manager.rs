@@ -19,8 +19,6 @@ use rand::RngExt as _;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::security::AuthContext;
-
 const JOB_TTL: Duration = Duration::from_secs(30 * 60);
 const HEX: &[u8; 16] = b"0123456789abcdef";
 
@@ -44,32 +42,12 @@ struct JobStore {
 
 #[derive(Debug)]
 struct JobRecord {
-    owner: JobOwner,
     status: JobStatus,
     directory: PathBuf,
     outputs: Vec<JobFile>,
     created_at_instant: Instant,
     completed_at_instant: Option<Instant>,
     expires_at: Option<Instant>,
-}
-
-/// Stable resource owner derived exclusively from trusted request extensions.
-///
-/// Open-mode jobs intentionally share one namespace for backward compatibility.
-/// Secured-mode jobs are isolated by the durable local user identifier so a
-/// session refresh or login through another supported credential does not lose
-/// access to work created by the same account.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum JobOwner {
-    Open,
-    User(i64),
-}
-
-impl JobOwner {
-    #[must_use]
-    pub(crate) fn from_auth_context(context: Option<&AuthContext>) -> Self {
-        context.map_or(Self::Open, |context| Self::User(context.user_id))
-    }
 }
 
 /// Serializable job progress returned by `GET /api/v1/general/job/{job_id}`.
@@ -168,7 +146,7 @@ impl JobManager {
     }
 
     /// Allocates an isolated private directory for a queued job.
-    pub(crate) fn create_job(&self, owner: JobOwner) -> Result<JobSubmission, JobManagerError> {
+    pub(crate) fn create_job(&self) -> Result<JobSubmission, JobManagerError> {
         self.remove_expired()?;
         fs::create_dir_all(self.root.as_path())?;
 
@@ -197,7 +175,6 @@ impl JobManager {
                     store.jobs.insert(
                         job_id.clone(),
                         JobRecord {
-                            owner,
                             status,
                             directory: directory.clone(),
                             outputs: Vec::new(),
@@ -405,31 +382,22 @@ impl JobManager {
         Ok(())
     }
 
-    pub(crate) fn status(
-        &self,
-        owner: JobOwner,
-        job_id: &str,
-    ) -> Result<Option<JobStatus>, JobManagerError> {
+    pub(crate) fn status(&self, job_id: &str) -> Result<Option<JobStatus>, JobManagerError> {
         self.remove_expired()?;
         Ok(self
             .lock()?
             .jobs
             .get(job_id)
-            .filter(|record| record.owner == owner)
             .map(|record| record.status.clone()))
     }
 
-    pub(crate) fn result_file(
-        &self,
-        owner: JobOwner,
-        job_id: &str,
-    ) -> Result<Option<JobFile>, JobManagerError> {
+    pub(crate) fn result_file(&self, job_id: &str) -> Result<Option<JobFile>, JobManagerError> {
         self.remove_expired()?;
         let store = self.lock()?;
         let Some(record) = store.jobs.get(job_id) else {
             return Ok(None);
         };
-        if record.owner != owner || !record.status.complete || record.status.error.is_some() {
+        if !record.status.complete || record.status.error.is_some() {
             return Ok(None);
         }
         Ok(record.outputs.first().cloned())
@@ -437,7 +405,6 @@ impl JobManager {
 
     pub(crate) fn result_files(
         &self,
-        owner: JobOwner,
         job_id: &str,
     ) -> Result<Option<Vec<JobFile>>, JobManagerError> {
         self.remove_expired()?;
@@ -445,7 +412,7 @@ impl JobManager {
         let Some(record) = store.jobs.get(job_id) else {
             return Ok(None);
         };
-        if record.owner != owner || !record.status.complete || record.status.error.is_some() {
+        if !record.status.complete || record.status.error.is_some() {
             return Ok(None);
         }
         Ok(Some(record.outputs.clone()))
@@ -453,15 +420,11 @@ impl JobManager {
 
     pub(crate) fn job_file(
         &self,
-        owner: JobOwner,
         file_id: &str,
     ) -> Result<Option<(String, JobFile)>, JobManagerError> {
         self.remove_expired()?;
         let store = self.lock()?;
         Ok(store.jobs.iter().find_map(|(job_id, record)| {
-            if record.owner != owner {
-                return None;
-            }
             record
                 .outputs
                 .iter()
@@ -471,19 +434,12 @@ impl JobManager {
         }))
     }
 
-    pub(crate) fn cancel(
-        &self,
-        owner: JobOwner,
-        job_id: &str,
-    ) -> Result<CancelJob, JobManagerError> {
+    pub(crate) fn cancel(&self, job_id: &str) -> Result<CancelJob, JobManagerError> {
         self.remove_expired()?;
         let mut store = self.lock()?;
         let Some(record) = store.jobs.get_mut(job_id) else {
             return Ok(CancelJob::Missing);
         };
-        if record.owner != owner {
-            return Ok(CancelJob::Missing);
-        }
         if record.status.complete {
             return Ok(CancelJob::Complete);
         }
@@ -627,30 +583,24 @@ fn cleanup_files(paths: &[PathBuf]) {
 mod tests {
     use std::{fs, time::Duration};
 
-    use super::{CancelJob, JobManager, JobOwner};
+    use super::{CancelJob, JobManager};
 
     #[test]
     fn stores_a_completed_file_and_exposes_metadata() -> Result<(), Box<dyn std::error::Error>> {
         let manager = JobManager::new();
-        let job = manager.create_job(JobOwner::Open)?;
+        let job = manager.create_job()?;
         manager.update_progress(&job.job_id, 25, "processing", "Reading PDF")?;
         let output = job.directory.join("result.json");
         fs::write(&output, b"{}")?;
         manager.complete_file(&job.job_id, &output, "document.json", "application/json")?;
 
-        let status = manager
-            .status(JobOwner::Open, &job.job_id)?
-            .ok_or("job missing")?;
+        let status = manager.status(&job.job_id)?.ok_or("job missing")?;
         assert!(status.complete);
         assert_eq!(status.progress, 100);
-        let file = manager
-            .result_file(JobOwner::Open, &job.job_id)?
-            .ok_or("output missing")?;
+        let file = manager.result_file(&job.job_id)?.ok_or("output missing")?;
         assert_eq!(file.file_name, "document.json");
         assert_eq!(file.file_size, 2);
-        let (_, by_file_id) = manager
-            .job_file(JobOwner::Open, &file.file_id)?
-            .ok_or("file missing")?;
+        let (_, by_file_id) = manager.job_file(&file.file_id)?.ok_or("file missing")?;
         assert_eq!(by_file_id.content_type, "application/json");
         let _ = fs::remove_dir_all(job.directory);
         Ok(())
@@ -659,11 +609,8 @@ mod tests {
     #[test]
     fn cancelled_job_cannot_be_completed_later() -> Result<(), Box<dyn std::error::Error>> {
         let manager = JobManager::new();
-        let job = manager.create_job(JobOwner::Open)?;
-        assert_eq!(
-            manager.cancel(JobOwner::Open, &job.job_id)?,
-            CancelJob::Cancelled
-        );
+        let job = manager.create_job()?;
+        assert_eq!(manager.cancel(&job.job_id)?, CancelJob::Cancelled);
         let output = job.directory.join("result.json");
         fs::write(&output, b"{}")?;
         assert!(
@@ -671,36 +618,7 @@ mod tests {
                 .complete_file(&job.job_id, &output, "document.json", "application/json")
                 .is_err()
         );
-        assert_eq!(
-            manager.cancel(JobOwner::Open, &job.job_id)?,
-            CancelJob::Complete
-        );
-        let _ = fs::remove_dir_all(job.directory);
-        Ok(())
-    }
-
-    #[test]
-    fn secured_jobs_are_invisible_to_other_users_and_open_mode()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let manager = JobManager::new();
-        let owner = JobOwner::User(7);
-        let job = manager.create_job(owner)?;
-        let output = job.directory.join("result.pdf");
-        fs::write(&output, b"pdf")?;
-        manager.complete_file(&job.job_id, &output, "result.pdf", "application/pdf")?;
-        let file = manager
-            .result_file(owner, &job.job_id)?
-            .ok_or("owner output missing")?;
-
-        for other in [JobOwner::User(8), JobOwner::Open] {
-            assert!(manager.status(other, &job.job_id)?.is_none());
-            assert!(manager.result_file(other, &job.job_id)?.is_none());
-            assert!(manager.job_file(other, &file.file_id)?.is_none());
-            assert_eq!(manager.cancel(other, &job.job_id)?, CancelJob::Missing);
-        }
-
-        assert!(manager.status(owner, &job.job_id)?.is_some());
-        assert!(manager.job_file(owner, &file.file_id)?.is_some());
+        assert_eq!(manager.cancel(&job.job_id)?, CancelJob::Complete);
         let _ = fs::remove_dir_all(job.directory);
         Ok(())
     }
@@ -709,8 +627,8 @@ mod tests {
     fn reports_active_successful_and_failed_job_statistics()
     -> Result<(), Box<dyn std::error::Error>> {
         let manager = JobManager::new();
-        let active = manager.create_job(JobOwner::Open)?;
-        let successful = manager.create_job(JobOwner::Open)?;
+        let active = manager.create_job()?;
+        let successful = manager.create_job()?;
         let successful_output = successful.directory.join("result.pdf");
         fs::write(&successful_output, b"pdf")?;
         manager.complete_file(
@@ -719,7 +637,7 @@ mod tests {
             "result.pdf",
             "application/pdf",
         )?;
-        let failed = manager.create_job(JobOwner::Open)?;
+        let failed = manager.create_job()?;
         manager.fail(&failed.job_id, "conversion failed")?;
 
         let stats = manager.stats()?;
@@ -742,8 +660,8 @@ mod tests {
     fn cleanup_removes_only_completed_jobs_after_their_ttl()
     -> Result<(), Box<dyn std::error::Error>> {
         let manager = JobManager::with_result_ttl(Duration::ZERO);
-        let active = manager.create_job(JobOwner::Open)?;
-        let completed = manager.create_job(JobOwner::Open)?;
+        let active = manager.create_job()?;
+        let completed = manager.create_job()?;
         manager.fail(&completed.job_id, "expected failure")?;
 
         assert_eq!(manager.cleanup_expired()?, 1);

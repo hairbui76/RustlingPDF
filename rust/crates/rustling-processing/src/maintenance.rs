@@ -7,16 +7,9 @@
 //!   with a 10 minute initial delay.
 //! - mobile scanner sessions: `MobileScannerService.cleanupExpiredSessions`
 //!   runs at a fixed five-minute rate.
-//! - audit retention: `AuditCleanupService.cleanupOldAuditEvents` runs daily
-//!   with a one-day initial delay; a retention of zero or less retains events
-//!   indefinitely.
-//! - storage cleanup queue and expired share links:
-//!   `StorageCleanupService` runs both sweeps daily.
-//! - policy run registry: Java keeps this state inside `TaskManager`, so the
-//!   registry eviction pairs with the job-result cadence.
 //!
-//! Periods are jittered by up to +10% per tick so multiple instances sharing a
-//! database do not synchronize, and each loop can be overridden with
+//! Periods are jittered by up to +10% per tick so multiple instances do not
+//! synchronize, and each loop can be overridden with
 //! `RUSTLING_MAINTENANCE_<NAME>_SECONDS` for operator tuning.
 
 use std::{
@@ -50,32 +43,6 @@ pub(crate) const MOBILE_SCANNER_SCHEDULE: MaintenanceSchedule = MaintenanceSched
     initial_delay: Duration::from_secs(5 * 60),
     period: Duration::from_secs(5 * 60),
 };
-
-/// Java `AuditCleanupService.cleanupOldAuditEvents` runs daily with a one-day
-/// initial delay.
-pub(crate) const AUDIT_RETENTION_SCHEDULE: MaintenanceSchedule = MaintenanceSchedule {
-    initial_delay: Duration::from_secs(24 * 60 * 60),
-    period: Duration::from_secs(24 * 60 * 60),
-};
-
-/// Java `StorageCleanupService` runs its two sweeps daily. Spring's default
-/// initial delay is zero; one minute keeps the first pass off the startup path
-/// while staying prompt.
-pub(crate) const STORAGE_CLEANUP_SCHEDULE: MaintenanceSchedule = MaintenanceSchedule {
-    initial_delay: Duration::from_secs(60),
-    period: Duration::from_secs(24 * 60 * 60),
-};
-
-/// The policy run registry parallels Java's `TaskManager` job map, so eviction
-/// mirrors its 10/10 minute cleanup cadence.
-pub(crate) const POLICY_RUN_SCHEDULE: MaintenanceSchedule = MaintenanceSchedule {
-    initial_delay: Duration::from_secs(10 * 60),
-    period: Duration::from_secs(10 * 60),
-};
-
-/// Grace period before a registry record whose backing job has disappeared is
-/// considered stale; protects records still being wired up on another thread.
-pub(crate) const POLICY_RUN_EVICTION_GRACE_MILLIS: i64 = 10 * 60 * 1_000;
 
 /// Initial delay and steady-state period of one maintenance loop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -130,13 +97,6 @@ pub(crate) fn jittered(base: Duration, unit_sample: f64) -> Duration {
         0.0
     };
     base + base.mul_f64(JITTER_FRACTION * clamped)
-}
-
-/// Returns the audit deletion cutoff (epoch seconds) for a retention window,
-/// or `None` when Java's rule says to retain indefinitely (`retentionDays <= 0`).
-#[must_use]
-pub(crate) fn audit_cutoff(now_seconds: i64, retention_days: i64) -> Option<i64> {
-    (retention_days > 0).then(|| now_seconds.saturating_sub(retention_days.saturating_mul(86_400)))
 }
 
 type MaintenanceTick = Arc<dyn Fn() -> Result<usize, String> + Send + Sync>;
@@ -251,7 +211,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        JOB_RESULT_SCHEDULE, MaintenanceSchedule, STARTUP_TEMP_MAX_AGE, audit_cutoff, jittered,
+        JOB_RESULT_SCHEDULE, MaintenanceSchedule, STARTUP_TEMP_MAX_AGE, jittered,
         parse_override_seconds, startup_temp_sweep,
     };
 
@@ -291,14 +251,6 @@ mod tests {
             JOB_RESULT_SCHEDULE.with_period_override(None),
             JOB_RESULT_SCHEDULE
         );
-    }
-
-    #[test]
-    fn audit_cutoff_honours_javas_retain_indefinitely_rule() {
-        assert_eq!(audit_cutoff(1_000_000, 0), None);
-        assert_eq!(audit_cutoff(1_000_000, -1), None);
-        assert_eq!(audit_cutoff(1_000_000, 1), Some(1_000_000 - 86_400));
-        assert_eq!(audit_cutoff(0, 90), Some(-90 * 86_400));
     }
 
     #[test]

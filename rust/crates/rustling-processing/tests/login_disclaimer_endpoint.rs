@@ -108,8 +108,7 @@ async fn rejects_path_like_locales_and_oversized_disclaimers()
 }
 
 #[tokio::test]
-async fn requires_authentication_when_login_is_configured() -> Result<(), Box<dyn std::error::Error>>
-{
+async fn a_legacy_enable_login_setting_is_ignored() -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempdir()?;
     let settings = directory.path().join("configs/settings.yml");
     fs::create_dir_all(settings.parent().ok_or("missing settings parent")?)?;
@@ -124,7 +123,8 @@ async fn requires_authentication_when_login_is_configured() -> Result<(), Box<dy
     )
     .await?;
 
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    // Login was removed; the legacy key must never gate the open disclaimer.
+    assert_eq!(response.status(), StatusCode::OK);
     assert_no_store(&response);
     Ok(())
 }

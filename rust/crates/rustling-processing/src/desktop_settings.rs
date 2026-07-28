@@ -38,12 +38,22 @@ const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template
 /// Matches Java's `ConfigInitializer.MIN_SETTINGS_FILE_LINES`.
 const MIN_SETTINGS_FILE_LINES: usize = 31;
 
-pub(crate) fn initialize_from_environment() -> Result<(), io::Error> {
-    if !tauri_mode_enabled(
+/// Whether the process runs as the desktop (Tauri) sidecar.
+///
+/// Tauri mode is the ONLY mode in which the runtime writes to its own
+/// `settings.yml` (template creation, upgrade merge, truncation backup, and
+/// install-identity persistence): that file lives in the desktop user's own
+/// app-data directory. The server deployment is stateless and never writes.
+pub(crate) fn tauri_mode_active() -> bool {
+    tauri_mode_enabled(
         rustling_processing::env_compat::var(TAURI_MODE_VARIABLE)
             .ok()
             .as_deref(),
-    ) {
+    )
+}
+
+pub(crate) fn initialize_from_environment() -> Result<(), io::Error> {
+    if !tauri_mode_active() {
         return Ok(());
     }
     let base_path = rustling_processing::env_compat::var_os(BASE_PATH_VARIABLE)

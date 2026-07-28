@@ -9,13 +9,9 @@
 //! when the engine is down — the engine then keeps running its environment
 //! configuration until the next restart.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::OnceLock,
-    time::Duration,
-};
+use std::{collections::BTreeSet, sync::OnceLock, time::Duration};
 
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use crate::runtime_config::{AiEnginePushSettings, RuntimeConfig};
@@ -131,36 +127,6 @@ impl AiEngineConfigSync {
         });
     }
 
-    /// Pushes engine-relevant pending settings after an admin save so changes
-    /// apply without a restart, mirroring Java `pushLiveAfterSave`. No-op
-    /// unless AI is enabled and an engine-relevant `aiEngine.*` key changed.
-    pub(crate) fn push_live_after_save(&self, pending_ai_engine: &BTreeMap<String, Value>) {
-        // The save already persisted; a build/dispatch failure must not fail it.
-        if pending_ai_engine.is_empty()
-            || !self.settings.push_config_to_engine
-            || !self.settings.enabled
-        {
-            return;
-        }
-        let engine_keys: BTreeSet<String> = pending_ai_engine
-            .keys()
-            .filter(|key| is_engine_relevant_key(key))
-            .cloned()
-            .collect();
-        if engine_keys.is_empty() {
-            return;
-        }
-        let mut node = build_config_node(&self.settings);
-        for (key, value) in pending_ai_engine {
-            overlay_if_engine_relevant(&mut node, key, value);
-        }
-        keep_env_for_unconfigured_identity(&mut node, &engine_keys);
-        self.submit(PushJob {
-            body: node.to_string(),
-            attempts: 1,
-        });
-    }
-
     fn submit(&self, job: PushJob) {
         let Ok(handle) = tokio::runtime::Handle::try_current() else {
             tracing::warn!(
@@ -247,13 +213,6 @@ async fn post_config(
     }
 }
 
-/// Only models/rag/limits reach the engine; the rest is processor-side.
-fn is_engine_relevant_key(key: &str) -> bool {
-    key.starts_with("aiEngine.models.")
-        || key.starts_with("aiEngine.rag.")
-        || key.starts_with("aiEngine.limits.")
-}
-
 /// The full engine payload from the live configuration, mirroring Java
 /// `buildConfigNode` (camelCase spellings match the engine's wire contract).
 fn build_config_node(settings: &AiEnginePushSettings) -> Value {
@@ -281,42 +240,6 @@ fn build_config_node(settings: &AiEnginePushSettings) -> Value {
             "modelMaxConcurrency": settings.limits.model_max_concurrency,
         },
     })
-}
-
-/// Overlays one pending settings key onto the payload, mirroring Java
-/// `overlayIfEngineRelevant`: non-engine keys are ignored, and a key without a
-/// leaf under its section would overwrite the whole section, so it is skipped.
-fn overlay_if_engine_relevant(node: &mut Value, key: &str, value: &Value) {
-    if !is_engine_relevant_key(key) {
-        return;
-    }
-    let Some(path) = key.strip_prefix("aiEngine.") else {
-        return;
-    };
-    let parts: Vec<&str> = path.split('.').collect();
-    let Some((leaf, parents)) = parts.split_last() else {
-        return;
-    };
-    if parents.is_empty() {
-        return;
-    }
-    let mut current = node;
-    for part in parents {
-        let Some(map) = current.as_object_mut() else {
-            return;
-        };
-        let child = map
-            .entry((*part).to_owned())
-            .or_insert_with(|| Value::Object(Map::new()));
-        if !child.is_object() {
-            // Java putObject replaces a non-object child with a fresh object.
-            *child = Value::Object(Map::new());
-        }
-        current = child;
-    }
-    if let Some(map) = current.as_object_mut() {
-        map.insert((*leaf).to_owned(), value.clone());
-    }
 }
 
 fn text(section: &Value, field: &str) -> String {
@@ -434,16 +357,13 @@ pub(crate) mod test_support {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{BTreeMap, BTreeSet},
-        time::Duration,
-    };
+    use std::{collections::BTreeSet, time::Duration};
 
     use serde_json::{Value, json};
 
     use super::{
         AiEngineConfigSync, build_config_node, keep_env_for_unconfigured_identity,
-        overlay_if_engine_relevant, test_support::start_engine_stub,
+        test_support::start_engine_stub,
     };
     use crate::runtime_config::AiEnginePushSettings;
 
@@ -540,24 +460,6 @@ mod tests {
         assert_eq!(node["rag"]["embeddingModel"], json!(""));
     }
 
-    #[test]
-    fn overlay_applies_only_engine_relevant_leaves() {
-        let mut node = build_config_node(&default_settings());
-        overlay_if_engine_relevant(
-            &mut node,
-            "aiEngine.models.smartModel",
-            &json!("gpt-5-mini"),
-        );
-        overlay_if_engine_relevant(&mut node, "aiEngine.limits.maxPages", &json!(64));
-        // Non-engine keys and section-level keys are ignored.
-        overlay_if_engine_relevant(&mut node, "aiEngine.url", &json!("http://elsewhere"));
-        overlay_if_engine_relevant(&mut node, "system.enableAnalytics", &json!(true));
-        assert_eq!(node["models"]["smartModel"], json!("gpt-5-mini"));
-        assert_eq!(node["limits"]["maxPages"], json!(64));
-        assert!(node.get("url").is_none());
-        assert!(node.get("system").is_none());
-    }
-
     #[tokio::test]
     async fn startup_push_delivers_the_secret_header_and_retries_through_failures()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -587,43 +489,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn live_push_overlays_pending_values_and_skips_irrelevant_saves()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let (address, mut received) = start_engine_stub(0).await?;
-        let sync = AiEngineConfigSync::new(
-            default_settings(),
-            format!("http://{address}"),
-            Duration::from_secs(5),
-            None,
-            Duration::from_millis(20),
-        );
-
-        // Only processor-side keys changed: nothing is pushed.
-        sync.push_live_after_save(&BTreeMap::from([(
-            "aiEngine.url".to_owned(),
-            json!("http://other:5001"),
-        )]));
-
-        sync.push_live_after_save(&BTreeMap::from([
-            ("aiEngine.models.apiKey".to_owned(), json!("sk-new")),
-            ("aiEngine.limits.maxPages".to_owned(), json!(33)),
-        ]));
-        let recorded = tokio::time::timeout(Duration::from_secs(10), received.recv())
-            .await?
-            .ok_or("stub records the push")?;
-        assert_eq!(recorded.body["models"]["apiKey"], json!("sk-new"));
-        assert_eq!(recorded.body["limits"]["maxPages"], json!(33));
-        // Touched models identity is sent concretely; untouched rag stays blank.
-        assert_eq!(recorded.body["models"]["provider"], json!("anthropic"));
-        assert_eq!(recorded.body["rag"]["embeddingProvider"], json!(""));
-        assert!(
-            received.try_recv().is_err(),
-            "the engine-irrelevant save must not have produced a push"
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn disabled_engine_or_push_flag_suppresses_all_pushes()
     -> Result<(), Box<dyn std::error::Error>> {
         let (address, mut received) = start_engine_stub(0).await?;
@@ -648,10 +513,6 @@ mod tests {
             Duration::from_millis(10),
         );
         sync.push_on_startup();
-        sync.push_live_after_save(&BTreeMap::from([(
-            "aiEngine.models.apiKey".to_owned(),
-            json!("sk"),
-        )]));
 
         tokio::time::sleep(Duration::from_millis(150)).await;
         assert!(received.try_recv().is_err());

@@ -31,7 +31,19 @@ use thiserror::Error;
 use tracing::{info, warn};
 use zeroize::Zeroizing;
 
-use crate::security_policy::LicenseTier;
+/// Verified commercial license tier.
+///
+/// Configuration intent (`premium.enabled`) and the presence of a key are not
+/// evidence of entitlement. Callers must therefore supply `Server` or
+/// `Enterprise` only after the license has been cryptographically or remotely
+/// verified.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum LicenseTier {
+    #[default]
+    Normal,
+    Server,
+    Enterprise,
+}
 
 const ACCOUNT_ID: &str = "e5430f69-e834-4ae4-befd-b602aae5f372";
 const BASE_URL: &str = "https://api.keygen.sh/v1/accounts";
@@ -83,13 +95,6 @@ impl LicenseConfigState {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
-
-    pub(crate) fn replace(&self, config: LicenseConfig) {
-        *self
-            .config
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = config;
-    }
 }
 
 /// One verified license result. `max_users == 0` means unlimited for Server.
@@ -125,17 +130,13 @@ impl LicenseVerification {
 /// Java endpoint aspects.
 pub struct LicenseState {
     verification: RwLock<LicenseVerification>,
-    listeners: Mutex<Vec<LicenseStateListener>>,
 }
-
-type LicenseStateListener = Arc<dyn Fn(LicenseVerification) + Send + Sync>;
 
 impl LicenseState {
     #[must_use]
     pub fn new(verification: LicenseVerification) -> Self {
         Self {
             verification: RwLock::new(verification),
-            listeners: Mutex::new(Vec::new()),
         }
     }
 
@@ -152,21 +153,6 @@ impl LicenseState {
             .verification
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = verification;
-        let listeners = self
-            .listeners
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
-        for listener in listeners {
-            listener(verification);
-        }
-    }
-
-    pub(crate) fn subscribe(&self, listener: impl Fn(LicenseVerification) + Send + Sync + 'static) {
-        self.listeners
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(Arc::new(listener));
     }
 
     /// Adds the Java dynamic license fields to `/api/v1/config/app-config`.
@@ -1241,8 +1227,8 @@ mod tests {
             ScriptedTransport::new(vec![Ok(response(200, &validation(true, false, 0)))]);
         let verifier = verifier_with_transport(&signing_key, transport.clone());
         let config = Arc::new(LicenseConfigState::new(LicenseConfig {
-            enabled: false,
-            key: Zeroizing::new("startup-key".to_owned()),
+            enabled: true,
+            key: Zeroizing::new("administrator-key".to_owned()),
             initial_max_users: 4,
         }));
         let state = Arc::new(LicenseState::new(LicenseVerification {
@@ -1250,12 +1236,6 @@ mod tests {
             max_users: 4,
         }));
         let refresh = LicenseRefreshRuntime::new(verifier, Arc::clone(&config), Arc::clone(&state));
-
-        config.replace(LicenseConfig {
-            enabled: true,
-            key: Zeroizing::new("administrator-key".to_owned()),
-            initial_max_users: 4,
-        });
         refresh.refresh_once().await;
 
         assert_eq!(

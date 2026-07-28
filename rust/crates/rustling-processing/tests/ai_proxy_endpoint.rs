@@ -1,18 +1,12 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    fs, io,
-};
+use std::{collections::BTreeMap, fs, io};
 
 use axum::{
     Router,
     body::{Body, to_bytes},
-    extract::Extension,
     http::{Request, StatusCode, header},
 };
 use rustling_processing::{
-    TimestampSettings, app_with_runtime_config,
-    runtime_config::RuntimeConfig,
-    security::{AuthContext, AuthenticationSource},
+    TimestampSettings, app_with_runtime_config, runtime_config::RuntimeConfig,
 };
 use serde_json::Value;
 use tempfile::{TempDir, tempdir};
@@ -28,12 +22,11 @@ const AI_HEALTH_PATH: &str = "/api/v1/ai/health";
 const AI_PDF_EDIT_PATH: &str = "/api/v1/ai/pdf/edit";
 
 #[tokio::test]
-async fn health_is_a_json_proxy_and_forwards_only_trusted_user_identity()
+async fn health_is_a_json_proxy_and_never_forwards_caller_identity()
 -> Result<(), Box<dyn std::error::Error>> {
     let engine_body = r#"{"status":"ok","smart_model":"smart","fast_model":"fast"}"#;
     let engine = MockEngine::start(200, engine_body).await?;
     let (_directory, app) = configured_app(&engine.url, "")?;
-    let app = app.layer(Extension(trusted_auth_context()));
 
     let response = app
         .oneshot(
@@ -59,10 +52,8 @@ async fn health_is_a_json_proxy_and_forwards_only_trusted_user_identity()
     assert_eq!(captured.method, "GET");
     assert_eq!(captured.path, "/health");
     assert_eq!(captured.header("accept"), Some("application/json"));
-    assert_eq!(
-        captured.header("x-user-id"),
-        Some("trusted-user@example.test")
-    );
+    // The caller-controlled X-User-Id header must never be forwarded.
+    assert_eq!(captured.header("x-user-id"), None);
     Ok(())
 }
 
@@ -73,7 +64,6 @@ async fn pdf_edit_overwrites_client_endpoints_with_the_enabled_server_catalog()
     let engine = MockEngine::start(200, engine_body).await?;
     let (_directory, app) =
         configured_app(&engine.url, "endpoints:\n  toRemove:\n    - rotate-pdf\n")?;
-    let app = app.layer(Extension(trusted_auth_context()));
     let caller_body = serde_json::json!({
         "userMessage": "rotate this file",
         "enabled_endpoints": ["/api/v1/evil"],
@@ -98,10 +88,8 @@ async fn pdf_edit_overwrites_client_endpoints_with_the_enabled_server_catalog()
     assert_eq!(captured.path, "/api/v1/pdf/edit");
     assert_eq!(captured.header("accept"), Some("application/json"));
     assert_eq!(captured.header("content-type"), Some("application/json"));
-    assert_eq!(
-        captured.header("x-user-id"),
-        Some("trusted-user@example.test")
-    );
+    // The caller-controlled X-User-Id header must never be forwarded.
+    assert_eq!(captured.header("x-user-id"), None);
     let forwarded: Value = serde_json::from_slice(&captured.body)?;
     assert_eq!(forwarded["userMessage"], "rotate this file");
     let enabled = forwarded["enabled_endpoints"]
@@ -201,22 +189,6 @@ fn disabled_app() -> Result<(TempDir, Router), Box<dyn std::error::Error>> {
         directory,
         app_with_runtime_config(1024 * 1024, TimestampSettings::default(), config),
     ))
-}
-
-fn trusted_auth_context() -> AuthContext {
-    AuthContext {
-        user_id: 42,
-        username: "trusted-user@example.test".to_owned(),
-        authentication_source: AuthenticationSource::AccessToken,
-        authentication_type: "web".to_owned(),
-        roles: ["ROLE_USER".to_owned()].into_iter().collect(),
-        team_id: Some(7),
-        permissions: BTreeSet::default(),
-        external_subject: None,
-        force_password_change: false,
-        session_id: "trusted-session".to_owned(),
-        correlation_id: "test-request".to_owned(),
-    }
 }
 
 async fn assert_problem(

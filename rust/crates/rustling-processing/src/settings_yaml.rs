@@ -311,13 +311,6 @@ pub(crate) fn upsert_section_values(
     insert_into_section(&rewrite.content, section, &missing)
 }
 
-/// Whether `value` can be written by this editor as a single-line inline YAML
-/// scalar or flow sequence (see [`render_value`]); nested mappings, tagged
-/// values, nested sequences, and multi-line strings cannot.
-pub(crate) fn renders_inline(value: &serde_yaml::Value) -> bool {
-    render_value(value, ScalarStyle::Plain).is_some()
-}
-
 /// Treats a document that is exactly an EMPTY flow mapping (`{}`) as a blank
 /// document: the serde-based writer this machinery replaced serialized "no
 /// settings" as `{}`, so such files exist at rest. They hold no data, so
@@ -510,270 +503,6 @@ fn insert_into_section(
     Ok(output)
 }
 
-/// Comment-preserving upsert of arbitrary-depth `a.b.c` dotted-path scalar
-/// values, extending [`upsert_section_values`] (one section, flat leaves at
-/// one level) to any nesting depth with the same semantics applied at every
-/// level: existing leaves are rewritten in place (ASCII-case-insensitively,
-/// via [`rewrite_inline_values`]), missing keys are inserted at the end of
-/// their nearest existing ancestor mapping (creating intermediate openers,
-/// two extra spaces per level under the existing child indentation), and a
-/// missing top-level chain is appended at the end of the document. An
-/// intermediate key holding a stray inline scalar is repaired into an opener
-/// (its value dropped, matching the serde writer this replaces).
-///
-/// Updates are applied one path at a time in order, so later paths see the
-/// insertions of earlier ones (two paths sharing a new parent end up as
-/// siblings under one opener).
-///
-/// # Errors
-///
-/// Returns a description when a value cannot be rendered as a single-line
-/// inline YAML scalar/flow sequence, when a path segment is not a plain-safe
-/// YAML key, when the document root is a flow collection or block sequence,
-/// when any key on the path holds an inline flow collection (`{…}` / `[…]` —
-/// real data that block children would destroy) or a block scalar (`|` / `>`),
-/// when a mapping on the path holds block-sequence children (`- item` lines a
-/// mapping entry cannot join), or when the leaf exists as a nested block
-/// mapping or block scalar (replacing block structure with an inline scalar is
-/// refused, exactly like [`upsert_section_values`]).
-pub(crate) fn upsert_dotted_values(
-    document: &str,
-    updates: &[(String, serde_yaml::Value)],
-) -> Result<String, String> {
-    let document = empty_flow_mapping_as_blank(document);
-    if root_is_flow_collection(document) {
-        return Err(
-            "the document root is an inline flow collection and cannot hold block sections"
-                .to_owned(),
-        );
-    }
-    if root_is_block_sequence(document) {
-        return Err(
-            "the document root is a block sequence and cannot hold mapping sections".to_owned(),
-        );
-    }
-    for (path, value) in updates {
-        if render_value(value, ScalarStyle::Plain).is_none() {
-            return Err(format!(
-                "the value for {path} cannot be written as an inline YAML scalar"
-            ));
-        }
-        if path.split('.').any(|segment| !is_plain_safe_key(segment)) {
-            return Err(format!("{path} is not a plain-safe dotted settings path"));
-        }
-    }
-    let mut current = document.to_owned();
-    for (path, value) in updates {
-        current = upsert_dotted_value(&current, path, value)?;
-    }
-    Ok(current)
-}
-
-/// Whether `segment` can be emitted verbatim as a plain YAML mapping key:
-/// non-empty ASCII alphanumerics plus `_`/`-`. Everything the settings
-/// surfaces produce satisfies this; anything else is refused rather than
-/// risking a key that reparses as something other than itself.
-fn is_plain_safe_key(segment: &str) -> bool {
-    !segment.is_empty()
-        && segment
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-}
-
-/// One path of [`upsert_dotted_values`]: rewrite the existing leaf in place,
-/// or insert it (with any missing intermediate openers) when absent.
-fn upsert_dotted_value(
-    document: &str,
-    path: &str,
-    value: &serde_yaml::Value,
-) -> Result<String, String> {
-    let lowercased = path.to_ascii_lowercase();
-    let replacements = HashMap::from([(lowercased.clone(), value.clone())]);
-    let rewrite = rewrite_inline_values(document, &replacements);
-    if rewrite.blocked.contains(&lowercased) {
-        return Err(format!(
-            "{path} holds a nested block mapping or block scalar and cannot be rewritten as an \
-             inline value"
-        ));
-    }
-    if rewrite.matched.contains(&lowercased) {
-        return Ok(rewrite.content);
-    }
-    // Nothing matched, so the rewrite pass changed nothing: insert into the
-    // original document.
-    insert_dotted_value(document, path, value)
-}
-
-/// Inserts a missing `a.b.c` leaf, creating any missing intermediate mapping
-/// openers, preserving every existing byte apart from a repaired stray scalar
-/// on the deepest matched opener. Matching at each level is
-/// ASCII-case-insensitive against the existing spelling, exactly like
-/// [`insert_into_section`] at the top level.
-fn insert_dotted_value(
-    document: &str,
-    path: &str,
-    value: &serde_yaml::Value,
-) -> Result<String, String> {
-    let newline = document_newline(document);
-    let segments: Vec<&str> = path.split('.').collect();
-    let lines = parse_lines(document);
-    // The mapping currently being searched: its entry-line range. Starts as
-    // the whole document (the root mapping).
-    let mut start = 0_usize;
-    let mut end = lines.len();
-    // Index of the deepest matched opener line, and how many segments it
-    // resolves.
-    let mut opener: Option<usize> = None;
-    let mut matched = 0_usize;
-
-    for segment in &segments[..segments.len().saturating_sub(1)] {
-        // Direct keys of this mapping sit at the indent of its first
-        // structural line; deeper lines belong to nested openers.
-        let Some(level_indent) = lines[start..end].iter().find_map(|line| line.indent) else {
-            break;
-        };
-        let found = (start..end).find(|&index| {
-            let line = &lines[index];
-            line.indent == Some(level_indent)
-                && line_key(line.content, level_indent)
-                    .is_some_and(|key| key.eq_ignore_ascii_case(segment))
-        });
-        let Some(found) = found else {
-            break;
-        };
-        if let Some(kind) =
-            inline_section_value(lines[found].content).and_then(unextendable_inline_value_kind)
-        {
-            // Flow-collection data on the path would be silently destroyed by
-            // inserted block children; a block scalar's continuation lines
-            // would corrupt the mapping. Refuse both (the caller then leaves
-            // the document untouched).
-            return Err(format!(
-                "{segment} on the path {path} holds {kind} and cannot accept inserted keys \
-                 without destroying it"
-            ));
-        }
-        // Children of the matched opener: the structurally deeper lines up to
-        // the next line at or above its indent.
-        end = (found + 1..end)
-            .find(|&index| {
-                lines[index]
-                    .indent
-                    .is_some_and(|indent| indent <= level_indent)
-            })
-            .unwrap_or(end);
-        start = found + 1;
-        // A block SEQUENCE under the matched opener is real data mapping
-        // entries cannot join: appending `key: value` lines after `- item`
-        // children writes unparseable YAML, so refuse instead.
-        let first_child_sequence = lines[start..end].iter().find_map(|line| {
-            line.indent
-                .map(|indent| is_sequence_item(&line.content[indent..]))
-        });
-        if first_child_sequence == Some(true) {
-            return Err(format!(
-                "{segment} on the path {path} holds a block sequence and cannot accept inserted \
-                 mapping keys"
-            ));
-        }
-        opener = Some(found);
-        matched += 1;
-    }
-
-    let Some(opener) = opener else {
-        // No segment exists yet: append the whole chain at the end of the
-        // document, two spaces per level.
-        let mut output = document.to_owned();
-        if !output.is_empty() && !output.ends_with('\n') {
-            output.push_str(newline);
-        }
-        push_dotted_chain(&mut output, "", &segments, value, newline);
-        return Ok(output);
-    };
-
-    // Insert right after the opener's LAST structural child (any depth), so
-    // blank lines and comment banners belonging to what follows stay attached
-    // to it; with no children, insert directly after the opener line. The
-    // first new level follows the existing child indentation (default: the
-    // opener's own indent plus two spaces).
-    let insert_after = (start..end)
-        .rev()
-        .find(|&index| lines[index].indent.is_some())
-        .unwrap_or(opener);
-    let child_indent = lines[start..end]
-        .iter()
-        .find_map(|line| line.indent.map(|indent| &line.content[..indent]))
-        .map_or_else(
-            || {
-                let opener_line = lines[opener].content;
-                let opener_indent = lines[opener].indent.unwrap_or(0);
-                format!("{}  ", &opener_line[..opener_indent])
-            },
-            ToOwned::to_owned,
-        );
-    // A stray scalar on the deepest matched opener is repaired into a mapping
-    // opener; a flow collection was already refused above.
-    let repair = inline_section_value(lines[opener].content).is_some();
-
-    let mut output = String::with_capacity(document.len() + (segments.len() - matched) * 48);
-    for (index, line) in lines.iter().enumerate() {
-        if index == opener && repair {
-            output.push_str(&repaired_section_opener(line.content));
-        } else {
-            output.push_str(line.content);
-        }
-        if index == insert_after {
-            if line.terminator.is_empty() {
-                output.push_str(newline);
-            } else {
-                output.push_str(line.terminator);
-            }
-            push_dotted_chain(
-                &mut output,
-                &child_indent,
-                &segments[matched..],
-                value,
-                newline,
-            );
-        } else {
-            output.push_str(line.terminator);
-        }
-    }
-    Ok(output)
-}
-
-/// Appends the remaining `segments` of a dotted path as nested opener lines
-/// (`key:`) plus the final `leaf: value` line, indenting two extra spaces per
-/// level under `base_indent`, terminating each inserted line with the
-/// document's own `newline`.
-fn push_dotted_chain(
-    output: &mut String,
-    base_indent: &str,
-    segments: &[&str],
-    value: &serde_yaml::Value,
-    newline: &str,
-) {
-    for (depth, segment) in segments.iter().enumerate() {
-        let indent = format!("{base_indent}{}", "  ".repeat(depth));
-        if depth == segments.len() - 1 {
-            push_entry_line(output, &indent, segment, value, newline);
-        } else {
-            output.push_str(&indent);
-            output.push_str(segment);
-            output.push(':');
-            output.push_str(newline);
-        }
-    }
-}
-
-/// The key text of a `key: …` line at a known indent, or `None` for lines
-/// without a colon (block-sequence items and other non-entry lines).
-fn line_key(content: &str, indent: usize) -> Option<&str> {
-    let trimmed = &content[indent..];
-    let colon = trimmed.find(':')?;
-    Some(&trimmed[..colon])
-}
-
 /// The inline value text on a `section: value` header line, or `None` when the
 /// header opens a mapping (nothing but whitespace/a comment after the colon).
 fn inline_section_value(content: &str) -> Option<&str> {
@@ -948,7 +677,7 @@ fn render_flow_sequence(items: &[serde_yaml::Value]) -> Option<String> {
 mod tests {
     use std::collections::HashMap;
 
-    use super::{rewrite_inline_values, upsert_dotted_values, upsert_section_values};
+    use super::{rewrite_inline_values, upsert_section_values};
 
     fn string_value(text: &str) -> serde_yaml::Value {
         serde_yaml::Value::String(text.to_owned())
@@ -1042,11 +771,6 @@ mod tests {
         }
     }
 
-    /// Regression: a document whose ROOT is a flow collection (`{a: 1}` /
-    /// `[1, 2]`) parses as a mapping/sequence, but the section-header scan
-    /// never matches it, so the missing-header branch used to APPEND a block
-    /// section — producing a two-document YAML that fails reparse. The upsert
-    /// must refuse instead so callers leave the file untouched.
     #[test]
     fn upsert_refuses_a_flow_collection_document_root() {
         for document in [
@@ -1057,9 +781,6 @@ mod tests {
         ] {
             let result = upsert_section_values(document, "section", &[("key", string_value("v"))]);
             assert!(result.is_err(), "must refuse {document:?}");
-            let nested =
-                upsert_dotted_values(document, &[("section.key".to_owned(), string_value("v"))]);
-            assert!(nested.is_err(), "nested upsert must refuse {document:?}");
         }
         // A blank/comment-only document is NOT a flow root: it is created as
         // a fresh block mapping like before.
@@ -1072,17 +793,31 @@ mod tests {
     }
 
     /// The serde-based writers this machinery replaced persisted "no
-    /// settings" as `{}`; such a file holds no data, so both upserts treat it
-    /// as a blank document instead of refusing it as a flow root.
+    /// settings" as `{}`; such a file holds no data, so it is treated as a
+    /// blank document instead of being refused as a flow root.
     #[test]
     fn upsert_treats_an_empty_flow_mapping_document_as_blank()
     -> Result<(), Box<dyn std::error::Error>> {
         let updated = upsert_section_values("{}\n", "section", &[("key", string_value("v"))])?;
         assert_eq!(updated, "section:\n  key: v\n");
-        let nested =
-            upsert_dotted_values("{}\n", &[("section.key".to_owned(), string_value("v"))])?;
-        assert_eq!(nested, "section:\n  key: v\n");
         Ok(())
+    }
+
+    #[test]
+    fn upsert_inserts_crlf_lines_into_crlf_documents() -> Result<(), Box<dyn std::error::Error>> {
+        let new_section =
+            upsert_section_values("x: 1\r\n", "section", &[("key", string_value("v"))])?;
+        assert_eq!(new_section, "x: 1\r\nsection:\r\n  key: v\r\n");
+        Ok(())
+    }
+
+    #[test]
+    fn upsert_rejects_values_with_no_inline_rendering() {
+        let nested = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
+        assert!(upsert_section_values("", "section", &[("key", nested.clone())]).is_err());
+        assert!(
+            upsert_section_values("", "section", &[("key", string_value("two\nlines"))]).is_err()
+        );
     }
 
     /// Regression: a leaf holding a block scalar (`key: |` + continuation
@@ -1115,100 +850,6 @@ mod tests {
         assert!(!blocked.matched.contains("wrapper.block"));
     }
 
-    /// Regression (tester probe): updating a block-scalar leaf through the
-    /// upserts used to report success while persisting a folded wrong value
-    /// (`New abc def`). Every block-scalar shape — literal/folded, chomping
-    /// indicators, leaf or intermediate key, section header — must refuse.
-    #[test]
-    fn upsert_refuses_block_scalar_leaves_and_paths() {
-        for document in [
-            "ui:\n  appName: |\n    abc\n    def\n",
-            "ui:\n  appName: >-\n    abc\n    def\n",
-            "ui:\n  appName: |2\n    abc\n",
-        ] {
-            let result =
-                upsert_dotted_values(document, &[("ui.appName".to_owned(), string_value("New"))]);
-            assert!(result.is_err(), "must refuse the leaf in {document:?}");
-        }
-        // A block scalar on an INTERMEDIATE path key: repairing it into an
-        // opener would leave its continuation lines corrupting the mapping.
-        let intermediate = upsert_dotted_values(
-            "a:\n  b: |\n    text\n",
-            &[("a.b.c".to_owned(), string_value("v"))],
-        );
-        assert!(intermediate.is_err());
-        // A top-level section header holding a block scalar refuses the same
-        // way through the flat section upsert.
-        let section = upsert_section_values("a: |\n  text\n", "a", &[("key", string_value("v"))]);
-        assert!(section.is_err());
-        let leaf_in_section = upsert_section_values(
-            "AutomaticallyGenerated:\n  UUID: |\n    junk\n",
-            "AutomaticallyGenerated",
-            &[("UUID", string_value("123e4567-e89b-12d3-a456-426614174000"))],
-        );
-        assert!(leaf_in_section.is_err());
-    }
-
-    /// Regression: a section (or any mapping on the path) holding a block
-    /// SEQUENCE used to have `key: value` lines appended after its `- item`
-    /// children, writing unparseable YAML. Sequence-valued mappings and
-    /// sequence roots must refuse instead.
-    #[test]
-    fn upsert_refuses_block_sequence_sections_and_roots() {
-        let section = "automaticallyGenerated:\n  - 1\n  - 2\n";
-        assert!(
-            upsert_section_values(
-                section,
-                "AutomaticallyGenerated",
-                &[("UUID", string_value("v"))]
-            )
-            .is_err()
-        );
-        assert!(
-            upsert_dotted_values(
-                section,
-                &[("automaticallyGenerated.UUID".to_owned(), string_value("v"))]
-            )
-            .is_err()
-        );
-        // A deeper sequence-valued mapping on a dotted path.
-        assert!(
-            upsert_dotted_values(
-                "a:\n  b:\n    - 1\n",
-                &[("a.b.c".to_owned(), string_value("v"))]
-            )
-            .is_err()
-        );
-        // A block-sequence ROOT has no mapping to extend at all.
-        for document in ["- not\n- a\n- mapping\n", "- 1"] {
-            assert!(
-                upsert_section_values(document, "section", &[("key", string_value("v"))]).is_err(),
-                "must refuse root {document:?}"
-            );
-            assert!(
-                upsert_dotted_values(document, &[("a.b".to_owned(), string_value("v"))]).is_err(),
-                "must refuse root {document:?}"
-            );
-        }
-    }
-
-    /// Inserted lines follow the document's own line endings: an upsert into
-    /// a CRLF file must not introduce mixed terminators.
-    #[test]
-    fn upsert_inserts_crlf_lines_into_crlf_documents() -> Result<(), Box<dyn std::error::Error>> {
-        let inserted =
-            upsert_dotted_values("a:\r\n  b: 1\r\n", &[("a.c".to_owned(), string_value("v"))])?;
-        assert_eq!(inserted, "a:\r\n  b: 1\r\n  c: v\r\n");
-
-        let new_section =
-            upsert_section_values("x: 1\r\n", "section", &[("key", string_value("v"))])?;
-        assert_eq!(new_section, "x: 1\r\nsection:\r\n  key: v\r\n");
-
-        let new_chain = upsert_dotted_values("x: 1\r\n", &[("a.b".to_owned(), string_value("v"))])?;
-        assert_eq!(new_chain, "x: 1\r\na:\r\n  b: v\r\n");
-        Ok(())
-    }
-
     #[test]
     fn upsert_refuses_to_shadow_a_nested_mapping_key() {
         // Inserting `section.key` here would duplicate the existing opener and
@@ -1216,127 +857,5 @@ mod tests {
         let document = "section:\n  key:\n    nested: 1\n";
         let result = upsert_section_values(document, "section", &[("key", string_value("v"))]);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn upsert_rejects_values_with_no_inline_rendering() {
-        let nested = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
-        assert!(upsert_section_values("", "section", &[("key", nested.clone())]).is_err());
-        assert!(
-            upsert_section_values("", "section", &[("key", string_value("two\nlines"))]).is_err()
-        );
-        assert!(upsert_dotted_values("", &[("a.b".to_owned(), nested)]).is_err());
-        assert!(
-            upsert_dotted_values("", &[("a.b".to_owned(), string_value("two\nlines"))]).is_err()
-        );
-    }
-
-    #[test]
-    fn nested_upsert_rewrites_and_inserts_deep_paths_preserving_comments()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let document = "# banner\nsecurity:\n  oauth2: # opener\n    clientSecret: old # keep\n  \
-saml2:\n    enabled: false\n\n# tail banner\nui:\n  appName: Old\n";
-        let updated = upsert_dotted_values(
-            document,
-            &[
-                (
-                    "security.oauth2.clientSecret".to_owned(),
-                    string_value("new"),
-                ),
-                (
-                    "security.oauth2.client.scope".to_owned(),
-                    string_value("openid"),
-                ),
-                ("ui.appName".to_owned(), string_value("New")),
-            ],
-        )?;
-        // The existing leaf is rewritten in place, the missing `client.scope`
-        // chain is inserted at the end of oauth2's children, and every
-        // comment byte (banner, opener, inline, tail) is preserved.
-        assert_eq!(
-            updated,
-            "# banner\nsecurity:\n  oauth2: # opener\n    clientSecret: new # keep\n    client:\n      \
-scope: openid\n  saml2:\n    enabled: false\n\n# tail banner\nui:\n  appName: New\n"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn nested_upsert_reuses_relaxed_spellings_at_every_level()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let document = "security:\n  OAuth2:\n    clientsecret: old\n";
-        let updated = upsert_dotted_values(
-            document,
-            &[(
-                "security.oauth2.clientSecret".to_owned(),
-                string_value("new"),
-            )],
-        )?;
-        assert_eq!(updated, "security:\n  OAuth2:\n    clientsecret: new\n");
-        Ok(())
-    }
-
-    #[test]
-    fn nested_upsert_inserts_after_deeper_sibling_blocks() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let document = "a:\n  b:\n    c: 1\n";
-        let updated = upsert_dotted_values(document, &[("a.d".to_owned(), string_value("v"))])?;
-        assert_eq!(updated, "a:\n  b:\n    c: 1\n  d: v\n");
-        Ok(())
-    }
-
-    #[test]
-    fn nested_upsert_repairs_a_stray_scalar_on_the_path() -> Result<(), Box<dyn std::error::Error>>
-    {
-        // `b` holds a stray scalar: repaired into an opener (value dropped,
-        // matching the serde writer this replaces), then the chain descends.
-        let document = "a:\n  b: 5 # note\n";
-        let updated = upsert_dotted_values(document, &[("a.b.c".to_owned(), string_value("v"))])?;
-        assert_eq!(updated, "a:\n  b: # note\n    c: v\n");
-        let parsed: serde_yaml::Value = serde_yaml::from_str(&updated)?;
-        assert_eq!(parsed["a"]["b"]["c"], string_value("v"));
-        Ok(())
-    }
-
-    #[test]
-    fn nested_upsert_refuses_flow_collections_anywhere_on_the_path() {
-        // A flow mapping on the path is data that block children would
-        // destroy; a nested block mapping cannot become a scalar leaf.
-        for (document, path) in [
-            ("a:\n  b: {x: 1}\n", "a.b.c"),
-            ("a:\n  b: [1, 2]\n", "a.b.c"),
-            ("a:\n  b:\n    c: 1\n", "a.b"),
-        ] {
-            let result = upsert_dotted_values(document, &[(path.to_owned(), string_value("v"))]);
-            assert!(result.is_err(), "must refuse {path} in {document:?}");
-        }
-    }
-
-    #[test]
-    fn nested_upsert_creates_missing_chains_and_sibling_leaves()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let created = upsert_dotted_values(
-            "",
-            &[
-                ("a.b".to_owned(), serde_yaml::Value::Number(1.into())),
-                ("a.c.d".to_owned(), serde_yaml::Value::Number(2.into())),
-            ],
-        )?;
-        // The second path finds the chain the first one inserted and joins it
-        // as a sibling instead of duplicating `a`.
-        assert_eq!(created, "a:\n  b: 1\n  c:\n    d: 2\n");
-
-        // Appending after a document without a final newline stays valid.
-        let appended = upsert_dotted_values("x: 1", &[("a.b".to_owned(), string_value("v"))])?;
-        assert_eq!(appended, "x: 1\na:\n  b: v\n");
-        Ok(())
-    }
-
-    #[test]
-    fn nested_upsert_rejects_unsafe_path_segments() {
-        for path in ["a..b", ".a", "a.", "a.b c", "a.{b}", "a.b:c"] {
-            let result = upsert_dotted_values("", &[(path.to_owned(), string_value("v"))]);
-            assert!(result.is_err(), "must refuse path {path:?}");
-        }
     }
 }

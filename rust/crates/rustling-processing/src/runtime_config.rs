@@ -8,10 +8,9 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env, fs,
-    io::{self, Read},
+    fs,
+    io::Read,
     path::{Path, PathBuf},
-    sync::Mutex,
     time::Duration,
 };
 
@@ -21,12 +20,7 @@ use zeroize::Zeroizing;
 
 use crate::job_queue::JobQueueConfig;
 use crate::license::LicenseConfig;
-use crate::oidc_login::OidcLoginProviderConfig;
 use crate::runtime_dependencies::discover_dependencies;
-use crate::security_jwt::SupabaseJwtConfig;
-use crate::server_certificate::ServerCertificateConfig;
-use crate::storage::{StorageConfig, StorageSharingConfig};
-use crate::workflow_signing::WorkflowSigningConfig;
 
 // Mirrors EndpointConfiguration.init() in the Java service. Values are whitespace-separated
 // endpoint keys to keep the compatibility table readable while preserving the Java group names.
@@ -147,33 +141,6 @@ pub struct LoginDisclaimer {
     format: &'static str,
 }
 
-/// Resolved configuration for the automatic pipeline directory scanner.
-///
-/// These paths deliberately remain outside the HTTP router. The runtime creates
-/// the scanner explicitly so constructing an application for a test cannot
-/// create directories or start a background task.
-#[derive(Clone, Debug)]
-pub(crate) struct PipelineDirectoryConfig {
-    pub(crate) watched_folders: Vec<PathBuf>,
-    pub(crate) finished_folder: PathBuf,
-    pub(crate) readiness: FileReadinessConfig,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct FileReadinessConfig {
-    pub(crate) enabled: bool,
-    pub(crate) settle_time: Duration,
-    pub(crate) size_check_delay: Duration,
-    pub(crate) allowed_extensions: BTreeSet<String>,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct PolicyTriggerSettings {
-    pub(crate) schedule_sweep: Duration,
-    pub(crate) watch_reconcile: Duration,
-    pub(crate) watch_quiet_period: Duration,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct OcrProcessSettings {
     pub(crate) ocrmypdf_session_limit: usize,
@@ -190,100 +157,15 @@ pub(crate) struct RepairProcessSettings {
     pub(crate) ghostscript_timeout: Duration,
 }
 
+#[derive(Clone)]
 pub struct RuntimeConfig {
     settings: Value,
     settings_path: PathBuf,
     load_error: Option<String>,
     custom_files_dir: PathBuf,
-    analytics_override: Mutex<Option<bool>>,
     dependency_disabled_groups: BTreeSet<String>,
     dependency_commands: BTreeMap<String, PathBuf>,
     dependencies_checked: bool,
-}
-
-/// Resolved configuration for the proprietary MCP HTTP boundary.
-///
-/// OAuth fields are retained even though the first Rust MCP slice mounts only
-/// `apikey` mode. Keeping one complete compatibility model prevents a later
-/// OAuth port from inventing a second configuration shape.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct McpConfig {
-    pub(crate) enabled: bool,
-    pub(crate) scopes_enabled: bool,
-    pub(crate) engine_capability_refresh_minutes: u64,
-    pub(crate) allowed_operations: Vec<String>,
-    pub(crate) blocked_operations: Vec<String>,
-    pub(crate) max_request_bytes: usize,
-    pub(crate) max_inline_response_bytes: u64,
-    pub(crate) auth: McpAuthConfig,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct McpAuthConfig {
-    pub(crate) mode: String,
-    pub(crate) issuer_uri: String,
-    pub(crate) jwks_uri: String,
-    pub(crate) resource_id: String,
-    pub(crate) accepted_audiences: Vec<String>,
-    pub(crate) username_claim: String,
-    pub(crate) require_existing_account: bool,
-}
-
-fn resolve_mcp_auth(
-    string: &impl Fn(&[&str], &[&str], &str) -> String,
-    strings: &impl Fn(&[&str], &[&str]) -> Vec<String>,
-    boolean: &impl Fn(&[&str], &[&str], bool) -> bool,
-) -> McpAuthConfig {
-    McpAuthConfig {
-        mode: string(&["MCP_AUTH_MODE"], &["mcp", "auth", "mode"], "oauth"),
-        issuer_uri: string(
-            &["MCP_AUTH_ISSUERURI", "MCP_AUTH_ISSUER_URI"],
-            &["mcp", "auth", "issuerUri"],
-            "",
-        ),
-        jwks_uri: string(
-            &["MCP_AUTH_JWKSURI", "MCP_AUTH_JWKS_URI"],
-            &["mcp", "auth", "jwksUri"],
-            "",
-        ),
-        resource_id: string(
-            &["MCP_AUTH_RESOURCEID", "MCP_AUTH_RESOURCE_ID"],
-            &["mcp", "auth", "resourceId"],
-            "",
-        ),
-        accepted_audiences: strings(
-            &["MCP_AUTH_ACCEPTEDAUDIENCES", "MCP_AUTH_ACCEPTED_AUDIENCES"],
-            &["mcp", "auth", "acceptedAudiences"],
-        ),
-        username_claim: string(
-            &["MCP_AUTH_USERNAMECLAIM", "MCP_AUTH_USERNAME_CLAIM"],
-            &["mcp", "auth", "usernameClaim"],
-            "sub",
-        ),
-        require_existing_account: boolean(
-            &[
-                "MCP_AUTH_REQUIREEXISTINGACCOUNT",
-                "MCP_AUTH_REQUIRE_EXISTING_ACCOUNT",
-            ],
-            &["mcp", "auth", "requireExistingAccount"],
-            true,
-        ),
-    }
-}
-
-/// Trusted local credentials used only when an empty secured-mode database is
-/// initialized for the first time.
-pub struct InitialLoginCredentials {
-    pub username: String,
-    pub password: Zeroizing<String>,
-}
-
-/// Filesystem and first-user inputs for the secured-mode repository.
-pub struct SecurityBootstrapConfig {
-    pub database_path: PathBuf,
-    pub credential_encryption_key_path: PathBuf,
-    pub credential_encryption_key: Option<Zeroizing<String>>,
-    pub initial_login: Option<InitialLoginCredentials>,
 }
 
 /// SMTP relay settings for the optional email-with-attachment route.
@@ -315,26 +197,6 @@ pub(crate) enum SmtpTransportSecurity {
 pub(crate) enum SmtpHostnameVerification {
     Required,
     Disabled,
-}
-
-impl Clone for RuntimeConfig {
-    fn clone(&self) -> Self {
-        let analytics_override = self
-            .analytics_override
-            .lock()
-            .ok()
-            .and_then(|override_value| *override_value);
-        Self {
-            settings: self.settings.clone(),
-            settings_path: self.settings_path.clone(),
-            load_error: self.load_error.clone(),
-            custom_files_dir: self.custom_files_dir.clone(),
-            analytics_override: Mutex::new(analytics_override),
-            dependency_disabled_groups: self.dependency_disabled_groups.clone(),
-            dependency_commands: self.dependency_commands.clone(),
-            dependencies_checked: self.dependencies_checked,
-        }
-    }
 }
 
 impl RuntimeConfig {
@@ -637,109 +499,6 @@ impl RuntimeConfig {
         Duration::from_secs(minutes.saturating_mul(60))
     }
 
-    /// Resolves the complete Java-compatible `mcp.*` tree.
-    #[must_use]
-    pub(crate) fn mcp_config(&self) -> McpConfig {
-        self.mcp_config_with_environment(|name| crate::env_compat::var(name).ok())
-    }
-
-    fn mcp_config_with_environment(
-        &self,
-        environment: impl Fn(&str) -> Option<String>,
-    ) -> McpConfig {
-        let environment_value = |names: &[&str]| {
-            names
-                .iter()
-                .find_map(|name| environment(name).filter(|value| !value.is_empty()))
-        };
-        let boolean = |names: &[&str], path: &[&str], default| {
-            environment_value(names)
-                .as_deref()
-                .and_then(parse_boolean)
-                .or_else(|| value_at(&self.settings, path).and_then(yaml_bool))
-                .unwrap_or(default)
-        };
-        let string = |names: &[&str], path: &[&str], default: &str| {
-            environment_value(names)
-                .or_else(|| {
-                    value_at(&self.settings, path)
-                        .and_then(Value::as_str)
-                        .map(ToOwned::to_owned)
-                })
-                .unwrap_or_else(|| default.to_owned())
-        };
-        let strings = |names: &[&str], path: &[&str]| {
-            environment_value(names).map_or_else(
-                || {
-                    value_at(&self.settings, path)
-                        .and_then(Value::as_array)
-                        .map(|values| {
-                            values
-                                .iter()
-                                .filter_map(Value::as_str)
-                                .map(ToOwned::to_owned)
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                },
-                |value| split_strings(&value),
-            )
-        };
-        let positive_u64 = |names: &[&str], path: &[&str], default| {
-            environment_value(names)
-                .and_then(|value| value.trim().parse::<u64>().ok())
-                .or_else(|| value_at(&self.settings, path).and_then(Value::as_u64))
-                .unwrap_or(default)
-        };
-
-        let configured_request_bytes = positive_u64(
-            &["MCP_MAXREQUESTBYTES", "MCP_MAX_REQUEST_BYTES"],
-            &["mcp", "maxRequestBytes"],
-            10 * 1024 * 1024,
-        );
-        let max_request_bytes = if configured_request_bytes == 0 {
-            256 * 1024
-        } else {
-            usize::try_from(configured_request_bytes).unwrap_or(usize::MAX)
-        };
-
-        McpConfig {
-            enabled: boolean(&["MCP_ENABLED"], &["mcp", "enabled"], false),
-            scopes_enabled: boolean(
-                &["MCP_SCOPESENABLED", "MCP_SCOPES_ENABLED"],
-                &["mcp", "scopesEnabled"],
-                true,
-            ),
-            engine_capability_refresh_minutes: positive_u64(
-                &[
-                    "MCP_ENGINECAPABILITYREFRESHMINUTES",
-                    "MCP_ENGINE_CAPABILITY_REFRESH_MINUTES",
-                ],
-                &["mcp", "engineCapabilityRefreshMinutes"],
-                5,
-            )
-            .max(1),
-            allowed_operations: strings(
-                &["MCP_ALLOWEDOPERATIONS", "MCP_ALLOWED_OPERATIONS"],
-                &["mcp", "allowedOperations"],
-            ),
-            blocked_operations: strings(
-                &["MCP_BLOCKEDOPERATIONS", "MCP_BLOCKED_OPERATIONS"],
-                &["mcp", "blockedOperations"],
-            ),
-            max_request_bytes,
-            max_inline_response_bytes: positive_u64(
-                &[
-                    "MCP_MAXINLINERESPONSEBYTES",
-                    "MCP_MAX_INLINE_RESPONSE_BYTES",
-                ],
-                &["mcp", "maxInlineResponseBytes"],
-                10 * 1024 * 1024,
-            ),
-            auth: resolve_mcp_auth(&string, &strings, &boolean),
-        }
-    }
-
     /// Resolves bounded asynchronous job admission. Values mirror the Java
     /// queue property names while adding an explicit weighted execution budget
     /// for the Rust scheduler.
@@ -806,14 +565,6 @@ impl RuntimeConfig {
     }
 
     #[must_use]
-    pub fn login_disclaimer_requires_authentication(&self) -> bool {
-        env_bool("SECURITY_ENABLELOGIN")
-            .or_else(|| env_bool("SECURITY_ENABLE_LOGIN"))
-            .or_else(|| value_at(&self.settings, &["security", "enableLogin"]).and_then(yaml_bool))
-            .unwrap_or(false)
-    }
-
-    #[must_use]
     pub fn metrics_enabled(&self) -> bool {
         self.boolean(&["metrics", "enabled"], "METRICS_ENABLED", true)
     }
@@ -835,396 +586,6 @@ impl RuntimeConfig {
             "SYSTEM_GOOGLEVISIBILITY",
             false,
         )
-    }
-
-    /// Returns whether the deployment requested the Java security-enabled mode,
-    /// from either the compatible environment variables or the persisted
-    /// `security.enableLogin` YAML setting (the same key
-    /// [`Self::login_disclaimer_requires_authentication`] already falls back to).
-    ///
-    /// The Rust service currently implements only the Java-compatible open OSS
-    /// mode. The binary must reject this request rather than accidentally
-    /// serving protected routes without their authentication middleware. A
-    /// value this guard cannot read — non-Unicode, or present-and-non-empty
-    /// but not a boolean Spring accepts — is a hard error: the guard's only
-    /// purpose is refusing to start unauthenticated, so an unreadable value
-    /// must never be silently treated the same as "unset". Java behaves the
-    /// same way (a malformed `security.enableLogin` fails the boot with a
-    /// relaxed-binding `BindException`). An empty/blank value is "not
-    /// configured", the way compose files express an unset variable.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error naming the source when `DOCKER_ENABLE_SECURITY`,
-    /// `SECURITY_ENABLELOGIN`, `SECURITY_ENABLE_LOGIN`, or the YAML
-    /// `security.enableLogin` holds a non-Unicode or non-boolean value.
-    pub fn security_mode_is_requested(&self) -> Result<bool, io::Error> {
-        let env_values = [
-            "DOCKER_ENABLE_SECURITY",
-            "SECURITY_ENABLELOGIN",
-            "SECURITY_ENABLE_LOGIN",
-        ]
-        .map(|variable| {
-            let value = match crate::env_compat::var(variable) {
-                Ok(value) => Ok(Some(value)),
-                Err(env::VarError::NotPresent) => Ok(None),
-                Err(env::VarError::NotUnicode(_)) => Err(variable),
-            };
-            (variable, value)
-        });
-        let yaml_value = value_at(&self.settings, &["security", "enableLogin"]);
-        resolve_security_mode_request(&env_values, yaml_value)
-            .map_err(SecurityModeValueError::into_io_error)
-    }
-
-    /// Returns whether team classification policies are enabled.
-    #[must_use]
-    pub(crate) fn policies_enabled(&self) -> bool {
-        self.boolean(&["policies", "enabled"], "POLICIES_ENABLED", false)
-    }
-
-    #[must_use]
-    pub(crate) fn policies_allow_private_s3_endpoints(&self) -> bool {
-        env_bool("POLICIES_ALLOW_PRIVATE_S3_ENDPOINTS").unwrap_or_else(|| {
-            self.boolean(
-                &["policies", "allowPrivateS3Endpoints"],
-                "POLICIES_ALLOWPRIVATES3ENDPOINTS",
-                false,
-            )
-        })
-    }
-
-    /// Whether an external-API connection's base URL (and any result URL it
-    /// returns) may resolve to a private/reserved address, mirroring Java's
-    /// operator property `policies.allowPrivateApiEndpoints` (default `false`)
-    /// that `ApiIntegrationValidator`/`ResultUrls` consult.
-    ///
-    /// Off by default so a self-hosted deployment cannot be steered at RFC1918 or
-    /// an internal gateway without an explicit opt-in; the cloud-metadata service
-    /// stays blocked at the base-host gate regardless of this flag. Both the
-    /// underscored and Spring relaxed-binding compact environment aliases are
-    /// honoured, matching [`Self::policies_allow_private_s3_endpoints`].
-    // Consumed once the external-API caller (`proprietary_external_api`) is
-    // mounted into a secured route; the flag exists now so wiring can read it.
-    #[allow(dead_code)]
-    #[must_use]
-    pub(crate) fn policies_allow_private_api_endpoints(&self) -> bool {
-        env_bool("POLICIES_ALLOW_PRIVATE_API_ENDPOINTS").unwrap_or_else(|| {
-            self.boolean(
-                &["policies", "allowPrivateApiEndpoints"],
-                "POLICIES_ALLOWPRIVATEAPIENDPOINTS",
-                false,
-            )
-        })
-    }
-
-    /// Returns whether administrators may author free-form ("custom") API
-    /// integrations, mirroring Java's `policies.allowCustomApiIntegrations`
-    /// (default `true`) that `IntegrationConfigService`/`IntegrationConfigController`
-    /// gate custom-integration authoring on.
-    ///
-    /// Authoring a custom integration is admin-only regardless; turning this
-    /// off only blocks creating or editing them (vendor presets and existing
-    /// integrations keep working), so `true` remains the compatible default.
-    /// Both the underscored and Spring relaxed-binding compact environment
-    /// aliases are honoured, matching [`Self::policies_allow_private_s3_endpoints`].
-    #[must_use]
-    pub fn allow_custom_api_integrations(&self) -> bool {
-        env_bool("POLICIES_ALLOW_CUSTOM_API_INTEGRATIONS").unwrap_or_else(|| {
-            self.boolean(
-                &["policies", "allowCustomApiIntegrations"],
-                "POLICIES_ALLOWCUSTOMAPIINTEGRATIONS",
-                true,
-            )
-        })
-    }
-
-    #[must_use]
-    pub(crate) fn policies_allowed_folder_roots(&self) -> Vec<PathBuf> {
-        crate::env_compat::var("POLICIES_ALLOWED_FOLDER_ROOTS")
-            .ok()
-            .map_or_else(
-                || {
-                    self.strings(
-                        &["policies", "allowedFolderRoots"],
-                        "POLICIES_ALLOWEDFOLDERROOTS",
-                    )
-                },
-                |value| split_strings(&value),
-            )
-            .into_iter()
-            .map(PathBuf::from)
-            .collect()
-    }
-
-    /// Largest inbound webhook-delivery body the public receiver will buffer,
-    /// mirroring Java's `ApplicationProperties.Policies.webhookMaxBytes`
-    /// (default `104857600`, i.e. 100 MiB). The receiver rejects a declared
-    /// `Content-Length` above this before reading a byte.
-    #[must_use]
-    pub(crate) fn policies_webhook_max_bytes(&self) -> u64 {
-        self.u64(
-            &["policies", "webhookMaxBytes"],
-            "POLICIES_WEBHOOKMAXBYTES",
-            104_857_600,
-        )
-    }
-
-    /// The RustlingPDF installation root (`InstallationPathConfig.getPath()` in
-    /// Java), derived from the same settings-file source the policy runner uses.
-    /// The webhook spool lives under this directory.
-    #[must_use]
-    pub(crate) fn installation_root(&self) -> PathBuf {
-        installation_path(&self.settings_path)
-    }
-
-    #[must_use]
-    pub(crate) fn policy_stream_timeout(&self) -> Duration {
-        Duration::from_millis(
-            self.u64(
-                &["policies", "streamTimeoutMs"],
-                "POLICIES_STREAMTIMEOUTMS",
-                1_800_000,
-            )
-            .max(1),
-        )
-    }
-
-    #[must_use]
-    pub(crate) fn policy_trigger_settings(&self) -> PolicyTriggerSettings {
-        PolicyTriggerSettings {
-            schedule_sweep: Duration::from_secs(
-                self.u64(
-                    &["policies", "scheduleSweepSeconds"],
-                    "POLICIES_SCHEDULESWEEPSECONDS",
-                    60,
-                )
-                .clamp(1, 86_400),
-            ),
-            watch_reconcile: Duration::from_secs(
-                self.u64(
-                    &["policies", "watchReconcileSeconds"],
-                    "POLICIES_WATCHRECONCILESECONDS",
-                    300,
-                )
-                .clamp(1, 86_400),
-            ),
-            watch_quiet_period: Duration::from_millis(
-                self.u64(
-                    &["policies", "watchQuietPeriodMs"],
-                    "POLICIES_WATCHQUIETPERIODMS",
-                    500,
-                )
-                .clamp(1, 60_000),
-            ),
-        }
-    }
-
-    #[must_use]
-    pub(crate) fn security_portal_default_access(&self) -> String {
-        crate::env_compat::var("SECURITY_PORTAL_DEFAULT_ACCESS")
-            .ok()
-            .or_else(|| crate::env_compat::var("SECURITY_PORTAL_DEFAULTACCESS").ok())
-            .unwrap_or_else(|| {
-                self.string(
-                    &["security", "portal", "defaultAccess"],
-                    "SECURITY_PORTAL_DEFAULTACCESS",
-                    "ADMINS_AND_TEAM_LEADS",
-                )
-            })
-    }
-
-    /// Resolves the durable classification-label database.
-    ///
-    /// By default labels share the security `SQLite` file under `configs/`, as in
-    /// the Java deployment model, while an explicit path keeps tests and
-    /// specialized deployments isolated.
-    #[must_use]
-    pub(crate) fn classification_database_path(&self) -> PathBuf {
-        let configured = self.string(
-            &["policies", "databasePath"],
-            "RUSTLING_CLASSIFICATION_DATABASE_PATH",
-            "",
-        );
-        resolve_configured_path(&self.security_bootstrap_config().database_path, &configured)
-    }
-
-    /// Resolves the durable security database and optional first administrator
-    /// from the same Java-compatible settings tree used by the rest of the app.
-    /// No insecure default password is synthesized.
-    #[must_use]
-    pub fn security_bootstrap_config(&self) -> SecurityBootstrapConfig {
-        let installation_path = installation_path(&self.settings_path);
-        let configured_database = crate::env_compat::var("RUSTLING_SECURITY_DATABASE_PATH")
-            .ok()
-            .or_else(|| {
-                value_at(&self.settings, &["security", "databasePath"])
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .unwrap_or_default();
-        let database_path = resolve_configured_path(
-            &installation_path.join("configs").join("security.db"),
-            &configured_database,
-        );
-        let configured_key_path = self.string(
-            &["security", "credentialEncryptionKeyPath"],
-            "RUSTLING_CREDENTIAL_ENCRYPTION_KEY_PATH",
-            "",
-        );
-        let credential_encryption_key_path = resolve_configured_path(
-            &installation_path
-                .join("configs")
-                .join("credential-encryption.key"),
-            &configured_key_path,
-        );
-        let configured_key = self.string(
-            &["security", "credentialEncryptionKey"],
-            "RUSTLING_CREDENTIAL_ENCRYPTION_KEY",
-            "",
-        );
-        let credential_encryption_key = (!configured_key.trim().is_empty())
-            .then(|| Zeroizing::new(configured_key.trim().to_owned()));
-        let username = self.string(
-            &["security", "initialLogin", "username"],
-            "SECURITY_INITIALLOGIN_USERNAME",
-            "",
-        );
-        let password = self.string(
-            &["security", "initialLogin", "password"],
-            "SECURITY_INITIALLOGIN_PASSWORD",
-            "",
-        );
-        let initial_login = (!username.trim().is_empty() && !password.is_empty()).then(|| {
-            InitialLoginCredentials {
-                username,
-                password: Zeroizing::new(password),
-            }
-        });
-        SecurityBootstrapConfig {
-            database_path,
-            credential_encryption_key_path,
-            credential_encryption_key,
-            initial_login,
-        }
-    }
-
-    /// Returns the Java-compatible TOTP issuer shown by authenticator apps.
-    #[must_use]
-    pub fn security_totp_issuer(&self) -> String {
-        let issuer = self.string(&["ui", "appNameNavbar"], "UI_APPNAMENAVBAR", "");
-        let issuer = issuer.trim();
-        if issuer.is_empty() {
-            "RustlingPDF".to_owned()
-        } else {
-            issuer.to_owned()
-        }
-    }
-
-    #[must_use]
-    pub fn security_invites_enabled(&self) -> bool {
-        self.boolean(&["mail", "enableInvites"], "MAIL_ENABLEINVITES", false)
-    }
-
-    #[must_use]
-    pub fn security_invite_expiry_hours(&self) -> u64 {
-        self.u64(
-            &["mail", "inviteLinkExpiryHours"],
-            "MAIL_INVITELINKEXPIRYHOURS",
-            168,
-        )
-        .clamp(1, 24 * 365)
-    }
-
-    /// Reports whether enterprise audit capture is enabled.
-    #[must_use]
-    pub fn security_audit_enabled(&self) -> bool {
-        self.boolean(
-            &["premium", "enterpriseFeatures", "audit", "enabled"],
-            "PREMIUM_ENTERPRISEFEATURES_AUDIT_ENABLED",
-            true,
-        )
-    }
-
-    /// Returns Java's signed audit level clamped to `OFF..VERBOSE` (`0..=3`).
-    #[must_use]
-    pub fn security_audit_level(&self) -> u8 {
-        let level = self
-            .signed_integer(
-                &["premium", "enterpriseFeatures", "audit", "level"],
-                "PREMIUM_ENTERPRISEFEATURES_AUDIT_LEVEL",
-                2,
-            )
-            .clamp(0, 3);
-        u8::try_from(level).unwrap_or(2)
-    }
-
-    /// Returns the configured audit-event retention window in days, mirroring
-    /// Java's `premium.enterpriseFeatures.audit.retentionDays` (default `90`).
-    ///
-    /// The raw value is returned unclamped, exactly like Java's
-    /// `getRetentionDays()`: a value of zero or less means "retain
-    /// indefinitely" (Java's `getEffectiveRetentionDays()` maps it to `-1`),
-    /// so the sign is preserved rather than coerced back to the default.
-    #[must_use]
-    pub fn security_audit_retention_days(&self) -> i64 {
-        self.signed_integer(
-            &["premium", "enterpriseFeatures", "audit", "retentionDays"],
-            "PREMIUM_ENTERPRISEFEATURES_AUDIT_RETENTIONDAYS",
-            90,
-        )
-    }
-
-    /// Returns the ordered `AuditLevel` names (`OFF`, `BASIC`, `STANDARD`,
-    /// `VERBOSE`), mirroring Java's `stirling.software.proprietary.audit.AuditLevel`
-    /// enum whose integer levels `0..=3` index directly into this slice.
-    ///
-    /// Exposed for the audit-dashboard projection so it does not re-declare the
-    /// level vocabulary; the numeric level from [`Self::security_audit_level`]
-    /// is a valid index into the returned slice.
-    #[must_use]
-    pub fn audit_levels() -> &'static [&'static str] {
-        &["OFF", "BASIC", "STANDARD", "VERBOSE"]
-    }
-
-    #[must_use]
-    pub fn security_audit_capture_file_hash(&self) -> bool {
-        self.boolean(
-            &["premium", "enterpriseFeatures", "audit", "captureFileHash"],
-            "PREMIUM_ENTERPRISEFEATURES_AUDIT_CAPTUREFILEHASH",
-            false,
-        )
-    }
-
-    #[must_use]
-    pub fn security_audit_capture_pdf_author(&self) -> bool {
-        self.boolean(
-            &["premium", "enterpriseFeatures", "audit", "capturePdfAuthor"],
-            "PREMIUM_ENTERPRISEFEATURES_AUDIT_CAPTUREPDFAUTHOR",
-            false,
-        )
-    }
-
-    #[must_use]
-    pub fn security_audit_capture_operation_results(&self) -> bool {
-        self.boolean(
-            &[
-                "premium",
-                "enterpriseFeatures",
-                "audit",
-                "captureOperationResults",
-            ],
-            "PREMIUM_ENTERPRISEFEATURES_AUDIT_CAPTUREOPERATIONRESULTS",
-            false,
-        )
-    }
-
-    /// Reports whether STANDARD enterprise audit events are configured. Fleet
-    /// usage must return null audit-derived figures below this level because
-    /// the source events cannot exist.
-    #[must_use]
-    pub fn security_standard_audit_enabled(&self) -> bool {
-        self.security_audit_enabled() && self.security_audit_level() >= 2
     }
 
     /// Resolves the Java-compatible premium license settings, including the
@@ -1280,253 +641,6 @@ impl RuntimeConfig {
             enabled: premium_enabled || legacy_enabled,
             key: Zeroizing::new(key),
             initial_max_users,
-        }
-    }
-
-    #[must_use]
-    pub fn security_frontend_url(&self) -> String {
-        self.frontend_url(None, None)
-    }
-
-    #[must_use]
-    pub fn security_backend_url(&self) -> String {
-        self.string(&["system", "backendUrl"], "SYSTEM_BACKENDURL", "")
-    }
-
-    /// Resolves optional Supabase JWT verification settings. An absent issuer
-    /// disables this authentication source; a configured but invalid issuer is
-    /// rejected later by the verifier rather than silently ignored.
-    #[must_use]
-    pub fn security_supabase_jwt_config(&self) -> Option<SupabaseJwtConfig> {
-        let project_ref = crate::env_compat::var("SAAS_DB_PROJECT_REF").unwrap_or_default();
-        let default_issuer = (!project_ref.trim().is_empty())
-            .then(|| format!("https://{}.supabase.co/auth/v1", project_ref.trim()));
-        let issuer = crate::env_compat::var("RUSTLING_SUPABASE_ISSUER")
-            .ok()
-            .or_else(|| crate::env_compat::var("APP_SUPABASE_ISSUER").ok())
-            .or_else(|| {
-                value_at(&self.settings, &["app", "supabase", "issuer"])
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .or(default_issuer)?;
-        if issuer.trim().is_empty() {
-            return None;
-        }
-        let expected_audience = crate::env_compat::var("RUSTLING_SUPABASE_EXPECTED_AUD")
-            .ok()
-            .or_else(|| crate::env_compat::var("APP_SUPABASE_EXPECTED_AUD").ok())
-            .or_else(|| {
-                value_at(&self.settings, &["app", "supabase", "expectedAud"])
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .or_else(|| Some("authenticated".to_owned()));
-        let clock_skew_seconds = crate::env_compat::var("RUSTLING_SUPABASE_CLOCK_SKEW_SECONDS")
-            .ok()
-            .and_then(|value| value.parse().ok())
-            .or_else(|| {
-                value_at(&self.settings, &["app", "supabase", "clockSkewSeconds"])
-                    .and_then(Value::as_u64)
-            })
-            .unwrap_or(120);
-        let jwks_cache_seconds = crate::env_compat::var("RUSTLING_SUPABASE_JWKS_CACHE_SECONDS")
-            .ok()
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(300);
-        Some(SupabaseJwtConfig {
-            issuer,
-            expected_audience,
-            clock_skew_seconds,
-            jwks_cache_seconds,
-        })
-    }
-
-    /// Resolves the optional generic-OIDC login provider (public-client PKCE).
-    ///
-    /// Mirrors the `security.oauth2.*` block of the Java settings that its
-    /// discovery-driven `oidcClientRegistration()` consumes: the `issuer` is the
-    /// primary on/off switch (absent ⇒ the provider is disabled, returning
-    /// `None`, exactly like [`Self::security_supabase_jwt_config`]); a configured
-    /// issuer yields a typed [`OidcLoginProviderConfig`] whose remaining fields
-    /// are only *shaped* here, then structurally validated fail-closed at the
-    /// login boundary ([`OidcLoginProviderConfig::validate`], called by
-    /// `oidc_login::initiate_oidc_login`) rather than being second-guessed here.
-    ///
-    /// `scopes` accepts both a YAML sequence and the Java template's scalar
-    /// comma-separated string (e.g. `openid, profile, email`); the `openid`
-    /// scope is added by the authorization-request builder even if omitted.
-    ///
-    /// `clientSecret` (env `SECURITY_OAUTH2_CLIENTSECRET`, mirroring how the
-    /// sibling keys are sourced) selects the confidential-client token
-    /// exchange; blank means a public client, exactly like Java, where an
-    /// unset `security.oauth2.clientSecret` leaves Spring's registration on
-    /// the public-client method.
-    #[must_use]
-    pub fn oidc_login_provider_config(&self) -> Option<OidcLoginProviderConfig> {
-        let issuer = self.string(
-            &["security", "oauth2", "issuer"],
-            "SECURITY_OAUTH2_ISSUER",
-            "",
-        );
-        if issuer.trim().is_empty() {
-            return None;
-        }
-        let client_id = self.string(
-            &["security", "oauth2", "clientId"],
-            "SECURITY_OAUTH2_CLIENTID",
-            "",
-        );
-        let redirect_uri = self.string(
-            &["security", "oauth2", "redirectUri"],
-            "SECURITY_OAUTH2_REDIRECTURI",
-            "",
-        );
-        let scopes = {
-            let listed = self.strings(&["security", "oauth2", "scopes"], "SECURITY_OAUTH2_SCOPES");
-            if listed.is_empty() {
-                split_strings(&self.string(
-                    &["security", "oauth2", "scopes"],
-                    "SECURITY_OAUTH2_SCOPES",
-                    "",
-                ))
-            } else {
-                listed
-            }
-        };
-        let client_secret = {
-            let secret = self.string(
-                &["security", "oauth2", "clientSecret"],
-                "SECURITY_OAUTH2_CLIENTSECRET",
-                "",
-            );
-            let secret = secret.trim();
-            (!secret.is_empty()).then(|| Zeroizing::new(secret.to_owned()))
-        };
-        Some(OidcLoginProviderConfig {
-            issuer: issuer.trim().to_owned(),
-            client_id,
-            redirect_uri,
-            scopes,
-            client_secret,
-        })
-    }
-
-    #[must_use]
-    pub(crate) fn server_certificate_config(&self) -> ServerCertificateConfig {
-        let organization_name = self.string(
-            &["system", "serverCertificate", "organizationName"],
-            "SYSTEM_SERVERCERTIFICATE_ORGANIZATIONNAME",
-            "RustlingPDF",
-        );
-        let validity_days = self
-            .u64(
-                &["system", "serverCertificate", "validity"],
-                "SYSTEM_SERVERCERTIFICATE_VALIDITY",
-                365,
-            )
-            .clamp(1, 3_650) as u32;
-        ServerCertificateConfig {
-            enabled: self.boolean(
-                &["system", "serverCertificate", "enabled"],
-                "SYSTEM_SERVERCERTIFICATE_ENABLED",
-                false,
-            ),
-            organization_name,
-            validity_days,
-            regenerate_on_startup: self.boolean(
-                &["system", "serverCertificate", "regenerateOnStartup"],
-                "SYSTEM_SERVERCERTIFICATE_REGENERATEONSTARTUP",
-                false,
-            ),
-            config_directory: self
-                .settings_path
-                .parent()
-                .unwrap_or_else(|| Path::new("."))
-                .to_path_buf(),
-        }
-    }
-
-    #[must_use]
-    pub(crate) fn pipeline_directory_config(&self) -> PipelineDirectoryConfig {
-        let base_path = installation_path(&self.settings_path);
-        let pipeline_dir = resolve_configured_path(
-            &base_path.join("pipeline"),
-            &self.string(
-                &["system", "customPaths", "pipeline", "pipelineDir"],
-                "SYSTEM_CUSTOMPATHS_PIPELINE_PIPELINEDIR",
-                "",
-            ),
-        );
-        let default_watched_folder = pipeline_dir.join("watchedFolders");
-        let configured_watched_folders = self.strings(
-            &["system", "customPaths", "pipeline", "watchedFoldersDirs"],
-            "SYSTEM_CUSTOMPATHS_PIPELINE_WATCHEDFOLDERSDIRS",
-        );
-        let watched_folders = if configured_watched_folders.is_empty() {
-            let legacy_watched_folder = self.string(
-                &["system", "customPaths", "pipeline", "watchedFoldersDir"],
-                "SYSTEM_CUSTOMPATHS_PIPELINE_WATCHEDFOLDERSDIR",
-                "",
-            );
-            vec![resolve_configured_path(
-                &default_watched_folder,
-                &legacy_watched_folder,
-            )]
-        } else {
-            configured_watched_folders
-                .iter()
-                .map(|path| resolve_configured_path(&default_watched_folder, path))
-                .collect()
-        };
-        let watched_folders = unique_paths(watched_folders);
-        let finished_folder = resolve_configured_path(
-            &pipeline_dir.join("finishedFolders"),
-            &self.string(
-                &["system", "customPaths", "pipeline", "finishedFoldersDir"],
-                "SYSTEM_CUSTOMPATHS_PIPELINE_FINISHEDFOLDERSDIR",
-                "",
-            ),
-        );
-        let enabled = self.boolean(
-            &["autoPipeline", "fileReadiness", "enabled"],
-            "AUTOPIPELINE_FILEREADINESS_ENABLED",
-            true,
-        );
-        let settle_time = Duration::from_millis(self.u64(
-            &["autoPipeline", "fileReadiness", "settleTimeMillis"],
-            "AUTOPIPELINE_FILEREADINESS_SETTLETIMEMILLIS",
-            5_000,
-        ));
-        let size_check_delay = Duration::from_millis(self.u64(
-            &["autoPipeline", "fileReadiness", "sizeCheckDelayMillis"],
-            "AUTOPIPELINE_FILEREADINESS_SIZECHECKDELAYMILLIS",
-            500,
-        ));
-        let allowed_extensions = self
-            .strings(
-                &["autoPipeline", "fileReadiness", "allowedExtensions"],
-                "AUTOPIPELINE_FILEREADINESS_ALLOWEDEXTENSIONS",
-            )
-            .into_iter()
-            .map(|extension| {
-                extension
-                    .trim()
-                    .trim_start_matches('.')
-                    .to_ascii_lowercase()
-            })
-            .filter(|extension| !extension.is_empty())
-            .collect();
-
-        PipelineDirectoryConfig {
-            watched_folders,
-            finished_folder,
-            readiness: FileReadinessConfig {
-                enabled,
-                settle_time,
-                size_check_delay,
-                allowed_extensions,
-            },
         }
     }
 
@@ -1673,117 +787,13 @@ impl RuntimeConfig {
         self.dependency_commands.get(group).cloned()
     }
 
-    /// Returns the root directory for Java-compatible saved signature assets.
+    /// Returns the shared signature-image directory (operator-provisioned).
     #[must_use]
-    pub fn signatures_dir(&self) -> PathBuf {
+    pub fn shared_signatures_dir(&self) -> PathBuf {
         installation_path(&self.settings_path)
             .join("customFiles")
             .join("signatures")
-    }
-
-    /// Returns the shared signature-image directory used in no-login mode.
-    #[must_use]
-    pub fn shared_signatures_dir(&self) -> PathBuf {
-        self.signatures_dir().join("ALL_USERS")
-    }
-
-    /// Builds the durable storage configuration from the `storage.*` settings
-    /// tree, mirroring Java's `ApplicationProperties.Storage` defaults. The
-    /// per-request upload ceiling is supplied by the caller because it derives
-    /// from the shared runtime body limit rather than the storage section.
-    pub(crate) fn storage_config(&self, max_upload_bytes: u64) -> StorageConfig {
-        let installation = installation_path(&self.settings_path);
-        let configured_base = self.string(
-            &["storage", "local", "basePath"],
-            "STORAGE_LOCAL_BASEPATH",
-            "",
-        );
-        let base_path = if configured_base.trim().is_empty() {
-            installation.join("storage")
-        } else {
-            PathBuf::from(configured_base)
-        };
-        // Storage tables live alongside the security schema so file ownership can
-        // join `security_users`, matching how `classification_database_path`
-        // shares the durable security database.
-        let database_path = resolve_configured_path(
-            &self.security_bootstrap_config().database_path,
-            &self.string(&["storage", "databasePath"], "STORAGE_DATABASEPATH", ""),
-        );
-        let sharing = StorageSharingConfig {
-            enabled: self.boolean(
-                &["storage", "sharing", "enabled"],
-                "STORAGE_SHARING_ENABLED",
-                false,
-            ),
-            link_enabled: self.boolean(
-                &["storage", "sharing", "linkEnabled"],
-                "STORAGE_SHARING_LINKENABLED",
-                true,
-            ),
-            email_enabled: self.boolean(
-                &["storage", "sharing", "emailEnabled"],
-                "STORAGE_SHARING_EMAILENABLED",
-                false,
-            ),
-            link_expiration_days: u64::try_from(self.signed_integer(
-                &["storage", "sharing", "linkExpirationDays"],
-                "STORAGE_SHARING_LINKEXPIRATIONDAYS",
-                3,
-            ))
-            .unwrap_or(3),
-        };
-        StorageConfig {
-            enabled: self.boolean(&["storage", "enabled"], "STORAGE_ENABLED", false),
-            provider: self.string(&["storage", "provider"], "STORAGE_PROVIDER", "local"),
-            base_path,
-            database_path,
-            sharing,
-            max_file_bytes: megabytes_to_bytes(self.signed_integer(
-                &["storage", "quotas", "maxFileMb"],
-                "STORAGE_QUOTAS_MAXFILEMB",
-                -1,
-            )),
-            max_user_bytes: megabytes_to_bytes(self.signed_integer(
-                &["storage", "quotas", "maxStorageMbPerUser"],
-                "STORAGE_QUOTAS_MAXSTORAGEMBPERUSER",
-                -1,
-            )),
-            max_total_bytes: megabytes_to_bytes(self.signed_integer(
-                &["storage", "quotas", "maxStorageMbTotal"],
-                "STORAGE_QUOTAS_MAXSTORAGEMBTOTAL",
-                -1,
-            )),
-            max_upload_bytes,
-        }
-    }
-
-    /// Builds the collaborative signing configuration from `storage.signing.*`.
-    /// Signing tables share the durable security database so participant and
-    /// owner rows can reference `security_users`.
-    pub(crate) fn workflow_signing_config(&self) -> WorkflowSigningConfig {
-        let database_path = resolve_configured_path(
-            &self.security_bootstrap_config().database_path,
-            &self.string(
-                &["storage", "signing", "databasePath"],
-                "STORAGE_SIGNING_DATABASEPATH",
-                "",
-            ),
-        );
-        WorkflowSigningConfig {
-            enabled: self.boolean(
-                &["storage", "signing", "enabled"],
-                "STORAGE_SIGNING_ENABLED",
-                false,
-            ),
-            database_path,
-        }
-    }
-
-    /// Returns the live login-agreement Markdown directory.
-    #[must_use]
-    pub(crate) fn login_agreement_directory(&self) -> PathBuf {
-        self.custom_files_dir.join("disclaimer")
+            .join("ALL_USERS")
     }
 
     /// Returns the administrator-provided static-font directory.
@@ -1814,31 +824,6 @@ impl RuntimeConfig {
         let configured = self.string(&["system", "frontendDist"], "RUSTLING_FRONTEND_DIST", "");
         let trimmed = configured.trim();
         (!trimmed.is_empty()).then(|| PathBuf::from(trimmed))
-    }
-
-    /// Persists the first anonymous analytics choice and applies it immediately.
-    ///
-    /// Returns `Ok(true)` when the setting changed, `Ok(false)` if it was already
-    /// configured, and an error when the settings file cannot be updated.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the current settings cannot be read, parsed, or written,
-    /// or when the in-memory configuration state is unavailable.
-    pub fn update_analytics_enabled(&self, enabled: bool) -> Result<bool, String> {
-        if self.configured_analytics_enabled().is_some() {
-            return Ok(false);
-        }
-        let mut override_value = self
-            .analytics_override
-            .lock()
-            .map_err(|_| "analytics configuration state is unavailable".to_owned())?;
-        if override_value.is_some() {
-            return Ok(false);
-        }
-        write_analytics_setting(&self.settings_path, enabled)?;
-        *override_value = Some(enabled);
-        Ok(true)
     }
 
     #[must_use]
@@ -1903,6 +888,139 @@ impl RuntimeConfig {
         })
     }
 
+    /// Resolves the install identity without ever touching the settings file.
+    ///
+    /// The open, stateless server has no server-side identity to preserve: the
+    /// UUID and key are taken from configuration/environment when supplied
+    /// (`AUTOMATICALLYGENERATED_*` stays honored as config) and otherwise
+    /// generated fresh for this process. Only the desktop sidecar (Tauri mode)
+    /// persists the identity back into its own local `settings.yml`.
+    #[must_use]
+    pub fn ephemeral_generated_identity(&self) -> GeneratedIdentity {
+        let existing_uuid = self.generated_setting("UUID", "AUTOMATICALLYGENERATED_UUID");
+        let existing_key = self.generated_setting("key", "AUTOMATICALLYGENERATED_KEY");
+        let existing_version =
+            self.generated_setting("appVersion", "AUTOMATICALLYGENERATED_APPVERSION");
+        let is_new_server =
+            existing_version.trim().is_empty() || existing_version.trim() == "0.0.0";
+        GeneratedIdentity {
+            uuid: if is_valid_settings_uuid(&existing_uuid) {
+                existing_uuid
+            } else {
+                random_uuid_v4()
+            },
+            key: if is_valid_settings_uuid(&existing_key) {
+                existing_key
+            } else {
+                random_uuid_v4()
+            },
+            app_version: crate::runtime_metrics::application_version().to_owned(),
+            is_new_server,
+        }
+    }
+
+    /// Logs a one-line warning for every notable legacy setting that the
+    /// stateless, no-login runtime now ignores.
+    ///
+    /// The removal of authentication and server-side state left behind
+    /// configuration keys in existing installs — the bundled desktop template
+    /// even ships `security.enableLogin: true`. Those keys must be IGNORED,
+    /// never refused: a hard failure would brick every existing install on
+    /// upgrade. Only the keys worth an operator's attention warn; everything
+    /// else is silently skipped.
+    pub fn warn_on_ignored_legacy_settings(&self) {
+        let yaml_present = |path: &[&str]| value_at(&self.settings, path).is_some();
+        let yaml_true = |path: &[&str]| {
+            value_at(&self.settings, path)
+                .and_then(yaml_bool)
+                .unwrap_or(false)
+        };
+        let env_present = |names: &[&str]| {
+            names
+                .iter()
+                .any(|name| crate::env_compat::var_os(name).is_some())
+        };
+        let mut ignored: Vec<&str> = Vec::new();
+        if yaml_true(&["security", "enableLogin"])
+            || env_present(&["SECURITY_ENABLELOGIN", "SECURITY_ENABLE_LOGIN"])
+        {
+            ignored.push("security.enableLogin / SECURITY_ENABLELOGIN");
+        }
+        if env_present(&["DOCKER_ENABLE_SECURITY"]) {
+            ignored.push("DOCKER_ENABLE_SECURITY");
+        }
+        if yaml_present(&["security", "initialLogin"])
+            || env_present(&[
+                "SECURITY_INITIALLOGIN_USERNAME",
+                "SECURITY_INITIALLOGIN_PASSWORD",
+            ])
+        {
+            ignored.push("security.initialLogin.*");
+        }
+        if yaml_present(&["security", "oauth2"]) || env_present(&["SECURITY_OAUTH2_ENABLED"]) {
+            ignored.push("security.oauth2.*");
+        }
+        if yaml_present(&["security", "saml2"]) {
+            ignored.push("security.saml2.*");
+        }
+        if yaml_present(&["security", "jwt"]) {
+            ignored.push("security.jwt.*");
+        }
+        if yaml_present(&["security", "loginMethod"]) || env_present(&["SECURITY_LOGINMETHOD"]) {
+            ignored.push("security.loginMethod");
+        }
+        if yaml_present(&["security", "databasePath"])
+            || env_present(&[
+                "RUSTLING_SECURITY_DATABASE_PATH",
+                "STIRLING_SECURITY_DATABASE_PATH",
+            ])
+        {
+            ignored.push("security.databasePath");
+        }
+        if yaml_present(&["security", "credentialEncryptionKey"])
+            || yaml_present(&["security", "credentialEncryptionKeyPath"])
+            || env_present(&[
+                "RUSTLING_CREDENTIAL_ENCRYPTION_KEY",
+                "RUSTLING_CREDENTIAL_ENCRYPTION_KEY_PATH",
+                "STIRLING_CREDENTIAL_ENCRYPTION_KEY",
+                "STIRLING_CREDENTIAL_ENCRYPTION_KEY_PATH",
+            ])
+        {
+            ignored.push("security.credentialEncryptionKey[Path]");
+        }
+        if yaml_true(&["mcp", "enabled"]) || env_present(&["MCP_ENABLED", "MCP_AUTH_MODE"]) {
+            ignored.push("mcp.*");
+        }
+        if yaml_true(&["storage", "enabled"]) || env_present(&["STORAGE_ENABLED"]) {
+            ignored.push("storage.*");
+        }
+        if yaml_true(&["policies", "enabled"]) || env_present(&["POLICIES_ENABLED"]) {
+            ignored.push("policies.*");
+        }
+        if yaml_present(&["premium", "enterpriseFeatures", "audit"]) {
+            ignored.push("premium.enterpriseFeatures.audit.*");
+        }
+        if yaml_true(&["mail", "enableInvites"]) || env_present(&["MAIL_ENABLEINVITES"]) {
+            ignored.push("mail.enableInvites");
+        }
+        if yaml_present(&["app", "supabase"])
+            || env_present(&[
+                "SAAS_DB_PROJECT_REF",
+                "RUSTLING_SUPABASE_ISSUER",
+                "APP_SUPABASE_ISSUER",
+            ])
+        {
+            ignored.push("app.supabase.*");
+        }
+        for key in ignored {
+            tracing::warn!(
+                key,
+                "this setting belongs to a removed feature (login/auth, MCP, or server-side \
+                 state) and is ignored; the server always runs in open, stateless mode"
+            );
+        }
+    }
+
     fn generated_setting(&self, field: &str, environment: &str) -> String {
         crate::env_compat::var(environment)
             .ok()
@@ -1914,11 +1032,6 @@ impl RuntimeConfig {
                     .map(ToOwned::to_owned)
             })
             .unwrap_or_default()
-    }
-
-    #[must_use]
-    pub(crate) fn settings_snapshot(&self) -> Value {
-        self.settings.clone()
     }
 
     fn insert_connection_config(
@@ -2354,22 +1467,6 @@ impl RuntimeConfig {
     }
 
     fn from_paths(settings_path: PathBuf, custom_settings_path: &Path) -> Self {
-        Self::from_paths_with_desktop_login_override(
-            settings_path,
-            custom_settings_path,
-            desktop_mode_from_environment(),
-        )
-    }
-
-    /// `force_login_disabled` carries the desktop launcher's login override
-    /// (see [`disable_login_setting`]); [`Self::from_paths`] derives it from
-    /// `RUSTLING_PDF_TAURI_MODE`, and taking it as a parameter keeps the
-    /// override unit-testable without mutating process environment.
-    fn from_paths_with_desktop_login_override(
-        settings_path: PathBuf,
-        custom_settings_path: &Path,
-        force_login_disabled: bool,
-    ) -> Self {
         let custom_files_dir = custom_files_dir(&settings_path);
         let mut settings = Value::Object(Map::new());
         let mut errors = Vec::new();
@@ -2380,15 +1477,11 @@ impl RuntimeConfig {
                 Err(error) => errors.push(error),
             }
         }
-        if force_login_disabled {
-            disable_login_setting(&mut settings);
-        }
         Self {
             settings,
             settings_path,
             load_error: (!errors.is_empty()).then(|| errors.join("; ")),
             custom_files_dir,
-            analytics_override: Mutex::new(None),
             dependency_disabled_groups: BTreeSet::new(),
             dependency_commands: BTreeMap::new(),
             dependencies_checked: true,
@@ -2479,15 +1572,6 @@ impl RuntimeConfig {
     }
 
     fn analytics_enabled(&self) -> Option<bool> {
-        self.configured_analytics_enabled().or_else(|| {
-            self.analytics_override
-                .lock()
-                .ok()
-                .and_then(|override_value| *override_value)
-        })
-    }
-
-    fn configured_analytics_enabled(&self) -> Option<bool> {
         self.optional_boolean(&["system", "enableAnalytics"], "SYSTEM_ENABLEANALYTICS")
     }
 
@@ -2668,14 +1752,6 @@ pub struct GeneratedIdentity {
     pub is_new_server: bool,
 }
 
-fn write_analytics_setting(settings_path: &Path, enabled: bool) -> Result<(), String> {
-    update_settings_file_values(
-        settings_path,
-        "system",
-        &[("enableAnalytics", serde_yaml::Value::Bool(enabled))],
-    )
-}
-
 /// Read-modify-write of `section.key` values in `settings.yml` that preserves
 /// every other byte of the file — comments, blank lines, key order and
 /// formatting — by rewriting only the targeted value lines through the shared
@@ -2835,22 +1911,6 @@ fn resolve_configured_path(default: &Path, configured: &str) -> PathBuf {
     PathBuf::from(configured)
 }
 
-/// Converts a Java-style megabyte quota into a byte ceiling. Negative values
-/// (Java's `-1` sentinel) mean "unlimited" and map to `None`.
-fn megabytes_to_bytes(megabytes: i64) -> Option<u64> {
-    u64::try_from(megabytes)
-        .ok()
-        .map(|value| value.saturating_mul(1024 * 1024))
-}
-
-fn unique_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
-    let mut seen = BTreeSet::new();
-    paths
-        .into_iter()
-        .filter(|path| seen.insert(path.clone()))
-        .collect()
-}
-
 fn add_locale_candidates(candidates: &mut Vec<String>, locale: Option<&str>) {
     let Some(locale) = locale.filter(|locale| is_valid_locale(locale)) else {
         return;
@@ -2889,35 +1949,6 @@ pub(crate) fn is_valid_locale(locale: &str) -> bool {
     parts.all(|part| {
         (2..=8).contains(&part.len()) && part.bytes().all(|byte| byte.is_ascii_alphanumeric())
     })
-}
-
-/// Whether this process is the native desktop (Tauri) sidecar, signalled by
-/// the launcher through `RUSTLING_PDF_TAURI_MODE=true` (Java reads the same
-/// flag with `Boolean.parseBoolean`).
-fn desktop_mode_from_environment() -> bool {
-    crate::env_compat::var("RUSTLING_PDF_TAURI_MODE")
-        .is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
-}
-
-/// Java desktop parity: the Tauri launcher always passes
-/// `-Dsecurity.enableLogin=false` ("Disable login for desktop mode"), a
-/// system property that outranks every YAML source under Spring's property
-/// precedence — so on desktop the bundled template's
-/// `security.enableLogin: true` never takes effect: not for the secured-mode
-/// startup guard, the login disclaimer, or app-config. The Rust sidecar bakes
-/// the same override into the loaded snapshot; without it, the very template
-/// that desktop startup writes would trip the secured-mode refusal and the
-/// desktop could never boot.
-fn disable_login_setting(settings: &mut Value) {
-    let Value::Object(root) = settings else {
-        return;
-    };
-    let security = root
-        .entry("security")
-        .or_insert_with(|| Value::Object(Map::new()));
-    if let Value::Object(security) = security {
-        security.insert("enableLogin".to_owned(), Value::Bool(false));
-    }
 }
 
 fn merge_json(target: &mut Value, overlay: Value) {
@@ -2992,79 +2023,6 @@ fn yaml_bool(value: &Value) -> Option<bool> {
             Some(0) => Some(false),
             _ => None,
         })
-}
-
-/// Why [`RuntimeConfig::security_mode_is_requested`] refused to answer.
-///
-/// Both variants refuse startup: this guard's only purpose is declining to run
-/// unauthenticated, so a value it cannot read must never be treated as "off".
-/// Java behaves the same way — Spring's relaxed binding of a malformed
-/// `security.enableLogin` value fails the boot with a `BindException`.
-#[derive(Debug, PartialEq, Eq)]
-enum SecurityModeValueError {
-    /// The environment variable is set but not valid Unicode.
-    NotUnicode(&'static str),
-    /// The value is present and non-empty but is not a boolean Spring accepts.
-    NotABoolean(&'static str),
-}
-
-impl SecurityModeValueError {
-    fn into_io_error(self) -> io::Error {
-        let message = match self {
-            Self::NotUnicode(source) => {
-                format!("{source} must contain valid Unicode")
-            }
-            Self::NotABoolean(source) => format!(
-                "{source} must be a boolean (true/on/yes/1 or false/off/no/0); \
-                 refusing to guess whether secured login mode was requested"
-            ),
-        };
-        io::Error::new(io::ErrorKind::InvalidInput, message)
-    }
-}
-
-/// Pure decision logic behind [`RuntimeConfig::security_mode_is_requested`],
-/// factored out so the fail-closed paths are unit-testable without touching
-/// real process environment variables. `env_values` holds one already-read
-/// result per compatible environment variable name (`Ok(Some(v))` present,
-/// `Ok(None)` unset, `Err(name)` present but not valid Unicode);
-/// `yaml_value` is the raw `security.enableLogin` node when the key exists.
-///
-/// A present, non-empty value that does not parse as a Spring boolean is an
-/// error, not `false`: Java refuses to boot on the same input (relaxed-binding
-/// `BindException`), and this guard fails open if it guesses. An empty or
-/// blank value is treated as unset — `SECURITY_ENABLELOGIN=` is how compose
-/// files commonly express "not configured".
-fn resolve_security_mode_request(
-    env_values: &[(&'static str, Result<Option<String>, &'static str>)],
-    yaml_value: Option<&Value>,
-) -> Result<bool, SecurityModeValueError> {
-    for (variable, value) in env_values {
-        match value {
-            Err(variable) => return Err(SecurityModeValueError::NotUnicode(variable)),
-            Ok(Some(value)) if !value.trim().is_empty() => match parse_boolean(value) {
-                Some(true) => return Ok(true),
-                Some(false) => {}
-                None => return Err(SecurityModeValueError::NotABoolean(variable)),
-            },
-            Ok(_) => {}
-        }
-    }
-    match yaml_value {
-        None => Ok(false),
-        Some(value) => match yaml_bool(value) {
-            Some(requested) => Ok(requested),
-            // A null (`enableLogin:`) or empty/blank scalar is "not
-            // configured", the same allowance the env path makes; any other
-            // unreadable value is malformed and refuses startup.
-            None if value.is_null()
-                || value.as_str().is_some_and(|value| value.trim().is_empty()) =>
-            {
-                Ok(false)
-            }
-            None => Err(SecurityModeValueError::NotABoolean("security.enableLogin")),
-        },
-    }
 }
 
 fn split_strings(value: &str) -> Vec<String> {
@@ -3147,24 +2105,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        McpAuthConfig, McpConfig, RuntimeConfig, SecurityModeValueError, endpoint_key_for_uri,
-        merge_json, parse_boolean, resolve_security_mode_request, split_strings, yaml_bool,
+        RuntimeConfig, endpoint_key_for_uri, merge_json, parse_boolean, split_strings, yaml_bool,
     };
-
-    #[test]
-    fn policy_stream_timeout_matches_java_default_and_yaml()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(&settings, "{}\n")?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        assert_eq!(config.policy_stream_timeout().as_millis(), 1_800_000);
-
-        fs::write(&settings, "policies:\n  streamTimeoutMs: 4321\n")?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        assert_eq!(config.policy_stream_timeout().as_millis(), 4_321);
-        Ok(())
-    }
 
     #[test]
     fn maximum_render_dpi_matches_java_default_and_yaml() -> Result<(), Box<dyn std::error::Error>>
@@ -3178,134 +2120,6 @@ mod tests {
         fs::write(&settings, "system:\n  maxDPI: 360\n")?;
         let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
         assert_eq!(config.max_render_dpi(), 360);
-        Ok(())
-    }
-
-    #[test]
-    fn allow_custom_api_integrations_matches_java_default_and_yaml()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-
-        // Java default is on: custom-integration authoring is permitted.
-        fs::write(&settings, "{}\n")?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        assert!(config.allow_custom_api_integrations());
-
-        // The operator can withdraw custom-integration authoring via YAML.
-        fs::write(
-            &settings,
-            "policies:\n  allowCustomApiIntegrations: false\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        assert!(!config.allow_custom_api_integrations());
-        Ok(())
-    }
-
-    #[test]
-    fn security_audit_retention_days_matches_java_default_and_yaml()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-
-        // Java default retention window.
-        fs::write(&settings, "{}\n")?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        assert_eq!(config.security_audit_retention_days(), 90);
-
-        // Zero (Java "retain indefinitely") is preserved unclamped rather than
-        // being coerced back to the default.
-        fs::write(
-            &settings,
-            "premium:\n  enterpriseFeatures:\n    audit:\n      retentionDays: 0\n",
-        )?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        assert_eq!(config.security_audit_retention_days(), 0);
-
-        // An explicit window overrides the default.
-        fs::write(
-            &settings,
-            "premium:\n  enterpriseFeatures:\n    audit:\n      retentionDays: 30\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        assert_eq!(config.security_audit_retention_days(), 30);
-        Ok(())
-    }
-
-    #[test]
-    fn audit_levels_are_ordered_and_indexed_by_numeric_level() {
-        assert_eq!(
-            RuntimeConfig::audit_levels().to_vec(),
-            vec!["OFF", "BASIC", "STANDARD", "VERBOSE"]
-        );
-        // The Java default numeric level (STANDARD == 2) indexes into the slice.
-        assert_eq!(RuntimeConfig::audit_levels()[2], "STANDARD");
-    }
-
-    // Every AuditLevel enum member indexes into the slice at exactly its Java
-    // integer level, and the slice is the same width as the enum (0..=3). This
-    // locks the projection to the Java enum ordering, not just the STANDARD case.
-    #[test]
-    fn audit_levels_index_matches_every_java_enum_level() {
-        let levels = RuntimeConfig::audit_levels();
-        assert_eq!(levels.len(), 4);
-        assert_eq!(levels[0], "OFF");
-        assert_eq!(levels[1], "BASIC");
-        assert_eq!(levels[2], "STANDARD");
-        assert_eq!(levels[3], "VERBOSE");
-        // The clamped default level from the sibling accessor is a valid index.
-        let config = RuntimeConfig::from_files("missing-a.yml", "missing-b.yml");
-        let default_level = usize::from(config.security_audit_level());
-        assert_eq!(levels[default_level], "STANDARD");
-    }
-
-    // Java's getRetentionDays() returns the raw field; only
-    // getEffectiveRetentionDays() maps values <= 0 to -1. The raw accessor must
-    // therefore preserve a negative "retain indefinitely" sentinel unclamped.
-    #[test]
-    fn security_audit_retention_days_preserves_a_negative_sentinel_unclamped()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "premium:\n  enterpriseFeatures:\n    audit:\n      retentionDays: -1\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        assert_eq!(config.security_audit_retention_days(), -1);
-        Ok(())
-    }
-
-    // A non-integer YAML value cannot resolve through `signed_integer`, so the
-    // Java default is retained rather than panicking — the same graceful
-    // degradation every other signed_integer-backed accessor exhibits.
-    #[test]
-    fn security_audit_retention_days_falls_back_when_the_value_is_not_an_integer()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "premium:\n  enterpriseFeatures:\n    audit:\n      retentionDays: not-a-number\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        assert_eq!(config.security_audit_retention_days(), 90);
-        Ok(())
-    }
-
-    // The loader merges custom_settings.yml on top of settings.yml, so a custom
-    // overlay withdrawing custom-integration authoring must win over a base file
-    // that leaves the Java default (true) in place.
-    #[test]
-    fn allow_custom_api_integrations_custom_settings_override_wins()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        let custom = directory.path().join("custom_settings.yml");
-        fs::write(&settings, "policies:\n  allowCustomApiIntegrations: true\n")?;
-        fs::write(&custom, "policies:\n  allowCustomApiIntegrations: false\n")?;
-        let config = RuntimeConfig::from_files(settings, custom);
-        assert!(!config.allow_custom_api_integrations());
         Ok(())
     }
 
@@ -3362,72 +2176,6 @@ mod tests {
     }
 
     #[test]
-    fn oidc_login_provider_config_is_absent_without_an_issuer_and_typed_with_one()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-
-        // No issuer configured ⇒ the provider is simply disabled.
-        fs::write(&settings, "{}\n")?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        assert!(config.oidc_login_provider_config().is_none());
-
-        // Issuer present ⇒ a typed config, with scopes accepted as the Java
-        // template's scalar comma-separated string form. No clientSecret ⇒ a
-        // public client.
-        fs::write(
-            &settings,
-            "security:\n  oauth2:\n    issuer: https://issuer.example.com\n    clientId: my-client-id\n    redirectUri: https://app.example.com/login/oauth2/code/oidc\n    scopes: openid, profile, email\n",
-        )?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        let provider = config
-            .oidc_login_provider_config()
-            .ok_or("expected a configured OIDC provider")?;
-        assert_eq!(provider.issuer, "https://issuer.example.com");
-        assert_eq!(provider.client_id, "my-client-id");
-        assert_eq!(
-            provider.redirect_uri,
-            "https://app.example.com/login/oauth2/code/oidc"
-        );
-        assert_eq!(provider.scopes, ["openid", "profile", "email"]);
-        assert_eq!(provider.client_secret, None);
-        // The shaped config passes the login boundary's fail-closed validation.
-        assert!(provider.validate().is_ok());
-
-        // A configured clientSecret (Java's security.oauth2.clientSecret) is
-        // carried through, trimmed, for the confidential-client token exchange;
-        // a blank one degrades to None (public client), matching the "blank
-        // means unset" convention of the sibling keys.
-        fs::write(
-            &settings,
-            "security:\n  oauth2:\n    issuer: https://issuer.example.com\n    clientId: my-client-id\n    clientSecret: '  top-secret-value  '\n    redirectUri: https://app.example.com/login/oauth2/code/oidc\n    scopes: openid\n",
-        )?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        let provider = config
-            .oidc_login_provider_config()
-            .ok_or("expected a configured OIDC provider")?;
-        assert_eq!(
-            provider
-                .client_secret
-                .as_ref()
-                .map(|secret| secret.as_str()),
-            Some("top-secret-value")
-        );
-        assert!(provider.validate().is_ok());
-
-        fs::write(
-            &settings,
-            "security:\n  oauth2:\n    issuer: https://issuer.example.com\n    clientId: my-client-id\n    clientSecret: '   '\n    redirectUri: https://app.example.com/login/oauth2/code/oidc\n    scopes: openid\n",
-        )?;
-        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-        let provider = config
-            .oidc_login_provider_config()
-            .ok_or("expected a configured OIDC provider")?;
-        assert_eq!(provider.client_secret, None);
-        Ok(())
-    }
-
-    #[test]
     fn dependency_commands_are_available_only_for_enabled_discovered_groups()
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
@@ -3444,108 +2192,6 @@ mod tests {
             .dependency_disabled_groups
             .insert("Ghostscript".to_owned());
         assert_eq!(config.dependency_command("Ghostscript"), None);
-        Ok(())
-    }
-
-    #[test]
-    fn mcp_configuration_defaults_match_java() -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(&settings, "{}\n")?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-
-        assert_eq!(
-            config.mcp_config_with_environment(|_| None),
-            McpConfig {
-                enabled: false,
-                scopes_enabled: true,
-                engine_capability_refresh_minutes: 5,
-                allowed_operations: Vec::new(),
-                blocked_operations: Vec::new(),
-                max_request_bytes: 10 * 1024 * 1024,
-                max_inline_response_bytes: 10 * 1024 * 1024,
-                auth: McpAuthConfig {
-                    mode: "oauth".to_owned(),
-                    issuer_uri: String::new(),
-                    jwks_uri: String::new(),
-                    resource_id: String::new(),
-                    accepted_audiences: Vec::new(),
-                    username_claim: "sub".to_owned(),
-                    require_existing_account: true,
-                },
-            }
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn mcp_configuration_loads_the_complete_yaml_tree() -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "mcp:\n  enabled: true\n  scopesEnabled: false\n  engineCapabilityRefreshMinutes: 9\n  allowedOperations: [agent-a, agent-b]\n  blockedOperations: [agent-b]\n  maxRequestBytes: 1234\n  maxInlineResponseBytes: 5678\n  auth:\n    mode: apikey\n    issuerUri: https://issuer.example.test\n    jwksUri: https://issuer.example.test/jwks\n    resourceId: https://stirling.example.test/mcp\n    acceptedAudiences: [stirling, authenticated]\n    usernameClaim: email\n    requireExistingAccount: false\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        let mcp = config.mcp_config_with_environment(|_| None);
-
-        assert!(mcp.enabled);
-        assert!(!mcp.scopes_enabled);
-        assert_eq!(mcp.engine_capability_refresh_minutes, 9);
-        assert_eq!(mcp.allowed_operations, ["agent-a", "agent-b"]);
-        assert_eq!(mcp.blocked_operations, ["agent-b"]);
-        assert_eq!(mcp.max_request_bytes, 1234);
-        assert_eq!(mcp.max_inline_response_bytes, 5678);
-        assert_eq!(mcp.auth.mode, "apikey");
-        assert_eq!(mcp.auth.issuer_uri, "https://issuer.example.test");
-        assert_eq!(mcp.auth.jwks_uri, "https://issuer.example.test/jwks");
-        assert_eq!(mcp.auth.resource_id, "https://stirling.example.test/mcp");
-        assert_eq!(mcp.auth.accepted_audiences, ["stirling", "authenticated"]);
-        assert_eq!(mcp.auth.username_claim, "email");
-        assert!(!mcp.auth.require_existing_account);
-        Ok(())
-    }
-
-    #[test]
-    fn mcp_environment_aliases_override_yaml_and_preserve_request_fallback()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "mcp:\n  enabled: false\n  scopesEnabled: true\n  maxRequestBytes: 99\n  auth:\n    mode: oauth\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        let environment = BTreeMap::from([
-            ("MCP_ENABLED", "true"),
-            ("MCP_SCOPES_ENABLED", "false"),
-            ("MCP_ENGINECAPABILITYREFRESHMINUTES", "0"),
-            ("MCP_ALLOWED_OPERATIONS", "agent-a, agent-b"),
-            ("MCP_BLOCKEDOPERATIONS", "agent-b"),
-            ("MCP_MAXREQUESTBYTES", "0"),
-            ("MCP_MAX_INLINE_RESPONSE_BYTES", "2048"),
-            ("MCP_AUTH_MODE", "apikey"),
-            ("MCP_AUTH_ISSUER_URI", "https://issuer.example.test"),
-            ("MCP_AUTH_JWKSURI", "https://issuer.example.test/jwks"),
-            ("MCP_AUTH_RESOURCE_ID", "https://stirling.example.test/mcp"),
-            ("MCP_AUTH_ACCEPTEDAUDIENCES", "stirling, authenticated"),
-            ("MCP_AUTH_USERNAME_CLAIM", "email"),
-            ("MCP_AUTH_REQUIREEXISTINGACCOUNT", "false"),
-        ]);
-        let mcp = config.mcp_config_with_environment(|name| {
-            environment.get(name).map(|value| (*value).to_owned())
-        });
-
-        assert!(mcp.enabled);
-        assert!(!mcp.scopes_enabled);
-        assert_eq!(mcp.engine_capability_refresh_minutes, 1);
-        assert_eq!(mcp.allowed_operations, ["agent-a", "agent-b"]);
-        assert_eq!(mcp.blocked_operations, ["agent-b"]);
-        assert_eq!(mcp.max_request_bytes, 256 * 1024);
-        assert_eq!(mcp.max_inline_response_bytes, 2048);
-        assert_eq!(mcp.auth.mode, "apikey");
-        assert_eq!(mcp.auth.username_claim, "email");
-        assert!(!mcp.auth.require_existing_account);
         Ok(())
     }
 
@@ -3641,39 +2287,6 @@ mod tests {
     }
 
     #[test]
-    fn pipeline_directory_configuration_prefers_the_list_and_preserves_readiness()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let config_directory = directory.path().join("configs");
-        fs::create_dir_all(&config_directory)?;
-        let settings = config_directory.join("settings.yml");
-        fs::write(
-            &settings,
-            "autoPipeline:\n  fileReadiness:\n    enabled: true\n    settleTimeMillis: 120\n    sizeCheckDelayMillis: 30\n    allowedExtensions: [PDF, png]\nsystem:\n  customPaths:\n    pipeline:\n      pipelineDir: C:/pipeline-root\n      watchedFoldersDir: C:/legacy-watched\n      watchedFoldersDirs: [C:/watched-one, C:/watched-two, C:/watched-one]\n      finishedFoldersDir: C:/finished\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, config_directory.join("missing.yml"));
-        let pipeline = config.pipeline_directory_config();
-
-        assert_eq!(
-            pipeline.watched_folders,
-            ["C:/watched-one", "C:/watched-two"]
-                .into_iter()
-                .map(std::path::PathBuf::from)
-                .collect::<Vec<_>>()
-        );
-        assert_eq!(
-            pipeline.finished_folder,
-            std::path::PathBuf::from("C:/finished")
-        );
-        assert!(pipeline.readiness.enabled);
-        assert_eq!(pipeline.readiness.settle_time.as_millis(), 120);
-        assert_eq!(pipeline.readiness.size_check_delay.as_millis(), 30);
-        assert!(pipeline.readiness.allowed_extensions.contains("pdf"));
-        assert!(pipeline.readiness.allowed_extensions.contains("png"));
-        Ok(())
-    }
-
-    #[test]
     fn merge_replaces_scalars_and_recurses_into_objects() {
         let mut base = json!({ "system": { "defaultLocale": "en-US", "showUpdate": true } });
         merge_json(&mut base, json!({ "system": { "defaultLocale": "vi-VN" } }));
@@ -3682,46 +2295,6 @@ mod tests {
             json!({ "system": { "defaultLocale": "vi-VN", "showUpdate": true } })
         );
         assert_eq!(split_strings("one, two,,three"), ["one", "two", "three"]);
-    }
-
-    fn env_slot(value: &str) -> [(&'static str, Result<Option<String>, &'static str>); 1] {
-        [("SECURITY_ENABLELOGIN", Ok(Some(value.to_owned())))]
-    }
-
-    #[test]
-    fn security_mode_guard_accepts_every_spring_truthy_spelling() {
-        for truthy in ["true", " TRUE ", "1", "on", "oN", "yes", " YES "] {
-            assert_eq!(
-                resolve_security_mode_request(&env_slot(truthy), None),
-                Ok(true),
-                "{truthy:?} must request the secured mode"
-            );
-        }
-        for falsy in ["false", "off", "no", "0"] {
-            assert_eq!(
-                resolve_security_mode_request(&env_slot(falsy), None),
-                Ok(false),
-                "{falsy:?} must not request the secured mode"
-            );
-        }
-        // Empty/blank is how compose files express "unset" — not configured.
-        for blank in ["", "   "] {
-            assert_eq!(
-                resolve_security_mode_request(&env_slot(blank), None),
-                Ok(false),
-                "{blank:?} must be treated as unset"
-            );
-        }
-        // A present, non-empty, non-boolean value refuses startup: Java's
-        // relaxed binding fails the boot on the same input, and guessing
-        // here would fail open.
-        for malformed in ["enabled", "2", "banana", "ture"] {
-            assert_eq!(
-                resolve_security_mode_request(&env_slot(malformed), None),
-                Err(SecurityModeValueError::NotABoolean("SECURITY_ENABLELOGIN")),
-                "{malformed:?} must refuse startup, not fail open"
-            );
-        }
     }
 
     #[test]
@@ -3763,56 +2336,6 @@ mod tests {
     }
 
     #[test]
-    fn security_mode_request_reads_every_java_yaml_spelling()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        for requested in ["true", "yes", "on", "\"1\"", "1"] {
-            fs::write(
-                &settings,
-                format!("security:\n  enableLogin: {requested}\n"),
-            )?;
-            let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-            assert_eq!(
-                config.security_mode_is_requested().ok(),
-                Some(true),
-                "enableLogin: {requested} must request the secured mode"
-            );
-        }
-        for not_requested in ["false", "no", "off", "\"0\"", "0", ""] {
-            fs::write(
-                &settings,
-                format!("security:\n  enableLogin: {not_requested}\n"),
-            )?;
-            let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-            assert_eq!(
-                config.security_mode_is_requested().ok(),
-                Some(false),
-                "enableLogin: {not_requested:?} must not request the secured mode"
-            );
-        }
-        // A malformed value refuses startup instead of failing open — Java's
-        // relaxed binding fails the boot on the same input.
-        for malformed in ["banana", "42", "[]"] {
-            fs::write(
-                &settings,
-                format!("security:\n  enableLogin: {malformed}\n"),
-            )?;
-            let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
-            match config.security_mode_is_requested() {
-                Err(error) => assert!(
-                    error.to_string().contains("security.enableLogin"),
-                    "error must name the YAML key: {error}"
-                ),
-                Ok(answer) => {
-                    panic!("enableLogin: {malformed} must refuse startup, got Ok({answer})")
-                }
-            }
-        }
-        Ok(())
-    }
-
-    #[test]
     fn boolean_settings_read_every_java_yaml_spelling() -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let settings = directory.path().join("settings.yml");
@@ -3832,124 +2355,6 @@ mod tests {
         fs::write(&settings, "system:\n  googlevisibility: banana\n")?;
         let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
         assert!(!config.google_visibility());
-        Ok(())
-    }
-
-    #[test]
-    fn security_mode_request_falls_back_to_yaml_and_fails_closed_on_non_unicode() {
-        let unset = [
-            ("DOCKER_ENABLE_SECURITY", Ok(None)),
-            ("SECURITY_ENABLELOGIN", Ok(None)),
-            ("SECURITY_ENABLE_LOGIN", Ok(None)),
-        ];
-        assert_eq!(resolve_security_mode_request(&unset, None), Ok(false));
-        assert_eq!(
-            resolve_security_mode_request(&unset, Some(&json!(false))),
-            Ok(false)
-        );
-        assert_eq!(
-            resolve_security_mode_request(&unset, Some(&json!(true))),
-            Ok(true)
-        );
-        // A null yaml node (`enableLogin:`) is "not configured".
-        assert_eq!(
-            resolve_security_mode_request(&unset, Some(&serde_json::Value::Null)),
-            Ok(false)
-        );
-
-        let env_true = [
-            ("DOCKER_ENABLE_SECURITY", Ok(None)),
-            ("SECURITY_ENABLELOGIN", Ok(Some("true".to_owned()))),
-            ("SECURITY_ENABLE_LOGIN", Ok(None)),
-        ];
-        assert_eq!(resolve_security_mode_request(&env_true, None), Ok(true));
-
-        let non_unicode = [
-            ("DOCKER_ENABLE_SECURITY", Ok(None)),
-            ("SECURITY_ENABLELOGIN", Err("SECURITY_ENABLELOGIN")),
-            ("SECURITY_ENABLE_LOGIN", Ok(None)),
-        ];
-        let yaml_true = json!(true);
-        let yaml_false = json!(false);
-        for yaml in [Some(&yaml_true), Some(&yaml_false), None] {
-            assert_eq!(
-                resolve_security_mode_request(&non_unicode, yaml),
-                Err(SecurityModeValueError::NotUnicode("SECURITY_ENABLELOGIN"))
-            );
-        }
-    }
-
-    #[test]
-    fn security_bootstrap_uses_installation_database_and_complete_credentials()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let config_directory = directory.path().join("configs");
-        fs::create_dir_all(&config_directory)?;
-        let settings = config_directory.join("settings.yml");
-        fs::write(
-            &settings,
-            "security:\n  initialLogin:\n    username: root@example.test\n    password: test-only-password\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, config_directory.join("missing.yml"));
-        let bootstrap = config.security_bootstrap_config();
-
-        assert_eq!(
-            bootstrap.database_path,
-            directory.path().join("configs/security.db")
-        );
-        assert_eq!(
-            bootstrap.credential_encryption_key_path,
-            directory.path().join("configs/credential-encryption.key")
-        );
-        assert!(bootstrap.credential_encryption_key.is_none());
-        let credentials = bootstrap.initial_login.ok_or("missing credentials")?;
-        assert_eq!(credentials.username, "root@example.test");
-        assert_eq!(credentials.password.as_str(), "test-only-password");
-        Ok(())
-    }
-
-    #[test]
-    fn security_totp_issuer_uses_configured_navbar_name() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(&settings, "ui:\n  appNameNavbar: Private PDF\n")?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        assert_eq!(config.security_totp_issuer(), "Private PDF");
-        Ok(())
-    }
-
-    #[test]
-    fn audit_operation_result_capture_defaults_off_and_reads_java_setting()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "premium:\n  enterpriseFeatures:\n    audit:\n      captureOperationResults: true\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        assert!(config.security_audit_capture_operation_results());
-
-        let defaults = directory.path().join("defaults.yml");
-        fs::write(&defaults, "{}\n")?;
-        let config = RuntimeConfig::from_files(defaults, directory.path().join("also-missing.yml"));
-        assert!(!config.security_audit_capture_operation_results());
-        Ok(())
-    }
-
-    #[test]
-    fn security_bootstrap_rejects_partial_initial_credentials()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "security:\n  initialLogin:\n    username: root@example.test\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-
-        assert!(config.security_bootstrap_config().initial_login.is_none());
         Ok(())
     }
 
@@ -4182,48 +2587,6 @@ mod tests {
             // byte-stable.
             assert_eq!(fs::read_to_string(&settings)?, persisted);
         }
-        Ok(())
-    }
-
-    /// Desktop (Tauri) parity: the launcher force-disables login — the Java
-    /// shell passes `-Dsecurity.enableLogin=false`, outranking the bundled
-    /// template's `security.enableLogin: true` under Spring's property
-    /// precedence — so the desktop snapshot must carry `enableLogin: false`
-    /// (or the template the desktop itself writes would trip the secured-mode
-    /// startup refusal), while server mode keeps the file's value.
-    #[test]
-    fn desktop_mode_forces_the_template_login_setting_off() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(&settings, "security:\n  enableLogin: true # template\n")?;
-        let missing = directory.path().join("missing.yml");
-
-        let server = RuntimeConfig::from_paths_with_desktop_login_override(
-            settings.clone(),
-            &missing,
-            false,
-        );
-        assert_eq!(
-            super::value_at(&server.settings, &["security", "enableLogin"]),
-            Some(&json!(true))
-        );
-
-        let desktop =
-            RuntimeConfig::from_paths_with_desktop_login_override(settings.clone(), &missing, true);
-        assert_eq!(
-            super::value_at(&desktop.settings, &["security", "enableLogin"]),
-            Some(&json!(false))
-        );
-
-        // With no security section at all, the override is still explicit.
-        fs::write(&settings, "system:\n  defaultLocale: en-US\n")?;
-        let desktop =
-            RuntimeConfig::from_paths_with_desktop_login_override(settings, &missing, true);
-        assert_eq!(
-            super::value_at(&desktop.settings, &["security", "enableLogin"]),
-            Some(&json!(false))
-        );
         Ok(())
     }
 

@@ -18,16 +18,13 @@ use reqwest::{Client, Method};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::{
-    pdf_ai_comments::AiCommentEngineSettings, runtime_config::RuntimeConfig, security::AuthContext,
-};
+use crate::{pdf_ai_comments::AiCommentEngineSettings, runtime_config::RuntimeConfig};
 
 pub(crate) const AI_HEALTH_PATH: &str = "/api/v1/ai/health";
 pub(crate) const AI_PDF_EDIT_PATH: &str = "/api/v1/ai/pdf/edit";
 const ENGINE_HEALTH_PATH: &str = "/health";
 const ENGINE_PDF_EDIT_PATH: &str = "/api/v1/pdf/edit";
 const ENGINE_AUTH_HEADER: &str = "X-Engine-Auth";
-const USER_ID_HEADER: &str = "X-User-Id";
 
 // This is the intersection of the Rust processing router's PDF operation
 // surface and the engine's generated operation catalog. Java discovers every
@@ -113,13 +110,9 @@ pub(crate) fn routes() -> Router {
         .route(AI_PDF_EDIT_PATH, post(pdf_edit))
 }
 
-async fn ai_health(
-    Extension(settings): Extension<Arc<AiCommentEngineSettings>>,
-    auth: Option<Extension<AuthContext>>,
-) -> Response {
+async fn ai_health(Extension(settings): Extension<Arc<AiCommentEngineSettings>>) -> Response {
     proxy_request(
         &settings,
-        auth.as_ref().map(|Extension(context)| context),
         Method::GET,
         ENGINE_HEALTH_PATH,
         None,
@@ -131,7 +124,6 @@ async fn ai_health(
 async fn pdf_edit(
     Extension(settings): Extension<Arc<AiCommentEngineSettings>>,
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
-    auth: Option<Extension<AuthContext>>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -180,7 +172,6 @@ async fn pdf_edit(
     };
     proxy_request(
         &settings,
-        auth.as_ref().map(|Extension(context)| context),
         Method::POST,
         ENGINE_PDF_EDIT_PATH,
         Some(forwarded_body),
@@ -191,7 +182,6 @@ async fn pdf_edit(
 
 async fn proxy_request(
     settings: &AiCommentEngineSettings,
-    auth: Option<&AuthContext>,
     method: Method,
     engine_path: &str,
     body: Option<Vec<u8>>,
@@ -218,9 +208,6 @@ async fn proxy_request(
         .header(header::ACCEPT.as_str(), "application/json");
     if let Some(secret) = settings.shared_secret() {
         request = request.header(ENGINE_AUTH_HEADER, secret);
-    }
-    if let Some(auth) = auth.filter(|auth| !auth.username.trim().is_empty()) {
-        request = request.header(USER_ID_HEADER, &auth.username);
     }
     if let Some(body) = body {
         request = request

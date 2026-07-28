@@ -6,7 +6,6 @@ use std::{
     pin::Pin,
     sync::Arc,
     sync::atomic::{AtomicU64, Ordering},
-    time::Instant,
 };
 
 use axum::{
@@ -15,7 +14,6 @@ use axum::{
     extract::Multipart,
     http::{HeaderMap, Request, StatusCode, header},
 };
-use chrono::Utc;
 use futures_util::{Stream, StreamExt, stream};
 use serde::Deserialize;
 use serde_json::Value;
@@ -29,14 +27,7 @@ use tokio_util::io::ReaderStream;
 use tower::ServiceExt;
 use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
-use crate::{
-    ApiError,
-    security::{
-        AuthContext, SecurityAuditContext, SecurityAuditEnrichment, SecurityAuditFile,
-        SecurityAuditFileCapture, SecurityHttpAuditRecord, SecurityStore,
-    },
-    security_http::inferred_audit_event,
-};
+use crate::ApiError;
 
 pub(crate) const PIPELINE_PATH: &str = "/api/v1/pipeline/handleData";
 
@@ -61,43 +52,9 @@ pub(crate) struct PipelineDispatcher {
     router: Router,
 }
 
-#[derive(Clone)]
-pub(crate) struct PolicyAuditRecorder {
-    store: Arc<SecurityStore>,
-    include_standard_data: bool,
-    file_capture: SecurityAuditFileCapture,
-}
-
-impl PolicyAuditRecorder {
-    pub(crate) fn new(store: Arc<SecurityStore>, include_standard_data: bool) -> Self {
-        Self {
-            store,
-            include_standard_data,
-            file_capture: SecurityAuditFileCapture::default(),
-        }
-    }
-
-    pub(crate) fn with_file_capture(mut self, file_capture: SecurityAuditFileCapture) -> Self {
-        self.file_capture = file_capture;
-        self
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct PolicyDispatchAudit {
-    pub(crate) policy_name: String,
-    pub(crate) recorder: Option<PolicyAuditRecorder>,
-}
-
 impl PipelineDispatcher {
     pub(crate) fn new(router: Router) -> Self {
         Self { router }
-    }
-
-    /// Returns a cheap clone of the in-process router for internal dispatch
-    /// (e.g. `Service::oneshot`), the same mechanism used to run pipeline steps.
-    pub(crate) fn router(&self) -> Router {
-        self.router.clone()
     }
 }
 
@@ -126,14 +83,8 @@ pub(crate) struct PipelineFile {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct PipelineConfig {
-    #[serde(default)]
-    pub(crate) name: String,
     #[serde(default, rename = "pipeline")]
     pub(crate) operations: Vec<PipelineOperation>,
-    #[serde(default, rename = "outputDir")]
-    pub(crate) output_dir: Option<String>,
-    #[serde(default, rename = "outputFileName")]
-    pub(crate) output_pattern: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -143,12 +94,6 @@ pub(crate) struct PipelineOperation {
     pub(crate) parameters: BTreeMap<String, Value>,
     #[serde(default, rename = "fileParameters")]
     pub(crate) file_parameters: BTreeMap<String, String>,
-}
-
-#[derive(Debug)]
-pub(crate) struct PipelineFilesOutput {
-    pub(crate) files: Vec<PipelineFile>,
-    _temp_dir: TempDir,
 }
 
 #[derive(Debug)]
@@ -173,16 +118,12 @@ struct DispatchResult {
 
 #[derive(Clone)]
 struct DispatchOptions {
-    auth: Option<AuthContext>,
     mode: DispatchMode,
-    policy_audit: Option<PolicyAuditRecorder>,
-    policy_name: String,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum DispatchMode {
     Pipeline,
-    Policy,
     Workflow,
 }
 
@@ -234,14 +175,7 @@ pub(crate) async fn read_request(
                 let filename = safe_filename(field.file_name());
                 let content_type = field.content_type().map(ToString::to_string);
                 let path = temp_dir.path().join(format!("input-{}", files.len()));
-                let size = write_field_to_file(&mut field, &path).await?;
-                SecurityAuditContext::record_current_file_path(
-                    &filename,
-                    size,
-                    content_type.as_deref(),
-                    &path,
-                )
-                .await;
+                write_field_to_file(&mut field, &path).await?;
                 files.push(PipelineFile {
                     filename,
                     path,
@@ -283,51 +217,9 @@ pub(crate) async fn read_request(
     })
 }
 
-pub(crate) fn read_config_file(path: &Path) -> Result<PipelineConfig, PipelineFailure> {
-    let metadata = std::fs::metadata(path).map_err(|error| {
-        PipelineFailure::BadRequest(format!(
-            "could not read pipeline configuration '{}': {error}",
-            path.display()
-        ))
-    })?;
-    if metadata.len() > CONFIG_LIMIT_BYTES as u64 {
-        return Err(PipelineFailure::BadRequest(format!(
-            "pipeline configuration '{}' exceeds {CONFIG_LIMIT_BYTES} bytes",
-            path.display()
-        )));
-    }
-    let value = std::fs::read_to_string(path).map_err(|error| {
-        PipelineFailure::BadRequest(format!(
-            "could not read pipeline configuration '{}': {error}",
-            path.display()
-        ))
-    })?;
-    let config = serde_json::from_str::<PipelineConfig>(&value).map_err(|error| {
-        PipelineFailure::BadRequest(format!(
-            "pipeline configuration '{}' is invalid: {error}",
-            path.display()
-        ))
-    })?;
-    validate_config(&config)?;
-    Ok(config)
-}
-
-pub(crate) fn validate_config(config: &PipelineConfig) -> Result<(), PipelineFailure> {
-    if config.operations.is_empty() {
-        return Err(PipelineFailure::BadRequest(
-            "pipeline must contain at least one operation".to_owned(),
-        ));
-    }
-    for operation in &config.operations {
-        validate_operation_path(&operation.operation)?;
-    }
-    Ok(())
-}
-
 pub(crate) async fn run(
     dispatcher: &PipelineDispatcher,
     request: PipelineRequest,
-    auth: Option<&AuthContext>,
 ) -> Result<PipelineOutput, PipelineFailure> {
     let workspace = create_output_workspace(request.temp_dir.path()).await?;
     let (files, _) = execute_operations(
@@ -338,10 +230,7 @@ pub(crate) async fn run(
         &workspace,
         None,
         DispatchOptions {
-            auth: auth.cloned(),
             mode: DispatchMode::Pipeline,
-            policy_audit: None,
-            policy_name: String::new(),
         },
     )
     .await?;
@@ -354,78 +243,10 @@ pub(crate) async fn run(
     Ok(output)
 }
 
-pub(crate) async fn run_files(
-    dispatcher: &PipelineDispatcher,
-    files: Vec<PipelineFile>,
-    config: &PipelineConfig,
-) -> Result<PipelineFilesOutput, PipelineFailure> {
-    validate_config(config)?;
-    let temp_dir = TempDir::new().map_err(|error| {
-        PipelineFailure::Internal(format!("could not create pipeline workspace: {error}"))
-    })?;
-    let workspace = create_output_workspace(temp_dir.path()).await?;
-    let (files, _) = execute_operations(
-        dispatcher,
-        files,
-        &config.operations,
-        &SupportingFiles::new(),
-        &workspace,
-        None,
-        DispatchOptions {
-            auth: None,
-            mode: DispatchMode::Pipeline,
-            policy_audit: None,
-            policy_name: String::new(),
-        },
-    )
-    .await?;
-    Ok(PipelineFilesOutput {
-        files,
-        _temp_dir: temp_dir,
-    })
-}
-
-pub(crate) async fn run_policy_files(
-    dispatcher: &PipelineDispatcher,
-    files: Vec<PipelineFile>,
-    operations: &[PipelineOperation],
-    supporting_files: &SupportingFiles,
-    auth: &AuthContext,
-    audit: PolicyDispatchAudit,
-    progress: PipelineProgress,
-) -> Result<PipelineOutput, PipelineFailure> {
-    if operations.is_empty() {
-        return Err(PipelineFailure::BadRequest(
-            "Pipeline definition has no steps".to_owned(),
-        ));
-    }
-    let temp_dir = TempDir::new().map_err(|error| {
-        PipelineFailure::Internal(format!("could not create pipeline workspace: {error}"))
-    })?;
-    let workspace = create_output_workspace(temp_dir.path()).await?;
-    let (files, _) = execute_operations(
-        dispatcher,
-        files,
-        operations,
-        supporting_files,
-        &workspace,
-        Some(progress),
-        DispatchOptions {
-            auth: Some(auth.clone()),
-            mode: DispatchMode::Policy,
-            policy_audit: audit.recorder,
-            policy_name: audit.policy_name,
-        },
-    )
-    .await?;
-    build_output(files, temp_dir, workspace).await
-}
-
 pub(crate) async fn run_workflow_files(
     dispatcher: &PipelineDispatcher,
     mut files: Vec<PipelineFile>,
     operations: &[PipelineOperation],
-    auth: Option<&AuthContext>,
     progress: PipelineProgress,
 ) -> Result<PipelineWorkflowOutput, PipelineFailure> {
     if operations.is_empty() {
@@ -448,10 +269,7 @@ pub(crate) async fn run_workflow_files(
         &workspace,
         Some(progress),
         DispatchOptions {
-            auth: auth.cloned(),
             mode: DispatchMode::Workflow,
-            policy_audit: None,
-            policy_name: String::new(),
         },
     )
     .await?;
@@ -561,40 +379,14 @@ async fn dispatch_operation(
     output_sequence: &mut usize,
     options: DispatchOptions,
 ) -> Result<DispatchResult, PipelineFailure> {
-    let started_at = Instant::now();
-    let mut request = build_operation_request(operation, files, supporting_files).await?;
-    if let Some(auth) = &options.auth {
-        request.extensions_mut().insert(auth.clone());
-    }
-    let response = SecurityAuditContext::new(false)
-        .scope(dispatcher.router.clone().oneshot(request))
+    let request = build_operation_request(operation, files, supporting_files).await?;
+    let response = dispatcher
+        .router
+        .clone()
+        .oneshot(request)
         .await
         .map_err(|error| PipelineFailure::Internal(format!("internal dispatch failed: {error}")))?;
     let status = response.status();
-    if let (Some(recorder), Some(auth)) = (&options.policy_audit, &options.auth) {
-        let audit_files = files
-            .iter()
-            .chain(
-                operation
-                    .file_parameters
-                    .values()
-                    .filter_map(|key| supporting_files.get(key))
-                    .flatten(),
-            )
-            .cloned()
-            .collect();
-        record_policy_step_audit(
-            recorder.clone(),
-            auth.clone(),
-            options.policy_name.clone(),
-            operation.operation.clone(),
-            operation.parameters.clone(),
-            audit_files,
-            status,
-            started_at,
-        )
-        .await;
-    }
     if status == StatusCode::NO_CONTENT && is_filter_operation(&operation.operation) {
         return Ok(DispatchResult {
             files: Vec::new(),
@@ -659,76 +451,6 @@ async fn dispatch_operation(
         }]
     };
     Ok(DispatchResult { files, report })
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn record_policy_step_audit(
-    recorder: PolicyAuditRecorder,
-    auth: AuthContext,
-    policy_name: String,
-    operation: String,
-    parameters: BTreeMap<String, Value>,
-    files: Vec<PipelineFile>,
-    status: StatusCode,
-    started_at: Instant,
-) {
-    let mut audit_files = Vec::new();
-    if recorder.include_standard_data {
-        for file in files {
-            let size = fs::metadata(&file.path)
-                .await
-                .map(|metadata| metadata.len())
-                .unwrap_or_default();
-            let content_type = file
-                .content_type
-                .as_deref()
-                .or(Some("application/octet-stream"));
-            if let Some(file) = SecurityAuditFile::from_path(
-                &file.filename,
-                size,
-                content_type,
-                &file.path,
-                recorder.file_capture,
-            )
-            .await
-            {
-                audit_files.push(file);
-            }
-        }
-    }
-    let now = Utc::now();
-    let latency_ms = u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX);
-    let mut enrichment = SecurityAuditEnrichment::policy_step(
-        &policy_name,
-        audit_files,
-        recorder.include_standard_data,
-    );
-    if recorder.include_standard_data {
-        for (name, value) in parameters {
-            for value in parameter_values(&value) {
-                enrichment.record_form_param(&name, &value);
-            }
-        }
-    }
-    let record = SecurityHttpAuditRecord {
-        context: Some(auth.clone()),
-        client_ip: None,
-        correlation_id: auth.correlation_id.clone(),
-        source: "AUTOMATION".to_owned(),
-        event_type: inferred_audit_event(&axum::http::Method::POST, &operation).to_owned(),
-        method: "POST".to_owned(),
-        path: operation,
-        status_code: status.as_u16(),
-        latency_ms,
-        include_standard_data: recorder.include_standard_data,
-        annotated: false,
-        result: None,
-        enrichment,
-        created_at: now.timestamp(),
-        timestamp: now.to_rfc3339(),
-    };
-    let store = Arc::clone(&recorder.store);
-    let _ = task::spawn_blocking(move || store.record_http_audit(&record)).await;
 }
 
 pub(crate) async fn build_operation_request(
@@ -1087,7 +809,6 @@ async fn read_field_text(
     field: &mut axum::extract::multipart::Field<'_>,
     limit: usize,
 ) -> Result<String, PipelineFailure> {
-    let audit_name = field.name().map(ToOwned::to_owned);
     let mut bytes = Vec::new();
     while let Some(chunk) = field
         .chunk()
@@ -1104,9 +825,6 @@ async fn read_field_text(
     let value = String::from_utf8(bytes).map_err(|_| {
         PipelineFailure::BadRequest("json pipeline configuration is not UTF-8".to_owned())
     })?;
-    if let Some(name) = audit_name {
-        SecurityAuditContext::record_current_form_param(&name, &value);
-    }
     Ok(value)
 }
 
@@ -1252,96 +970,4 @@ fn is_safe_archive_path(name: &str) -> bool {
         && Path::new(name)
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        PipelineDispatcher, PipelineFile, PipelineOperation, PipelineProgress, PolicyAuditRecorder,
-        PolicyDispatchAudit, SupportingFiles, run_policy_files,
-    };
-    use crate::security::{SecurityAuditFilter, SecurityStore};
-    use axum::{Router, http::StatusCode, response::IntoResponse as _, routing::post};
-    use chrono::Utc;
-    use serde_json::Value;
-    use std::{collections::BTreeMap, fs, sync::Arc};
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn policy_dispatch_records_live_automation_file_context()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let store = Arc::new(SecurityStore::in_memory()?);
-        assert!(store.bootstrap_admin("admin", "test password")?);
-        let auth = store.authenticate_password(
-            "admin",
-            "test password",
-            Utc::now().timestamp(),
-            "policy-request-id",
-        )?;
-        let recorder = PolicyAuditRecorder::new(Arc::clone(&store), true);
-        let router = Router::new().route(
-            "/api/v1/general/rotate-pdf",
-            post(|| async {
-                (
-                    StatusCode::OK,
-                    [
-                        ("content-type", "application/pdf"),
-                        ("content-disposition", "attachment; filename=rotated.pdf"),
-                    ],
-                    b"rotated".as_slice(),
-                )
-                    .into_response()
-            }),
-        );
-        let directory = tempdir()?;
-        let input_path = directory.path().join("input.pdf");
-        fs::write(&input_path, b"input-pdf")?;
-        let input = PipelineFile {
-            filename: "quarterly.pdf".to_owned(),
-            path: input_path,
-            content_type: Some("application/pdf".to_owned()),
-            origin: None,
-        };
-        let operation = PipelineOperation {
-            operation: "/api/v1/general/rotate-pdf".to_owned(),
-            parameters: BTreeMap::from([
-                ("angle".to_owned(), serde_json::json!(90)),
-                ("password".to_owned(), serde_json::json!("must-not-appear")),
-            ]),
-            file_parameters: BTreeMap::new(),
-        };
-        let progress: PipelineProgress = Arc::new(|_, _| {});
-
-        let output = run_policy_files(
-            &PipelineDispatcher::new(router),
-            vec![input],
-            &[operation],
-            &SupportingFiles::new(),
-            &auth,
-            PolicyDispatchAudit {
-                policy_name: "Quarterly\nPolicy".to_owned(),
-                recorder: Some(recorder),
-            },
-            progress,
-        )
-        .await
-        .map_err(|error| format!("policy dispatch failed: {error:?}"))?;
-        assert_eq!(fs::read(output.path)?, b"rotated");
-
-        let events = store.export_audit_events(&SecurityAuditFilter::default())?;
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].event_type, "PDF_PROCESS");
-        assert_eq!(events[0].source, "AUTOMATION");
-        let details: Value = serde_json::from_str(&events[0].data)?;
-        assert_eq!(details["path"], "/api/v1/general/rotate-pdf");
-        assert_eq!(details["statusCode"], 200);
-        assert_eq!(details["automation"], true);
-        assert_eq!(details["policyName"], "Quarterly Policy");
-        assert_eq!(details["files"][0]["name"], "quarterly.pdf");
-        assert_eq!(details["files"][0]["size"], 9);
-        assert_eq!(details["files"][0]["type"], "application/pdf");
-        assert_eq!(details["formParams"]["angle"][0], "90");
-        assert_eq!(details["formParams"]["password"][0], "[REDACTED]");
-        Ok(())
-    }
 }

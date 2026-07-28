@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, VecDeque},
+    collections::VecDeque,
     fs,
     sync::{Arc, Mutex},
 };
@@ -14,9 +14,7 @@ use axum::{
 };
 use lopdf::{Document, Object, Stream, dictionary};
 use rustling_processing::{
-    TimestampSettings, app_with_runtime_config,
-    runtime_config::RuntimeConfig,
-    security::{AuthContext, AuthenticationSource},
+    TimestampSettings, app_with_runtime_config, runtime_config::RuntimeConfig,
 };
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
@@ -52,8 +50,7 @@ async fn multipart_validation_reports_the_requested_orchestration_path()
 }
 
 #[tokio::test]
-async fn forwards_a_typed_turn_with_only_the_trusted_identity()
--> Result<(), Box<dyn std::error::Error>> {
+async fn forwards_a_typed_turn_without_caller_identity() -> Result<(), Box<dyn std::error::Error>> {
     let engine = MockEngine::start(vec![MockResponse::ndjson(
         r#"{"event":"progress","phase":"routing"}
 {"event":"result","response":{"outcome":"answer","answer":"Ready"}}
@@ -61,7 +58,6 @@ async fn forwards_a_typed_turn_with_only_the_trusted_identity()
     )])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let app = app.layer(axum::extract::Extension(trusted_auth_context()));
     let boundary = "stirling-ai-answer";
     let mut multipart = Vec::new();
     add_text_part(
@@ -101,10 +97,8 @@ async fn forwards_a_typed_turn_with_only_the_trusted_identity()
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].method, Method::POST);
     assert_eq!(requests[0].path, "/api/v1/orchestrator");
-    assert_eq!(
-        requests[0].header("x-user-id"),
-        Some("trusted-user@example.test")
-    );
+    // The caller-controlled X-User-Id header must never be forwarded.
+    assert_eq!(requests[0].header("x-user-id"), None);
     let turn: Value = serde_json::from_slice(&requests[0].body)?;
     assert_eq!(turn["userMessage"], "Summarise this");
     assert_eq!(turn["conversationHistory"][0]["content"], "Earlier context");
@@ -379,7 +373,6 @@ async fn ingests_requested_documents_with_owner_scope_and_resumes()
     ])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let app = app.layer(axum::extract::Extension(trusted_auth_context()));
     let boundary = "stirling-ai-ingest-resume";
     let mut multipart = Vec::new();
     add_text_part(
@@ -412,14 +405,11 @@ async fn ingests_requested_documents_with_owner_scope_and_resumes()
     let requests = engine.requests();
     assert_eq!(requests.len(), 3);
     assert_eq!(requests[1].path, "/api/v1/documents");
-    assert_eq!(
-        requests[1].header("x-user-id"),
-        Some("trusted-user@example.test")
-    );
+    assert_eq!(requests[1].header("x-user-id"), None);
     let ingest: Value = serde_json::from_slice(&requests[1].body)?;
     assert_eq!(ingest["documentId"], file_id);
-    assert_eq!(ingest["ownerId"], "trusted-user@example.test");
-    assert_eq!(ingest["readPrincipals"][0], "trusted-user@example.test");
+    assert_eq!(ingest["ownerId"], Value::Null);
+    assert_eq!(ingest["readPrincipals"], serde_json::json!([]));
     assert!(
         ingest["pageText"][0]["text"]
             .as_str()
@@ -536,22 +526,6 @@ fn add_file_part(body: &mut Vec<u8>, boundary: &str, field: &str, filename: &str
 
 fn finish_multipart(body: &mut Vec<u8>, boundary: &str) {
     body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-}
-
-fn trusted_auth_context() -> AuthContext {
-    AuthContext {
-        user_id: 42,
-        username: "trusted-user@example.test".to_owned(),
-        authentication_source: AuthenticationSource::AccessToken,
-        authentication_type: "web".to_owned(),
-        roles: ["ROLE_USER".to_owned()].into_iter().collect(),
-        team_id: Some(7),
-        permissions: BTreeSet::default(),
-        external_subject: None,
-        force_password_change: false,
-        session_id: "trusted-session".to_owned(),
-        correlation_id: "test-request".to_owned(),
-    }
 }
 
 fn pdf_with_rotation(rotation: i64) -> Result<Vec<u8>, lopdf::Error> {
