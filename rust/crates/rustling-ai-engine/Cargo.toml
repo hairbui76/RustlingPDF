@@ -11,7 +11,7 @@ workspace = true
 [dependencies]
 aes-gcm = { version = "0.11.0", features = ["zeroize"] }
 axum = "0.8.9"
-base64 = "0.22.1"
+base64 = "0.23.0"
 csv = "1.4.0"
 hkdf = "0.12.4"
 jsonschema = { version = "0.48.0", default-features = false }
