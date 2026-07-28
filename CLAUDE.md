@@ -11,9 +11,10 @@ Gradle, no JVM dependency, and it must never be wired back into Stirling-PDF as 
 submodule. All development effort in this repository focuses on RustlingPDF itself.
 
 The original Stirling-PDF checkout (if present at `../Stirling-PDF`) is a **read-only
-reference oracle**: consult its Java sources when a behavior question arises, and use
-`testing/differential` against a running instance for regression comparison. Never
-edit that repo from here, and never add build-time dependencies on it.
+reference oracle**: consult its Java sources when a behavior question arises. Never
+edit that repo from here, and never add build-time dependencies on it. (The
+differential harness that drove a live upstream instance was removed by maintainer
+decision on 2026-07-28; a replacement harness is planned.)
 
 Internal names (crates `stirling-*`, `STIRLING_*` env vars, `stirling.*` config keys)
 deliberately retain upstream spellings until the coordinated rename roadmap item;
@@ -86,8 +87,8 @@ solo:
 - Definition of done: the relevant gate is clean; the tester has adversarially
   attacked the change (edge cases, malformed input, security/SSRF, resource
   bounds) and signed off; contracts/ledger updated. Reference-oracle comparison
-  (against Stirling-PDF sources or a live instance via `testing/differential`)
-  applies whenever the surface has an upstream counterpart.
+  (against the Stirling-PDF sources) applies whenever the surface has an
+  upstream counterpart.
 - Trivial one-line edits, config tweaks, doc fixes, and pure questions are handled
   directly without a team.
 
@@ -113,11 +114,9 @@ solo:
 
 ## Testing
 
-- Backend: unit + integration tests in the crates (run with PDFium bound); the
-  differential harness in `testing/differential` validates artifact well-formedness
-  standalone (`run_smoke.sh`) and diffs against an upstream instance when one is
-  provided (`differential.py --diff --java-url ...`). Known, root-caused
-  differences are pinned in `known_diffs.py` — never blanket-ignore a field.
+- Backend: unit + integration tests in the crates (run with PDFium bound). The
+  former differential harness (`testing/differential`) was removed by maintainer
+  decision on 2026-07-28; the maintainer plans to build a new harness.
 - Frontend: `task frontend:check`; stubbed Playwright specs under
   `frontend/editor/src/core/tests/` for backend-free UI verification.
 

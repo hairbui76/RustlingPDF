@@ -53,8 +53,8 @@ grep -rn "2\.14\.2" --include="*.rs" --include="*.ts" --include="*.json" \
      the bump is consistent),
    - `task frontend:check` (sites 5 and 6 are typed fixtures used by the
      simulation suites).
-3. **Merge to `main`** through the normal PR flow (backend/frontend/
-   differential-smoke CI must be green).
+3. **Merge to `main`** through the normal PR flow (backend/frontend/desktop
+   CI must be green).
 4. **Tag and push the tag** from the merged commit on `main`:
 
    ```bash
@@ -155,10 +155,10 @@ Known scope limits:
   in the earlier CI gates.
 - **Desktop upgrade e2e proof (follow-up)**: the desktop bundles, updater
   signatures, and `latest.json` are published by this pipeline (see
-  "Desktop artifacts"), but the cross-platform signed-bundle **upgrade**
-  proof — a packaged old version updating itself to a newly published one
-  via the reworked `frontend/scripts/dev-update-test` flow on a
-  webkit-capable host — is still outstanding.
+  "Desktop artifacts"). The Linux signed-upgrade e2e proof passed on
+  2026-07-28 (recorded in git history; the harness that produced it was
+  since removed by maintainer decision pending a rebuilt test harness);
+  macOS/Windows upgrade-proof legs remain outstanding.
 - **Version tag `latest`**: both image tags are moved on every release;
   consumers who need reproducibility should pin `vX.Y.Z` (or the image
   digest) instead.

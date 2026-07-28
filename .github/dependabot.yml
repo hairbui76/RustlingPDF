@@ -4,7 +4,7 @@
 # ecosystem (low-risk, gate-verified in bulk); major updates always arrive as
 # individual PRs so breaking changes get reviewed one at a time. Every PR
 # still has to pass the matching CI gate (backend.yml / frontend.yml /
-# differential-smoke.yml) before merge.
+# desktop.yml) before merge.
 #
 # Ecosystems:
 #   cargo /rust                       — the backend workspace (Cargo.lock committed,

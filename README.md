@@ -8,8 +8,8 @@ React single-page UI.
 RustlingPDF is an independent tool **based on [Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF)**.
 It began as a full Java→Rust port of Stirling-PDF's Spring Boot backend, verified
 endpoint-by-endpoint against the original as a compatibility oracle (route census:
-zero unexplained gaps; a live differential harness semantically diffs both
-backends' outputs). This repository carries that Rust backend forward as its own
+zero unexplained gaps; during the port a live differential harness semantically
+diffed both backends' outputs). This repository carries that Rust backend forward as its own
 product — there is **no Java in this repo** and no dependency on a JVM at build
 or run time. See [LICENSE](LICENSE) for upstream attribution.
 
@@ -22,7 +22,6 @@ or run time. See [LICENSE](LICENSE) for upstream attribution.
 | `rust/crates/stirling-operation-catalog` | Generates the typed operation catalog from the OpenAPI snapshot |
 | `rust/contracts/` | Per-surface behavior contracts (routes, semantics, documented divergences) |
 | `frontend/editor` | Vite + React + TypeScript + Mantine SPA |
-| `testing/differential` | Harness that drives the backend (and optionally an upstream Stirling-PDF instance) and semantically diffs responses |
 | `SwaggerDoc.json` | Frozen OpenAPI snapshot used for catalog regeneration |
 
 Internal names (crate names, `STIRLING_*` environment variables, `stirling.*`
@@ -60,8 +59,7 @@ Full operator guide, ports/binding, configuration and environment reference:
   refuses to start with `SECURITY_ENABLELOGIN=true` until an independent human
   security review signs off (fail-closed, including malformed values).
 - Test suite: 1535 + 144 backend tests, 0 failed (plus 1647 frontend vitest
-  and an 11-test desktop-shell gate), plus a differential harness with a
-  pinned known-difference registry.
+  and an 11-test desktop-shell gate).
 - The authoritative feature/parity ledger is
   [`rust/PORT_STATUS.md`](rust/PORT_STATUS.md); per-surface details live in
   [`rust/contracts/`](rust/contracts/).
@@ -80,5 +78,4 @@ security review that unlocks secured mode.
 
 RustlingPDF is a separate, standalone repository — not a fork remote, not a
 submodule. Upstream Stirling-PDF remains the reference implementation its
-behavior contracts were verified against; `testing/differential` can still drive
-any running Stirling-PDF instance side-by-side for regression comparison.
+behavior contracts were verified against.

@@ -80,11 +80,14 @@ here; the Rust port prefers not to regress a previously-tolerated file into a ha
 The desktop updater endpoint points at RustlingPDF's own releases
 (`https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`). The committed
 `updater.pubkey` is a repo-controlled key (minisign id `9ADA2DC8FC4FAF0B`); the private key is held
-outside the repository and as the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions secret (see
-`frontend/scripts/dev-update-test/README.md`).
+outside the repository (maintainer machine) and as the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions
+secret (empty `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). If the key is ever lost, installed apps only
+accept updates signed by the committed pubkey — generate a new pair and ship it in a manually
+distributed build.
 
-**Signed-bundle upgrade proof — Linux leg proven** (2026-07-28, containerized e2e:
-`frontend/scripts/dev-update-test/run-e2e-container.sh --install`): a release v0.0.1 AppImage
+**Signed-bundle upgrade proof — Linux leg proven** (2026-07-28, via a containerized e2e harness
+that was subsequently removed by maintainer decision — the harness and its runs are preserved in
+git history before commit `9f42a3d`): a release v0.0.1 AppImage
 carrying the Rust sidecar, built against a throwaway dev signing key and a localhost update
 endpoint, detected a served signed v99.0.0 update (`check_for_update` → 99.0.0), **rejected** a
 manifest signed by a different valid key ("signature was created with a different key") and a

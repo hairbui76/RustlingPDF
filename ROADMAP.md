@@ -15,9 +15,11 @@ lands or the queue changes.
   0 failed** (1 ignored), **stirling-ai-engine 144 / 0**; Tauri desktop-shell
   gate (containerized webkit build: fmt/clippy/tests) **11 / 0**; frontend
   typecheck/eslint clean, **1647 vitest passed**, `vite build` (core) succeeds;
-  differential rust-only smoke **13/13**; actionlint clean across all seven
-  workflows; `latest.json` composer fixture suite **21/21**; containerized
-  Linux signed-upgrade e2e **8/8** (incl. negative-signature tests). Ships
+  actionlint clean; `latest.json` composer fixture suite **21/21**. (The
+  differential harness and the dev-update e2e harness were removed by
+  maintainer decision on 2026-07-28 — their final green runs, smoke 13/13 and
+  upgrade e2e 8/8, are recorded in git history; a rebuilt harness is
+  planned.) Ships
   GitHub CI, single-binary SPA serving, a Docker image, a tag-driven release
   pipeline (GHCR images + signed desktop bundles + updater manifest), and a
   Rust-sidecar desktop shell.

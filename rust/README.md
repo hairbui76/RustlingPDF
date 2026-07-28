@@ -52,9 +52,8 @@ entry point. Set `PORT` on either Task command, or set `STIRLING_PORT` (or the
 Spring-compatible `SERVER_PORT`) when invoking the binary directly. Port `0`
 requests an OS-assigned ephemeral port, and startup reports the bound port in
 the desktop-compatible `Stirling-PDF running on port: <port>` format. The
-upstream Java implementation lives in the separate Stirling-PDF repository and
-can still be run side-by-side as an external compatibility oracle via
-`testing/differential`.
+upstream Java implementation lives in the separate Stirling-PDF repository
+and remains the behavior reference the contracts were verified against.
 
 The binary remains loopback-only unless `STIRLING_HOST` or the Spring-compatible
 `SERVER_ADDRESS` is set to an explicit IP address. Container-shaped runs use

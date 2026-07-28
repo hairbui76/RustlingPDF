@@ -25,7 +25,8 @@ bound via `STIRLING_PDFIUM_LIBRARY_PATH` (as `task rust:test` does),
 (one pre-existing ignored test) across the library suite and all integration suites,
 `cargo test -p stirling-ai-engine --locked` reports **144 passed / 0 failed** across
 all targets, and the frontend gate (typecheck/eslint/**1647 vitest**/`vite build`)
-plus the differential rust-only smoke (**13/13**) are green. (This is the standalone
+is green (the differential rust-only smoke gate was **13/13** at its final run
+before the harness was removed by maintainer decision on 2026-07-28). (This is the standalone
 RustlingPDF repository; test totals differ slightly from the upstream Stirling-PDF
 port tree because a handful of upstream-CI-specific assertions were dropped in the
 repo split.) Four previously-red areas are now green rather than excused: the
@@ -56,9 +57,11 @@ per-IP auth rate-limiting; (2) tower-http request/body timeouts + concurrency li
 (4) the cloud-metadata SSRF deny now covers all embedded-IPv4 forms and applies to result URLs. This is
 AI-assisted and does not replace the independent human security review the production cutover requires.
 
-**Live Java-vs-Rust parity signal (2026-07-26):** the `differential-parity` CI workflow drives BOTH
-backends and semantically diffs their output (`testing/differential/`). **Current result: 13 PASS / 13 —
-green**, with 5 declared known differences. The first live run found 4 real divergences; two were fixed
+**Live Java-vs-Rust parity signal (historical — 2026-07-26; the differential harness was removed
+from this repo by maintainer decision on 2026-07-28, final state preserved in git history):** the
+`differential-parity` CI workflow drove BOTH backends and semantically diffed their output
+(`testing/differential/`). **Final result: 13 PASS / 13 — green**, with 5 declared known
+differences. The first live run found 4 real divergences; two were fixed
 (scale-pages leaked inherited page-tree attributes, causing double rotation; get-info field/format parity,
 which took the diff from 116 field mismatches down to 5). The 5 remaining field differences are declared in
 `testing/differential/known_diffs.py` with a mandatory root-cause `reason` and pinned expected values:

@@ -93,8 +93,8 @@ task dev:all          # backend (Rust) + frontend + Rust AI engine
 
 `task backend:dev`, `task dev`, and `task dev:all` all run the **Rust** backend —
 there is no other backend in this repository. (The upstream Java implementation
-lives in the separate Stirling-PDF repo and can be run from there as an external
-compatibility oracle for `testing/differential`.)
+lives in the separate Stirling-PDF repo and remains the behavior reference the
+contracts were verified against.)
 
 Direct entry point without Task:
 
@@ -291,11 +291,6 @@ curl -s -o rotated.pdf -F fileInput=@some.pdf -F angle=90 \
 
 - `task rust:check` — fmt + clippy + full test suite with PDFium bound (see
   `PORT_STATUS.md` for the latest full-gate numbers).
-- **Differential harness** (`testing/differential/`) — drives this backend and,
-  optionally, an externally running upstream Stirling-PDF instance with the same
-  requests, then semantically diffs the responses; known, root-caused differences
-  are declared with pinned values in `known_diffs.py`. `run_smoke.sh` is the local
-  Rust-only entry point; pass `--java-url` to diff against an upstream instance.
 - **Per-surface contracts** (`rust/contracts/*.md`) — each ported surface documents
   routes, upstream Java counterparts, parity notes, and explicit gaps.
 
