@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Stirling PDF",
-  "mainBinaryName": "Stirling-PDF",
+  "productName": "RustlingPDF",
+  "mainBinaryName": "RustlingPDF",
   "version": "2.14.2",
   "identifier": "stirling.pdf.dev",
   "build": {
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Stirling PDF",
+        "title": "RustlingPDF",
         "width": 1280,
         "height": 800,
         "resizable": true,
@@ -26,7 +26,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "publisher": "Stirling PDF Inc.",
+    "publisher": "RustlingPDF",
     "targets": ["deb", "rpm", "appimage", "dmg", "app", "msi"],
     "icon": [
       "icons/icon.png",
@@ -38,7 +38,7 @@
       "icons/128x128.png",
       "icons/192x192.png"
     ],
-    "externalBin": ["binaries/stirling-processing"],
+    "externalBin": ["binaries/rustling-processing"],
     "resources": ["resources/pdfium"],
     "fileAssociations": [
       {
@@ -50,10 +50,10 @@
     ],
     "linux": {
       "deb": {
-        "desktopTemplate": "stirling-pdf.desktop"
+        "desktopTemplate": "rustlingpdf.desktop"
       },
       "rpm": {
-        "desktopTemplate": "stirling-pdf.desktop",
+        "desktopTemplate": "rustlingpdf.desktop",
         "compression": { "type": "zstd", "level": 3 }
       },
       "appimage": {

@@ -1,5 +1,5 @@
 /**
- * Wire types for the Stirling policy API (`/api/v1/policies`), the decoded
+ * Wire types for the RustlingPDF policy API (`/api/v1/policies`), the decoded
  * frontend shape, and the display types used to render stats and activity.
  *
  * The backend stores all portal-level metadata (categoryId, sources, scope,

@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "crates/stirling-ai-engine",
-    "crates/stirling-operation-catalog",
-    "crates/stirling-processing",
+    "crates/rustling-ai-engine",
+    "crates/rustling-operation-catalog",
+    "crates/rustling-processing",
 ]
 resolver = "3"
 

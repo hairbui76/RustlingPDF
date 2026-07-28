@@ -19,7 +19,7 @@ export const DefaultAppSettings: React.FC = () => {
             {isDefault === true
               ? t(
                   "settings.general.defaultPdfEditorActive",
-                  "Stirling PDF is your default PDF editor",
+                  "RustlingPDF is your default PDF editor",
                 )
               : isDefault === false
                 ? t(

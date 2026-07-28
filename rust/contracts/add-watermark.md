@@ -13,7 +13,7 @@ The route accepts `multipart/form-data` with:
   `heightSpacer`; and
 - optional `convertPDFToImage`, default `false`.
 
-Documented defaults are `Stirling Software`, `roman`, 30-point size, zero
+Documented defaults are `RustlingPDF`, `roman`, 30-point size, zero
 rotation, 0.5 opacity, 50-point spacers, and `#d3d3d3`. Image watermarks also
 require `watermarkImage`. The image height is `fontSize`; width retains the
 source aspect ratio.

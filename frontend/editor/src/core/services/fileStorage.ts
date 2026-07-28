@@ -1,5 +1,5 @@
 /**
- * Stirling File Storage Service
+ * RustlingPDF File Storage Service
  * Single-table architecture with typed query methods
  * Forces correct usage patterns through service API design
  */
@@ -847,8 +847,7 @@ class FileStorageService {
         const getRequest = store.get(fileId);
         getRequest.onsuccess = () => {
           const record = getRequest.result as
-            | StoredStirlingFileRecord
-            | undefined;
+            StoredStirlingFileRecord | undefined;
           if (!record) {
             // Don't commit anything; caller wants false.
             return;

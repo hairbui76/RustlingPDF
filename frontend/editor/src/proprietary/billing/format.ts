@@ -98,7 +98,7 @@ export const PREPAID_MONTHS_GRANTED = 12;
 export const PREPAID_MONTHS_PAID = 10;
 
 /**
- * People-driven traffic estimate: one Stirling user runs ≈ this many PDFs a month
+ * People-driven traffic estimate: one RustlingPDF user runs ≈ this many PDFs a month
  * (WBR telemetry). The self-serve prepay flow sizes the year from USERS and derives
  * volume from this rate rather than asking the buyer to guess a PDF count.
  */

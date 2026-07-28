@@ -57,7 +57,7 @@ export const startReportPage = ({
   });
 
   page.drawText(
-    t("validateSignature.report.footer", "Validated via Stirling PDF"),
+    t("validateSignature.report.footer", "Validated via RustlingPDF"),
     {
       x: marginX,
       y: marginY / 2,

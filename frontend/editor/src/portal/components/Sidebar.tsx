@@ -93,12 +93,12 @@ export function Sidebar() {
         <img
           className="portal-sidebar__wordmark portal-sidebar__wordmark--light"
           src={wordmarkLight}
-          alt="Stirling"
+          alt="RustlingPDF"
         />
         <img
           className="portal-sidebar__wordmark portal-sidebar__wordmark--dark"
           src={wordmarkDark}
-          alt="Stirling"
+          alt="RustlingPDF"
         />
 
         <AppSwitch

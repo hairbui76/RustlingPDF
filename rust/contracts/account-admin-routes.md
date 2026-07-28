@@ -1,7 +1,7 @@
 # Account, team, invite, and user-administration routes
 
 Route inventory for the reviewed secured router's account-management surface
-in `rust/crates/stirling-processing/src/security_http.rs` (registrations in
+in `rust/crates/rustling-processing/src/security_http.rs` (registrations in
 `auth_routes`, around lines 395–468). `contracts/account-lifecycle.md`
 deliberately documents only a subset in depth (register, `admin/inviteUsers`,
 `updateUserSettings`, `complete-initial-setup`, MFA recovery codes, and the

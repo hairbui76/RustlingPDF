@@ -14,7 +14,7 @@ type Story = StoryObj<typeof ActionModal>;
 
 const sign: LedgerDoc = {
   id: "d1",
-  name: "Stirling Enterprise Agreement",
+  name: "RustlingPDF Enterprise Agreement",
   sub: "One signature: MSA + order form + EULA + DPA.",
   status: "action",
   action: "sign",

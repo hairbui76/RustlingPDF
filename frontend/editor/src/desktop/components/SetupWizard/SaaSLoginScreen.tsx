@@ -67,7 +67,7 @@ export const SaaSLoginScreen: React.FC<SaaSLoginScreenProps> = ({
   return (
     <>
       <LoginHeader
-        title={t("setup.saas.title", "Sign in to Stirling Cloud")}
+        title={t("setup.saas.title", "Sign in to RustlingPDF Cloud")}
         onClose={onClose}
       />
 

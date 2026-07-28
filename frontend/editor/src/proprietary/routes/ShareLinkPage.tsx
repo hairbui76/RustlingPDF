@@ -28,12 +28,7 @@ import {
 } from "@app/services/shareLinkImport";
 
 type ShareLinkStatus =
-  | "loading"
-  | "ready"
-  | "login"
-  | "forbidden"
-  | "notfound"
-  | "error";
+  "loading" | "ready" | "login" | "forbidden" | "notfound" | "error";
 
 export default function ShareLinkPage() {
   const { token } = useParams<{ token: string }>();
@@ -229,7 +224,7 @@ export default function ShareLinkPage() {
                   loading={isWorking}
                   disabled={!canOpen}
                 >
-                  {t("storageShare.openInApp", "Open in Stirling PDF")}
+                  {t("storageShare.openInApp", "Open in RustlingPDF")}
                 </Button>
                 <Button
                   variant="secondary"

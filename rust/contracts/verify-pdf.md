@@ -28,7 +28,7 @@ declared profile, logging disabled, and unlimited displayed failures.
 
 The executable is resolved in this order:
 
-1. `STIRLING_PROCESSING_VERAPDF_COMMAND`, when set;
+1. `RUSTLING_PROCESSING_VERAPDF_COMMAND`, when set;
 2. `verapdf`; and
 3. `verapdf.bat`.
 

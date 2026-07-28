@@ -8,7 +8,7 @@ The route accepts `multipart/form-data` with:
 
 - `fileInput`: required source PDF;
 - `stampType`: required `text` or `image`;
-- `stampText`: text stamp content, default `Stirling Software`;
+- `stampText`: text stamp content, default `RustlingPDF`;
 - `stampImage`: required raster image for image stamps;
 - `alphabet`: `roman`, `arabic`, `japanese`, `korean`, `chinese`, or `thai`;
 - `fontSize`: text/image height in points, default `40`;
@@ -19,7 +19,7 @@ The route accepts `multipart/form-data` with:
   non-negative, otherwise grid placement is used;
 - `customMargin`: `small`, `medium`, `large`, or `x-large`, default `medium`;
 - `customColor`: Java-style integer/hex text color, default `#d3d3d3`;
-- `pageNumbers`: Stirling page expression, default `all`.
+- `pageNumbers`: RustlingPDF page expression, default `all`.
 
 The Java implementation places grid positions 1–3 at the top and 7–9 at the
 bottom. Rust preserves that actual behavior even though the legacy schema says

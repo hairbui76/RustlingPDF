@@ -476,7 +476,7 @@ export default function AdminGeneralSection() {
                     ui: { ...settings.ui, appNameNavbar: e.target.value },
                   })
                 }
-                placeholder="Stirling PDF"
+                placeholder="RustlingPDF"
                 disabled={!loginEnabled}
               />
             </div>
@@ -1041,7 +1041,7 @@ export default function AdminGeneralSection() {
                     },
                   })
                 }
-                placeholder="Stirling-PDF"
+                placeholder="RustlingPDF"
                 disabled={!loginEnabled}
               />
             </div>
@@ -1075,7 +1075,7 @@ export default function AdminGeneralSection() {
                     },
                   })
                 }
-                placeholder="Stirling-PDF"
+                placeholder="RustlingPDF"
                 disabled={!loginEnabled}
               />
             </div>

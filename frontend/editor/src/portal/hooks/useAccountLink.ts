@@ -16,7 +16,7 @@ import { useApplyLinkFacts, useLink } from "@portal/contexts/LinkContext";
 /**
  * Orchestrates the account-link flow for THIS instance:
  *
- *   1. The admin signs in to their Stirling account IN-APP (LinkAccountModal →
+ *   1. The admin signs in to their RustlingPDF account IN-APP (LinkAccountModal →
  *      shared Supabase login), minting a short-term SaaS JWT.
  *   2. {@link completeLink} POSTs that JWT to the LOCAL backend (api/link.ts),
  *      which registers with SaaS and stores the device secret server-side.

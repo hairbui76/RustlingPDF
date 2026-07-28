@@ -8,12 +8,7 @@ import { Button } from "@app/ui/Button";
 import "@app/components/SetupWizard/desktopOAuth.css";
 
 type KnownProviderId =
-  | "google"
-  | "github"
-  | "keycloak"
-  | "azure"
-  | "apple"
-  | "oidc";
+  "google" | "github" | "keycloak" | "azure" | "apple" | "oidc";
 export type OAuthProviderId = KnownProviderId | string;
 
 export interface DesktopSSOProvider {
@@ -56,7 +51,7 @@ export const DesktopOAuthButtons: React.FC<DesktopOAuthButtonsProps> = ({
         title: t("oauth.success.title", "Authentication Successful"),
         message: t(
           "oauth.success.message",
-          "You can close this window and return to Stirling PDF.",
+          "You can close this window and return to RustlingPDF.",
         ),
         isError: false,
       });

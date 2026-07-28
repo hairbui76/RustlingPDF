@@ -3,12 +3,12 @@
 # pinned PDFium runtime as a bundled resource.
 #
 # Expects the release backend build and the PDFium install to exist already:
-#   cargo build --release --locked -p stirling-processing   (in rust/)
+#   cargo build --release --locked -p rustling-processing   (in rust/)
 #   bash rust/scripts/install-pdfium.sh
 # `task desktop:stage-sidecar` runs all three steps in order.
 #
 # Tauri's externalBin contract requires the staged binary to carry the host
-# target-triple suffix (binaries/stirling-processing-<triple>[.exe]); the
+# target-triple suffix (binaries/rustling-processing-<triple>[.exe]); the
 # bundler strips the suffix and installs the binary next to the app
 # executable, where the launcher resolves it via ShellExt::sidecar.
 set -euo pipefail
@@ -28,10 +28,10 @@ case "$target_triple" in
   *windows*) exe_suffix=".exe" ;;
 esac
 
-backend_binary="$repo_root/rust/target/release/stirling-processing$exe_suffix"
+backend_binary="$repo_root/rust/target/release/rustling-processing$exe_suffix"
 if [ ! -f "$backend_binary" ]; then
   echo "Release backend binary not found: $backend_binary" >&2
-  echo "Run: cargo build --release --locked -p stirling-processing (in rust/)" >&2
+  echo "Run: cargo build --release --locked -p rustling-processing (in rust/)" >&2
   exit 1
 fi
 
@@ -46,7 +46,7 @@ binaries_dir="$tauri_dir/binaries"
 resources_dir="$tauri_dir/resources/pdfium"
 mkdir -p "$binaries_dir" "$resources_dir"
 
-staged_sidecar="$binaries_dir/stirling-processing-$target_triple$exe_suffix"
+staged_sidecar="$binaries_dir/rustling-processing-$target_triple$exe_suffix"
 install -m 755 "$backend_binary" "$staged_sidecar"
 # Ship the PDFium shared library together with its license files, exactly as
 # rust/scripts/install-pdfium.sh laid them out.

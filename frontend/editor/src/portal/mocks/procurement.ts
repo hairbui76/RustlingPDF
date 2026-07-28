@@ -63,7 +63,7 @@ const ENTERPRISE_LEDGER: LedgerGroup[] = [
       {
         id: "doc-trial-handout",
         name: "Evaluator handout",
-        sub: "Share Stirling's capabilities with your evaluation team.",
+        sub: "Share RustlingPDF's capabilities with your evaluation team.",
         status: "available",
         action: "download",
       },
@@ -88,7 +88,7 @@ const ENTERPRISE_LEDGER: LedgerGroup[] = [
     docs: [
       {
         id: "doc-agreement-enterprise",
-        name: "Stirling Enterprise Agreement",
+        name: "RustlingPDF Enterprise Agreement",
         sub: "One signature: MSA + order form + EULA + DPA.",
         status: "action",
         action: "sign",

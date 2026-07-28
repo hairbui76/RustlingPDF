@@ -21,7 +21,7 @@ interface SupabaseLoginFormProps {
 export default function SupabaseLoginForm({
   state,
   logoSrc,
-  logoAlt = "Stirling PDF",
+  logoAlt = "RustlingPDF",
 }: SupabaseLoginFormProps) {
   const { t } = useTranslation();
   const {

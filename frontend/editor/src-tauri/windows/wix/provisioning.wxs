@@ -31,7 +31,7 @@
     <DirectoryRef Id="TARGETDIR">
       <Component Id="ThumbnailHandlerClsidComponent" Guid="*">
         <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}">
-          <RegistryValue Type="string" Value="Stirling-PDF Thumbnail Handler" KeyPath="yes" />
+          <RegistryValue Type="string" Value="RustlingPDF Thumbnail Handler" KeyPath="yes" />
         </RegistryKey>
         <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}\InprocServer32">
           <RegistryValue Type="string" Value="[INSTALLDIR]stirling_thumbnail_handler.dll" />

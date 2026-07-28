@@ -40,7 +40,7 @@ export function LinkGate({ children, feature }: Props) {
       }
       description={t(
         "portal.accountLink.gate.description",
-        "Link this org's Stirling account to use billable features.",
+        "Link this org's RustlingPDF account to use billable features.",
       )}
       action={
         <Button size="sm" onClick={() => openLinkModal()}>

@@ -11,8 +11,8 @@ lands or the queue changes.
   upstream checkout (if present at `../Stirling-PDF`) is a read-only reference
   oracle only.
 - `main` — full quality gate green after batch 4:
-  `cargo fmt`/`clippy -D warnings` clean, **stirling-processing 1535 passed /
-  0 failed** (1 ignored), **stirling-ai-engine 144 / 0**; Tauri desktop-shell
+  `cargo fmt`/`clippy -D warnings` clean, **rustling-processing 1535 passed /
+  0 failed** (1 ignored), **rustling-ai-engine 144 / 0**; Tauri desktop-shell
   gate (containerized webkit build: fmt/clippy/tests) **11 / 0**; frontend
   typecheck/eslint clean, **1647 vitest passed**, `vite build` (core) succeeds;
   actionlint clean; `latest.json` composer fixture suite **21/21**. (The
@@ -96,8 +96,8 @@ bundle); release and tauri signed off round 0, minors after one fix round.
   VERSION-bump checklist documents all six hard-coded `2.14.2` sites.
 - **Tauri desktop → Rust sidecar**: the Rust backend is the packaged
   `externalBin` sidecar and the Java JRE/JAR launch path is deleted;
-  `STIRLING_NATIVE_BACKEND_PATH` demoted to dev override; bundled-PDFium
-  wiring via `STIRLING_PDFIUM_LIBRARY_PATH` (operator override respected);
+  `RUSTLING_NATIVE_BACKEND_PATH` demoted to dev override; bundled-PDFium
+  wiring via `RUSTLING_PDFIUM_LIBRARY_PATH` (operator override respected);
   env contract otherwise preserved verbatim; `task desktop:stage-sidecar`
   stages binary + PDFium; new house-style desktop CI gate
   (fmt/clippy/test with webkit deps); dev-update-test scripts reworked to
@@ -148,7 +148,7 @@ gate then caught a cross-item defect that a follow-up fix pair closed.
   install), frontend gate (typecheck/lint/vitest/build), differential rust-only
   smoke. Action pins byte-for-byte match upstream; actionlint-clean.
 - **Single-binary SPA serving**: config-gated static layer behind
-  `STIRLING_FRONTEND_DIST` porting `ReactRoutingController` semantics
+  `RUSTLING_FRONTEND_DIST` porting `ReactRoutingController` semantics
   (traversal/symlink-safe, `/api` precedence, deep links, cache policy);
   unset ⇒ today's Vite-proxy dev flow unchanged. Contract:
   `rust/contracts/spa-serving.md`.
@@ -179,10 +179,17 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
    (`macos-15-intel` leg or cross-compiled/universal target), macOS
    notarization (Apple Developer ID), optional NSIS installer. First real
    tagged release (`v2.14.2`) exercises the whole pipeline end to end.
-2. **Coordinated rename** `Stirling` → `Rustling` (crates, `STIRLING_*` env
-   vars with back-compat aliases, config keys, UI strings, startup handshake
-   line) — one deliberate pass with a compatibility window; do not rename
-   piecemeal.
+2. **Coordinated rename `Stirling` → `Rustling` — landed (batch 6)**: crates
+   are `rustling-*`, `RUSTLING_*` is the primary env spelling (every
+   `STIRLING_*` spelling still works as a deprecated alias; `RUSTLING_*` wins
+   when both are set), the startup handshake prints
+   `RustlingPDF running on port: <port>`, and user-visible branding is
+   RustlingPDF. Deliberately kept for continuity: tauri bundle identifier
+   `stirling.pdf.dev`, deep-link scheme, `Stirling-PDF` app-data dir,
+   persisted storage keys, `StirlingPDFClassification` PDF Info key,
+   `X-Stirling-*` wire headers, `stirling_*` MCP tool ids, and the pinned WiX
+   UpgradeCode. Follow-ups: migrate the app-data dir name, and the internal
+   frontend `StirlingFile*` identifier family.
 3. **Independent security review** of the secured router + signing subsystem —
    the only gate for enabling `SECURITY_ENABLELOGIN=true` in production. Human
    task; `rust/SECURITY_MIGRATION_DESIGN.md` + `rust/SIGNING_MIGRATION_DESIGN.md`
@@ -214,7 +221,7 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
 - **H2 database routes** (`/api/v1/database/*`, `ui-data/database`) — N/A by
   design: this backend's store is SQLite.
 - **`convert/pdf/video`** — implemented but opt-in
-  (`STIRLING_PROCESSING_FFMPEG_COMMAND`) while FFmpeg CVE exposure is assessed;
+  (`RUSTLING_PROCESSING_FFMPEG_COMMAND`) while FFmpeg CVE exposure is assessed;
   upstream's own route is commented out.
 
 ## Working conventions (summary — full rules in CLAUDE.md)

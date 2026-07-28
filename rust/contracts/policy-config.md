@@ -52,7 +52,7 @@ options and policy-output options are encrypted at rest and never returned in pl
 deletion returns `409` while a visible policy references it. Policy ordering ignores unknown and
 cross-team IDs. Folder sources/outputs must resolve to a normalized absolute path that a fail-closed
 decision permits, matching the ordering of Java's `FolderAccessGuard.requirePermitted`: a path inside
-the Stirling config directory is always rejected; a path inside a Stirling-owned *implied* root — the
+the RustlingPDF config directory is always rejected; a path inside a RustlingPDF-owned *implied* root — the
 local server-storage base path or a pipeline watched folder — is always permitted, even when
 `policies.allowedFolderRoots` is empty or absent; otherwise an empty allowlist rejects and a non-empty
 allowlist requires membership. The admin route `GET /api/v1/admin/settings/policies/implied-folder-roots`

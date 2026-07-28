@@ -23,7 +23,7 @@ function SectionHead({ title, sub }: { title: string; sub: string }) {
 }
 
 /**
- * Editor deployment management. Deploy the Stirling PDF Editor product to a
+ * Editor deployment management. Deploy the RustlingPDF Editor product to a
  * target (Managed Cloud / Docker / Kubernetes), pair self-hosted instances back
  * to the org, watch instance health, and run credential / offline-activation
  * lifecycle tasks. Reached from Infrastructure → Deployments, not the sidebar.

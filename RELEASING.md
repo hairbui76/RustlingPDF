@@ -16,7 +16,7 @@ canonical version.
   the release workflow's guard by design — the pipeline publishes exact
   releases only, and pre-release tags must never overwrite the `latest`
   image tags.
-- `rust/VERSION` is the single source of truth: `stirling-processing`'s
+- `rust/VERSION` is the single source of truth: `rustling-processing`'s
   `build.rs` derives the served application version from it at compile time.
 
 ## Version-bump checklist
@@ -29,8 +29,8 @@ may drift; the content anchors are stable):
 |---|------|----------------|
 | 1 | `rust/VERSION` | The canonical version (single line, e.g. `2.14.2`). |
 | 2 | `frontend/editor/src-tauri/tauri.conf.json` | The `"version"` field (line 5). The release workflow cross-checks this against `rust/VERSION` and fails on mismatch. |
-| 3 | `rust/crates/stirling-processing/src/runtime_metrics.rs` | Test literal in `preserves_java_version_and_metric_filters`: `assert_eq!(application_version(), "2.14.2")` (~line 289). |
-| 4 | `rust/crates/stirling-processing/tests/info_endpoints.rs` | Test literal: `assert_eq!(status_json["version"], "2.14.2")` (~line 28). |
+| 3 | `rust/crates/rustling-processing/src/runtime_metrics.rs` | Test literal in `preserves_java_version_and_metric_filters`: `assert_eq!(application_version(), "2.14.2")` (~line 289). |
+| 4 | `rust/crates/rustling-processing/tests/info_endpoints.rs` | Test literal: `assert_eq!(status_json["version"], "2.14.2")` (~line 28). |
 | 5 | `frontend/editor/src/core/testing/serverExperienceSimulations.ts` | Fixture: `appVersion: "2.14.2"` in `BASE_NO_LOGIN_CONFIG` (~line 41). |
 | 6 | `frontend/editor/src/proprietary/testing/serverExperienceSimulations.ts` | Fixture: `appVersion: "2.14.2"` in `BASE_NO_LOGIN_CONFIG` (~line 51). |
 
@@ -124,7 +124,9 @@ download against the `signature` field with the bundled pubkey, and
 installs (AppImage self-replace, `dpkg -i`, MSI passive install, macOS
 `.app` swap). Bundle file names are renamed space→dot before upload —
 GitHub applies the same rename to release assets, so the manifest URLs
-always match the asset names.
+always match the asset names. (Since the product rename to `RustlingPDF`
+— no space — this is a no-op safeguard; v2.14.2 assets were the
+`Stirling.PDF_*` spelling.)
 
 Dry-run (proving the matrix without tagging a release): dispatch
 **Desktop release dry-run** (`.github/workflows/desktop-release-dryrun.yml`)
@@ -143,6 +145,30 @@ Known scope limits:
   is added — follow-up.
 - Windows ships the WiX `.msi` only (no NSIS installer is configured in
   `tauri.conf.json`).
+- **Product rename continuity (`Stirling PDF` → `RustlingPDF`, post-v2.14.2)**:
+  release assets are now named `RustlingPDF_<version>_*` /
+  `rustling-pdf_<version>_*.deb` / `RustlingPDF.app.tar.gz`. Update
+  continuity for installs of the v2.14.2 (`Stirling.PDF_*`) assets:
+  - **Windows**: `bundle.windows.wix.upgradeCode` is pinned to
+    `3305fba9-7e5e-5c09-bc71-eca0a65f4fee` — the value every shipped MSI
+    (v2.14.2 included) carries. tauri-bundler would otherwise derive it as
+    `uuid5(NAMESPACE_DNS, "{productName}.exe.app.x64")`, so an unpinned
+    rename would change it and make renamed MSIs install side-by-side
+    instead of upgrading. **Never change this GUID.** (The pinned value is
+    the derivation for the historical name `Stirling-PDF`, inherited from
+    upstream.)
+  - **macOS**: the updater swaps the `.app` contents in place, keeping the
+    existing on-disk folder name — an upgraded v2.14.2 install stays at
+    `Stirling PDF.app` with RustlingPDF contents until reinstalled.
+  - **Linux AppImage**: the updater byte-replaces the existing AppImage
+    file, keeping the user's file name.
+  - **Linux deb/rpm**: the package name changed (`stirling-pdf` →
+    `rustling-pdf`), so a deb-key update installs the new package alongside
+    the old one (no file conflicts — paths are product-name-scoped); users
+    should `apt remove stirling-pdf` afterwards.
+  - The bundle `identifier` (`stirling.pdf.dev`), updater endpoint, and
+    pubkey are unchanged, so update polling, deep links, single-instance,
+    and app-data paths (`Stirling-PDF` dirs) all carry over.
 
 ## Notes
 

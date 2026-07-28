@@ -22,7 +22,7 @@ font-size (`max(32, min(width, height) / 5)`), centre placement, and diagonal an
 calling `ffmpeg` via argument-array execution; no user value is interpreted by a shell. MP4 uses
 `libx264`, `yuv420p`, and `+faststart`; WebM uses `libvpx-vp9`, `-b:v 0`, and CRF 30.
 
-Set `STIRLING_PROCESSING_FFMPEG_COMMAND` to select a specific executable. If neither that command
+Set `RUSTLING_PROCESSING_FFMPEG_COMMAND` to select a specific executable. If neither that command
 nor the platform's `ffmpeg` is installed, the route returns HTTP 501. Invalid multipart values,
 PDF input, DPI, duration, opacity, or unsafe watermark size return HTTP 400. PDFium and FFmpeg
 execution failures return HTTP 500.

@@ -24,7 +24,7 @@ const SNOOZE_DURATION_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Web/server-side auto-popup that shows the UpdateModal on startup when a
- * newer Stirling-PDF version is available.
+ * newer RustlingPDF version is available.
  */
 export function UpdateStartupPopup() {
   const { config } = useAppConfig();

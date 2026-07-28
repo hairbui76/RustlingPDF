@@ -21,7 +21,7 @@ const meta: Meta<typeof LinkAccountCard> = {
 export default meta;
 type Story = StoryObj<typeof LinkAccountCard>;
 
-/** Not linked — the "Link your Stirling account" button opens the login modal. */
+/** Not linked — the "Link your RustlingPDF account" button opens the login modal. */
 export const NotLinked: Story = {
   args: { link: base },
 };

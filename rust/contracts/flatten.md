@@ -28,9 +28,9 @@ The Java path JPEG-encodes rendered pages, while the Rust/PDFium path uses
 PDFium's image embedding. Both Rust branches now apply Java's default non-Pro
 metadata policy after PDFium writes the result. Form-only output preserves the
 source creator, valid dates, standard values, and custom Info keys while
-rewriting producer to `Stirling-PDF v<version>`. Full rasterization copies only
+rewriting producer to `RustlingPDF v<version>`. Full rasterization copies only
 Java's selected standard source values and valid dates into a fresh Info
-dictionary, drops custom keys, and writes the Stirling creator/producer label.
+dictionary, drops custom keys, and writes the RustlingPDF creator/producer label.
 Visual page content, page count, page size, metadata, and loss of selectable
 text are covered now; image encoding, rotated/cropped-page corpora, and
 non-widget annotation preservation remain explicit parity gates. Pro

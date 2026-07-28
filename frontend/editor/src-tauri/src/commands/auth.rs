@@ -28,7 +28,7 @@ pub struct UserInfo {
 }
 
 fn get_keyring_entry() -> Result<Entry, String> {
-    if std::env::var("STIRLING_PDF_TEST_FORCE_AUTH_KEYRING_FAIL").is_ok() {
+    if crate::utils::env_compat::var("RUSTLING_PDF_TEST_FORCE_AUTH_KEYRING_FAIL").is_ok() {
         return Err("Forced keyring failure for tests".to_string());
     }
     log::debug!(
@@ -45,7 +45,7 @@ fn get_keyring_entry() -> Result<Entry, String> {
 }
 
 pub fn get_refresh_token_keyring_entry() -> Result<Entry, String> {
-    if std::env::var("STIRLING_PDF_TEST_FORCE_REFRESH_KEYRING_FAIL").is_ok() {
+    if crate::utils::env_compat::var("RUSTLING_PDF_TEST_FORCE_REFRESH_KEYRING_FAIL").is_ok() {
         return Err("Forced keyring failure for tests".to_string());
     }
     Entry::new(KEYRING_SERVICE, KEYRING_REFRESH_TOKEN_KEY)
@@ -464,7 +464,7 @@ pub async fn login(
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(30))
-        .user_agent("StirlingPDF-Desktop/1.0 Tauri")
+        .user_agent("RustlingPDF-Desktop/1.0 Tauri")
         .build()
         .map_err(|e| {
             log::error!("Failed to create HTTP client: {}", e);
@@ -866,7 +866,7 @@ async fn exchange_code_for_token(
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(30))
-        .user_agent("StirlingPDF-Desktop/1.0 Tauri")
+        .user_agent("RustlingPDF-Desktop/1.0 Tauri")
         .build()
         .map_err(|e| {
             log::error!("Failed to create HTTP client: {}", e);

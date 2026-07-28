@@ -23,7 +23,7 @@ Rust compatibility contract for all six routes in `FilterController`.
 - `filter-page-rotation`: compares the first page's effective inherited
   `Rotate` value with `rotation`
 
-Page selections reuse the existing Rust implementation of Stirling ranges,
+Page selections reuse the existing Rust implementation of RustlingPDF ranges,
 `all`, and `an+b` expressions. Literal text currently uses lopdf's font/text
 decoder; complex encodings and malformed font maps remain an explicit parity
 corpus item against PDFBox's `PDFTextStripper`.

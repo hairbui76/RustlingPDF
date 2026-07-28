@@ -13,12 +13,12 @@ tasks:
     desc: "Build the release Rust backend + pinned PDFium and stage them for Tauri bundling"
     cmds:
       # Release build of the processing backend (the desktop sidecar).
-      - cargo build --release --locked -p stirling-processing --manifest-path ../rust/Cargo.toml
+      - cargo build --release --locked -p rustling-processing --manifest-path ../rust/Cargo.toml
       # Pinned, checksum-verified PDFium runtime into rust/.pdfium/current.
       # Both installers produce the same layout — the platform shared library
       # (libpdfium.so / libpdfium.dylib / pdfium.dll) at the directory root
       # plus the PDFium LICENSE files — which is exactly what the backend's
-      # directory-form STIRLING_PDFIUM_LIBRARY_PATH resolution expects.
+      # directory-form RUSTLING_PDFIUM_LIBRARY_PATH resolution expects.
       - cmd: bash ../rust/scripts/install-pdfium.sh
         platforms: [linux, darwin]
       - cmd: pwsh -NoProfile -ExecutionPolicy Bypass -File ../rust/scripts/install-pdfium.ps1

@@ -32,11 +32,11 @@ same 1/2/3-level escalation rules until it reaches the target or level 9.
   It does not require ImageMagick.
 - When available, QPDF applies the Java recompression, object-stream, image
   optimization, normalize, and linearize arguments. Set
-  `STIRLING_PROCESSING_QPDF_COMMAND` for an explicit executable.
+  `RUSTLING_PROCESSING_QPDF_COMMAND` for an explicit executable.
 - At levels 6–9, available Ghostscript applies the Java PDF settings,
   resolution table, duplicate-image detection, font compression, grayscale,
   and CMYK-to-RGB options. It uses the shared
-  `STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND` discovery adapter and adds
+  `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND` discovery adapter and adds
   `-dSAFER`.
 - If the candidate output is not smaller than the upload, the original PDF is
   rewritten as the response, matching Java's larger-output fallback.

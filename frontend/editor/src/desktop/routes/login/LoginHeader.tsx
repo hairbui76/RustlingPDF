@@ -47,7 +47,7 @@ export default function LoginHeader({
         >
           <img
             src={tooltipLogo}
-            alt="Stirling PDF"
+            alt="RustlingPDF"
             style={{ width: 36, height: 36, flexShrink: 0 }}
           />
           {title && (

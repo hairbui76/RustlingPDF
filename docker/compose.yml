@@ -46,7 +46,7 @@ services:
     environment:
       # Provider credentials pass straight through to the engine, e.g.:
       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      STIRLING_ENGINE_HOST: "0.0.0.0"
+      RUSTLING_ENGINE_HOST: "0.0.0.0"
     restart: unless-stopped
 
 volumes:

@@ -76,9 +76,9 @@ export function OnboardingChecklist() {
       {
         id: STEP_DOWNLOAD_DESKTOP,
         titleKey: "onboarding.checklist.downloadDesktop.title",
-        titleFallback: "Download Stirling for Desktop",
+        titleFallback: "Download RustlingPDF for Desktop",
         descriptionKey: "onboarding.checklist.downloadDesktop.description",
-        descriptionFallback: "Run Stirling natively on your machine",
+        descriptionFallback: "Run RustlingPDF natively on your machine",
         onClick: () => setDownloadOpen(true),
       },
       {
@@ -94,7 +94,7 @@ export function OnboardingChecklist() {
         titleKey: "onboarding.checklist.takeTour.title",
         titleFallback: "Take the tour",
         descriptionKey: "onboarding.checklist.takeTour.description",
-        descriptionFallback: "See how Stirling works in a quick walkthrough",
+        descriptionFallback: "See how RustlingPDF works in a quick walkthrough",
         onClick: handleTakeTour,
       },
       {
@@ -102,7 +102,7 @@ export function OnboardingChecklist() {
         titleKey: "onboarding.checklist.shareAnalytics.title",
         titleFallback: "Share anonymous usage data",
         descriptionKey: "onboarding.checklist.shareAnalytics.description",
-        descriptionFallback: "Help improve Stirling",
+        descriptionFallback: "Help improve RustlingPDF",
         onClick: () => setAnalyticsOpen(true),
       },
     ],
@@ -179,7 +179,7 @@ export function OnboardingChecklist() {
               className={styles.logo}
             />
             <span className={styles.title}>
-              {t("onboarding.checklist.title", "Set up Stirling PDF")}
+              {t("onboarding.checklist.title", "Set up RustlingPDF")}
             </span>
           </span>
           <span className={styles.headerRight}>

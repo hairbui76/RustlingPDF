@@ -26,13 +26,13 @@ profile, forces RGB conversion, embeds/subsets fonts, and creates the PDF/A outp
 intent for PDF/A profiles. PDF/X uses Ghostscript's PDF/X 2008 mode and Java's
 300-DPI color/gray and 1,200-DPI mono image settings.
 
-Set `STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND` to an exact executable path. Without
+Set `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND` to an exact executable path. Without
 it, Rust discovers `gswin64c`, `gswin32c`, then `gs` on Windows, or `gs` elsewhere.
 An unconfigured missing Ghostscript returns `501`; a configured missing executable,
 tool failure, or missing output returns `500`.
 
 When `strict=true`, Rust invokes the existing veraPDF seam after successful PDF/A
-conversion. Configure it with `STIRLING_PROCESSING_VERAPDF_COMMAND`; an unconfigured
+conversion. Configure it with `RUSTLING_PROCESSING_VERAPDF_COMMAND`; an unconfigured
 missing verifier returns `501`, a non-compliant report returns `400`, and verifier
 execution/report errors return `500`.
 

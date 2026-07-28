@@ -1,7 +1,7 @@
 # AI engine proxy contract
 
 This contract covers the proprietary Java `AiEngineController` surface ported
-into `stirling-processing`, including both transparent engine proxies and the
+into `rustling-processing`, including both transparent engine proxies and the
 Java-facing multipart workflow state machine.
 
 ## Mounted routes
@@ -11,7 +11,7 @@ Java-facing multipart workflow state machine.
 - Returns `503 application/problem+json` with `AI engine is not enabled` when
   `aiEngine.enabled` is false.
 - Otherwise sends `GET {aiEngine.url}/health` with `Accept: application/json`.
-- Sends `X-Engine-Auth` only when `STIRLING_ENGINE_SHARED_SECRET` is nonblank.
+- Sends `X-Engine-Auth` only when `RUSTLING_ENGINE_SHARED_SECRET` is nonblank.
 - Sends `X-User-Id` only from the trusted Rust `AuthContext.username`. An
   inbound caller-supplied `X-User-Id` is never used as identity.
 - On a successful upstream response, returns status `200`, content type
@@ -72,7 +72,7 @@ Java-facing multipart workflow state machine.
   `engine_progress`; upstream heartbeats become named `heartbeat` events.
 - Terminates with exactly one named `result` or `error` event. The timeout is
   controlled by `stirling.ai.streamTimeoutMs`/
-  `STIRLING_AI_STREAMTIMEOUTMS` and defaults to 1,800 seconds.
+  `RUSTLING_AI_STREAMTIMEOUTMS` and defaults to 1,800 seconds.
 - A downstream disconnect drops the workflow future and its upstream reqwest
   response, cancelling engine generation and preventing further turns or tool
   steps from being scheduled. A native blocking operation already inside a
@@ -130,7 +130,7 @@ Both gates match Java: nothing is pushed unless `aiEngine.enabled` is true
 and `aiEngine.pushConfigToEngine` (default `true`, env
 `AIENGINE_PUSHCONFIGTOENGINE`) is on — pin it false for env-driven
 deployments so the engine stays environment-controlled. Pushes carry the
-`X-Engine-Auth` shared secret (`STIRLING_ENGINE_SHARED_SECRET`) when set and
+`X-Engine-Auth` shared secret (`RUSTLING_ENGINE_SHARED_SECRET`) when set and
 are strictly serialized through one queue (Java's single-thread executor), so
 overlapping pushes cannot leave the engine on a stale payload.
 

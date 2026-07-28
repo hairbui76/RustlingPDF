@@ -4,7 +4,7 @@ import { clearStoredToken, getStoredToken } from "@app/auth";
  * Transport config for {@code apiClient.local} — the flavor seam behind "this
  * instance's backend".
  *
- * Self-hosted (this base): same-origin (the local Stirling backend, vite-proxied
+ * Self-hosted (this base): same-origin (the local RustlingPDF backend, vite-proxied
  * to :8080 in dev), authenticated with the Spring admin bearer.
  *
  * The SaaS build shadows this file: there is no separate local instance, so

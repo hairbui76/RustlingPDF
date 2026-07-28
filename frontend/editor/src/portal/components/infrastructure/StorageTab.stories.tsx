@@ -28,7 +28,7 @@ const OVER_CAP: StorageConfig = {
   providers: [
     {
       id: "stirling",
-      name: "Stirling Cloud",
+      name: "RustlingPDF Cloud",
       kind: "stirling",
       connected: true,
       detail: "Primary vault · us-east-1",

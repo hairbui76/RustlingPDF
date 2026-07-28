@@ -475,11 +475,11 @@ export function ChatPanel({ onBack, backLabel }: ChatPanelProps) {
     <Box className="chat-panel chat-panel--embedded">
       <PanelHeader
         icon={<StirlingLogoOutline size={16} />}
-        title={t("agents.stirling_name", "Stirling")}
+        title={t("agents.stirling_name", "RustlingPDF")}
         loading={isLoading}
         className="chat-panel__header"
         barClassName="chat-panel__agent-pill-vt"
-        menuLabel={t("chat.header.agentMenu", "Stirling agent options")}
+        menuLabel={t("chat.header.agentMenu", "RustlingPDF agent options")}
         menuItems={[
           {
             key: "clear-chat",

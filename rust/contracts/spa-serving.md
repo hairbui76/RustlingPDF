@@ -3,11 +3,11 @@
 Rust compatibility contract for serving the built React SPA directly from the
 processing binary, porting the Java `ReactRoutingController` and the
 `WebMvcConfig` static-resource pipeline. Implemented in
-`crates/stirling-processing/src/spa.rs` as a config-gated router fallback.
+`crates/rustling-processing/src/spa.rs` as a config-gated router fallback.
 
 ## Gate
 
-- `STIRLING_FRONTEND_DIST` (env) or `system.frontendDist` (settings) names the
+- `RUSTLING_FRONTEND_DIST` (env) or `system.frontendDist` (settings) names the
   absolute path of a built Vite `dist/` directory. Upstream has **no**
   equivalent Spring property: the Java build bakes the dist onto the servlet
   classpath, so this key is owned by the Rust runtime.
@@ -40,7 +40,7 @@ GET-only path — documented, not ported).
   neither exists. Changing index.html on disk requires a restart, as upstream.
 - Transformation before serving (`processIndexHtml` parity, context path fixed
   to `/`): `%BASE_URL%` → `/`, any existing `<base href="…">` tag is rewritten
-  to `<base href="/" />`, and `<script>window.STIRLING_PDF_API_BASE_URL =
+  to `<base href="/" />`, and `<script>window.RUSTLING_PDF_API_BASE_URL =
   '/';</script>` is injected before `</head>`.
 - The upstream SaaS landing-page swap at `/` is out of scope (no saas module).
 
@@ -52,7 +52,7 @@ GET-only path — documented, not ported).
   page (the port of `buildCallbackHtml`; forwards tokens/errors to the desktop
   app via the `stirlingpdf://` deep link). Upstream sets no cache-control
   header here; neither do we.
-- `/mobile-scanner` in desktop mode (`STIRLING_PDF_TAURI_MODE=true`, captured
+- `/mobile-scanner` in desktop mode (`RUSTLING_PDF_TAURI_MODE=true`, captured
   at startup): serves `mobile-upload.html` (external `customFiles/static/`
   first, then the dist) when present, because a phone scanning the QR cannot
   load the SPA route from the Tauri webview. The RustlingPDF frontend does not
@@ -114,13 +114,13 @@ GET-only path — documented, not ported).
 
 ## Tests
 
-- `crates/stirling-processing/tests/spa_serving_endpoint.rs` — synthetic-dist
+- `crates/rustling-processing/tests/spa_serving_endpoint.rs` — synthetic-dist
   integration suite: inertness when unset, index transformation, deep links,
   API/`/health`/`/robots.txt` precedence, cache tiers and MIME types,
   precompressed negotiation, `304` revalidation, traversal/encoded-traversal/
   symlink attacks, directory requests, forward-exclusion quirks, non-GET
   methods, missing-index fallback page, `customFiles/static/index.html`
   override.
-- `crates/stirling-processing/src/spa.rs` unit tests — path sanitizer,
+- `crates/rustling-processing/src/spa.rs` unit tests — path sanitizer,
   classifier, cache tiers, index transformation, `Accept-Encoding`
   negotiation, MIME table, and the desktop-mode `/mobile-scanner` variants.

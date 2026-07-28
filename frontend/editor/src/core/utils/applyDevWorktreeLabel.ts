@@ -1,7 +1,7 @@
 /**
  * Prefixes the browser tab title with the current worktree name during local
  * development so multiple concurrently-running worktrees (e.g. wt1, wt2, spdf1)
- * are distinguishable at a glance instead of all showing "Stirling PDF".
+ * are distinguishable at a glance instead of all showing "RustlingPDF".
  *
  * The label is injected as a build-time constant by vite.config, sourced from
  * the top-level dev tasks. It is an empty string in production builds, so this

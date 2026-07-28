@@ -2,7 +2,9 @@
  * Get the base URL for API requests.
  *
  * Priority:
- * 1. window.STIRLING_PDF_API_BASE_URL (runtime override - fixes hardcoded localhost issues)
+ * 1. window.RUSTLING_PDF_API_BASE_URL (runtime override - fixes hardcoded localhost
+ *    issues; the pre-rename STIRLING_PDF_API_BASE_URL spelling injected by older
+ *    backends is honoured as a fallback)
  * 2. import.meta.env.VITE_API_BASE_URL (build-time env var)
  * 3. '/' (relative path - works for same-origin deployments)
  *
@@ -11,11 +13,13 @@
  */
 export function getApiBaseUrl(): string {
   // Runtime override to fix hardcoded localhost in builds
-  if (
-    typeof window !== "undefined" &&
-    (window as any).STIRLING_PDF_API_BASE_URL
-  ) {
-    return (window as any).STIRLING_PDF_API_BASE_URL;
+  if (typeof window !== "undefined") {
+    const runtimeOverride =
+      (window as any).RUSTLING_PDF_API_BASE_URL ||
+      (window as any).STIRLING_PDF_API_BASE_URL;
+    if (runtimeOverride) {
+      return runtimeOverride;
+    }
   }
 
   return import.meta.env.VITE_API_BASE_URL;

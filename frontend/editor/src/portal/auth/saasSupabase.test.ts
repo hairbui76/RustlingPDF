@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock only the low-level client factory — NOT ensureSaasSupabase itself — so this
 // exercises the real configurator and proves it wires the shared client from the
-// one Stirling Supabase env (VITE_SUPABASE_*), shared by every flavor.
+// one RustlingPDF Supabase env (VITE_SUPABASE_*), shared by every flavor.
 const configureSupabase = vi.fn();
 const getSupabaseClient = vi.fn(() => ({ __client: true }));
 vi.mock("@app/auth/supabase/supabaseClient", () => ({

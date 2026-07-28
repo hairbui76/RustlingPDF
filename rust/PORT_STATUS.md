@@ -13,17 +13,52 @@
 > describe this repository.
 
 Tracks the Java → Rust port of the Stirling-PDF backend (UI excluded). The Rust
-service lives in this `rust/` workspace as the `stirling-processing` crate — an
+service lives in this `rust/` workspace as the `rustling-processing` crate — an
 axum HTTP service mirroring the upstream Java `/api/v1/...` endpoints.
+
+**Coordinated product rename (2026-07-28, batch 6):** the workspace crates are
+`rustling-processing` / `rustling-ai-engine` / `rustling-operation-catalog`,
+`RUSTLING_*` is the primary environment-variable spelling (every legacy
+`STIRLING_*` spelling is accepted as a deprecated alias resolved by the
+per-crate `env_compat` module — `RUSTLING_*` wins when both are set, and the
+binaries log one stderr deprecation line at startup listing legacy spellings),
+the startup handshake prints `RustlingPDF running on port: <port>` (the desktop
+launcher parses the name-agnostic `running on port: ` suffix, so both spellings
+parse), and user-visible branding — UI strings, PDF producer/creator labels
+(`RustlingPDF v<version>`), TOTP issuer, SMTP defaults, MCP server
+self-description (`rustling-pdf-mcp`) — says RustlingPDF. **Documented
+divergences from the frozen upstream `SwaggerDoc.json` defaults:** stamp and
+watermark `stampText`/`watermarkText` default to `RustlingPDF` (upstream
+documents `Stirling Software`), producer/creator labels are
+`RustlingPDF v<version>` (upstream: `Stirling-PDF v<version>`), and the SMTP
+notification defaults drop the Stirling Software marketing body. **Deliberately
+kept under the old spelling** (continuity with shipped v2.14.2 apps and
+existing installs): the tauri bundle identifier `stirling.pdf.dev`, deep-link
+scheme, `Stirling-PDF` desktop app-data directory, the pinned WiX UpgradeCode,
+persisted browser-storage keys, the `StirlingPDFClassification` PDF Info key,
+`StirlingSig*`/`StirlingPageNumber*` XObject names, `X-Stirling-*` HTTP
+headers, and the `stirling_*` MCP tool identifiers.
+
+**Batch-6 validation (2026-07-28, on the rename branch):** `cargo fmt --check`
+and strict locked all-target workspace Clippy are clean; the full workspace
+suite (`cargo test --workspace --locked` with PDFium bound via
+`RUSTLING_PDFIUM_LIBRARY_PATH`) reports **1692 passed / 0 failed / 1 ignored**
+across all 118 targets, including new targeted coverage for the alias
+mechanisms (env-spelling precedence unit tests, a legacy-`STIRLING_*`-only
+boot that must warn exactly once on stderr, a both-spellings boot where
+`RUSTLING_*` must win, and `rustling.*`-vs-`stirling.*` settings-root
+precedence). The frontend gate (typecheck/eslint/1647 vitest/`vite build` +
+`og:check`) and the containerized `src-tauri` gate (fmt + strict clippy +
+tests, with the renamed `rustling-processing` sidecar stub) are green.
 
 **Latest validation (2026-07-28, RustlingPDF `main` after batch 3 — GitHub CI,
 single-binary SPA serving, Docker packaging, the parity trio, and the identity-
 persistence fix pair):** `cargo fmt --check` and strict locked all-target workspace
 Clippy (`--workspace --all-targets --locked -- -D warnings`) are clean. With PDFium
-bound via `STIRLING_PDFIUM_LIBRARY_PATH` (as `task rust:test` does),
-`cargo test -p stirling-processing --locked` reports **1508 passed / 0 failed**
+bound via `RUSTLING_PDFIUM_LIBRARY_PATH` (as `task rust:test` does),
+`cargo test -p rustling-processing --locked` reports **1508 passed / 0 failed**
 (one pre-existing ignored test) across the library suite and all integration suites,
-`cargo test -p stirling-ai-engine --locked` reports **144 passed / 0 failed** across
+`cargo test -p rustling-ai-engine --locked` reports **144 passed / 0 failed** across
 all targets, and the frontend gate (typecheck/eslint/**1647 vitest**/`vite build`)
 is green (the differential rust-only smoke gate was **13/13** at its final run
 before the harness was removed by maintainer decision on 2026-07-28). (This is the standalone
@@ -32,7 +67,7 @@ port tree because a handful of upstream-CI-specific assertions were dropped in t
 repo split.) Four previously-red areas are now green rather than excused: the
 `pdf_markdown` heading test (it required PDFium — earlier snapshots ran without the
 library bound and misread the fallback as a pre-existing failure); the two
-`stirling-ai-engine` `process_smoke` timeouts (root-caused, not environmental:
+`rustling-ai-engine` `process_smoke` timeouts (root-caused, not environmental:
 `tracing-subscriber` wrote ANSI escapes into piped output and broke the handshake
 parse); and six endpoint tests that had rotted against later features (webhook
 trigger listing, P-521 signing message, admin-only custom-API authoring, and the
@@ -151,7 +186,7 @@ auto-rename/auto-split, plus:
   retaining startup-discovered executable paths and using the shared bounded
   process runner with qpdf warning-exit handling; the normalized in-process
   rewrite remains the fallback when neither external tool is available.
-- Fresh-PDF metadata parity — image-to-PDF now writes the versioned Stirling
+- Fresh-PDF metadata parity — image-to-PDF now writes the versioned RustlingPDF
   creator/producer label and creation/modification dates; booklet and poster
   outputs retain Java's selected standard source fields and valid dates while
   dropping custom Info keys. Form-only and full-raster flattening now apply the
@@ -351,7 +386,7 @@ auto-rename/auto-split, plus:
   readers now report through the same explicit typed enrichment boundary. See
   `contracts/portal-audit.md`.
 - Secured `GET /api/v1/admin/settings/policies/implied-folder-roots` (ADMIN) — read-only list of the
-  Stirling-owned folder roots always permitted for folder automations: the local server-storage base
+  RustlingPDF-owned folder roots always permitted for folder automations: the local server-storage base
   path (reason `serverStorage`) and each pipeline watched folder (reason `watchedFolder`), each
   `{path, reason}` with an absolute path. Ports Java `FolderAccessSettingsController` +
   `FolderAccessGuard.impliedRoots`. Paired parity fix: the Rust folder-access decision now models those
@@ -580,14 +615,14 @@ the production routers today (an earlier revision of this paragraph predated the
 Generic SAML/desktop identity remain (OIDC is ported — see below). The
 Tauri desktop shell now launches the Rust binary as its **packaged sidecar by
 default** (batch 4): the Java JRE/JAR launch path is deleted,
-`STIRLING_NATIVE_BACKEND_PATH` is demoted to a dev-only override, and the
-launcher wires bundled PDFium (`STIRLING_PDFIUM_LIBRARY_PATH` pointed at the
+`RUSTLING_NATIVE_BACKEND_PATH` is demoted to a dev-only override, and the
+launcher wires bundled PDFium (`RUSTLING_PDFIUM_LIBRARY_PATH` pointed at the
 bundle's `resources/pdfium` unless the operator already set it) alongside the
 unconditional ephemeral-port handshake, desktop/base-path/login-agreement
 environment, legacy-workspace migration, a bounded startup wait, early-exit
 reporting, stale-port cleanup, PID/start-time parent-death enforcement, and
 atomic fresh-install settings/template initialization. Open-mode local `backend:dev`, `dev`, and default `dev:all` now
-launch `stirling-processing` (in this repository they are the only backend entry
+launch `rustling-processing` (in this repository they are the only backend entry
 points; the Java-oracle and SaaS Task paths existed in the upstream monorepo).
 Container distribution shipped in batch 3 (Docker image; batch 4 added the
 tag-driven GHCR release pipeline) and the desktop bundle ships the Rust
@@ -809,7 +844,7 @@ serving either an unsecured approximation or the not-yet-approved opt-in securit
 `SECURITY_MIGRATION_DESIGN.md` and `SIGNING_MIGRATION_DESIGN.md` for the review
 gates before either secure mode or signing is implemented.
 
-The separate `stirling-ai-engine` crate now ports the current Python HTTP agent
+The separate `rustling-ai-engine` crate now ports the current Python HTTP agent
 surface: health/auth, classification, PDF comments, both math-audit rounds,
 durable SQLite documents with ACL/TTL and provider embeddings, PDF questions,
 bounded long-document map/reduce, contradiction detection, schema-grounded PDF
@@ -819,7 +854,7 @@ the next-action contract (which, matching the Python oracle, is a live stub:
 `cannot_continue`/"Execution planning is not implemented yet" — see
 `contracts/ai-engine-foundation.md`), and the NDJSON orchestrator with
 math-audit resume. The smart and fast model tiers share the Python-compatible
-process-wide `STIRLING_MODEL_MAX_CONCURRENCY` ceiling, in addition to narrower
+process-wide `RUSTLING_MODEL_MAX_CONCURRENCY` ceiling, in addition to narrower
 per-agent worker limits. Its MCP manifest publishes all eight completed Python
 capabilities. Model-selected evidence and comment anchors are mapped back to
 trusted local indices, while edit parameters are validated against a generated
@@ -839,7 +874,7 @@ The engine also ports the Python oracle's admin config-push subsystem (Python
 PR #7069): `POST /api/v1/config` accepts Java's `AiEngineConfigSync` body (both
 camelCase and snake_case field spellings; unknown fields tolerated, matching
 the oracle's `TolerantApiModel`), is gated by the Python-compatible
-`STIRLING_ALLOW_CONFIG_PUSH` flag (default on, same as Python; flag-off → 403
+`RUSTLING_ALLOW_CONFIG_PUSH` flag (default on, same as Python; flag-off → 403
 naming the flag), rebuilds the live model tiers with a fresh shared semaphore
 while in-flight requests keep their runtime snapshot, and persists the pushed
 config through an encrypted at-rest cache restored on boot (0600 files;
@@ -857,7 +892,7 @@ authenticated remote endpoints, normalized OpenAI-compatible URLs, and
 schema-constrained native JSON output. A compiled-binary process test proves an
 HTTP agent request completes through a fake Ollama server without inventing an
 authorization header. The generated operation snapshot no longer passes through
-Pydantic: the typed `stirling-operation-catalog` crate translates Java OpenAPI
+Pydantic: the typed `rustling-operation-catalog` crate translates Java OpenAPI
 directly, retains validation/default semantics, and supplies a deterministic
 `--check` drift gate while the Python artifact remains an independent oracle.
 
@@ -880,7 +915,7 @@ The reviewed secured router now owns API-key MCP phase one at `POST /mcp`, inclu
 bounded JSON-RPC transport, protocol negotiation, trusted API-key identity, capability
 manifest caching/filtering, and the two executable AI tools. It also now owns reusable
 file artifacts (`stirling_upload`/`stirling_download`, reusing the existing owner-scoped
-async-job store verbatim) and direct dispatch of a real Stirling processing operation by
+async-job store verbatim) and direct dispatch of a real RustlingPDF processing operation by
 its API path (`stirling_operation`, reusing the pipeline runner's own in-process router
 dispatch — a Rust-only convenience; Java's server exposes eight tools without it). Phase two
 has landed: Java's four per-category tools (`stirling_pages`/`stirling_convert`/
@@ -936,13 +971,13 @@ See `contracts/ai-engine-foundation.md` and
 `contracts/pdf-comment-agent.md`.
 
 The dispatchable `create-pdf-from-html-agent` tool is also owned by
-`stirling-processing`. It keeps Java's multipart structured-document contract,
+`rustling-processing`. It keeps Java's multipart structured-document contract,
 requires the AI feature setting, and renders escaped fields only through a fixed
 template. It does not rely on an AI provider at request time. See
 `contracts/create-pdf-agent.md`.
 
 The public `math-auditor-agent` orchestration is likewise owned by
-`stirling-processing`: PDFium classifies/extracts local evidence, while the
+`rustling-processing`: PDFium classifies/extracts local evidence, while the
 Rust AI engine receives only the two typed protocol messages. See
 `contracts/math-auditor-agent.md`.
 

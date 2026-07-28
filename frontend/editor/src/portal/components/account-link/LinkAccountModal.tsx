@@ -29,7 +29,7 @@ interface Props {
 }
 
 /**
- * In-app account-link login. Signs the admin in to their Stirling (SaaS) account
+ * In-app account-link login. Signs the admin in to their RustlingPDF (SaaS) account
  * via the shared Supabase login (SSO + email/password), then hands the resulting
  * session to the caller to register this instance. No popup; the device secret
  * never reaches the browser. SSO redirects away and is finished by useAccountLink
@@ -69,14 +69,14 @@ export function LinkAccountModal({
           ? t("portal.accountLink.modal.reauthTitle", "Sign in again")
           : t(
               "portal.accountLink.modal.linkTitle",
-              "Link your Stirling account",
+              "Link your RustlingPDF account",
             )
       }
       subtitle={
         reauth
           ? t(
               "portal.accountLink.modal.reauthSubtitle",
-              "Your session expired — sign back in to your Stirling account. Your instance stays linked.",
+              "Your session expired — sign back in to your RustlingPDF account. Your instance stays linked.",
             )
           : t(
               "portal.accountLink.modal.linkSubtitle",
@@ -101,7 +101,7 @@ export function LinkAccountModal({
             <code>VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY</code>{" "}
             {t(
               "portal.accountLink.modal.loginNotConfigured.after",
-              "to enable in-app linking against the hosted Stirling account.",
+              "to enable in-app linking against the hosted RustlingPDF account.",
             )}
           </Banner>
           {import.meta.env.DEV && (

@@ -21,7 +21,7 @@ language followed by optional two-to-eight-character alphanumeric subtags.
 
 Files remain compatible with the Java layout:
 
-`$STIRLING_BASE_PATH/customFiles/disclaimer/<locale>.md`
+`$RUSTLING_BASE_PATH/customFiles/disclaimer/<locale>.md`
 
 Writes use a sibling temporary file followed by an atomic replacement so the
 lock-free public reader cannot observe a partial update. Directory and file

@@ -1,6 +1,6 @@
 version: '3'
 
-# The backend is the Rust processing service (rust/crates/stirling-processing).
+# The backend is the Rust processing service (rust/crates/rustling-processing).
 # These tasks are thin delegates to the rust:* taskfile, which owns the cargo
 # invocations, so `backend:*` stays the stable entry point for callers.
 

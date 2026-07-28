@@ -177,7 +177,7 @@ export default function AdminFolderAccessSection() {
             <Text size="xs">
               {t(
                 "admin.settings.folderAccess.securityNote",
-                "Leave this empty to disable folder sources and outputs entirely. Stirling's own configuration directory is always off-limits, and folder access is always disabled in hosted (SaaS) mode.",
+                "Leave this empty to disable folder sources and outputs entirely. RustlingPDF's own configuration directory is always off-limits, and folder access is always disabled in hosted (SaaS) mode.",
               )}
             </Text>
           </Alert>
@@ -280,7 +280,7 @@ export default function AdminFolderAccessSection() {
                   <Text size="xs" c="dimmed">
                     {t(
                       "admin.settings.folderAccess.implied.description",
-                      "These Stirling-managed directories are always permitted and can't be changed here.",
+                      "These RustlingPDF-managed directories are always permitted and can't be changed here.",
                     )}
                   </Text>
                 </div>

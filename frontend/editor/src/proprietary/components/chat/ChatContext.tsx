@@ -114,8 +114,7 @@ export interface UnknownEngineProgressDetail {
 }
 
 export type AnyEngineProgressDetail =
-  | EngineProgressDetail
-  | UnknownEngineProgressDetail;
+  EngineProgressDetail | UnknownEngineProgressDetail;
 
 const KNOWN_ENGINE_PHASES = new Set<string>([
   "whole_doc_read_started",
@@ -158,7 +157,7 @@ type AiWorkflowOutcome =
   | "cannot_continue";
 
 interface AiWorkflowResultFile {
-  /** Stirling file ID — download with /api/v1/general/files/{fileId}. */
+  /** RustlingPDF file ID — download with /api/v1/general/files/{fileId}. */
   fileId: string;
   fileName: string;
   contentType: string;
@@ -419,7 +418,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const activeFileStubsRef = useRef(activeFileStubs);
   activeFileStubsRef.current = activeFileStubs;
 
-  // Download a File from the Stirling files endpoint.
+  // Download a File from the RustlingPDF files endpoint.
   const downloadFile = useCallback(
     async (descriptor: AiWorkflowResultFile): Promise<File> => {
       // AI result files live on the backend that ran the workflow (the SaaS

@@ -16,7 +16,7 @@ tasks:
     desc: "Build AI engine binaries"
     deps: [":rust:clean:deps"]
     cmds:
-      - cargo build --manifest-path rust/Cargo.toml -p stirling-ai-engine --bins --locked
+      - cargo build --manifest-path rust/Cargo.toml -p rustling-ai-engine --bins --locked
 
   run:
     desc: "Run the AI engine server"
@@ -26,10 +26,10 @@ tasks:
       HOST: '{{.HOST | default "127.0.0.1"}}'
       PORT: '{{.PORT | default "5001"}}'
     env:
-      STIRLING_ENGINE_HOST: '{{.HOST}}'
-      STIRLING_ENGINE_PORT: '{{.PORT}}'
+      RUSTLING_ENGINE_HOST: '{{.HOST}}'
+      RUSTLING_ENGINE_PORT: '{{.PORT}}'
     cmds:
-      - cargo run --manifest-path rust/Cargo.toml -p stirling-ai-engine --bin stirling-ai-engine --locked
+      - cargo run --manifest-path rust/Cargo.toml -p rustling-ai-engine --bin rustling-ai-engine --locked
 
   dev:
     desc: "Start the AI engine for development"
@@ -39,44 +39,44 @@ tasks:
       HOST: '{{.HOST | default "127.0.0.1"}}'
       PORT: '{{.PORT | default "5001"}}'
     env:
-      STIRLING_ENGINE_HOST: '{{.HOST}}'
-      STIRLING_ENGINE_PORT: '{{.PORT}}'
+      RUSTLING_ENGINE_HOST: '{{.HOST}}'
+      RUSTLING_ENGINE_PORT: '{{.PORT}}'
     cmds:
-      - cargo run --manifest-path rust/Cargo.toml -p stirling-ai-engine --bin stirling-ai-engine --locked
+      - cargo run --manifest-path rust/Cargo.toml -p rustling-ai-engine --bin rustling-ai-engine --locked
 
   lint:
     desc: "Run AI engine linting"
     deps: [":rust:clean:deps"]
     cmds:
-      - cargo clippy --manifest-path rust/Cargo.toml -p stirling-ai-engine --all-targets --locked -- -D warnings
+      - cargo clippy --manifest-path rust/Cargo.toml -p rustling-ai-engine --all-targets --locked -- -D warnings
 
   lint:fix:
     desc: "Auto-fix AI engine lint issues"
     deps: [":rust:clean:deps"]
     cmds:
-      - cargo clippy --manifest-path rust/Cargo.toml -p stirling-ai-engine --all-targets --locked --fix --allow-dirty --allow-staged
+      - cargo clippy --manifest-path rust/Cargo.toml -p rustling-ai-engine --all-targets --locked --fix --allow-dirty --allow-staged
 
   typecheck:
     desc: "Run AI engine type checking"
     deps: [":rust:clean:deps"]
     cmds:
-      - cargo check --manifest-path rust/Cargo.toml -p stirling-ai-engine --all-targets --locked
+      - cargo check --manifest-path rust/Cargo.toml -p rustling-ai-engine --all-targets --locked
 
   format:
     desc: "Auto-fix AI engine formatting"
     cmds:
-      - cargo fmt --manifest-path rust/Cargo.toml --package stirling-ai-engine
+      - cargo fmt --manifest-path rust/Cargo.toml --package rustling-ai-engine
 
   format:check:
     desc: "Check AI engine formatting"
     cmds:
-      - cargo fmt --manifest-path rust/Cargo.toml --package stirling-ai-engine --check
+      - cargo fmt --manifest-path rust/Cargo.toml --package rustling-ai-engine --check
 
   test:
     desc: "Run AI engine tests"
     deps: [":rust:clean:deps"]
     cmds:
-      - cargo test --manifest-path rust/Cargo.toml -p stirling-ai-engine --locked
+      - cargo test --manifest-path rust/Cargo.toml -p rustling-ai-engine --locked
 
   fix:
     desc: "Auto-fix AI engine source"
@@ -89,7 +89,7 @@ tasks:
     desc: "Verify AI engine container and operational configuration"
     deps: [":rust:clean:deps"]
     cmds:
-      - cargo test --manifest-path rust/Cargo.toml -p stirling-ai-engine --test operational_cutover --locked
+      - cargo test --manifest-path rust/Cargo.toml -p rustling-ai-engine --test operational_cutover --locked
 
   check:
     desc: "Run the AI engine quality gate"
@@ -106,32 +106,32 @@ tasks:
     cmds:
       - >
         cargo run --manifest-path rust/Cargo.toml
-        -p stirling-operation-catalog --locked --
+        -p rustling-operation-catalog --locked --
         --spec SwaggerDoc.json
-        --output rust/crates/stirling-ai-engine/src/operation_catalog.json
-        --mcp-supplement rust/crates/stirling-processing/src/mcp_operation_supplement.json
+        --output rust/crates/rustling-ai-engine/src/operation_catalog.json
+        --mcp-supplement rust/crates/rustling-processing/src/mcp_operation_supplement.json
     sources:
       - SwaggerDoc.json
       - rust/Cargo.toml
       - rust/Cargo.lock
-      - rust/crates/stirling-operation-catalog/Cargo.toml
-      - rust/crates/stirling-operation-catalog/src/**/*.rs
+      - rust/crates/rustling-operation-catalog/Cargo.toml
+      - rust/crates/rustling-operation-catalog/src/**/*.rs
     generates:
-      - rust/crates/stirling-ai-engine/src/operation_catalog.json
-      - rust/crates/stirling-processing/src/mcp_operation_supplement.json
+      - rust/crates/rustling-ai-engine/src/operation_catalog.json
+      - rust/crates/rustling-processing/src/mcp_operation_supplement.json
 
   tool-models:check:
     desc: "Fail if the Rust AI operation catalog is out of date"
     cmds:
       - >
         cargo run --manifest-path rust/Cargo.toml
-        -p stirling-operation-catalog --locked --
+        -p rustling-operation-catalog --locked --
         --spec SwaggerDoc.json
-        --output rust/crates/stirling-ai-engine/src/operation_catalog.json
-        --mcp-supplement rust/crates/stirling-processing/src/mcp_operation_supplement.json
+        --output rust/crates/rustling-ai-engine/src/operation_catalog.json
+        --mcp-supplement rust/crates/rustling-processing/src/mcp_operation_supplement.json
         --check
 
   clean:
     desc: "Clean AI engine build artifacts"
     cmds:
-      - cargo clean --manifest-path rust/Cargo.toml -p stirling-ai-engine
+      - cargo clean --manifest-path rust/Cargo.toml -p rustling-ai-engine

@@ -1,7 +1,7 @@
 # PDF table to CSV/XLSX contract
 
 `POST /api/v1/convert/pdf/csv` and `POST /api/v1/convert/pdf/xlsx` extract tables
-from `fileInput`, optionally limited by the Stirling `pageNumbers` expression.
+from `fileInput`, optionally limited by the RustlingPDF `pageNumbers` expression.
 The default is `all`.
 
 ## Response selection

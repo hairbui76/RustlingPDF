@@ -6,7 +6,7 @@ name: Desktop CI (Tauri)
 #
 # The crate's build script (tauri-build) hard-requires the artifacts that
 # `task desktop:stage-sidecar` normally stages — the externalBin sidecar at
-# binaries/stirling-processing-<triple> plus the resources/pdfium directory —
+# binaries/rustling-processing-<triple> plus the resources/pdfium directory —
 # and the frontend dist directory. Building the real backend here would drag
 # the whole rust/ workspace into this job for no extra signal, so the job
 # stubs all three: this is a compile/lint/test gate for the desktop shell,
@@ -84,7 +84,7 @@ jobs:
         run: |
           mkdir -p dist src-tauri/binaries src-tauri/resources/pdfium
           host_triple=$(rustc -vV | sed -n 's/^host: //p')
-          install -m 755 /usr/bin/true "src-tauri/binaries/stirling-processing-${host_triple}"
+          install -m 755 /usr/bin/true "src-tauri/binaries/rustling-processing-${host_triple}"
           touch src-tauri/resources/pdfium/ci-stub
 
       - name: Check formatting

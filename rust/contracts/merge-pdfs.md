@@ -24,7 +24,7 @@ and creates a valid merged PDF while retaining the first effective input as the
 document-level seed. Documents use PDFium's `FPDF_ImportPages`, matching the legacy
 Java primitive. The seed catalog and AcroForm remain intact while later pages and their
 referenced objects are imported. PDFium is loaded from the absolute file or directory
-named by `STIRLING_PDFIUM_LIBRARY_PATH`; Task installs the checksum-pinned revision
+named by `RUSTLING_PDFIUM_LIBRARY_PATH`; Task installs the checksum-pinned revision
 7543 runtime for local checks.
 
 The legacy `byDateModified` and `byDateCreated` modes both sort newest-first using the
@@ -60,6 +60,6 @@ flattening loads the final document only when PDFium reports a signature, matchi
 PDFBox slow path. A compatibility fallback uses the in-memory `lopdf` implementation only when
 no PDFium runtime is configured. The request limit now matches Java's 2000 MiB default and
 recognizes the existing `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE`, `SYSTEMFILEUPLOADLIMIT`, and
-`SYSTEM_MAXFILESIZE` settings; `STIRLING_PROCESSING_MAX_UPLOAD_BYTES` remains an exact-byte
+`SYSTEM_MAXFILESIZE` settings; `RUSTLING_PROCESSING_MAX_UPLOAD_BYTES` remains an exact-byte
 service override. Large-file fidelity fixtures and production route wiring are still required
 before cutover.

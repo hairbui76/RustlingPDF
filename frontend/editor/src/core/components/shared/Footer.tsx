@@ -98,7 +98,7 @@ export default function Footer({
           className="footer-link px-3"
           target="_blank"
           rel="noopener noreferrer"
-          href="https://github.com/Stirling-Tools/Stirling-PDF"
+          href="https://github.com/RustlingPDF-Tools/RustlingPDF"
         >
           {t("footer.issues", "GitHub")}
         </a>

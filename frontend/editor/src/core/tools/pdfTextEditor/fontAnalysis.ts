@@ -4,11 +4,7 @@ import {
 } from "@app/tools/pdfTextEditor/pdfTextEditorTypes";
 
 export type FontStatus =
-  | "perfect"
-  | "embedded-subset"
-  | "system-fallback"
-  | "missing"
-  | "unknown";
+  "perfect" | "embedded-subset" | "system-fallback" | "missing" | "unknown";
 
 export interface FontAnalysis {
   fontId: string;
@@ -86,7 +82,7 @@ const isStandard14Font = (font: PdfJsonFont): boolean => {
 
 /**
  * Checks if a font has a fallback available on the backend.
- * These fonts are embedded in the Stirling PDF backend and can be used
+ * These fonts are embedded in the RustlingPDF backend and can be used
  * for PDF export even if not in the original PDF.
  *
  * Based on PdfJsonFallbackFontService.java

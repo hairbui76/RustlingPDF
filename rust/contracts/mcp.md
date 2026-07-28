@@ -19,7 +19,7 @@ Beyond the AI engine's reviewed capability manifest (`stirling_describe_operatio
 `stirling_ai`), it exposes reusable file artifacts (`stirling_upload`, `stirling_download`),
 Java's per-category PDF tools (`stirling_pages`, `stirling_convert`, `stirling_misc`,
 `stirling_security` — see "Per-category PDF tools" below), and direct dispatch of a real
-Stirling processing operation (`stirling_operation`, a Rust-only extension), reusing the
+RustlingPDF processing operation (`stirling_operation`, a Rust-only extension), reusing the
 existing owner-scoped async-job store and the same in-process router dispatch the pipeline
 runner uses. OAuth mode additionally serves the RFC 9728 protected-resource metadata routes
 (see "OAuth/JWT mode" below). It does **not** expose SSE/session transport.
@@ -72,7 +72,7 @@ Rust resolves the complete Java `mcp.*` tree:
 | `mcp.auth.jwksUri` | `""` | Explicit JWKS URL; blank derives it from the issuer's OpenID discovery document |
 | `mcp.auth.resourceId` | `""` | This server's RFC 8707 resource identifier (primary accepted audience) |
 | `mcp.auth.acceptedAudiences` | `[]` | Additional accepted audiences; with `resourceId` also blank, audience binding fails closed |
-| `mcp.auth.usernameClaim` | `sub` | JWT claim matched (case-insensitively) against a provisioned Stirling username; blank falls back to `sub` |
+| `mcp.auth.usernameClaim` | `sub` | JWT claim matched (case-insensitively) against a provisioned RustlingPDF username; blank falls back to `sub` |
 | `mcp.auth.requireExistingAccount` | `true` | Parsed; Rust always behaves as `true` (documented fail-closed divergence, see below) |
 | `endpoints.toRemove` / `endpoints.groupsToRemove` | `[]` | Endpoint-disable configuration; disabled operations vanish from category enums and lookups |
 
@@ -83,17 +83,17 @@ as `MCP_SCOPES_ENABLED` are accepted. Lists are comma-separated in environment v
 
 ### API-key mode (`mcp.auth.mode: apikey`)
 
-Every mounted MCP request requires a live Stirling per-user API key. A nonblank `X-API-KEY`
+Every mounted MCP request requires a live RustlingPDF per-user API key. A nonblank `X-API-KEY`
 header takes precedence. Otherwise, `Authorization: Bearer <key>` is accepted with a
 case-insensitive scheme. Invalid, revoked, or disabled-account keys return `401` and:
 
 ```http
-WWW-Authenticate: Bearer realm="Stirling MCP (API key)"
+WWW-Authenticate: Bearer realm="RustlingPDF MCP (API key)"
 ```
 
 The MCP boundary obtains the canonical username from `SecurityStore`; caller-provided identity
 headers are never trusted. AI calls forward that trusted value as `X-User-Id`. If
-`STIRLING_ENGINE_SHARED_SECRET` is configured, capability pulls and calls also send it as
+`RUSTLING_ENGINE_SHARED_SECRET` is configured, capability pulls and calls also send it as
 `X-Engine-Auth`. (The `X-User-Id` / `X-Engine-Auth` forwarding applies identically in OAuth
 mode, using the bound account's canonical username.)
 
@@ -152,13 +152,13 @@ pinned to `scope` (`scp` is not consulted, as in Java).
 
 **Account binding** (Java `McpUserBindingFilter`). The configured `mcp.auth.usernameClaim`
 value (default `sub`) must be present and must resolve, case-insensitively, to an existing
-**enabled** Stirling account; the call then runs as that account's canonical username (jobs,
+**enabled** RustlingPDF account; the call then runs as that account's canonical username (jobs,
 audit, engine `X-User-Id`). Failures are `403` with Java's exact JSON:
 
 - missing claim: `{"error":"insufficient_account","message":"Token is missing the '<claim>'
-  claim used to map to a Stirling user."}`
+  claim used to map to a RustlingPDF user."}`
 - no enabled account: `{"error":"insufficient_account","message":"MCP access requires a
-  provisioned, enabled Stirling account for this subject."}`
+  provisioned, enabled RustlingPDF account for this subject."}`
 
 **Documented divergences from Java (all fail-closed or neutral):**
 
@@ -305,7 +305,7 @@ operation at all consult the AI capability manifest.
 
 `stirling_upload` (`{file: <base64>, fileName?}`) and `stirling_download`
 (`{fileId: <id>}`) store and retrieve a caller's own files. Both are implemented entirely
-in terms of the existing owner-scoped [`JobManager`](../crates/stirling-processing/src/job_manager.rs):
+in terms of the existing owner-scoped [`JobManager`](../crates/rustling-processing/src/job_manager.rs):
 an upload is a synthetic job whose single output is the stored file, so it gets the same
 private directory, `fileId` allocation, and result-TTL expiry as any real operation's
 result. There is no separate storage mechanism, no new ownership model, and no change to
@@ -314,13 +314,13 @@ result. There is no separate storage mechanism, no new ownership model, and no c
 `stirling_operation` (`{operation: <API path>, file?: <base64>, fileId?, fileName?,
 parameters?}`) is a **documented Rust-only extension — Java has no such tool** (Java
 addresses PDF operations exclusively through the category tools' flat op ids). It runs a
-real Stirling processing operation identified by its own API path
+real RustlingPDF processing operation identified by its own API path
 (e.g. `/api/v1/general/split-pages`), not an AI capability. Unlike the category tools it can
 address nested paths, so it is also the only MCP route to the convert namespace. The path is
 validated the same
 way a pipeline step's operation is (`general`/`misc`/`security`/`convert`/`filter`/`ai/tools/*`
 namespaces only) and checked against the same `mcp.allowedOperations`/`blockedOperations`
-lists `stirling_ai` uses — operators list both AI capability ids and Stirling API paths in
+lists `stirling_ai` uses — operators list both AI capability ids and RustlingPDF API paths in
 that one shared allow-list. Input comes from `fileId` (an owner-scoped stored file) or
 inline `file` (base64, staged under a request-scoped temporary directory); dispatch reuses
 the pipeline runner's own request builder and in-process router `oneshot` call, so it is

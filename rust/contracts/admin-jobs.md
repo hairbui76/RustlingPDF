@@ -4,7 +4,7 @@ Rust compatibility contract for upstream Stirling-PDF's Java
 `AdminJobController` (upstream
 `app/proprietary/.../controller/api/AdminJobController.java`). The three
 routes are registered alongside the general job routes in
-`rust/crates/stirling-processing/src/lib.rs` and served by
+`rust/crates/rustling-processing/src/lib.rs` and served by
 `admin_job_stats` / `admin_job_queue_stats` / `admin_job_cleanup` over the
 shared `JobManager` and `JobQueue` (see `contracts/job-management.md` for the
 user-facing job API these administrate).

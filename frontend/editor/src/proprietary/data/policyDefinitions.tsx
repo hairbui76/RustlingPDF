@@ -317,7 +317,7 @@ export const POLICY_SOURCES: PolicySource[] = [
   {
     id: "editor",
     label: "Editor",
-    desc: "Documents you save or export in Stirling",
+    desc: "Documents you save or export in RustlingPDF",
     icon: <DescriptionIcon sx={ICON_SX} />,
   },
   {

@@ -25,7 +25,7 @@ is located at `<workdir>/<base>.pdf`, falling back to any `.pdf` in the working
 directory (some LibreOffice builds emit a different name). An empty output is
 treated as a failure.
 
-The `soffice` binary is resolved from `STIRLING_PROCESSING_SOFFICE_COMMAND` when
+The `soffice` binary is resolved from `RUSTLING_PROCESSING_SOFFICE_COMMAND` when
 set, otherwise from platform defaults (`soffice`/`/usr/bin/soffice`, or the
 `soffice.com`/`soffice.exe`/`soffice` chain on Windows).
 

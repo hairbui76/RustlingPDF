@@ -34,8 +34,7 @@ export type IntegrationPolicyEndpoint =
 
 /** An endpoint typed here rather than by the generator. */
 export type UntypedPolicyEndpoint =
-  | AiPolicyEndpoint
-  | IntegrationPolicyEndpoint;
+  AiPolicyEndpoint | IntegrationPolicyEndpoint;
 
 /** A tool usable in a policy whose endpoint isn't in the generated union. */
 export interface AiToolDescriptor<TParams> {

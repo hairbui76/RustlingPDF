@@ -60,7 +60,7 @@ export interface Invoice {
   periodEnd: string | null;
   hostedInvoiceUrl: string | null;
   invoicePdf: string | null;
-  /** Product name from the subscription chain (e.g. "Stirling Processor Plan"). */
+  /** Product name from the subscription chain (e.g. "RustlingPDF Processor Plan"). */
   description: string | null;
   /** Billed units (PDFs) on this invoice; null when the line-item table isn't synced. */
   pdfsProcessed: number | null;

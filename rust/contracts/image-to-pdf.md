@@ -36,7 +36,7 @@ emitted as a separate page before processing the next upload.
 - Image streams and masks are Flate-compressed, and the output uses a fresh page
   tree and catalog.
 - The fresh Info dictionary carries Java's default non-Pro `Creator` and
-  `Producer` label (`Stirling-PDF v<version>`) plus parseable creation and
+  `Producer` label (`RustlingPDF v<version>`) plus parseable creation and
   modification timestamps.
 
 ## Known boundaries

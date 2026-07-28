@@ -7,7 +7,7 @@ const ANNOTATED_PDF = path.join(
 );
 
 /**
- * Regression test for https://github.com/Stirling-Tools/Stirling-PDF/issues/6439
+ * Regression test for https://github.com/RustlingPDF-Tools/RustlingPDF/issues/6439
  *
  * The fixture PDF (3 pages) has 4 text annotations per page stored in
  * deliberately scrambled object order (D, B, C, A). With the sort applied,

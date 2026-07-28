@@ -45,7 +45,7 @@ with deterministic RFC 6979 nonces; the invisible-incremental `/ByteRange` +
 `/Contents` reservation is shared unchanged with the other curves. Because
 `x509-certificate` cannot resolve `ecdsa-with-SHA512`, the crate's own CMS
 verifier cannot check a P-521 signature; tests verify it independently with the
-`p521` crate (and OpenSSL when `STIRLING_VERIFY_OPENSSL` is set). A key whose
+`p521` crate (and OpenSSL when `RUSTLING_VERIFY_OPENSSL` is set). A key whose
 public half does not match the certificate still returns `400`
 (`CertificateKeyMismatch`) for every curve.
 

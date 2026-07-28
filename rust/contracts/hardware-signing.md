@@ -16,9 +16,9 @@ provided that a configured/detected driver is selected. On Windows desktop build
 `windowsStoreSupported` is true and the matching certificate-enumeration route is
 available.
 
-`STIRLING_PDF_TAURI_MODE=true` or a `STIRLING_MACHINE_TYPE` beginning with
+`RUSTLING_PDF_TAURI_MODE=true` or a `RUSTLING_MACHINE_TYPE` beginning with
 `Client-` enables desktop discovery. Extra existing driver paths can be provided
-in `STIRLING_PKCS11_LIBRARIES`.
+in `RUSTLING_PKCS11_LIBRARIES`.
 
 `GET /api/v1/security/cert-sign/hardware/windows-certificates` is available only
 in desktop mode. It opens the current user's `MY` certificate store through Windows
@@ -59,6 +59,6 @@ the private key never leaves its Windows provider. The bridge has a 128-KiB CMS
 output bound and exposes only generic provider failures.
 
 An ignored live integration test can be enabled with
-`STIRLING_WINDOWS_TEST_CERT_ALIAS`; it signs a PDF and independently verifies its
+`RUSTLING_WINDOWS_TEST_CERT_ALIAS`; it signs a PDF and independently verifies its
 byte range, CMS digest, and signature. This matrix still needs CI coverage across
 software RSA/ECC keys and representative smart-card providers.

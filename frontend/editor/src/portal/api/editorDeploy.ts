@@ -2,7 +2,7 @@ import { apiClient } from "@portal/api/http";
 import type { Tier } from "@portal/contexts/TierContext";
 
 /*
- * This surface manages the org's deployment of the Stirling PDF *Editor*
+ * This surface manages the org's deployment of the RustlingPDF *Editor*
  * product from the portal — where it runs (Managed Cloud / Docker /
  * Kubernetes), how self-hosted instances pair back to the org, the health of
  * each running instance, and the service credential / offline-activation

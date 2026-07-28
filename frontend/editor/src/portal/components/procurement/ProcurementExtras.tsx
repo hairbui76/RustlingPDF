@@ -146,7 +146,7 @@ export function ScheduleCallModal({
 const DEPLOYMENTS = ["cloud", "selfhost", "airgap"] as const;
 
 /**
- * Captured before the trial starts: where the buyer will run Stirling (which drives the deployment
+ * Captured before the trial starts: where the buyer will run RustlingPDF (which drives the deployment
  * fee and, for air-gapped, the offline licence) and their team size. Both seed the quote builder so
  * it opens on their real environment; the trial only begins once this is confirmed.
  */

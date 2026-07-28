@@ -35,7 +35,7 @@ export const computeSignatureStatus = (
   }
   if (signature.selfSigned) {
     // A self-signed cert is only untrusted if it wasn't explicitly trusted.
-    // Stirling's own auto cert is loaded as a trust anchor -> trustValid stays green.
+    // RustlingPDF's own auto cert is loaded as a trust anchor -> trustValid stays green.
     if (!signature.trustValid) {
       trustIssues.push(
         t(
