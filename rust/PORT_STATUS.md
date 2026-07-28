@@ -314,11 +314,11 @@ auto-rename/auto-split, plus:
   build-time bundled locales and the configured `ui.languages` allowlist.
 - `GET /robots.txt` — Java-compatible search-engine policy, controlled by
   `system.googlevisibility` or `SYSTEM_GOOGLEVISIBILITY`.
-- `general/signatures/{filename}` — shared PNG/JPEG signature-asset retrieval
-  from operator-provisioned `customFiles/signatures/` files, with basename
-  validation and symlink rejection. (The secured `proprietary/signatures`
-  personal-signature store was removed in batch 7; the SPA stores personal
-  signatures in browser localStorage.)
+- (Signature-asset routes — `general/signatures/{filename}` retrieval and the
+  secured `proprietary/signatures` personal store — were removed in batch 7:
+  the SPA stores personal signatures in browser localStorage. The `sign`
+  UI-data route still *lists* operator-provisioned shared assets under
+  `customFiles/signatures/ALL_USERS` for display; see `contracts/ui-data.md`.)
 - `mobile-scanner/*` — anonymous QR-session transfer with multipart upload,
   safe temporary storage, ten-minute inactivity expiry, download-after-read cleanup,
   and `system.enableMobileScanner` feature gating.
