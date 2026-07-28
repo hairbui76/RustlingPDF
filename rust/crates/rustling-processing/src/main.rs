@@ -64,12 +64,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         license_refresh_active,
         maintenance_loops, "spawned background maintenance"
     );
-    info!(%address, "starting Stirling Rust processing service");
+    info!(%address, "starting RustlingPDF processing service");
     // Desktop discovers an ephemeral sidecar port from this stable handshake.
     // It must not depend on RUST_LOG: EnvFilter defaults to ERROR when that
     // variable is absent, which would otherwise leave the desktop waiting
     // forever for an INFO event that never reaches the child-process pipe.
-    println!("Stirling-PDF running on port: {}", address.port());
+    println!("RustlingPDF running on port: {}", address.port());
     let service = runtime
         .into_router()
         .into_make_service_with_connect_info::<SocketAddr>();
@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             result = server => result?,
             () = parent_process.wait_until_exit() => {
-                info!("Tauri parent process exited; shutting down Stirling Rust processing service");
+                info!("Tauri parent process exited; shutting down RustlingPDF processing service");
             }
         }
     } else {

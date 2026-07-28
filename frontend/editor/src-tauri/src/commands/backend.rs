@@ -26,7 +26,7 @@ const SIDECAR_PROGRAM: &str = "rustling-processing";
 
 /// Environment variable the processing backend reads to locate PDFium. The
 /// launcher points it at the bundled resource directory when one is packaged.
-const PDFIUM_LIBRARY_PATH_ENV: &str = "STIRLING_PDFIUM_LIBRARY_PATH";
+const PDFIUM_LIBRARY_PATH_ENV: &str = "RUSTLING_PDFIUM_LIBRARY_PATH";
 
 #[derive(Debug, PartialEq, Eq)]
 enum NativeStartupState {
@@ -97,7 +97,10 @@ async fn wait_for_native_backend_startup(timeout: Duration) -> Result<u16, Strin
     }
 }
 
-// Extract port number from "Stirling-PDF running on port: PORT" log line
+// Extract port number from the "RustlingPDF running on port: PORT" handshake
+// line. The split is deliberately name-agnostic so output from a pre-rename
+// "Stirling-PDF"-spelled backend (dev override at an old checkout) still
+// parses.
 fn extract_port_from_running_log(log_line: &str) -> Option<u16> {
     let (_, after_prefix) = log_line.split_once("running on port: ")?;
     let port_str: String = after_prefix
@@ -134,17 +137,17 @@ fn check_backend_status() -> Result<(), String> {
 }
 
 /// Development-only override for the processing backend. When
-/// `STIRLING_NATIVE_BACKEND_PATH` is set, the launcher starts that executable
+/// `RUSTLING_NATIVE_BACKEND_PATH` is set, the launcher starts that executable
 /// instead of the bundled sidecar (useful for pointing the desktop shell at a
 /// freshly built `rust/target/{debug,release}/rustling-processing`).
 fn native_backend_path() -> Result<Option<PathBuf>, String> {
-    let Some(path) = env::var_os("STIRLING_NATIVE_BACKEND_PATH") else {
+    let Some(path) = crate::utils::env_compat::var_os("RUSTLING_NATIVE_BACKEND_PATH") else {
         return Ok(None);
     };
     let path = PathBuf::from(path);
     if !path.is_file() {
         return Err(format!(
-            "STIRLING_NATIVE_BACKEND_PATH must point to an executable file: {}",
+            "RUSTLING_NATIVE_BACKEND_PATH must point to an executable file: {}",
             path.display()
         ));
     }
@@ -154,7 +157,7 @@ fn native_backend_path() -> Result<Option<PathBuf>, String> {
 /// Resolve the command used to launch the Rust processing backend.
 ///
 /// Resolution order:
-/// 1. `STIRLING_NATIVE_BACKEND_PATH` — explicit development override.
+/// 1. `RUSTLING_NATIVE_BACKEND_PATH` — explicit development override.
 /// 2. The bundled `rustling-processing` sidecar (`bundle.externalBin`).
 ///
 /// There is no further fallback: a desktop bundle without the sidecar is a
@@ -165,7 +168,7 @@ fn native_backend_command(
     if let Some(override_path) = native_backend_path()? {
         let override_path = normalize_path(&override_path);
         let label = format!(
-            "dev override STIRLING_NATIVE_BACKEND_PATH={}",
+            "dev override RUSTLING_NATIVE_BACKEND_PATH={}",
             override_path.display()
         );
         return Ok((
@@ -179,7 +182,7 @@ fn native_backend_command(
         format!(
             "❌ Could not resolve the bundled Rust backend sidecar '{SIDECAR_PROGRAM}': {error}. \
              The desktop bundle must ship the processing sidecar (stage it with \
-             `task desktop:stage-sidecar`); set STIRLING_NATIVE_BACKEND_PATH only as a \
+             `task desktop:stage-sidecar`); set RUSTLING_NATIVE_BACKEND_PATH only as a \
              development override."
         )
     })?;
@@ -285,22 +288,22 @@ fn native_backend_environment(
             "TAURI_PARENT_PID".to_string(),
             parent_process_id.to_string(),
         ),
-        ("STIRLING_PORT".to_string(), "0".to_string()),
-        ("STIRLING_PDF_TAURI_MODE".to_string(), "true".to_string()),
+        ("RUSTLING_PORT".to_string(), "0".to_string()),
+        ("RUSTLING_PDF_TAURI_MODE".to_string(), "true".to_string()),
         (
-            "STIRLING_BASE_PATH".to_string(),
+            "RUSTLING_BASE_PATH".to_string(),
             work_dir.to_string_lossy().into_owned(),
         ),
         (
-            "STIRLING_PDF_CONFIG_DIR".to_string(),
+            "RUSTLING_PDF_CONFIG_DIR".to_string(),
             config_dir.to_string_lossy().into_owned(),
         ),
         (
-            "STIRLING_PDF_LOG_DIR".to_string(),
+            "RUSTLING_PDF_LOG_DIR".to_string(),
             log_dir.to_string_lossy().into_owned(),
         ),
         (
-            "STIRLING_PDF_WORK_DIR".to_string(),
+            "RUSTLING_PDF_WORK_DIR".to_string(),
             work_dir.to_string_lossy().into_owned(),
         ),
     ];
@@ -328,12 +331,12 @@ fn run_native_backend(app: &tauri::AppHandle) -> Result<(), String> {
     std::fs::create_dir_all(&log_dir).map_err(|error| error.to_string())?;
     migrate_legacy_workspace_if_present(&work_dir);
 
-    // PDFium wiring: an operator-set STIRLING_PDFIUM_LIBRARY_PATH in the
+    // PDFium wiring: an operator-set RUSTLING_PDFIUM_LIBRARY_PATH in the
     // launcher's environment is inherited by the child untouched; otherwise
     // the bundled resource directory is used when the package ships one. In
     // unpackaged development runs neither exists and the variable stays
     // unset (the backend then binds a system PDFium, if any).
-    let pdfium_directory = if env::var_os(PDFIUM_LIBRARY_PATH_ENV).is_some() {
+    let pdfium_directory = if crate::utils::env_compat::var_os(PDFIUM_LIBRARY_PATH_ENV).is_some() {
         add_log(format!(
             "📚 {PDFIUM_LIBRARY_PATH_ENV} already set in the launcher environment; the backend inherits it"
         ));
@@ -647,18 +650,23 @@ mod tests {
     #[test]
     fn extracts_the_stable_port_handshake_from_plain_or_decorated_output() {
         assert_eq!(
-            extract_port_from_running_log("Stirling-PDF running on port: 43127"),
+            extract_port_from_running_log("RustlingPDF running on port: 43127"),
             Some(43_127)
         );
         assert_eq!(
             extract_port_from_running_log(
-                "2026-07-18T00:00:00 INFO Stirling-PDF running on port: 8081 extra"
+                "2026-07-18T00:00:00 INFO RustlingPDF running on port: 8081 extra"
             ),
             Some(8_081)
         );
+        // Pre-rename handshake spelling must keep parsing (name-agnostic split).
+        assert_eq!(
+            extract_port_from_running_log("Stirling-PDF running on port: 43127"),
+            Some(43_127)
+        );
         assert_eq!(extract_port_from_running_log("backend ready"), None);
         assert_eq!(
-            extract_port_from_running_log("Stirling-PDF running on port: invalid"),
+            extract_port_from_running_log("RustlingPDF running on port: invalid"),
             None
         );
     }
@@ -679,22 +687,22 @@ mod tests {
             Some("4242")
         );
         assert_eq!(
-            environment.get("STIRLING_PORT").map(String::as_str),
+            environment.get("RUSTLING_PORT").map(String::as_str),
             Some("0")
         );
         assert_eq!(
             environment
-                .get("STIRLING_PDF_TAURI_MODE")
+                .get("RUSTLING_PDF_TAURI_MODE")
                 .map(String::as_str),
             Some("true")
         );
         assert_eq!(
-            environment.get("STIRLING_BASE_PATH").map(String::as_str),
+            environment.get("RUSTLING_BASE_PATH").map(String::as_str),
             Some(work_dir_text.as_ref())
         );
         assert_eq!(
             environment
-                .get("STIRLING_PDF_CONFIG_DIR")
+                .get("RUSTLING_PDF_CONFIG_DIR")
                 .map(String::as_str),
             Some(config_dir_text.as_str())
         );
@@ -726,7 +734,7 @@ mod tests {
                 .collect::<BTreeMap<_, _>>();
         assert_eq!(
             with_pdfium
-                .get("STIRLING_PDFIUM_LIBRARY_PATH")
+                .get("RUSTLING_PDFIUM_LIBRARY_PATH")
                 .map(String::as_str),
             Some(pdfium_dir.to_string_lossy().as_ref())
         );
@@ -734,7 +742,7 @@ mod tests {
         let without_pdfium = native_backend_environment(work_dir, 4242, false, None)
             .into_iter()
             .collect::<BTreeMap<_, _>>();
-        assert!(!without_pdfium.contains_key("STIRLING_PDFIUM_LIBRARY_PATH"));
+        assert!(!without_pdfium.contains_key("RUSTLING_PDFIUM_LIBRARY_PATH"));
         Ok(())
     }
 

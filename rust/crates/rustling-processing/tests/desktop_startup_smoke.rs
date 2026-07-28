@@ -11,7 +11,7 @@ use std::{
 };
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
-const HANDSHAKE_PREFIX: &str = "Stirling-PDF running on port: ";
+const HANDSHAKE_PREFIX: &str = "RustlingPDF running on port: ";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(60);
 const PARENT_EXIT_TIMEOUT: Duration = Duration::from_secs(10);
 const PARENT_HELPER_BACKEND_VARIABLE: &str = "RUSTLING_TEST_PARENT_HELPER_BACKEND";
@@ -91,6 +91,113 @@ fn reports_desktop_port_without_rust_log_and_serves_app_config() -> Result<(), B
     reader
         .join()
         .map_err(|_| "processing stdout reader thread panicked")?;
+    Ok(())
+}
+
+/// Targeted coverage for the legacy `STIRLING_*` alias path: a deployment
+/// still configured through the pre-rename spellings must boot, honour the
+/// aliased values, and log exactly one deprecation line on stderr.
+#[test]
+fn legacy_stirling_environment_still_boots_and_warns_once() -> Result<(), Box<dyn Error>> {
+    let working_directory = tempfile::tempdir()?;
+    let mut child = ChildGuard(
+        Command::new(env!("CARGO_BIN_EXE_rustling-processing"))
+            .current_dir(working_directory.path())
+            .env_remove("RUSTLING_PORT")
+            .env_remove("RUSTLING_BASE_PATH")
+            .env("STIRLING_PORT", "0")
+            .env("STIRLING_BASE_PATH", working_directory.path())
+            .env_remove("SERVER_PORT")
+            .env_remove("RUST_LOG")
+            .env_remove("DOCKER_ENABLE_SECURITY")
+            .env_remove("TAURI_PARENT_PID")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?,
+    );
+    let stdout = child
+        .child_mut()
+        .stdout
+        .take()
+        .ok_or("processing child did not expose stdout")?;
+    let stderr = child
+        .child_mut()
+        .stderr
+        .take()
+        .ok_or("processing child did not expose stderr")?;
+    let stderr_reader = thread::spawn(move || {
+        let mut collected = String::new();
+        let _ = BufReader::new(stderr).read_to_string(&mut collected);
+        collected
+    });
+
+    let port = BufReader::new(stdout)
+        .lines()
+        .map_while(Result::ok)
+        .find_map(|line| {
+            line.split_once(HANDSHAKE_PREFIX)
+                .and_then(|(_, value)| value.trim().parse::<u16>().ok())
+        })
+        .ok_or("processing child ended without reporting its desktop port")?;
+    // STIRLING_PORT=0 must reach the bind: an ignored alias would fall back
+    // to the fixed default port instead of an ephemeral one.
+    assert_ne!(port, 8_081, "legacy STIRLING_PORT=0 was not honoured");
+
+    drop(child);
+    let stderr_output = stderr_reader
+        .join()
+        .map_err(|_| "processing stderr reader thread panicked")?;
+    let deprecation_lines: Vec<&str> = stderr_output
+        .lines()
+        .filter(|line| line.starts_with("deprecated: STIRLING"))
+        .collect();
+    assert_eq!(
+        deprecation_lines.len(),
+        1,
+        "expected exactly one deprecation line, stderr was: {stderr_output}"
+    );
+    assert!(
+        deprecation_lines[0].contains("STIRLING_PORT")
+            && deprecation_lines[0].contains("STIRLING_BASE_PATH"),
+        "deprecation line must list the legacy variables: {}",
+        deprecation_lines[0]
+    );
+    Ok(())
+}
+
+/// When both spellings are set the `RUSTLING_*` one must win: the legacy
+/// variable holds an unparseable port, so booting successfully proves the
+/// primary spelling took precedence.
+#[test]
+fn primary_rustling_spelling_wins_over_legacy_value() -> Result<(), Box<dyn Error>> {
+    let working_directory = tempfile::tempdir()?;
+    let mut child = ChildGuard(
+        Command::new(env!("CARGO_BIN_EXE_rustling-processing"))
+            .current_dir(working_directory.path())
+            .env("RUSTLING_PORT", "0")
+            .env("STIRLING_PORT", "not-a-port")
+            .env("RUSTLING_BASE_PATH", working_directory.path())
+            .env_remove("SERVER_PORT")
+            .env_remove("RUST_LOG")
+            .env_remove("DOCKER_ENABLE_SECURITY")
+            .env_remove("TAURI_PARENT_PID")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?,
+    );
+    let stdout = child
+        .child_mut()
+        .stdout
+        .take()
+        .ok_or("processing child did not expose stdout")?;
+    let reported_ready = BufReader::new(stdout)
+        .lines()
+        .map_while(Result::ok)
+        .any(|line| line.contains(HANDSHAKE_PREFIX));
+    assert!(
+        reported_ready,
+        "backend must boot from RUSTLING_PORT even when the STIRLING_PORT alias holds garbage"
+    );
     Ok(())
 }
 

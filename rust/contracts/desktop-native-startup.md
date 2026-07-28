@@ -6,26 +6,30 @@ sidecar by default. `task desktop:stage-sidecar` builds the release
 into `src-tauri/` (`bundle.externalBin` entry `binaries/rustling-processing`,
 `bundle.resources` entry `resources/pdfium`); the bundler installs the sidecar
 next to the app executable, where the launcher resolves it via the shell
-plugin's sidecar API. `STIRLING_NATIVE_BACKEND_PATH` is a development-only
-override that points the launcher at an arbitrary processing executable
-instead. There is no further fallback: the upstream Java JRE/JAR launch path
+plugin's sidecar API. `RUSTLING_NATIVE_BACKEND_PATH` (legacy alias
+`STIRLING_NATIVE_BACKEND_PATH`) is a development-only override that points the
+launcher at an arbitrary processing executable instead. There is no further fallback: the upstream Java JRE/JAR launch path
 has been removed, and a bundle without the sidecar fails startup with a
 reported error.
 
 The native path provides:
 
-- an unconditional `Stirling-PDF running on port: <port>` handshake even without `RUST_LOG`;
+- an unconditional `RustlingPDF running on port: <port>` handshake even without
+  `RUST_LOG` (the launcher's parser splits on the name-agnostic
+  `running on port: ` suffix, so a pre-rename `Stirling-PDF`-spelled backend
+  still parses);
 - an ephemeral loopback port, bounded 90-second launcher wait, stderr/stdout handshake parsing,
   early-exit reporting, stale-process protection, and stale-port cleanup;
 - desktop/base/config/log/work environment parity and legacy-workspace migration
-  (the backend itself reads only `STIRLING_BASE_PATH` and
-  `STIRLING_PDF_TAURI_MODE` from this set; the Java-era
-  `STIRLING_PDF_CONFIG_DIR`/`LOG_DIR`/`WORK_DIR` variables are still passed for
-  contract parity and are harmless);
+  (the backend itself reads only `RUSTLING_BASE_PATH` and
+  `RUSTLING_PDF_TAURI_MODE` from this set — each also honoured under its
+  legacy `STIRLING_*` alias, with `RUSTLING_*` winning when both are set; the
+  Java-era `RUSTLING_PDF_CONFIG_DIR`/`LOG_DIR`/`WORK_DIR` variables are still
+  passed for contract parity and are harmless);
 - PDFium wiring: when the launcher's own environment does not already carry
-  `STIRLING_PDFIUM_LIBRARY_PATH` (an operator-set value is inherited untouched)
-  and the bundle ships `resources/pdfium`, the launcher sets
-  `STIRLING_PDFIUM_LIBRARY_PATH` to that directory — the backend resolves the
+  `RUSTLING_PDFIUM_LIBRARY_PATH` (either spelling; an operator-set value is
+  inherited untouched) and the bundle ships `resources/pdfium`, the launcher
+  sets `RUSTLING_PDFIUM_LIBRARY_PATH` to that directory — the backend resolves the
   platform library filename inside it. In unpackaged development runs the
   variable stays unset (logged) and the backend falls back to a system PDFium;
 - PID-plus-start-time parent monitoring through `TAURI_PARENT_PID`, with orphan shutdown normally

@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let address = bind_address_from_environment()?;
     let listener = tokio::net::TcpListener::bind(address).await?;
     let bound_address = listener.local_addr()?;
-    info!(address = %bound_address, "starting Stirling Rust AI engine foundation");
+    info!(address = %bound_address, "starting RustlingPDF AI engine foundation");
     // Peer addresses feed the config push's loopback-only fallback gate.
     axum::serve(
         listener,
