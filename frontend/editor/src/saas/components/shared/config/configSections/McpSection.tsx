@@ -103,7 +103,7 @@ export default function McpSection() {
         config: JSON.stringify(
           {
             mcpServers: {
-              "stirling-pdf": {
+              "rustling-pdf": {
                 command: "npx",
                 args: ["-y", "mcp-remote", mcpUrl],
               },
@@ -118,7 +118,7 @@ export default function McpSection() {
         label: "Claude Code",
         file: ".mcp.json",
         config: JSON.stringify(
-          { mcpServers: { "stirling-pdf": { type: "http", url: mcpUrl } } },
+          { mcpServers: { "rustling-pdf": { type: "http", url: mcpUrl } } },
           null,
           2,
         ),
@@ -127,14 +127,14 @@ export default function McpSection() {
         value: "codex",
         label: "Codex CLI",
         file: "~/.codex/config.toml",
-        config: `[mcp_servers.stirling-pdf]\nurl = "${mcpUrl}"`,
+        config: `[mcp_servers.rustling-pdf]\nurl = "${mcpUrl}"`,
       },
       {
         value: "vscode",
         label: "VS Code",
         file: ".vscode/mcp.json",
         config: JSON.stringify(
-          { servers: { "stirling-pdf": { type: "http", url: mcpUrl } } },
+          { servers: { "rustling-pdf": { type: "http", url: mcpUrl } } },
           null,
           2,
         ),

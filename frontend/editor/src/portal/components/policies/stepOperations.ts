@@ -372,7 +372,7 @@ export const STEP_OPERATIONS: StepOperation[] = [
         labelKey: `${PREFIX}.fields.index.label`,
         control: "text",
         required: true,
-        defaultValue: "stirling-audit",
+        defaultValue: "rustling-audit",
       },
     ],
   },

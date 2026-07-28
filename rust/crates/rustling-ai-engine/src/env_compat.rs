@@ -47,7 +47,7 @@ pub fn var(name: &str) -> Result<String, VarError> {
 /// [`std::env::var_os`] with the same legacy-alias fallback as [`var`].
 #[must_use]
 pub fn var_os(name: &str) -> Option<OsString> {
-    env::var_os(name).or_else(|| legacy_alias(name).and_then(|alias| env::var_os(alias)))
+    env::var_os(name).or_else(|| legacy_alias(name).and_then(env::var_os))
 }
 
 /// [`var`] against an injectable environment, so the precedence rules stay

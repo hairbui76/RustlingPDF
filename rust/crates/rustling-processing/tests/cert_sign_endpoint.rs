@@ -142,7 +142,9 @@ async fn signs_a_pdf_with_a_p521_key_and_its_certificate() -> TestResult {
     let signed_pdf = to_bytes(response.into_body(), usize::MAX).await?.to_vec();
     let document = Document::load_mem(&signed_pdf)?;
     let signature = signature_dictionary(&document)?;
-    assert_eq!(signature.get(b"Name")?.as_str()?, b"RustlingPDF P-521 Test");
+    // The signer name comes from the committed fixture certificate's CN
+    // ("Stirling P-521 Test"), not from product branding.
+    assert_eq!(signature.get(b"Name")?.as_str()?, b"Stirling P-521 Test");
     let byte_range = signature
         .get(b"ByteRange")?
         .as_array()?

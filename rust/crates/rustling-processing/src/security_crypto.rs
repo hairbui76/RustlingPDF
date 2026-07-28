@@ -419,7 +419,7 @@ mod tests {
         let secret = generate_totp_secret();
         assert_eq!(secret.len(), 32);
         let uri = totp_auth_uri("RustlingPDF", "user+test@example.test", &secret);
-        assert!(uri.starts_with("otpauth://totp/RustlingPDF%20PDF%3Auser%2Btest%40example.test?"));
+        assert!(uri.starts_with("otpauth://totp/RustlingPDF%3Auser%2Btest%40example.test?"));
         assert!(uri.contains("algorithm=SHA1&digits=6&period=30"));
     }
 }

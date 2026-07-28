@@ -190,7 +190,9 @@ export default defineConfig(async ({ mode, command }) => {
   // Only injected during `vite` (dev serve) — never baked into a production
   // build — and carries only the folder name, no path/host/user info.
   const devWorktreeLabel =
-    command === "serve" ? (process.env.STIRLING_DEV_LABEL ?? "") : "";
+    command === "serve"
+      ? (process.env.RUSTLING_DEV_LABEL ?? process.env.STIRLING_DEV_LABEL ?? "")
+      : "";
   // Load env files relative to this config (frontend/editor/), regardless of
   // where the build was invoked from. The previous `process.cwd()` worked when
   // this file lived at frontend/, but after the editor was moved under
@@ -198,11 +200,16 @@ export default defineConfig(async ({ mode, command }) => {
   const env = loadEnv(mode, import.meta.dirname, "");
   const parentEnv = loadEnv(mode, resolve(import.meta.dirname, ".."), "");
 
-  // Effective mode: --mode > STIRLING_FLAVOR > ENABLE_SAAS > DISABLE_ADDITIONAL_FEATURES > proprietary.
+  // Effective mode: --mode > RUSTLING_FLAVOR (legacy STIRLING_FLAVOR) >
+  // ENABLE_SAAS > DISABLE_ADDITIONAL_FEATURES > proprietary.
   const explicitMode = (VALID_MODES as readonly string[]).includes(mode)
     ? (mode as BuildMode)
     : null;
-  const flavor = (process.env.STIRLING_FLAVOR ?? "").toLowerCase();
+  const flavor = (
+    process.env.RUSTLING_FLAVOR ??
+    process.env.STIRLING_FLAVOR ??
+    ""
+  ).toLowerCase();
   const flavorMode: BuildMode | null =
     flavor === "core" || flavor === "proprietary" || flavor === "saas"
       ? (flavor as BuildMode)
