@@ -31,7 +31,7 @@ lopdf = "0.44.0"
 mailparse = "0.16.1"
 md-5 = "0.11.0"
 msg_parser = "0.3.6"
-moxcms = "0.8.1"
+moxcms = "0.9.0"
 image = { version = "0.25.9", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
 imageproc = { version = "0.27.0", default-features = false, features = ["text"] }
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "hostname", "pool", "smtp-transport", "tokio1", "tokio1-rustls-tls"] }
