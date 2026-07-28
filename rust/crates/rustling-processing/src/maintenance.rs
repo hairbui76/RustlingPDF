@@ -135,7 +135,7 @@ fn unit_sample() -> f64 {
 async fn run_tick(task: &MaintenanceLoop) {
     let tick = Arc::clone(&task.tick);
     let name = task.name;
-    // The ticks do synchronous filesystem and SQLite work, so they run on the
+    // The ticks do synchronous filesystem work, so they run on the
     // blocking pool to keep async worker threads responsive.
     match tokio::task::spawn_blocking(move || tick()).await {
         Ok(Ok(0)) => debug!(task = name, "maintenance tick found nothing to reclaim"),

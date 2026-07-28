@@ -150,8 +150,6 @@ const humanizeLabel = (s) =>
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
 const pageTitles = {
-  "/login": "Sign In",
-  "/signup": "Sign Up",
   "/mobile-scanner": "Mobile Scanner",
   "/files": "Files",
   "/settings": "Settings",

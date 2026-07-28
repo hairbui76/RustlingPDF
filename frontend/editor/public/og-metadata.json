@@ -295,16 +295,6 @@
       "title": "Air-gapped Setup - RustlingPDF",
       "description": "Link to air-gapped setup guide"
     },
-    "/login": {
-      "image": "/og_images/home.png",
-      "title": "Sign In - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/signup": {
-      "image": "/og_images/home.png",
-      "title": "Sign Up - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
     "/mobile-scanner": {
       "image": "/og_images/home.png",
       "title": "Mobile Scanner - RustlingPDF",
@@ -638,8 +628,6 @@
     "/overlay-pdf": "overlayPdfs",
     "/split-pdf-by-sections": "split",
     "/split-pdf-by-chapters": "split",
-    "/login": "/login",
-    "/signup": "/signup",
     "/mobile-scanner": "/mobile-scanner",
     "/files": "/files",
     "/settings": "/settings",
