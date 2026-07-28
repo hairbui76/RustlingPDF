@@ -31,3 +31,6 @@ testing/differential/_generated/
 
 # CodeGraph (machine-local index)
 .codegraph/
+
+# Claude Code personal per-machine settings
+.claude/settings.local.json
