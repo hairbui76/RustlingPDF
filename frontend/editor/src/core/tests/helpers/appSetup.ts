@@ -35,39 +35,15 @@ export async function skipOnboarding(page: Page): Promise<void> {
 }
 
 /**
- * Shared login helper for RustlingPDF E2E tests.
- * Logs in with the given credentials and waits for the dashboard to load.
- *
- * Default credentials are `admin / adminadmin` — set by the live-setup
- * bootstrap spec, which performs the real first-login password change from
- * the backend's default `admin / stirling` (min 8 chars per
- * FirstLoginSlide validation).
+ * Open the app at the home page with the cookie consent and onboarding
+ * pre-dismissed. The backend has no accounts, so there is nothing to sign in
+ * to — every live spec starts straight on the workbench.
  */
-export const DEFAULT_TEST_USERNAME = "admin";
-export const DEFAULT_TEST_PASSWORD = "adminadmin";
-
-export async function login(
-  page: Page,
-  username = DEFAULT_TEST_USERNAME,
-  password = DEFAULT_TEST_PASSWORD,
-): Promise<void> {
+export async function openApp(page: Page): Promise<void> {
   await ensureCookieConsent(page);
   // Skip onboarding before navigating so the modal never appears
   await skipOnboarding(page);
-  await page.goto("/login", { waitUntil: "domcontentloaded" });
-
-  // Wait for the login form to render (React SPA may take a moment)
-  await page.locator("#email").waitFor({ state: "visible", timeout: 15000 });
-
-  // Fill in credentials (use input IDs — labels are localized and may not match)
-  await page.locator("#email").fill(username);
-  await page.locator("#password").fill(password);
-
-  // Click Sign In (the submit button inside the auth form)
-  await page.locator('button[type="submit"]').click();
-
-  // Wait for redirect to home
-  await page.waitForURL("/", { timeout: 15000 });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
 }
 
 /**
@@ -115,14 +91,10 @@ export async function dismissCookieConsent(page: Page): Promise<void> {
 }
 
 /**
- * Login and dismiss any welcome dialogs.
+ * Open the app and dismiss any welcome dialogs.
  */
-export async function loginAndSetup(
-  page: Page,
-  username = DEFAULT_TEST_USERNAME,
-  password = DEFAULT_TEST_PASSWORD,
-): Promise<void> {
-  await login(page, username, password);
+export async function openAppAndSetup(page: Page): Promise<void> {
+  await openApp(page);
   // Cookie consent may appear on top, dismiss it first
   await dismissCookieConsent(page);
   await dismissWelcomeDialog(page);

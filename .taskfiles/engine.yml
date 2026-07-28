@@ -109,7 +109,6 @@ tasks:
         -p rustling-operation-catalog --locked --
         --spec SwaggerDoc.json
         --output rust/crates/rustling-ai-engine/src/operation_catalog.json
-        --mcp-supplement rust/crates/rustling-processing/src/mcp_operation_supplement.json
     sources:
       - SwaggerDoc.json
       - rust/Cargo.toml
@@ -118,7 +117,6 @@ tasks:
       - rust/crates/rustling-operation-catalog/src/**/*.rs
     generates:
       - rust/crates/rustling-ai-engine/src/operation_catalog.json
-      - rust/crates/rustling-processing/src/mcp_operation_supplement.json
 
   tool-models:check:
     desc: "Fail if the Rust AI operation catalog is out of date"
@@ -128,7 +126,6 @@ tasks:
         -p rustling-operation-catalog --locked --
         --spec SwaggerDoc.json
         --output rust/crates/rustling-ai-engine/src/operation_catalog.json
-        --mcp-supplement rust/crates/rustling-processing/src/mcp_operation_supplement.json
         --check
 
   clean:

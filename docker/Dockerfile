@@ -38,7 +38,8 @@ ARG SOURCE=https://github.com/hairbui76/RustlingPDF
 # glibc so release binaries built here run unmodified on debian:trixie-slim.
 FROM rust:1.94-slim-trixie AS rust-build
 
-# aws-lc-sys (TLS) needs cmake + a C toolchain; rusqlite is vendored (cc only).
+# Native -sys build deps (C toolchain for ring and friends; cmake/perl kept
+# for -sys crates that probe for them).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential cmake perl pkg-config ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -175,6 +176,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && fc-cache -f \
     && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin stirling \
     && mkdir -p /data/configs && chown -R stirling:stirling /data
+# /data/configs exists only as a convenient mount point for operator-supplied
+# configuration (see the RUSTLING_BASE_PATH comment below); the server never
+# writes to it.
 
 # Application binary, PDFium, and the baked-in SPA dist.
 COPY --from=rust-build --chown=root:root /out/rustling-processing /app/rustling-processing
@@ -182,11 +186,14 @@ COPY --from=pdfium     --chown=root:root /build/.pdfium/current/  /app/pdfium/
 COPY --from=frontend-build --chown=root:root /build/frontend/editor/dist/ /app/frontend/
 
 # RUSTLING_BASE_PATH=/data: settings are read from /data/configs/settings.yml
-# (and custom_settings.yml) when present, and pipeline/customFiles state
-# resolves beneath /data too — one volume owns all mutable state. An empty
-# volume works out of the box: built-in template defaults plus SYSTEM_*/
-# SECURITY_*/RUSTLING_* env overrides (legacy STIRLING_* aliases) apply until an operator drops a
-# settings.yml into the volume.
+# (and custom_settings.yml) when present, and customFiles overrides (shared
+# signature assets, static SPA overrides, disclaimer texts) resolve beneath
+# /data too. The server is stateless — it only ever READS from /data, so the
+# whole tree can be bind-mounted read-only (e.g. -v ./data:/data:ro). With
+# nothing mounted the image works out of the box: built-in template defaults
+# plus SYSTEM_*/SECURITY_*/RUSTLING_* env overrides (legacy STIRLING_*
+# aliases) apply. Job scratch space lives in the container's own tmp dir and
+# is swept on a TTL, so no volume is declared.
 ENV RUSTLING_HOST=0.0.0.0 \
     RUSTLING_PORT=8080 \
     RUSTLING_BASE_PATH=/data \
@@ -209,7 +216,6 @@ LABEL org.opencontainers.image.title="RustlingPDF" \
       org.opencontainers.image.revision="${REVISION}" \
       org.opencontainers.image.created="${CREATED}"
 
-VOLUME /data
 EXPOSE 8080/tcp
 STOPSIGNAL SIGTERM
 USER stirling

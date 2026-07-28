@@ -1,5 +1,5 @@
 import { test, expect } from "@app/tests/helpers/test-base";
-import { loginAndSetup } from "@app/tests/helpers/login";
+import { openAppAndSetup } from "@app/tests/helpers/appSetup";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
@@ -10,7 +10,7 @@ test.describe("20. Edge Cases and Security", () => {
 
   test.describe("20.2 XSS Prevention in Search", () => {
     test("should prevent XSS via search input", async ({ page }) => {
-      await loginAndSetup(page);
+      await openAppAndSetup(page);
 
       // Step 1: Enter XSS payload in the search box
       const searchBox = page.getByPlaceholder(/search|cari/i).first();
@@ -26,7 +26,7 @@ test.describe("20. Edge Cases and Security", () => {
 
   test.describe("20.3 Large File Name Handling", () => {
     test("should handle files with very long filenames", async ({ page }) => {
-      await loginAndSetup(page);
+      await openAppAndSetup(page);
       await page.goto("/merge");
       await page.waitForLoadState("domcontentloaded");
 
@@ -63,7 +63,7 @@ test.describe("20. Edge Cases and Security", () => {
 
   test.describe("20.4 Non-PDF File Upload to PDF-Only Tool", () => {
     test("should reject invalid file types", async ({ page }) => {
-      await loginAndSetup(page);
+      await openAppAndSetup(page);
       await page.goto("/merge");
       await page.waitForLoadState("domcontentloaded");
 
@@ -91,7 +91,7 @@ test.describe("20. Edge Cases and Security", () => {
 
   test.describe("20.5 Empty File Upload", () => {
     test("should handle empty files gracefully", async ({ page }) => {
-      await loginAndSetup(page);
+      await openAppAndSetup(page);
       await page.goto("/merge");
       await page.waitForLoadState("domcontentloaded");
 
@@ -124,7 +124,7 @@ test.describe("20. Edge Cases and Security", () => {
       page,
       context,
     }) => {
-      await loginAndSetup(page);
+      await openAppAndSetup(page);
 
       // The API tool is a link that opens swagger-ui in a new tab.
       // Listen for popup before triggering navigation.

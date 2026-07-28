@@ -1,5 +1,5 @@
 import { test, expect } from "@app/tests/helpers/test-base";
-import { loginAndSetup } from "@app/tests/helpers/login";
+import { openAppAndSetup } from "@app/tests/helpers/appSetup";
 import {
   uploadFiles,
   switchToEditorIfViewerMode,
@@ -72,7 +72,7 @@ test.describe("E2E PDF Operations", () => {
   test.describe.configure({ timeout: 120000 });
 
   test.beforeEach(async ({ page }) => {
-    await loginAndSetup(page);
+    await openAppAndSetup(page);
   });
 
   test.describe("Merge Tool - End to End", () => {

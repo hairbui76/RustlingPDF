@@ -3,11 +3,12 @@
 #   docker compose -f docker/compose.yml up -d     (or: task docker:up)
 #
 # The web UI and the REST API are both served by the one container on
-# http://localhost:8080. All mutable state (settings.yml, pipeline configs,
-# customFiles overrides) lives in the ./data bind mount; the container runs as
-# uid/gid 1000, so pre-create the directory with matching ownership
-# (`mkdir -p data && chown 1000:1000 data`) or let the named-volume variant
-# below manage it for you.
+# http://localhost:8080. The server is stateless: it keeps no accounts and no
+# database, and only READS operator-supplied configuration. To customize it,
+# uncomment the read-only ./data bind mount below and drop a
+# configs/settings.yml (and optional customFiles/ overrides) into ./data;
+# with no mount the image runs on built-in template defaults plus
+# SYSTEM_*/SECURITY_*/RUSTLING_* env overrides.
 #
 # The AI engine sidecar is optional and off by default; enable it with
 #   docker compose -f docker/compose.yml --profile ai up -d
@@ -22,8 +23,9 @@ services:
     container_name: rustlingpdf
     ports:
       - "8080:8080"
-    volumes:
-      - ./data:/data
+    # Optional read-only configuration mount (see the header comment):
+    # volumes:
+    #   - ./data:/data:ro
     environment:
       # Wire the optional AI sidecar (only reachable when the "ai" profile is up).
       AIENGINE_ENABLED: "false"

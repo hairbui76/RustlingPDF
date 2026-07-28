@@ -174,11 +174,12 @@ Known scope limits:
 
 - **CI flavor vs. image flavor**: the regular Frontend CI gate builds and
   tests the **core** (OSS) flavor, while the published Docker image ships the
-  **proprietary** flavor SPA (matching upstream Stirling-PDF's self-hosted
-  embedded image; it degrades to core behavior at runtime in open mode). A
-  release therefore exercises the proprietary build path inside the Docker
-  build itself — if that build breaks, it surfaces in `publish-images`, not
-  in the earlier CI gates.
+  **proprietary** flavor SPA (the repo's default dev/build mode, matching
+  upstream Stirling-PDF's self-hosted embedded image; since the auth/SaaS
+  removal the flavor cascade is desktop → proprietary → core and proprietary
+  adds only client-side extras over core). A release therefore exercises the
+  proprietary build path inside the Docker build itself — if that build
+  breaks, it surfaces in `publish-images`, not in the earlier CI gates.
 - **Desktop upgrade e2e proof (follow-up)**: the desktop bundles, updater
   signatures, and `latest.json` are published by this pipeline (see
   "Desktop artifacts"). The Linux signed-upgrade e2e proof passed on

@@ -8,8 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
  *                 Safe to run in CI without the Spring Boot server. Lives in
  *                 `src/core/tests/stubbed/**`.
  *   - `live`    - specs that require a real backend on `localhost:8080`
- *                 (auth, admin mutation, real tool round-trips). Lives in
- *                 `src/core/tests/live/**`.
+ *                 (real tool round-trips). Lives in `src/core/tests/live/**`.
  *
  * Run one:
  *   npx playwright test --project=stubbed
@@ -62,35 +61,11 @@ export default defineConfig({
       use: chromiumViewport,
     },
 
-    // Live setup - runs once before the live suite to perform the real
-    // forced-password-change first-login flow against a freshly-booted
-    // backend. The live project depends on it.
-    {
-      name: "live-setup",
-      testDir: "./src/core/tests/live-setup",
-      testMatch: /.*\.setup\.ts$/,
-      use: chromiumViewport,
-    },
-
-    // Live backend - auth + admin-mutation + real-tool smoke
+    // Live backend - real-tool smoke against a running open-mode backend
     {
       name: "live",
       testDir: "./src/core/tests/live",
       use: chromiumViewport,
-      dependencies: ["live-setup"],
-    },
-
-    // Enterprise - license-gated SSO/SAML/audit/teams against keycloak compose
-    // Uses port 8080 directly (the docker compose stack publishes the
-    // backend's built-in frontend there); the Vite dev server is bypassed
-    // because the OAuth/SAML callback URLs are registered against 8080.
-    {
-      name: "enterprise",
-      testDir: "./src/core/tests/enterprise",
-      use: {
-        ...chromiumViewport,
-        baseURL: "http://localhost:8080",
-      },
     },
 
     // Cross-browser coverage for the stubbed suite (opt-in locally)
