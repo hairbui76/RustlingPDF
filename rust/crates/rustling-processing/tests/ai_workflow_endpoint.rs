@@ -653,14 +653,6 @@ impl MockResponse {
             body: body.to_owned(),
         }
     }
-
-    fn json(body: &str) -> Self {
-        Self {
-            status: StatusCode::OK,
-            content_type: "application/json",
-            body: body.to_owned(),
-        }
-    }
 }
 
 #[derive(Clone, Debug)]

@@ -885,6 +885,7 @@ impl RuntimeConfig {
     /// never refused: a hard failure would brick every existing install on
     /// upgrade. Only the keys worth an operator's attention warn; everything
     /// else is silently skipped.
+    #[allow(clippy::too_many_lines)] // a flat checklist of legacy keys
     pub fn warn_on_ignored_legacy_settings(&self) {
         let yaml_present = |path: &[&str]| value_at(&self.settings, path).is_some();
         let yaml_true = |path: &[&str]| {
@@ -960,6 +961,8 @@ impl RuntimeConfig {
         if yaml_true(&["mail", "enableInvites"]) || env_present(&["MAIL_ENABLEINVITES"]) {
             ignored.push("mail.enableInvites");
         }
+        // The document store / PDF question-answer feature was removed;
+        // retrieval settings are no longer pushed to the AI engine.
         if yaml_present(&["aiEngine", "rag"])
             || env_present(&[
                 "AIENGINE_RAG_EMBEDDINGPROVIDER",
@@ -970,8 +973,6 @@ impl RuntimeConfig {
                 "AIENGINE_RAG_MAXSEARCHES",
             ])
         {
-            // The document store / PDF question-answer feature was removed;
-            // retrieval settings are no longer pushed to the AI engine.
             ignored.push("aiEngine.rag.*");
         }
         if yaml_present(&["app", "supabase"])
