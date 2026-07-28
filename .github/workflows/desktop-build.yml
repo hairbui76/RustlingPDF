@@ -24,6 +24,8 @@ name: Desktop build (reusable)
 # Bundle file names are renamed space→dot before upload: GitHub release
 # assets get the same rename server-side, so doing it here keeps local file
 # names identical to the release asset names that latest.json URLs point at.
+# With productName "RustlingPDF" (no space) this is a no-op safeguard — it
+# only fires again if a space ever re-enters the product name.
 #
 # harden-runner only guards the Linux legs: step-security/harden-runner
 # supports Linux runners only (documented upstream), so the windows/macos
@@ -235,8 +237,9 @@ jobs:
           npx tauri "${args[@]}"
 
       # Flatten the bundle outputs into one directory, renaming space→dot
-      # (see the header comment), and require a .sig sibling for every
-      # updater artifact when signing was requested.
+      # (see the header comment; a no-op for the spaceless "RustlingPDF"
+      # product name), and require a .sig sibling for every updater
+      # artifact when signing was requested.
       - name: Collect bundles and signatures
         env:
           UPDATER_SIGN: ${{ inputs.sign }}

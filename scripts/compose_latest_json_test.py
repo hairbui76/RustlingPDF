@@ -55,17 +55,17 @@ class ComposeLatestJsonTest(unittest.TestCase):
     def stage_default_tree(self) -> None:
         """The exact artifact layout the three release matrix legs upload."""
         linux = self.artifacts / "desktop-linux-x86_64"
-        write_bundle(linux, "Stirling.PDF_2.14.2_amd64.AppImage")
-        write_bundle(linux, "stirling-pdf_2.14.2_amd64.deb")
+        write_bundle(linux, "RustlingPDF_2.14.2_amd64.AppImage")
+        write_bundle(linux, "rustling-pdf_2.14.2_amd64.deb")
 
         windows = self.artifacts / "desktop-windows-x86_64"
-        write_bundle(windows, "Stirling.PDF_2.14.2_x64_en-US.msi")
+        write_bundle(windows, "RustlingPDF_2.14.2_x64_en-US.msi")
 
         darwin = self.artifacts / "desktop-darwin-aarch64"
-        write_bundle(darwin, "Stirling.PDF.app.tar.gz")
+        write_bundle(darwin, "RustlingPDF.app.tar.gz")
         # The dmg is uploaded for humans; it is not an updater artifact and
         # carries no signature — the composer must ignore it.
-        write_bundle(darwin, "Stirling.PDF_2.14.2_aarch64.dmg", signed=False)
+        write_bundle(darwin, "RustlingPDF_2.14.2_aarch64.dmg", signed=False)
 
     def compose(self, **overrides):
         kwargs = dict(
@@ -97,15 +97,15 @@ class ComposeLatestJsonTest(unittest.TestCase):
         )
         self.assertEqual(
             manifest["platforms"]["linux-x86_64"]["url"],
-            f"{BASE_URL}/Stirling.PDF_2.14.2_amd64.AppImage",
+            f"{BASE_URL}/RustlingPDF_2.14.2_amd64.AppImage",
         )
         self.assertEqual(
             manifest["platforms"]["linux-x86_64-deb"]["url"],
-            f"{BASE_URL}/stirling-pdf_2.14.2_amd64.deb",
+            f"{BASE_URL}/rustling-pdf_2.14.2_amd64.deb",
         )
         self.assertEqual(
             manifest["platforms"]["windows-x86_64"]["url"],
-            f"{BASE_URL}/Stirling.PDF_2.14.2_x64_en-US.msi",
+            f"{BASE_URL}/RustlingPDF_2.14.2_x64_en-US.msi",
         )
         self.assertEqual(
             manifest["platforms"]["windows-x86_64"],
@@ -113,14 +113,14 @@ class ComposeLatestJsonTest(unittest.TestCase):
         )
         self.assertEqual(
             manifest["platforms"]["darwin-aarch64"]["url"],
-            f"{BASE_URL}/Stirling.PDF.app.tar.gz",
+            f"{BASE_URL}/RustlingPDF.app.tar.gz",
         )
 
         # Signature fields are the verbatim .sig contents.
         appimage_sig = (
             self.artifacts
             / "desktop-linux-x86_64"
-            / "Stirling.PDF_2.14.2_amd64.AppImage.sig"
+            / "RustlingPDF_2.14.2_amd64.AppImage.sig"
         ).read_text(encoding="ascii")
         self.assertEqual(
             manifest["platforms"]["linux-x86_64"]["signature"], appimage_sig
@@ -149,19 +149,19 @@ class ComposeLatestJsonTest(unittest.TestCase):
     def test_nsis_preferred_for_bare_windows_key(self) -> None:
         self.stage_default_tree()
         windows = self.artifacts / "desktop-windows-x86_64"
-        write_bundle(windows, "Stirling.PDF_2.14.2_x64-setup.exe")
+        write_bundle(windows, "RustlingPDF_2.14.2_x64-setup.exe")
         manifest = self.compose()
         self.assertEqual(
             manifest["platforms"]["windows-x86_64"]["url"],
-            f"{BASE_URL}/Stirling.PDF_2.14.2_x64-setup.exe",
+            f"{BASE_URL}/RustlingPDF_2.14.2_x64-setup.exe",
         )
         self.assertEqual(
             manifest["platforms"]["windows-x86_64-msi"]["url"],
-            f"{BASE_URL}/Stirling.PDF_2.14.2_x64_en-US.msi",
+            f"{BASE_URL}/RustlingPDF_2.14.2_x64_en-US.msi",
         )
         self.assertEqual(
             manifest["platforms"]["windows-x86_64-nsis"]["url"],
-            f"{BASE_URL}/Stirling.PDF_2.14.2_x64-setup.exe",
+            f"{BASE_URL}/RustlingPDF_2.14.2_x64-setup.exe",
         )
 
     def test_strips_leading_v_from_version(self) -> None:
@@ -184,7 +184,7 @@ class ComposeLatestJsonTest(unittest.TestCase):
         (
             self.artifacts
             / "desktop-linux-x86_64"
-            / "Stirling.PDF_2.14.2_amd64.AppImage.sig"
+            / "RustlingPDF_2.14.2_amd64.AppImage.sig"
         ).unlink()
         self.assert_compose_error("missing updater signature")
 
@@ -193,7 +193,7 @@ class ComposeLatestJsonTest(unittest.TestCase):
         (
             self.artifacts
             / "desktop-darwin-aarch64"
-            / "Stirling.PDF.app.tar.gz.sig"
+            / "RustlingPDF.app.tar.gz.sig"
         ).write_text("not base64 at all!!", encoding="ascii")
         self.assert_compose_error("not valid base64")
 
@@ -203,18 +203,18 @@ class ComposeLatestJsonTest(unittest.TestCase):
         (
             self.artifacts
             / "desktop-darwin-aarch64"
-            / "Stirling.PDF.app.tar.gz.sig"
+            / "RustlingPDF.app.tar.gz.sig"
         ).write_text(bogus, encoding="ascii")
         self.assert_compose_error("minisign")
 
     def test_rejects_space_in_artifact_name(self) -> None:
         self.stage_default_tree()
         linux = self.artifacts / "desktop-linux-x86_64"
-        (linux / "stirling-pdf_2.14.2_amd64.deb").rename(
-            linux / "stirling pdf_2.14.2_amd64.deb"
+        (linux / "rustling-pdf_2.14.2_amd64.deb").rename(
+            linux / "rustling pdf_2.14.2_amd64.deb"
         )
-        (linux / "stirling-pdf_2.14.2_amd64.deb.sig").rename(
-            linux / "stirling pdf_2.14.2_amd64.deb.sig"
+        (linux / "rustling-pdf_2.14.2_amd64.deb.sig").rename(
+            linux / "rustling pdf_2.14.2_amd64.deb.sig"
         )
         self.assert_compose_error("space")
 
@@ -222,15 +222,15 @@ class ComposeLatestJsonTest(unittest.TestCase):
         self.stage_default_tree()
         write_bundle(
             self.artifacts / "desktop-linux-x86_64",
-            "Stirling.PDF_9.9.9_amd64.AppImage",
+            "RustlingPDF_9.9.9_amd64.AppImage",
         )
         self.assert_compose_error("exactly one")
 
     def test_rejects_missing_base_artifact(self) -> None:
         self.stage_default_tree()
         linux = self.artifacts / "desktop-linux-x86_64"
-        (linux / "Stirling.PDF_2.14.2_amd64.AppImage").unlink()
-        (linux / "Stirling.PDF_2.14.2_amd64.AppImage.sig").unlink()
+        (linux / "RustlingPDF_2.14.2_amd64.AppImage").unlink()
+        (linux / "RustlingPDF_2.14.2_amd64.AppImage.sig").unlink()
         self.assert_compose_error("no *.AppImage found")
 
     def test_rejects_unknown_os_directory(self) -> None:

@@ -1,6 +1,6 @@
 use crate::utils::add_log;
 
-/// Check if Stirling PDF is the default PDF handler
+/// Check if RustlingPDF is the default PDF handler
 #[tauri::command]
 pub fn is_default_pdf_handler() -> Result<bool, String> {
     add_log("🔍 Checking if app is default PDF handler".to_string());
@@ -21,7 +21,7 @@ pub fn is_default_pdf_handler() -> Result<bool, String> {
     }
 }
 
-/// Attempt to set/prompt for Stirling PDF as default PDF handler
+/// Attempt to set/prompt for RustlingPDF as default PDF handler
 #[tauri::command]
 pub fn set_as_default_pdf_handler() -> Result<String, String> {
     add_log("⚙️ Attempting to set as default PDF handler".to_string());
@@ -94,9 +94,11 @@ fn check_default_windows() -> Result<bool, String> {
 
             add_log(format!("Windows PDF handler ProgID: {}", default_str));
 
-            // Check if it contains "Stirling" (case-insensitive)
-            // Note: This checks the ProgID registered by the installer
-            let is_default = default_str.to_lowercase().contains("stirling");
+            // The MSI registers the ProgID as "{productName}.pdf" ("RustlingPDF.pdf");
+            // installs upgraded from the pre-rename releases may still resolve the old
+            // "Stirling PDF.pdf" ProgID, so accept both (case-insensitive).
+            let lowered = default_str.to_lowercase();
+            let is_default = lowered.contains("rustling") || lowered.contains("stirling");
             Ok(is_default)
         })();
 
@@ -228,8 +230,9 @@ fn check_default_linux() -> Result<bool, String> {
     let handler = String::from_utf8_lossy(&output.stdout);
     add_log(format!("Linux PDF handler: {}", handler.trim()));
 
-    // Check if it's our .desktop file
-    let is_default = handler.trim() == "stirling-pdf.desktop";
+    // tauri-bundler installs the desktop entry as "{productName}.desktop"
+    // (freedesktop generation in the bundler), so this must track productName.
+    let is_default = handler.trim() == "RustlingPDF.desktop";
     Ok(is_default)
 }
 
@@ -237,9 +240,10 @@ fn check_default_linux() -> Result<bool, String> {
 fn set_default_linux() -> Result<String, String> {
     use std::process::Command;
 
-    // Use xdg-mime to set the default application for PDF files
+    // Use xdg-mime to set the default application for PDF files.
+    // The installed desktop entry is named "{productName}.desktop".
     let result = Command::new("xdg-mime")
-        .args(["default", "stirling-pdf.desktop", "application/pdf"])
+        .args(["default", "RustlingPDF.desktop", "application/pdf"])
         .output()
         .map_err(|e| format!("Failed to set default app: {}", e))?;
 

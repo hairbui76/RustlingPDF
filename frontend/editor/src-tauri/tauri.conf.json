@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Stirling PDF",
-  "mainBinaryName": "Stirling-PDF",
+  "productName": "RustlingPDF",
+  "mainBinaryName": "RustlingPDF",
   "version": "2.14.2",
   "identifier": "stirling.pdf.dev",
   "build": {
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Stirling PDF",
+        "title": "RustlingPDF",
         "width": 1280,
         "height": 800,
         "resizable": true,
@@ -50,10 +50,10 @@
     ],
     "linux": {
       "deb": {
-        "desktopTemplate": "stirling-pdf.desktop"
+        "desktopTemplate": "rustlingpdf.desktop"
       },
       "rpm": {
-        "desktopTemplate": "stirling-pdf.desktop",
+        "desktopTemplate": "rustlingpdf.desktop",
         "compression": { "type": "zstd", "level": 3 }
       },
       "appimage": {

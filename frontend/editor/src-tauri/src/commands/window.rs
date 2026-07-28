@@ -32,7 +32,7 @@ fn queue_file_ids(label: &str, ids: Vec<String>) {
 // so all spawn paths funnel through here.
 fn build_window(app: &AppHandle, label: &str, url: &str) -> Result<WebviewWindow, String> {
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(url.into()))
-        .title("Stirling-PDF")
+        .title("RustlingPDF")
         .inner_size(1280.0, 800.0)
         // Below this width the file manager collapses to its mobile layout,
         // so keep new windows above the breakpoint.

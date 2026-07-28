@@ -124,7 +124,9 @@ download against the `signature` field with the bundled pubkey, and
 installs (AppImage self-replace, `dpkg -i`, MSI passive install, macOS
 `.app` swap). Bundle file names are renamed space→dot before upload —
 GitHub applies the same rename to release assets, so the manifest URLs
-always match the asset names.
+always match the asset names. (Since the product rename to `RustlingPDF`
+— no space — this is a no-op safeguard; v2.14.2 assets were the
+`Stirling.PDF_*` spelling.)
 
 Dry-run (proving the matrix without tagging a release): dispatch
 **Desktop release dry-run** (`.github/workflows/desktop-release-dryrun.yml`)
@@ -143,6 +145,30 @@ Known scope limits:
   is added — follow-up.
 - Windows ships the WiX `.msi` only (no NSIS installer is configured in
   `tauri.conf.json`).
+- **Product rename continuity (`Stirling PDF` → `RustlingPDF`, post-v2.14.2)**:
+  release assets are now named `RustlingPDF_<version>_*` /
+  `rustling-pdf_<version>_*.deb` / `RustlingPDF.app.tar.gz`. Update
+  continuity for installs of the v2.14.2 (`Stirling.PDF_*`) assets:
+  - **Windows**: `bundle.windows.wix.upgradeCode` is pinned to
+    `3305fba9-7e5e-5c09-bc71-eca0a65f4fee` — the value every shipped MSI
+    (v2.14.2 included) carries. tauri-bundler would otherwise derive it as
+    `uuid5(NAMESPACE_DNS, "{productName}.exe.app.x64")`, so an unpinned
+    rename would change it and make renamed MSIs install side-by-side
+    instead of upgrading. **Never change this GUID.** (The pinned value is
+    the derivation for the historical name `Stirling-PDF`, inherited from
+    upstream.)
+  - **macOS**: the updater swaps the `.app` contents in place, keeping the
+    existing on-disk folder name — an upgraded v2.14.2 install stays at
+    `Stirling PDF.app` with RustlingPDF contents until reinstalled.
+  - **Linux AppImage**: the updater byte-replaces the existing AppImage
+    file, keeping the user's file name.
+  - **Linux deb/rpm**: the package name changed (`stirling-pdf` →
+    `rustling-pdf`), so a deb-key update installs the new package alongside
+    the old one (no file conflicts — paths are product-name-scoped); users
+    should `apt remove stirling-pdf` afterwards.
+  - The bundle `identifier` (`stirling.pdf.dev`), updater endpoint, and
+    pubkey are unchanged, so update polling, deep links, single-instance,
+    and app-data paths (`Stirling-PDF` dirs) all carry over.
 
 ## Notes
 
