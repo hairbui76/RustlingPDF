@@ -42,7 +42,15 @@ if (-not $ArchiveIsValid) {
 }
 
 if (-not (Test-Path -LiteralPath $ExtractedLibrary)) {
-    tar -xzf $Archive -C $Extracted
+    # Call Windows' own bsdtar explicitly: a bare `tar` can resolve to Git
+    # Bash's GNU tar (first on PATH on GitHub runners), which parses the
+    # drive letter in D:\... as a remote hostname and fails with
+    # "Cannot connect to D: resolve failed".
+    $Tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+    if (-not (Test-Path -LiteralPath $Tar)) {
+        $Tar = 'tar'
+    }
+    & $Tar -xzf $Archive -C $Extracted
     if ($LASTEXITCODE -ne 0) {
         throw "Could not extract $Archive"
     }

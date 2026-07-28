@@ -211,6 +211,13 @@ jobs:
           BUNDLES: ${{ matrix.bundles }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # ubuntu-24.04 runners ship no libfuse2, so the linuxdeploy /
+          # appimagetool AppImages cannot mount themselves ("failed to run
+          # linuxdeploy"); self-extraction sidesteps FUSE entirely. NO_STRIP
+          # keeps linuxdeploy's strip pass off, matching the proven
+          # containerized e2e environment. Both are ignored off-Linux.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          NO_STRIP: "1"
         run: |
           set -euo pipefail
           args=(build --bundles "${BUNDLES}")
