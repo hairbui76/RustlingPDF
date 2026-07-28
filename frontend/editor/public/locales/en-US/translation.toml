@@ -518,7 +518,6 @@ expand = "Expand"
 discard = "Discard"
 error = "Failed to save settings"
 fetchError = "Failed to load settings"
-loginRequired = "Login mode must be enabled to modify admin settings"
 restartError = "Failed to restart server. Please restart manually."
 restarting = "Restarting Server"
 restartingMessage = "The server is restarting. Please wait a moment..."
@@ -539,11 +538,6 @@ documentation = "View documentation"
 [admin.settings.enterpriseRequired]
 message = "An Enterprise license is required to access {{featureName}}. You are viewing demo data for reference."
 title = "Enterprise License Required"
-
-[admin.settings.loginDisabled]
-message = "Login mode must be enabled to modify admin settings. Please set SECURITY_ENABLELOGIN=true in your environment or security.enableLogin: true in settings.yml, then restart the server."
-readOnly = "The settings below show example values for reference. Enable login mode to view and edit actual configuration."
-title = "Login Mode Required"
 
 [admin.settings.restart]
 later = "Restart Later"
@@ -4884,21 +4878,6 @@ themeSystem = "System"
 title = "General"
 user = "User"
 
-[settings.general.enableFeatures]
-action = "Configure"
-and = "and"
-benefit = "Enables user roles, team collaboration, admin controls, and enterprise features."
-dismiss = "Dismiss"
-intro = "Enable user authentication, team management, and workspace features for your organization."
-learnMore = "Learn more in documentation"
-title = "For System Administrators"
-
-[settings.general.loginLanding]
-description = "Choose which app opens when you sign in to RustlingPDF Cloud."
-editor = "Editor"
-processor = "Processor"
-title = "After signing in"
-
 [settings.general.mode]
 fullscreen = "Fullscreen"
 sidebar = "Sidebar"
@@ -5116,7 +5095,6 @@ title = "Sign out"
 title = "Team"
 
 [settings.tooltips]
-enableLoginFirst = "Enable login mode first"
 requiresEnterprise = "Requires Enterprise license"
 
 [settings.workspace]

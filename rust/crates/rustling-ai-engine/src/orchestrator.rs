@@ -1,4 +1,6 @@
-//! Top-level workflow routing with PDF-question math hand-off/resume support.
+//! Top-level workflow routing across the surviving agent routes
+//! (pdf_edit/pdf_review/pdf_create/agent_draft); question requests resolve to
+//! `unsupported_capability` since the PDF question-answer removal.
 
 use std::{fmt, sync::Arc, time::Duration};
 
