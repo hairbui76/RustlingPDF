@@ -73,13 +73,16 @@ bundle); release and tauri signed off round 0, minors after one fix round.
   divergence in `contracts/admin-settings.md`; stale OIDC-callback-UX
   paragraph in PORT_STATUS corrected.
 
-Recorded follow-ups (see queue item 1): repo-controlled Tauri updater
-keypair must replace the upstream pubkey before the first signed desktop
-release; `install-pdfium.ps1` is not yet wired into `desktop:stage-sidecar`
-(no Windows bundle until it is). Recorded for a human: root `LICENSE` (MIT)
-vs `rust/Cargo.toml` workspace `AGPL-3.0-or-later` conflict, and the
-missing proprietary-dir carve-out LICENSE files the image label
-simplification rests on.
+Recorded follow-ups (see queue item 1): the updater keypair was regenerated
+same-day (repo-controlled, upstream pubkey replaced); `install-pdfium.ps1`
+is still not wired into `desktop:stage-sidecar` (no Windows bundle until it
+is). The license question was resolved by maintainer decision (2026-07-28):
+**the product is MIT** — `rust/Cargo.toml`'s workspace `AGPL-3.0-or-later`
+was a port-era error and now reads `MIT` (matching the root `LICENSE` and
+the Docker image label), and the batch-4 report's claim that the
+frontend carve-out LICENSE files are missing was wrong — all seven exist
+in-tree (the root LICENSE's `app/*`/`engine/` clauses are conditional on
+directories this repo does not have).
 
 ## Landed — Batch 3 (2026-07-28, all tester-signed, merged to `main`)
 
@@ -116,9 +119,11 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
 ## Near-term queue (next batches, in rough priority order)
 
 1. **Desktop release completion** (unblocks shipping the desktop app):
-   generate a repo-controlled Tauri updater keypair and replace the upstream
-   pubkey in `tauri.conf.json`; add the updater-signing step to `release.yml`
-   (extend `RELEASING.md` in the same change); wire `install-pdfium.ps1` into
+   ~~updater keypair~~ done 2026-07-28 (repo-controlled key
+   `9ADA2DC8FC4FAF0B` committed as `updater.pubkey`; private key outside the
+   repo + `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD` GitHub secrets). Remaining:
+   a desktop-bundle build+sign job in `release.yml` (multi-OS runners,
+   uploads bundles + `.sig` + `latest.json`); wire `install-pdfium.ps1` into
    `desktop:stage-sidecar` for Windows bundles; cross-platform signed-bundle
    upgrade proof (the reworked `dev-update-test` e2e run on a webkit-capable
    host).

@@ -97,7 +97,7 @@
         "https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json"
       ],
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZEREM2QTgwNjdGNzdCOUQKUldTZGUvZG5nR3JjYmZ4TlZ3YVpHTVIzd2hBT2c4c000RDNIN2tLZENEblE4ZXFhU3J5V0lQanEK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBREEyREM4RkM0RkFGMEIKUldRTHIwLzh5QzNhbXVWNUdEUjhtOUFWbHRJZTYrQ3pyMHVHbG9xKzNxNGFMZmxtSFh2S0Y5SmQK",
       "windows": {
         "installMode": "passive"
       }

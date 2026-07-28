@@ -6,12 +6,16 @@ sidecar (`task desktop:stage-sidecar` builds `rust/crates/stirling-processing`
 in release mode, installs the pinned PDFium runtime, and stages both into
 `src-tauri/`); the flows below build that sidecar automatically.
 
-> **Signing note:** the `updater.pubkey` committed in `tauri.conf.json` is
-> inherited from the upstream desktop app and does **not** match any key this
-> repository controls. Before the first signed RustlingPDF release, generate a
-> new key pair (`npx tauri signer generate`) and replace the committed pubkey;
-> production updates are unverifiable until then. The dev flows below are
-> unaffected — they generate and use a local throwaway key pair.
+> **Signing note:** the `updater.pubkey` committed in `tauri.conf.json` is a
+> repo-controlled key (minisign id `9ADA2DC8FC4FAF0B`, generated 2026-07-28
+> with `npx tauri signer generate`). The private key lives outside the
+> repository on the maintainer's machine (`~/.rustlingpdf/updater.key`, no
+> password) and in the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions secret
+> (with an empty `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) for the future
+> desktop-release signing step. If the key is ever lost, generate a new pair
+> and replace the committed pubkey — installed apps only accept updates
+> signed by the committed key. The dev flows below are unaffected — they
+> generate and use a local throwaway key pair.
 
 ## One command (automated)
 

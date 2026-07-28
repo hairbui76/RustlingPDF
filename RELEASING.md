@@ -90,10 +90,14 @@ grep -rn "2\.14\.2" --include="*.rs" --include="*.ts" --include="*.json" \
   build itself — if that build breaks, it surfaces in `publish-images`, not
   in the earlier CI gates.
 - **Desktop updater signing (follow-up)**: the Tauri desktop shell currently
-  has no release artifact in this pipeline. If/when the desktop item lands a
-  Tauri updater, the release flow gains an updater-signing step (Tauri
-  updater keypair, signature files uploaded to the GitHub release) — extend
-  `release.yml` and this document together at that point.
+  has no release artifact in this pipeline. The updater keypair already
+  exists: the committed `updater.pubkey` (minisign id `9ADA2DC8FC4FAF0B`) is
+  repo-controlled, and the private key is available to workflows as the
+  `TAURI_SIGNING_PRIVATE_KEY` secret (empty
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). When the desktop-bundle release job
+  lands, it signs update artifacts with that secret and uploads the
+  `.sig` files + `latest.json` to the GitHub release — extend `release.yml`
+  and this document together at that point.
 - **Version tag `latest`**: both image tags are moved on every release;
   consumers who need reproducibility should pin `vX.Y.Z` (or the image
   digest) instead.

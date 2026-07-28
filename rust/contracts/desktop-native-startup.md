@@ -79,7 +79,8 @@ here; the Rust port prefers not to regress a previously-tolerated file into a ha
 
 The desktop updater endpoint points at RustlingPDF's own releases
 (`https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`). The committed
-`updater.pubkey` is inherited from the upstream desktop app and must be regenerated before the
-first signed release (see `frontend/scripts/dev-update-test/README.md`).
+`updater.pubkey` is a repo-controlled key (minisign id `9ADA2DC8FC4FAF0B`); the private key is held
+outside the repository and as the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions secret (see
+`frontend/scripts/dev-update-test/README.md`).
 
 Cross-platform signed-bundle upgrade proof remains.
