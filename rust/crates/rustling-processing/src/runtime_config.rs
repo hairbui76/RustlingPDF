@@ -22,8 +22,8 @@ use crate::job_queue::JobQueueConfig;
 use crate::license::LicenseConfig;
 use crate::runtime_dependencies::discover_dependencies;
 
-// Mirrors EndpointConfiguration.init() in the Java service. Values are whitespace-separated
-// endpoint keys to keep the compatibility table readable while preserving the Java group names.
+// Retained functional groups and real Rust dependency groups. Values are whitespace-separated
+// endpoint keys to keep the compatibility table readable.
 const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     (
         "PageOps",
@@ -31,7 +31,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ),
     (
         "Convert",
-        "pdf-to-img img-to-pdf pdf-to-pdfa file-to-pdf pdf-to-word pdf-to-presentation pdf-to-text pdf-to-html pdf-to-xml html-to-pdf url-to-pdf markdown-to-pdf pdf-to-csv pdf-to-markdown eml-to-pdf pdf-to-epub pdf-to-vector vector-to-pdf pdf-to-video cbz-to-pdf pdf-to-cbz pdf-to-json json-to-pdf pdf-to-rtf",
+        "pdf-to-img img-to-pdf pdf-to-pdfa file-to-pdf pdf-to-word pdf-to-presentation pdf-to-text pdf-to-html pdf-to-xml html-to-pdf url-to-pdf markdown-to-pdf pdf-to-csv pdf-to-markdown eml-to-pdf pdf-to-epub ebook-to-pdf pdf-to-vector vector-to-pdf pdf-to-video cbz-to-pdf cbr-to-pdf pdf-to-cbz pdf-to-cbr pdf-to-json json-to-pdf pdf-to-rtf",
     ),
     (
         "Security",
@@ -52,33 +52,10 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
         "dev-api-docs dev-folder-scanning-docs dev-sso-guide-docs dev-airgapped-docs",
     ),
     (
-        "CLI",
-        "compress-pdf extract-image-scans repair pdf-to-pdfa file-to-pdf pdf-to-word pdf-to-presentation pdf-to-html pdf-to-xml ocr-pdf html-to-pdf url-to-pdf pdf-to-rtf",
-    ),
-    (
-        "Python",
-        "extract-image-scans html-to-pdf url-to-pdf file-to-pdf",
-    ),
-    ("OpenCV", "extract-image-scans"),
-    (
         "LibreOffice",
-        "file-to-pdf pdf-to-word pdf-to-presentation pdf-to-rtf pdf-to-html pdf-to-xml pdf-to-pdfa",
+        "file-to-pdf pdf-to-word pdf-to-presentation pdf-to-rtf pdf-to-xml",
     ),
-    ("Unoconvert", "file-to-pdf"),
-    (
-        "Java",
-        "merge-pdfs remove-pages split-pages rearrange-pages rotate-pdf pdf-to-img img-to-pdf add-password remove-password change-permissions add-watermark add-stamp add-image extract-images update-metadata cert-sign remove-cert-sign multi-page-layout booklet-imposition scale-pages auto-rename auto-split-pdf sanitize-pdf timestamp-pdf crop get-info-on-pdf pdf-to-single-page markdown-to-pdf show-javascript auto-redact redact pdf-to-csv split-by-size-or-count overlay-pdf split-pdf-by-sections split-pdf-by-chapters remove-blanks remove-annotations pdf-to-text pdf-to-markdown add-attachments compress-pdf cbz-to-pdf pdf-to-cbz pdf-to-json json-to-pdf pdf-to-video verify-pdf flatten unlock-pdf-forms validate-signature text-editor-pdf edit-table-of-contents pdf-to-epub eml-to-pdf handleData",
-    ),
-    (
-        "Javascript",
-        "rearrange-pages sign compare adjust-contrast text-editor-pdf",
-    ),
-    ("qpdf", "repair compress-pdf"),
-    (
-        "Ghostscript",
-        "repair compress-pdf crop replace-invert-pdf scanner-effect pdf-to-vector vector-to-pdf",
-    ),
-    ("ImageMagick", "compress-pdf"),
+    ("Ghostscript", "pdf-to-pdfa pdf-to-vector vector-to-pdf"),
     ("tesseract", "ocr-pdf"),
     ("OCRmyPDF", "ocr-pdf"),
     ("rar", "pdf-to-cbr"),
@@ -86,42 +63,24 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
         "Weasyprint",
         "html-to-pdf url-to-pdf markdown-to-pdf eml-to-pdf",
     ),
-    ("veraPDF", "verify-pdf"),
-    ("Pdftohtml", "pdf-to-html pdf-to-markdown"),
-    ("Calibre", "pdf-to-epub"),
+    ("Pdftohtml", "pdf-to-html"),
+    ("Calibre", "pdf-to-epub ebook-to-pdf"),
+    ("FFmpeg", "pdf-to-video"),
+    ("unrar", "cbr-to-pdf"),
 ];
 
-const TOOL_GROUPS: &[&str] = &[
-    "qpdf",
-    "OCRmyPDF",
-    "Ghostscript",
-    "LibreOffice",
-    "tesseract",
-    "CLI",
-    "Python",
-    "OpenCV",
-    "Unoconvert",
-    "Java",
-    "Javascript",
-    "Weasyprint",
-    "Pdftohtml",
-    "ImageMagick",
-    "rar",
-    "Calibre",
-    "FFmpeg",
-    "veraPDF",
+const FUNCTIONAL_GROUPS: &[&str] = &[
+    "PageOps",
+    "Convert",
+    "Security",
+    "Other",
+    "Advance",
+    "Automation",
+    "DeveloperTools",
+    "DeveloperDocs",
 ];
 
-const ENDPOINT_ALTERNATIVES: &[(&str, &[&str])] = &[
-    ("repair", &["qpdf", "Ghostscript"]),
-    ("compress-pdf", &["qpdf", "Ghostscript", "Java"]),
-    ("crop", &["Ghostscript", "Java"]),
-    ("ocr-pdf", &["tesseract", "OCRmyPDF"]),
-    ("file-to-pdf", &["LibreOffice", "Unoconvert"]),
-    ("pdf-to-html", &["LibreOffice", "Pdftohtml"]),
-    ("pdf-to-markdown", &["Pdftohtml"]),
-    ("markdown-to-pdf", &["Weasyprint", "Java"]),
-];
+const ENDPOINT_ALTERNATIVES: &[(&str, &[&str])] = &[("ocr-pdf", &["tesseract", "OCRmyPDF"])];
 
 const MAX_LOGIN_DISCLAIMER_BYTES: usize = 256 * 1024;
 const MAX_LOGIN_DISCLAIMER_BYTES_U64: u64 = 256 * 1024;
@@ -1290,6 +1249,9 @@ impl RuntimeConfig {
         if is_tool_group(group) {
             return true;
         }
+        if !FUNCTIONAL_GROUPS.contains(&group) {
+            return false;
+        }
         let Some((_, endpoints)) = ENDPOINT_GROUPS
             .iter()
             .find(|(configured_group, _)| *configured_group == group)
@@ -1989,7 +1951,8 @@ fn normalize_endpoint(endpoint: &str) -> String {
 }
 
 fn is_tool_group(group: &str) -> bool {
-    TOOL_GROUPS.contains(&group)
+    crate::runtime_dependencies::dependency_group_names()
+        .any(|dependency_group| dependency_group == group)
 }
 
 fn is_group_disabled(group: &str, disabled_groups: &[String]) -> bool {
@@ -2055,7 +2018,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        RuntimeConfig, endpoint_key_for_uri, merge_json, parse_boolean, split_strings, yaml_bool,
+        ENDPOINT_ALTERNATIVES, ENDPOINT_GROUPS, FUNCTIONAL_GROUPS, RuntimeConfig,
+        endpoint_key_for_uri, is_tool_group, merge_json, parse_boolean, split_strings, yaml_bool,
     };
 
     #[test]
@@ -2142,6 +2106,124 @@ mod tests {
             .dependency_disabled_groups
             .insert("Ghostscript".to_owned());
         assert_eq!(config.dependency_command("Ghostscript"), None);
+        Ok(())
+    }
+
+    #[test]
+    fn every_dependency_group_in_the_availability_model_has_a_discovery_spec() {
+        for (group, _) in ENDPOINT_GROUPS {
+            assert!(
+                FUNCTIONAL_GROUPS.contains(group) || is_tool_group(group),
+                "availability group {group} has no dependency spec"
+            );
+        }
+        for (_, alternatives) in ENDPOINT_ALTERNATIVES {
+            for group in *alternatives {
+                assert!(
+                    is_tool_group(group),
+                    "alternative group {group} has no dependency spec"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn java_era_phantom_groups_are_inert_but_legacy_keys_remain_accepted()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(
+            &settings,
+            "endpoints:\n  groupsToRemove: [Java, Python, OpenCV, ImageMagick, Javascript, CLI, Unoconvert]\n",
+        )?;
+        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        for group in [
+            "Java",
+            "Python",
+            "OpenCV",
+            "ImageMagick",
+            "Javascript",
+            "CLI",
+            "Unoconvert",
+        ] {
+            assert!(!config.is_group_enabled(group), "{group} must stay inert");
+        }
+        assert!(config.is_endpoint_enabled("merge-pdfs"));
+        assert!(config.is_endpoint_enabled("pdf-to-markdown"));
+        Ok(())
+    }
+
+    #[test]
+    fn missing_new_dependencies_disable_only_their_unconditional_endpoints()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        config.dependency_disabled_groups.extend([
+            "FFmpeg".to_owned(),
+            "unrar".to_owned(),
+            "veraPDF".to_owned(),
+        ]);
+
+        for group in ["FFmpeg", "unrar", "veraPDF"] {
+            assert!(!config.is_group_enabled(group));
+        }
+        let availability = config.endpoint_availability(&[
+            "pdf-to-video".to_owned(),
+            "cbr-to-pdf".to_owned(),
+            "verify-pdf".to_owned(),
+        ]);
+        assert!(!availability["pdf-to-video"].enabled);
+        assert_eq!(availability["pdf-to-video"].reason, Some("DEPENDENCY"));
+        assert!(!availability["cbr-to-pdf"].enabled);
+        assert_eq!(availability["cbr-to-pdf"].reason, Some("DEPENDENCY"));
+        assert!(availability["verify-pdf"].enabled);
+        assert_eq!(availability["verify-pdf"].reason, None);
+        Ok(())
+    }
+
+    #[test]
+    fn weasyprint_dependency_disables_html_markdown_and_eml_to_pdf()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        // enableUrlToPDF must be turned on so url-to-pdf's availability reflects only the
+        // WeasyPrint dependency being tested here, not its own separate CONFIG-disabled default.
+        fs::write(&settings, "system:\n  enableUrlToPDF: true\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        config
+            .dependency_disabled_groups
+            .insert("Weasyprint".to_owned());
+
+        let availability = config.endpoint_availability(&[
+            "html-to-pdf".to_owned(),
+            "url-to-pdf".to_owned(),
+            "markdown-to-pdf".to_owned(),
+            "eml-to-pdf".to_owned(),
+        ]);
+        for endpoint in ["html-to-pdf", "url-to-pdf", "markdown-to-pdf", "eml-to-pdf"] {
+            assert!(
+                !availability[endpoint].enabled,
+                "{endpoint} should be disabled when WeasyPrint is unavailable"
+            );
+            assert_eq!(availability[endpoint].reason, Some("DEPENDENCY"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn pdftohtml_is_not_a_dependency_of_pdf_to_markdown() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        config
+            .dependency_disabled_groups
+            .insert("Pdftohtml".to_owned());
+        assert!(!config.is_endpoint_enabled("pdf-to-html"));
+        assert!(config.is_endpoint_enabled("pdf-to-markdown"));
         Ok(())
     }
 
@@ -2335,7 +2417,7 @@ mod tests {
         let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
         config
             .dependency_disabled_groups
-            .extend(["LibreOffice".to_owned(), "Unoconvert".to_owned()]);
+            .insert("LibreOffice".to_owned());
         let availability = config.endpoint_availability(&["file-to-pdf".to_owned()]);
         assert!(!availability["file-to-pdf"].enabled);
         assert_eq!(availability["file-to-pdf"].reason, Some("DEPENDENCY"));
@@ -2380,7 +2462,8 @@ mod tests {
         assert!(!config.is_group_enabled("qpdf"));
         assert!(config.is_group_enabled("Convert"));
         assert!(!config.is_endpoint_enabled("merge-pdfs"));
-        assert!(!config.is_endpoint_enabled("repair"));
+        assert!(config.is_endpoint_enabled("repair"));
+        assert!(!config.is_endpoint_enabled("pdf-to-pdfa"));
         assert!(config.is_endpoint_enabled("file-to-pdf"));
         let statuses = config.disabled_endpoint_statuses();
         assert_eq!(statuses.get("merge-pdfs"), Some(&false));

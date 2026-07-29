@@ -285,8 +285,7 @@ not available through the configured Poppler data paths), token-preserving in-pl
 the classes the full-document fast path still defers (`Type0`/`Type3`, interior-kerned multi-string
 `TJ`, invoked-Form text — boundary-aligned simple-font `Tj`/`TJ` edits are now rewritten in place,
 see `/api/v1/convert/text-editor/pdf` above), font-program
-round-trip, complex inline filter parameters, DCT DeviceN images with more than four JPEG source components,
-and rich
+round-trip, complex inline filter parameters, and rich
 non-widget-annotation appearance streams
 remain outstanding (`Tx`/`Ch`/`Btn` widget appearance streams are ported — see above).
 Nested/multi-widget form hierarchies and annotation reply chains are not parity gaps:
@@ -323,7 +322,20 @@ their tint transforms. DCT DeviceN images with one to four JPEG components likew
 source planes, perform Adobe/`ColorTransform` JPEG colour conversion, apply per-component `/Decode`
 mappings in the same order as PDF.js, and then evaluate the DeviceN tint function. Declared
 dimensions and component counts must match the JPEG header; mismatches and DeviceN JPEGs above four
-components are rejected rather than silently treating decoder-projected RGB as tint samples.
+components are rejected rather than silently treating decoder-projected RGB as tint samples. This
+is upstream parity, not an outstanding decoder gap — though not through the mechanism once
+documented here. PDFBox 3.0.7's `DCTFilter.readImageRaster` routes any `/NumChannels` other than
+`"3"` or absent (i.e. any DeviceN count) straight to `ImageIO.readRaster()`, and the runtime
+TwelveMonkeys 3.13.1 JPEG reader's `readRaster` is a raw passthrough that never calls
+`getSourceCSType` — that method's one-through-four `tableswitch` sits on the unrelated `read()`
+path and is never reached here; TwelveMonkeys' own `getColorSpaceType()` in fact tolerates more
+than four components (reporting `"5CLR"` for five). The real limit is the JDK's own
+`com.sun.imageio.plugins.jpeg` reader: its `JPEG.bandOffsets` table has exactly four entries,
+indexed by `numComponents - 1` in `readInternal`, so a 5-component frame throws
+`ArrayIndexOutOfBoundsException` before any entropy decoding — surfaced upstream as `IIOException:
+Corrupt JPEG data: Bad segment length` for 5 colorants (DCT `Nf`=5), while 4 colorants (`Nf`=4)
+decode fine. Rust keeps the bounded device fallback rather than inventing support the JDK itself
+cannot run.
 Direct CalGray/CalRGB images, calibrated Indexed palette bases, compatible ICC fallbacks, and
 calibrated Separation/DeviceN alternates convert to sRGB with bounded gamma, matrix, black-point,
 Bradford-adaptation, and transfer-function math. Gray/RGB DCT calibrated images retain their source

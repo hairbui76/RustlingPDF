@@ -252,6 +252,16 @@ auto-rename/auto-split, plus:
   WeasyPrint PDF, with Java-compatible redirects for disabled or rejected targets.
 - `convert/cbr/pdf` — RAR/CBR → naturally ordered image PDF through `unrar` or
   a read-only 7-Zip fallback, with bounded extraction and link rejection.
+  Startup accepts 7-Zip only when `7z i` lists BOTH a RAR format handler under
+  `Formats:` AND a RAR decompression codec under `Codecs:`. Debian trixie's
+  DFSG `7zip` build ships the format handler (it can open a `.rar` and
+  list/extract stored entries) but excludes the RAR codecs, and the shipped
+  image installs neither the non-free `7zip-rar` plugin nor `unrar`; verified
+  at runtime against the real `7zip_23.01+dfsg-11` binary, the startup probe
+  correctly reports this route dependency-disabled instead of advertising a
+  fallback that opens a RAR-compressed CBR but cannot decompress a page out
+  of it. Pointing the same probe at that binary with the `7zip-rar` plugin's
+  `Codecs/Rar.so` installed alongside it reports the route enabled.
 - `convert/pdf/cbr` — PDFium-rendered PNG pages → RAR-backed CBR through `rar`.
 - `convert/pdf/pdfa` — PDF/A-1b/2b/3b and PDF/X through Ghostscript, with embedded
   sRGB/Gray ICC profiles and optional strict veraPDF validation.
@@ -291,7 +301,17 @@ auto-rename/auto-split, plus:
 - `config/app-config`, endpoint/group status/availability, and
   `settings/get-endpoints-status` —
   base/custom YAML configuration, public bootstrap values, endpoint-disable
-  status, and timestamp configuration. (`settings/update-enable-analytics` —
+  status, timestamp configuration, and startup discovery for every external
+  executable the Rust routes actually invoke. Java-only `Java`, `Python`,
+  `OpenCV`, `ImageMagick`, `Javascript`, `CLI`, and `Unoconvert` group names
+  are inert legacy configuration strings rather than phantom available tools.
+  Missing FFmpeg and RAR creation/extraction tools now dependency-disable
+  `pdf-to-video`, `pdf-to-cbr`, and `cbr-to-pdf`; `pdf-to-markdown` correctly
+  stays independent of `pdftohtml`. veraPDF is represented as a conditional
+  capability: its group disables when missing, while `verify-pdf` remains
+  available for the native no-declared-profile result and returns 501 only
+  when an input actually needs conformance validation.
+  (`settings/update-enable-analytics` —
   the server-persisted analytics consent — was removed in batch 7; consent is
   client-side state now. The secured `admin/settings` mutation family and
   `admin/server-certificate` routes, with cert-sign's `certType=SERVER`, were
@@ -405,7 +425,21 @@ auto-rename/auto-split, plus:
   perform Adobe/`ColorTransform` conversion, apply `/Decode` in PDF.js order, and evaluate their
   tint functions. Separation and DeviceN images whose alternate is an `ICCBased` space now
   convert the tint output through the embedded profile (falling back to the declared device
-  `/Alternate` when the profile is invalid); DeviceN DCT above four components remains.
+  `/Alternate` when the profile is invalid). DeviceN DCT above four components is
+  parity-not-a-gap, but not for the reason once written down here: PDFBox
+  3.0.7's `DCTFilter.readImageRaster` sends any `/NumChannels` other than
+  `"3"`/absent (so any DeviceN count above one) straight to
+  `ImageIO.readRaster()`, and TwelveMonkeys 3.13.1's `readRaster` is a
+  passthrough that never calls `getSourceCSType` — that method's 1–4
+  `tableswitch` is unreachable here, and TwelveMonkeys' own
+  `getColorSpaceType()` in fact tolerates more than 4 components (`"5CLR"`
+  for five). The actual cap is the JDK's own `com.sun.imageio.plugins.jpeg`
+  reader: a 4-element `bandOffsets` table indexed by `numComponents - 1` in
+  `readInternal` throws `ArrayIndexOutOfBoundsException` for a 5-component
+  SOF before any entropy decoding — observed upstream as `IIOException:
+  Corrupt JPEG data: Bad segment length` for 5 colorants (`Nf`=5), while 4
+  colorants (`Nf`=4) decode fine. Rust deliberately retains its bounded
+  device fallback rather than adding a decoder the JDK itself cannot run.
   Full editor responses also inspect root AcroForm fields plus their
   inherited metadata and first widget location, and export structured page annotations (with
   full-mode COS data). JSON→PDF rebuilds root fields/one fresh widget and non-widget page

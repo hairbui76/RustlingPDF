@@ -25,16 +25,21 @@ policy and multipart contract.
 | `GET /api/v1/config/login-disclaimer[?lang=<locale>]` | Enabled agreement markdown with locale fallback; always served openly (the legacy `security.enableLogin` key is ignored). |
 | `GET /api/v1/config/endpoint-enabled?endpoint=<key>` | JSON boolean for one endpoint key. |
 | `GET /api/v1/config/endpoints-enabled?endpoints=<key>,<key>` | JSON map of requested endpoint keys to booleans. |
-| `GET /api/v1/config/endpoints-availability[?endpoints=<key>,<key>]` | JSON map containing `{ "enabled": boolean, "reason": null | "CONFIG" | "DEPENDENCY" }`. Without a query it returns the known Java endpoint key set plus configured disabled keys. |
+| `GET /api/v1/config/endpoints-availability[?endpoints=<key>,<key>]` | JSON map containing `{ "enabled": boolean, "reason": null | "CONFIG" | "DEPENDENCY" }`. Without a query it returns the known endpoint key set plus configured disabled keys. |
 | `GET /api/v1/config/group-enabled?group=<name>` | JSON boolean for a functional or tool group. |
 | `GET /api/v1/settings/get-endpoints-status` | Explicitly disabled endpoint keys mapped to `false`, matching the Java settings controller's status map. |
 
 Endpoint keys are normalized by removing one leading slash. `endpoints.toRemove`
 or `ENDPOINTS_TOREMOVE` disables those keys with reason `CONFIG`.
 `endpoints.groupsToRemove` / `ENDPOINTS_GROUPSTOREMOVE` follows the Java
-`EndpointConfiguration` group map. Removing a functional group disables all its
-endpoints; removing a tool group preserves an endpoint when another registered
-tool-group alternative is available.
+`EndpointConfiguration` group map for retained functional groups and the actual
+Rust dependency map for tool groups. Removing a functional group disables all
+its endpoints; removing a tool group preserves an endpoint when another
+registered tool-group alternative is available. Legacy Java-only group names
+(`Java`, `Python`, `OpenCV`, `ImageMagick`, `Javascript`, `CLI`, and
+`Unoconvert`) remain accepted as configuration strings but are inert:
+`group-enabled` returns `false` and they cannot make a Rust endpoint available
+or unavailable.
 
 `system.enableUrlToPDF` also controls both the `url-to-pdf` availability result
 and the global API availability interceptor. It remains disabled by default, so
@@ -47,16 +52,47 @@ environment aliases take precedence.
 ## Runtime dependency discovery
 
 The standalone Rust executable probes optional command-line tools once before
-accepting requests. It resolves configured command overrides and platform `PATH`
-candidates for Ghostscript, OCRmyPDF, LibreOffice, WeasyPrint, `pdftohtml`, QPDF,
-RAR, and Calibre. QPDF below 12.0.0 and WeasyPrint below 58.0 are treated as
-unavailable, matching Java's minimum-version gates. Image-scan extraction is native
-and no longer probes Python or OpenCV. Each process probe has a five-second kill
-timeout. Missing groups feed the same endpoint-alternative logic as configured group
-removal and surface as reason `DEPENDENCY`; explicit configuration still takes
-precedence as reason `CONFIG`. The exact executable paths accepted by discovery
-are retained for runtime-owned native adapters such as PDF repair, preventing a
-later request from resolving a different binary.
+accepting requests. The discovery table is the single source of tool-group
+names. It resolves configured command overrides and platform `PATH` candidates
+for Ghostscript, OCRmyPDF, Tesseract, LibreOffice, WeasyPrint, `pdftohtml`,
+QPDF, RAR creation, Calibre, FFmpeg, veraPDF, and RAR extraction through
+`unrar` or `7z`/`7zz`. QPDF below 12.0.0 and WeasyPrint below 58.0 are treated
+as unavailable, matching Java's minimum-version gates. A 7-Zip-shaped candidate
+(any candidate whose `i` output parses as a `7z i` capability listing,
+independent of the resolved file name) is accepted only when `7z i` reports
+BOTH a RAR *format handler* under `Formats:` AND a RAR *decompression codec*
+under the separate `Codecs:` section. Debian's DFSG `7zip` package ships the
+format handler (listing/opening a `.rar` container, and extracting stored
+entries, both still work) but deliberately excludes the RAR codecs — so a
+`Formats:`-only check would wrongly accept it; decompressing a RAR-compressed
+entry needs the non-free `7zip-rar` plugin, which adds only the missing
+`Codecs:` entries. A candidate whose `i` output does not parse as a 7-Zip
+listing at all (genuine `unrar`, which has no `i` subcommand) is assumed
+capable, matching `unrar`'s unconditional RAR support. Image-scan extraction
+is native and no longer probes Python or OpenCV. Each process probe has a
+five-second kill timeout.
+Missing groups feed the same endpoint-alternative logic as configured group
+removal and surface as reason `DEPENDENCY`; explicit endpoint/group removal
+still takes precedence as reason `CONFIG`. The exact executable paths accepted
+by discovery are retained for runtime-owned native adapters such as PDF repair,
+preventing a later request from resolving a different binary.
+
+Route availability models unconditional requirements. Missing FFmpeg disables
+`pdf-to-video`; missing RAR creation/extraction tools disables `pdf-to-cbr` or
+`cbr-to-pdf`; and `pdf-to-markdown` is independent of `pdftohtml` because it
+uses PDFium with a lopdf fallback. Conditional enhancements do not disable an
+otherwise functional route: `verify-pdf` remains available without veraPDF for
+inputs that declare no validation profile, while `group-enabled?group=veraPDF`
+reports `false` and declared PDF/A, PDF/UA, or WTPDF profiles still receive a
+request-time `501`. The same route-level rule keeps native repair/compression
+and non-CMYK replace/invert modes available when their optional external tools
+are absent. Because neither `qpdf` nor `veraPDF` gates any endpoint in the
+tool-group map, `endpoints.groupsToRemove: [qpdf]` and `[veraPDF]` are both a
+no-op for endpoint availability today: an operator who previously relied on
+`groupsToRemove: [qpdf]` to disable `repair`/`compress-pdf`, or on
+`groupsToRemove: [veraPDF]` to disable `verify-pdf`, will find both routes
+silently stay enabled — only the corresponding `group-enabled?group=qpdf` or
+`group-enabled?group=veraPDF` query still reports `false`.
 
 `dependenciesReady` means startup probing has completed, not that every optional
 tool is installed. Embedded/test router constructors intentionally remain
@@ -164,10 +200,12 @@ operator or, on desktop, by the sidecar's own template/identity maintenance.
 
 ## Verification
 
-Unit coverage proves YAML recursive override, legacy/current license resolution, endpoint normalization and
-availability (including distinct configuration/dependency reasons), dependency
-version parsing, and timestamp configuration extraction. HTTP integration coverage
-proves app-config bootstrap fields, host/proxy URL reconstruction, endpoint
-availability, group status, batch status, settings status, interceptor `403`,
-the API cache policy, and the login-disclaimer route (including the ignored
-legacy `security.enableLogin` key).
+Unit coverage proves YAML recursive override, legacy/current license resolution,
+endpoint normalization and availability (including distinct
+configuration/dependency reasons), the discovery-spec/tool-group invariant,
+legacy phantom-group inertness, command-override semantics, 7-Zip RAR capability
+detection, dependency version parsing, and timestamp configuration extraction.
+HTTP integration coverage proves app-config bootstrap fields, host/proxy URL
+reconstruction, endpoint availability, group status, batch status, settings
+status, interceptor `403`, the API cache policy, and the login-disclaimer route
+(including the ignored legacy `security.enableLogin` key).
