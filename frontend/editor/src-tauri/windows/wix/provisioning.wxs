@@ -18,9 +18,55 @@
       <Directory Id="CommonAppDataFolder" />
     </DirectoryRef>
 
+    <!--
+      Uninstall cleanup policy for everything this fragment authors
+      (rust/contracts/desktop-windows-installer.md is the contract):
+
+      - MSI on its own only removes the registry *values* a component wrote; the
+        key skeletons survive. Every key this fragment creates therefore carries
+        ForceDeleteOnUninstall="yes", which emits a Registry-table row with
+        Name="-" — "delete this key and all its subkeys when the component is
+        removed".
+      - ForceDeleteOnUninstall is applied ONLY to nodes this product creates and
+        owns outright. Shared parents (SOFTWARE\Classes\CLSID,
+        SOFTWARE\Classes\.pdf, SOFTWARE\Classes\.pdf\shellex,
+        SOFTWARE\Classes\SystemFileAssociations\.pdf\shell) are never marked:
+        force-deleting a key takes its whole subtree with it, and those subtrees
+        hold other applications' registrations. The cost of that restraint is a
+        possibly-empty `.pdf\shellex` key left behind when RustlingPDF was the
+        first shell-extension handler ever registered for .pdf — MSI has no
+        "delete only if empty" primitive, and leaking an empty key is strictly
+        better than deleting another PDF viewer's thumbnail/preview handlers.
+      - Major upgrades are safe: the bundler's main.wxs schedules
+        <MajorUpgrade Schedule="afterInstallInitialize"/>, so the old product is
+        fully removed (running these deletions) *before* the new product writes
+        its own copies of the same keys.
+    -->
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="ProvisionerBinaryComponent" Guid="*">
         <File Id="ProvisionerExe" Source="$(sys.SOURCEFILEDIR)stirling-provision.exe" KeyPath="yes" />
+        <!--
+          Cleanup for a key the *bundler template* authors and forgets: main.wxs
+          stores InstallDir / "Desktop Shortcut" / "Start Menu Shortcut" /
+          "Uninstaller Shortcut" under HKCU\Software\<Manufacturer>\<ProductName>
+          and only ever removes those values, leaving the key behind. A wix
+          fragment is the only hook we have into that template, so the removal is
+          attached here (this component is always installed — the External
+          feature is Absent="disallow").
+
+          The names are spelled literally, NOT as {{manufacturer}} /
+          {{product_name}}: tauri-bundler renders main.wxs through Handlebars but
+          hands fragment files to candle unrendered (tauri-bundler 2.9.4,
+          bundle/windows/msi/mod.rs — the rendered fragment string is used only
+          to sniff xmlns extensions). Manufacturer is bundle.publisher and
+          product name is productName, both "RustlingPDF" in tauri.conf.json;
+          if either changes, this key must change with it.
+
+          Only the product key is removed. The manufacturer key
+          HKCU\Software\RustlingPDF is left in place: it is a shared namespace by
+          convention, and MSI cannot express "delete only if empty".
+        -->
+        <RemoveRegistryKey Id="RemoveTemplateProductKey" Root="HKCU" Key="Software\RustlingPDF\RustlingPDF" Action="removeOnUninstall" />
       </Component>
       <Component Id="ThumbnailHandlerDllComponent" Guid="*">
         <File Id="ThumbnailHandlerDll" Source="$(sys.SOURCEFILEDIR)stirling_thumbnail_handler.dll" KeyPath="yes" />
@@ -30,16 +76,31 @@
     <!-- PDF Thumbnail Handler COM registration -->
     <DirectoryRef Id="TARGETDIR">
       <Component Id="ThumbnailHandlerClsidComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}">
+        <!--
+          {2D2FBE3A-…} is this product's own COM class id, so the whole GUID
+          subtree (including InprocServer32, whose value points at
+          [INSTALLDIR]stirling_thumbnail_handler.dll and would otherwise survive
+          the DLL it names) belongs to us and is force-deleted. The shared
+          SOFTWARE\Classes\CLSID parent is deliberately left alone.
+        -->
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Value="RustlingPDF Thumbnail Handler" KeyPath="yes" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}\InprocServer32">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}\InprocServer32" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Value="[INSTALLDIR]stirling_thumbnail_handler.dll" />
           <RegistryValue Type="string" Name="ThreadingModel" Value="Apartment" />
         </RegistryKey>
       </Component>
       <Component Id="ThumbnailHandlerShellexComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}">
+        <!--
+          {E357FCCD-…} is IThumbnailProvider's interface id — the per-extension
+          slot naming whichever handler serves .pdf thumbnails. We created this
+          exact node and force-delete exactly it; the enclosing
+          SOFTWARE\Classes\.pdf\shellex is shared with every other .pdf shell
+          extension (preview handlers, property handlers, other viewers'
+          thumbnail providers) and is never touched.
+        -->
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Value="{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" KeyPath="yes" />
         </RegistryKey>
       </Component>
@@ -66,17 +127,28 @@
       - On Windows 11 these verbs appear under "Show more options" (the legacy
         menu); top-level Win11 placement would need a packaged
         IExplorerCommand extension and is a documented follow-up.
+      - Uninstall: the cascade root key is force-deleted, which takes the whole
+        `shell\NN_*\command` tree with it, and each verb component *also*
+        force-deletes its own `NN_*` key so no component depends on another
+        component's removal. Both live strictly inside
+        `…\SystemFileAssociations\.pdf\shell\<verb key>`, a node this product
+        creates; the shared `…\.pdf\shell` parent is never marked.
+      - The verb key name is whatever `{{product_name}}` resolves to at install
+        time — see the note in provisioning.wxs's cleanup policy above and
+        rust/contracts/desktop-windows-installer.md. Whatever it resolves to, the
+        install and the uninstall rows carry the identical string, so the
+        cleanup is self-consistent by construction.
     -->
     <DirectoryRef Id="TARGETDIR">
       <Component Id="PdfContextMenuRootComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="{{product_name}}" KeyPath="yes" />
           <RegistryValue Type="string" Name="SubCommands" Value="" />
           <RegistryValue Type="string" Name="Icon" Value="&quot;[!Path]&quot;,0" />
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuOpenComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\01_open">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\01_open" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Open" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
@@ -85,7 +157,7 @@
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuMergeComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\02_merge">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\02_merge" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Merge" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
@@ -94,7 +166,7 @@
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuCompressComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\03_compress">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\03_compress" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Compress" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
@@ -103,7 +175,7 @@
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuConvertComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\04_convert">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\04_convert" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Convert" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
@@ -156,15 +228,76 @@
     />
 
     <!--
+      Uninstall counterparts. stirling-provisioning.json is written by a
+      CustomAction, so MSI never learned about the file and cannot remove it on
+      its own; `stirling-provision.exe -\-remove` (XML comments cannot contain a
+      literal double hyphen — same escaping convention as `-\-tool` above)
+      deletes exactly that one file
+      (it refuses any other file name) and never touches the directory around
+      it, which holds the user's settings.yml / custom_settings.yml / logs.
+
+      Return="ignore": leftover administrative config must never be able to
+      block or roll back an uninstall. A failure is recorded in the MSI log; the
+      Windows lifecycle check asserts the file is actually gone.
+    -->
+    <CustomAction
+      Id="RemoveProvisioningFilePerUser"
+      FileKey="ProvisionerExe"
+      Execute="deferred"
+      Impersonate="yes"
+      Return="ignore"
+      ExeCommand="[RemoveProvisioningFilePerUser]"
+    />
+
+    <CustomAction
+      Id="RemoveProvisioningFileAllUsers"
+      FileKey="ProvisionerExe"
+      Execute="deferred"
+      Impersonate="no"
+      Return="ignore"
+      ExeCommand="[RemoveProvisioningFileAllUsers]"
+    />
+
+    <CustomAction
+      Id="SetRemoveProvisioningFilePerUser"
+      Property="RemoveProvisioningFilePerUser"
+      Value="--remove --output &quot;[AppDataFolder]Stirling-PDF\stirling-provisioning.json&quot;"
+    />
+
+    <CustomAction
+      Id="SetRemoveProvisioningFileAllUsers"
+      Property="RemoveProvisioningFileAllUsers"
+      Value="--remove --output &quot;[CommonAppDataFolder]Stirling-PDF\stirling-provisioning.json&quot;"
+    />
+
+    <!--
       Run the provisioner when ANY of STIRLING_SERVER_URL, STIRLING_LOGIN_AGREEMENT, or
       STIRLING_UPDATE_MODE is set. The provisioner is a no-op if all values end up empty,
       so passing none is safe.
+
+      The removal actions are scheduled after RemoveShortcuts (3200) and so run
+      well before RemoveFiles (3500) deletes stirling-provision.exe out of
+      INSTALLDIR — a FileKey CustomAction cannot run once its own file is gone.
+
+      Their condition is REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE, matching the
+      idiom main.wxs already uses for RemoveShortcuts and DeleteUpdateTask.
+      NOT UPGRADINGPRODUCTCODE is load-bearing, not decoration: MajorUpgrade is
+      scheduled afterInstallInitialize, so every update — including the tauri
+      updater's own `installMode: "passive"` msiexec run, which passes none of
+      the STIRLING_* properties — fully uninstalls the old product before
+      installing the new one. Without the guard, an unattended app update would
+      delete the administrator's provisioning file and nothing would put it
+      back.
     -->
     <InstallExecuteSequence>
       <Custom Action="SetWriteProvisioningFilePerUser" After="InstallFiles">(STIRLING_SERVER_URL &lt;&gt; &quot;&quot; OR STIRLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR STIRLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
       <Custom Action="WriteProvisioningFilePerUser" After="SetWriteProvisioningFilePerUser">(STIRLING_SERVER_URL &lt;&gt; &quot;&quot; OR STIRLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR STIRLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
       <Custom Action="SetWriteProvisioningFileAllUsers" After="InstallFiles">(STIRLING_SERVER_URL &lt;&gt; &quot;&quot; OR STIRLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR STIRLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
       <Custom Action="WriteProvisioningFileAllUsers" After="SetWriteProvisioningFileAllUsers">(STIRLING_SERVER_URL &lt;&gt; &quot;&quot; OR STIRLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR STIRLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
+      <Custom Action="SetRemoveProvisioningFilePerUser" After="RemoveShortcuts">REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
+      <Custom Action="RemoveProvisioningFilePerUser" After="SetRemoveProvisioningFilePerUser">REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
+      <Custom Action="SetRemoveProvisioningFileAllUsers" After="RemoveShortcuts">REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
+      <Custom Action="RemoveProvisioningFileAllUsers" After="SetRemoveProvisioningFileAllUsers">REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
     </InstallExecuteSequence>
   </Fragment>
 </Wix>
