@@ -53,9 +53,7 @@ pub struct ParsedLaunch {
 ///   launches (double-click, drag-drop relaunch, macOS/Linux) parse exactly
 ///   as they did before the flag existed.
 pub fn parse_launch_args(args: &[String]) -> ParsedLaunch {
-    parse_launch_args_impl(args, |candidate| {
-        std::path::Path::new(candidate).exists()
-    })
+    parse_launch_args_impl(args, |candidate| std::path::Path::new(candidate).exists())
 }
 
 fn parse_launch_args_impl<F: Fn(&str) -> bool>(args: &[String], path_exists: F) -> ParsedLaunch {
@@ -109,13 +107,11 @@ impl IntentAggregator {
         let generation = self.next_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let mut guard = self.pending.lock().unwrap();
         let map = guard.get_or_insert_with(HashMap::new);
-        let entry = map
-            .entry(tool.to_string())
-            .or_insert_with(|| PendingBatch {
-                files: Vec::new(),
-                first_at: now,
-                generation,
-            });
+        let entry = map.entry(tool.to_string()).or_insert_with(|| PendingBatch {
+            files: Vec::new(),
+            first_at: now,
+            generation,
+        });
         entry.files.extend(files);
         entry.generation = generation;
         generation
@@ -185,18 +181,16 @@ mod tests {
 
     #[test]
     fn bare_paths_parse_byte_compatibly() {
-        let parsed = parse_launch_args_impl(&args(&["exe", "/a.pdf", "/b.pdf"]), |p| {
-            p != "/missing.pdf"
-        });
+        let parsed =
+            parse_launch_args_impl(&args(&["exe", "/a.pdf", "/b.pdf"]), |p| p != "/missing.pdf");
         assert_eq!(parsed.files, vec!["/a.pdf", "/b.pdf"]);
         assert_eq!(parsed.tool, None);
     }
 
     #[test]
     fn nonexistent_paths_are_dropped() {
-        let parsed = parse_launch_args_impl(&args(&["exe", "/a.pdf", "/missing.pdf"]), |p| {
-            p == "/a.pdf"
-        });
+        let parsed =
+            parse_launch_args_impl(&args(&["exe", "/a.pdf", "/missing.pdf"]), |p| p == "/a.pdf");
         assert_eq!(parsed.files, vec!["/a.pdf"]);
         assert_eq!(parsed.tool, None);
     }
@@ -222,18 +216,17 @@ mod tests {
 
     #[test]
     fn unknown_tool_degrades_to_plain_open() {
-        let parsed = parse_launch_args_impl(
-            &args(&["exe", "--tool", "frobnicate", "/a.pdf"]),
-            |p| p == "/a.pdf",
-        );
+        let parsed =
+            parse_launch_args_impl(&args(&["exe", "--tool", "frobnicate", "/a.pdf"]), |p| {
+                p == "/a.pdf"
+            });
         assert_eq!(parsed.files, vec!["/a.pdf"]);
         assert_eq!(parsed.tool, None);
     }
 
     #[test]
     fn trailing_tool_flag_without_value_degrades() {
-        let parsed =
-            parse_launch_args_impl(&args(&["exe", "/a.pdf", "--tool"]), |p| p == "/a.pdf");
+        let parsed = parse_launch_args_impl(&args(&["exe", "/a.pdf", "--tool"]), |p| p == "/a.pdf");
         assert_eq!(parsed.files, vec!["/a.pdf"]);
         assert_eq!(parsed.tool, None);
     }
