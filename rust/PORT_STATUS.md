@@ -501,7 +501,12 @@ bundle's `resources/pdfium` unless the operator already set it) alongside the
 unconditional ephemeral-port handshake, desktop/base-path/login-agreement
 environment, legacy-workspace migration, a bounded startup wait, early-exit
 reporting, stale-port cleanup, PID/start-time parent-death enforcement, and
-atomic fresh-install settings/template initialization. Open-mode local `backend:dev`, `dev`, and default `dev:all` now
+atomic fresh-install settings/template initialization. The Windows MSI also
+registers a beyond-upstream **Explorer cascade context menu** for `.pdf`
+(registry-only, `SystemFileAssociations`; Open/Merge/Compress/Convert launch
+the app with a `--tool` intent and multi-select launches aggregate into one
+debounced batch; Win11 shows it under "Show more options" — see
+`contracts/desktop-explorer-context-menu.md`). Open-mode local `backend:dev`, `dev`, and default `dev:all` now
 launch `rustling-processing` (in this repository they are the only backend entry
 points; the Java-oracle and SaaS Task paths existed in the upstream monorepo).
 Container distribution shipped in batch 3 (Docker image; batch 4 added the
