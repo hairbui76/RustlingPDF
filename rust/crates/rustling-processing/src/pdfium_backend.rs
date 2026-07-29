@@ -187,12 +187,20 @@ pub struct MarkdownTextLine {
 }
 
 /// Dimensions for one PDF page, in PDF points.
+///
+/// `width`/`height` describe the **unrotated** page box, matching the user-space
+/// coordinates reported for text ([`MarkdownTextLine`]) and image placements
+/// ([`ExtractedPageImage`]). `rotation_degrees` carries the page's intrinsic
+/// `/Rotate` value separately so a renderer can apply it once, in one place, instead
+/// of mixing rotated page extents with unrotated content coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MarkdownPageGeometry {
     /// Zero-based source page index.
     pub page: usize,
     pub width: f32,
     pub height: f32,
+    /// Intrinsic `/Rotate`, normalised to 0, 90, 180, or 270 degrees clockwise.
+    pub rotation_degrees: u16,
 }
 
 #[derive(Debug)]
@@ -2839,10 +2847,25 @@ pub fn try_extract_markdown_lines(
                     page_number,
                     source,
                 })?;
+        // FPDF_GetPageWidthF/HeightF are rotation-aware, but text and image geometry are
+        // not, so undo the swap here and report the intrinsic rotation separately.
+        let rotation_degrees = match page.rotation() {
+            Ok(PdfPageRenderRotation::Degrees90) => 90,
+            Ok(PdfPageRenderRotation::Degrees180) => 180,
+            Ok(PdfPageRenderRotation::Degrees270) => 270,
+            Ok(PdfPageRenderRotation::None) | Err(_) => 0,
+        };
+        let (rotated_width, rotated_height) = (page.width().value, page.height().value);
+        let (width, height) = if matches!(rotation_degrees, 90 | 270) {
+            (rotated_height, rotated_width)
+        } else {
+            (rotated_width, rotated_height)
+        };
         pages.push(MarkdownPageGeometry {
             page: usize::try_from(page_index).unwrap_or_default(),
-            width: page.width().value,
-            height: page.height().value,
+            width,
+            height,
+            rotation_degrees,
         });
         let text = page.text().map_err(|source| PdfiumTextError::ReadText {
             page_number,

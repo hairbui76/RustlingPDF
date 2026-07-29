@@ -35,7 +35,8 @@ conversion API returns the backend enum internally for test assertions.
 
 The native ZIP contains:
 
-- `<base>.html`, with one fixed-size `<section class="page">` per PDF page;
+- `<base>.html`, with one fixed-size `<section class="page">` per PDF page, each
+  wrapping a single `<div class="page-canvas">`;
 - `<base>.css`, containing the page and absolute-positioning styles; and
 - deduplicated `<base>_page_<page>_<image>.png` image assets referenced by the
   HTML.
@@ -51,6 +52,25 @@ Ammonia before insertion into HTML.
 Top-level page image objects are extracted through the shared PDFium image
 extractor, encoded as PNG, deduplicated by decoded pixels, and positioned from
 their page-object bounds. Repeated placements reference the same asset.
+
+### Page rotation
+
+There is exactly one coordinate space for content: unrotated PDF user space.
+PDFium reports text and image geometry there, so the renderer must not mix it
+with PDFium's rotation-aware page extents. Each page therefore carries its
+unrotated box plus its intrinsic `/Rotate`, normalised to 0/90/180/270:
+
+- `<section class="page">` is sized to the **rotated** box, so page flow reserves
+  the space a viewer shows (a `612 × 792` page with `/Rotate 90` lays out
+  `792 × 612`), and records the angle in `data-rotation`;
+- the inner `<div class="page-canvas">` is sized to the **unrotated** box and
+  carries the single CSS transform that applies the rotation
+  (`transform-origin: 0 0` plus `translate(...) rotate(90|180|270deg)`), so text
+  and images keep their user-space offsets and stay legible at page scale.
+
+All four rotations are handled, including `/Rotate 180`, which earlier revisions
+ignored. Rotation changes neither the offsets of the emitted runs nor their DOM
+order.
 
 The native path bounds retained text (32 MiB), generated HTML (64 MiB), image
 count (10,000), pixels per decoded image (25 million), encoded image bytes

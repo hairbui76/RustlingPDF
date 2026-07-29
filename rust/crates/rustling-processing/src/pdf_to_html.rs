@@ -4,6 +4,11 @@
 //! complex-mode output. When the executable cannot be found, a bounded native
 //! renderer uses the shared `PDFium` text geometry, heading/column inference, and
 //! image extractor to produce a flat ZIP containing HTML, CSS, and PNG assets.
+//!
+//! Content is positioned in exactly one coordinate space — unrotated PDF user space,
+//! the space `PDFium` reports text and image geometry in. A page's intrinsic `/Rotate`
+//! is applied once, as a CSS transform on the page canvas, never by mixing rotated
+//! page extents with unrotated content offsets.
 
 use std::{
     ffi::OsString,
@@ -63,6 +68,12 @@ body {
   flex: none;
   background: white;
   box-shadow: 0 2px 10px rgb(0 0 0 / 18%);
+}
+.page-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
 }
 .text-run {
   position: absolute;
@@ -366,13 +377,30 @@ fn render_native_html(
 
     let mut line_index = 0_usize;
     for page in pages {
-        let (page_width, page_height) = page_dimensions(page);
+        let layout = page_layout(page);
+        let PageLayout {
+            canvas_width: page_width,
+            canvas_height: page_height,
+            ..
+        } = layout;
         push_html(
             &mut html,
             &format!(
-                "<section class=\"page\" id=\"page-{}\" data-page-number=\"{}\" style=\"width:{page_width:.2}pt;height:{page_height:.2}pt\">\n",
+                "<section class=\"page\" id=\"page-{}\" data-page-number=\"{}\" data-rotation=\"{}\" style=\"width:{:.2}pt;height:{:.2}pt\">\n",
                 page.page + 1,
-                page.page + 1
+                page.page + 1,
+                layout.rotation_degrees,
+                layout.display_width,
+                layout.display_height
+            ),
+        )?;
+        // Content coordinates stay in unrotated user space inside this canvas; the
+        // page's intrinsic /Rotate is applied once, here, as a CSS transform.
+        push_html(
+            &mut html,
+            &format!(
+                "<div class=\"page-canvas\" style=\"width:{page_width:.2}pt;height:{page_height:.2}pt{}\">\n",
+                layout.canvas_transform()
             ),
         )?;
 
@@ -395,7 +423,11 @@ fn render_native_html(
         while line_index < lines.len() && lines[line_index].page == page.page {
             line_index += 1;
         }
-        let page_lines: Vec<&MarkdownTextLine> = lines[page_start..line_index].iter().collect();
+        let mut page_lines: Vec<&MarkdownTextLine> = lines[page_start..line_index].iter().collect();
+        // PDFium's segment order depends on the page's display orientation, so a rotated
+        // page arrives bottom-to-top. Sort by descending user-space top edge to make DOM
+        // order visual (and rotation-independent) before column grouping.
+        page_lines.sort_by(|a, b| b.y.partial_cmp(&a.y).unwrap_or(std::cmp::Ordering::Equal));
         for group in reading_order_groups(&page_lines) {
             for line in group {
                 append_text_run(
@@ -408,7 +440,7 @@ fn render_native_html(
                 )?;
             }
         }
-        push_html(&mut html, "</section>\n")?;
+        push_html(&mut html, "</div>\n</section>\n")?;
     }
     push_html(&mut html, "</main>\n</body>\n</html>\n")?;
     Ok(html)
@@ -453,18 +485,73 @@ fn append_text_run(
     )
 }
 
-fn page_dimensions(page: &MarkdownPageGeometry) -> (f32, f32) {
-    let width = if page.width.is_finite() && page.width > 0.0 {
+/// Resolved geometry for one rendered page.
+///
+/// `canvas_*` is the unrotated content box that text and image coordinates live in;
+/// `display_*` is the laid-out box after the page's intrinsic `/Rotate`, so the flow
+/// reserves the space a viewer would actually show.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct PageLayout {
+    canvas_width: f32,
+    canvas_height: f32,
+    display_width: f32,
+    display_height: f32,
+    rotation_degrees: u16,
+}
+
+impl PageLayout {
+    /// Returns the CSS that maps the unrotated canvas onto the rotated display box.
+    ///
+    /// `transform-origin` is the canvas's top-left corner, so each rotation is followed
+    /// by the translation that brings the rotated corner back into the display box.
+    fn canvas_transform(&self) -> String {
+        match self.rotation_degrees {
+            90 => format!(
+                ";transform:translate({:.2}pt,0pt) rotate(90deg)",
+                self.canvas_height
+            ),
+            180 => format!(
+                ";transform:translate({:.2}pt,{:.2}pt) rotate(180deg)",
+                self.canvas_width, self.canvas_height
+            ),
+            270 => format!(
+                ";transform:translate(0pt,{:.2}pt) rotate(270deg)",
+                self.canvas_width
+            ),
+            _ => String::new(),
+        }
+    }
+}
+
+fn page_layout(page: &MarkdownPageGeometry) -> PageLayout {
+    let canvas_width = if page.width.is_finite() && page.width > 0.0 {
         page.width.clamp(1.0, MAX_PAGE_DIMENSION_POINTS)
     } else {
         DEFAULT_PAGE_WIDTH_POINTS
     };
-    let height = if page.height.is_finite() && page.height > 0.0 {
+    let canvas_height = if page.height.is_finite() && page.height > 0.0 {
         page.height.clamp(1.0, MAX_PAGE_DIMENSION_POINTS)
     } else {
         DEFAULT_PAGE_HEIGHT_POINTS
     };
-    (width, height)
+    let rotation_degrees = match page.rotation_degrees {
+        90 => 90,
+        180 => 180,
+        270 => 270,
+        _ => 0,
+    };
+    let (display_width, display_height) = if matches!(rotation_degrees, 90 | 270) {
+        (canvas_height, canvas_width)
+    } else {
+        (canvas_width, canvas_height)
+    };
+    PageLayout {
+        canvas_width,
+        canvas_height,
+        display_width,
+        display_height,
+        rotation_degrees,
+    }
 }
 
 fn bounded_coordinate(value: f32, maximum: f32) -> f32 {
@@ -689,6 +776,7 @@ mod tests {
             page: 0,
             width: 500.0,
             height: 700.0,
+            rotation_degrees: 0,
         }];
         let mut lines = vec![line("Title <safe>", 20.0, 20.0, 650.0)];
         lines.extend([
@@ -711,6 +799,121 @@ mod tests {
             (Some(left), Some(right)) if left < right
         ));
         Ok(())
+    }
+
+    /// Rotated pages must position text exactly like the unrotated page, because the
+    /// renderer keeps content in unrotated user space and applies `/Rotate` once as a
+    /// CSS transform. Before this fix the section used PDFium's rotation-aware extents
+    /// while the runs used unrotated coordinates, so `page_height - line.y` went negative
+    /// and every run clamped to `top:0.00pt`.
+    #[test]
+    fn rotated_pages_keep_positions_and_rotate_at_the_css_level()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let lines = [
+            positioned_line("Top line", 72.0, 200.0, 716.72),
+            positioned_line("Second line", 72.0, 200.0, 670.15),
+            positioned_line("Third line", 72.0, 200.0, 623.58),
+        ];
+        let baseline = render_rotated(0, &lines)?;
+        assert!(baseline.contains("data-rotation=\"0\""));
+        assert!(baseline.contains("style=\"width:612.00pt;height:792.00pt\""));
+        // No transform on an unrotated page.
+        assert!(!baseline.contains("rotate("));
+        let baseline_tops = text_run_tops(&baseline);
+        assert_eq!(baseline_tops.len(), 3);
+        assert!(
+            baseline_tops.iter().all(|top| *top > 1.0),
+            "unrotated baseline must not collapse to the top edge: {baseline_tops:?}"
+        );
+        assert!(
+            baseline_tops.windows(2).all(|pair| pair[0] < pair[1]),
+            "runs must stay in top-to-bottom order: {baseline_tops:?}"
+        );
+
+        for (rotation, expected_section, expected_transform) in [
+            (
+                90_u16,
+                "style=\"width:792.00pt;height:612.00pt\"",
+                ";transform:translate(792.00pt,0pt) rotate(90deg)",
+            ),
+            (
+                180,
+                "style=\"width:612.00pt;height:792.00pt\"",
+                ";transform:translate(612.00pt,792.00pt) rotate(180deg)",
+            ),
+            (
+                270,
+                "style=\"width:792.00pt;height:612.00pt\"",
+                ";transform:translate(0pt,612.00pt) rotate(270deg)",
+            ),
+        ] {
+            let html = render_rotated(rotation, &lines)?;
+            assert!(
+                html.contains(&format!("data-rotation=\"{rotation}\"")),
+                "rotation {rotation} is not recorded on the page section"
+            );
+            assert!(
+                html.contains(expected_section),
+                "rotation {rotation} must lay out the rotated page box, got:\n{html}"
+            );
+            assert!(
+                html.contains(expected_transform),
+                "rotation {rotation} must carry its canvas transform, got:\n{html}"
+            );
+            // The canvas keeps the unrotated page box.
+            assert!(html.contains("<div class=\"page-canvas\" style=\"width:612.00pt;height:792.00pt"));
+            let tops = text_run_tops(&html);
+            assert_eq!(
+                tops, baseline_tops,
+                "rotation {rotation} must not move runs inside the canvas"
+            );
+            assert!(
+                tops.iter().all(|top| *top > 1.0),
+                "rotation {rotation} collapsed runs to the top edge: {tops:?}"
+            );
+            assert!(
+                matches!(
+                    (html.find("Top line"), html.find("Third line")),
+                    (Some(first), Some(last)) if first < last
+                ),
+                "rotation {rotation} must keep DOM reading order"
+            );
+        }
+        Ok(())
+    }
+
+    fn render_rotated(
+        rotation_degrees: u16,
+        lines: &[MarkdownTextLine],
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let pages = [MarkdownPageGeometry {
+            page: 0,
+            width: 612.0,
+            height: 792.0,
+            rotation_degrees,
+        }];
+        Ok(render_native_html(
+            "rotated.pdf",
+            "rotated",
+            &pages,
+            lines,
+            10.0,
+            12.0,
+            &[],
+        )?)
+    }
+
+    /// Extracts every `top:` value from the emitted text runs, in DOM order.
+    fn text_run_tops(html: &str) -> Vec<f32> {
+        html.lines()
+            .filter(|line| line.contains("class=\"text-run\""))
+            .filter_map(|line| {
+                let start = line.find(";top:")? + ";top:".len();
+                let rest = &line[start..];
+                let end = rest.find("pt")?;
+                rest[..end].parse::<f32>().ok()
+            })
+            .collect()
     }
 
     #[test]
