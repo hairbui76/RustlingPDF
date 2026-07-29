@@ -105,6 +105,16 @@ solo:
   upstream counterpart.
 - Trivial one-line edits, config tweaks, doc fixes, and pure questions are handled
   directly without a team.
+- **The dev may be a Claude subagent or Codex** (`codex exec --sandbox
+  workspace-write -C <worktree>` — the sandbox is what confines writes to that
+  worktree); pick per work-item. A PM must always orchestrate, and the tester is
+  always a different agent from the dev.
+- **Always choose each subagent's model deliberately** rather than inheriting:
+  `haiku` only for trivial mechanical work, `sonnet` for bounded dev and doc
+  sweeps, `opus` or Codex for substantial dev and for recon that will become a
+  spec, `opus`/`fable` for adversarial testers (never a cheap model — finding
+  what the dev missed is the highest reasoning load), `fable` for
+  security/privacy/crypto review. Set workflow stage `effort` explicitly too.
 
 ## Frontend (frontend/editor)
 
