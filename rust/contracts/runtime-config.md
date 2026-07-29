@@ -58,6 +58,10 @@ precedence as reason `CONFIG`. The exact executable paths accepted by discovery
 are retained for runtime-owned native adapters such as PDF repair, preventing a
 later request from resolving a different binary.
 
+`pdftohtml` discovery is optional for `pdf-to-html`: a discovered executable is
+retained and preferred for compatibility, but its absence no longer disables the
+endpoint because the PDFium-backed native renderer is the fallback.
+
 `dependenciesReady` means startup probing has completed, not that every optional
 tool is installed. Embedded/test router constructors intentionally remain
 process-free; the service binary selects the discovery-enabled constructor.

@@ -227,8 +227,15 @@ auto-rename/auto-split, plus:
   corresponding loaded/rebuilt Java policies after PDFium writes the result.
   (Pro user-aware metadata substitution was a secured-mode idea and died with
   it in batch 7.)
-- `convert/pdf/html` — PDF → HTML via `pdftohtml -c` shell-out, all output files
-  bundled into a ZIP.
+- `convert/pdf/html` — bounded native PDFium-backed positioned HTML/CSS with page
+  sections, inferred headings, the shared two-column reading order, detectable
+  bold/italic styling, and referenced PNG page-image objects, bundled into the
+  existing flat ZIP response. A startup-discovered `pdftohtml` remains preferred
+  for output compatibility and is observable in logs; a missing executable falls
+  back to native rendering. Exact glyph placement, embedded fonts, Poppler
+  complex-mode background images, nested/inline images, transformed image fidelity,
+  vector artwork, links, annotations, and full document semantics remain explicit
+  parity gaps.
 - `convert/pdf/markdown` — Markdown in page order with literal escaping, bullets, and
   soft-hyphen repair. When the PDFium runtime is available, headings are inferred from
   text geometry, porting Java's `HeadingDetector` size-ratio thresholds (dominant glyph

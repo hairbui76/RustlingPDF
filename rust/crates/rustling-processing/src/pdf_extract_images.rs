@@ -51,8 +51,9 @@ pub fn extract_images_to_zip(
         format,
         extension,
         output_path,
+        None,
     )? {
-        PdfiumExtractImagesAttempt::Extracted => Ok(()),
+        PdfiumExtractImagesAttempt::Extracted { .. } => Ok(()),
         PdfiumExtractImagesAttempt::Unavailable {
             explicitly_configured,
             details,

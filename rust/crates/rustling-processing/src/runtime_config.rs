@@ -62,7 +62,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ("OpenCV", "extract-image-scans"),
     (
         "LibreOffice",
-        "file-to-pdf pdf-to-word pdf-to-presentation pdf-to-rtf pdf-to-html pdf-to-xml pdf-to-pdfa",
+        "file-to-pdf pdf-to-word pdf-to-presentation pdf-to-rtf pdf-to-xml pdf-to-pdfa",
     ),
     ("Unoconvert", "file-to-pdf"),
     (
@@ -87,7 +87,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
         "html-to-pdf url-to-pdf markdown-to-pdf eml-to-pdf",
     ),
     ("veraPDF", "verify-pdf"),
-    ("Pdftohtml", "pdf-to-html pdf-to-markdown"),
+    ("Pdftohtml", "pdf-to-markdown"),
     ("Calibre", "pdf-to-epub"),
 ];
 
@@ -118,7 +118,6 @@ const ENDPOINT_ALTERNATIVES: &[(&str, &[&str])] = &[
     ("crop", &["Ghostscript", "Java"]),
     ("ocr-pdf", &["tesseract", "OCRmyPDF"]),
     ("file-to-pdf", &["LibreOffice", "Unoconvert"]),
-    ("pdf-to-html", &["LibreOffice", "Pdftohtml"]),
     ("pdf-to-markdown", &["Pdftohtml"]),
     ("markdown-to-pdf", &["Weasyprint", "Java"]),
 ];
@@ -2363,6 +2362,22 @@ mod tests {
             config.endpoint_availability(&["ocr-pdf".to_owned()])["ocr-pdf"].reason,
             Some("DEPENDENCY")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn pdf_to_html_remains_available_without_external_converters()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        config
+            .dependency_disabled_groups
+            .extend(["LibreOffice".to_owned(), "Pdftohtml".to_owned()]);
+
+        assert!(config.is_endpoint_enabled("pdf-to-html"));
+        assert!(!config.is_endpoint_enabled("pdf-to-markdown"));
         Ok(())
     }
 

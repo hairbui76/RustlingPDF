@@ -54,6 +54,7 @@ pub fn pdf_to_markdown_file(
             lines,
             median_font_size,
             median_line_height,
+            ..
         }) => {
             let markdown = build_markdown_from_lines(&lines, median_font_size, median_line_height);
             fs::write(output_path, markdown)?;
@@ -126,21 +127,8 @@ fn build_markdown_from_lines(
             index += 1;
         }
         let page_lines: Vec<&MarkdownTextLine> = lines[start..index].iter().collect();
-        if detects_two_columns(&page_lines) {
-            // Read top-to-bottom before partitioning so each column stays in reading
-            // order regardless of the raw extraction order across the gutter.
-            let mut ordered = page_lines;
-            ordered.sort_by(|a, b| b.y.partial_cmp(&a.y).unwrap_or(std::cmp::Ordering::Equal));
-            for column in split_into_columns(&ordered) {
-                emit_lines(&column, median_font_size, median_line_height, &mut blocks);
-            }
-        } else {
-            emit_lines(
-                &page_lines,
-                median_font_size,
-                median_line_height,
-                &mut blocks,
-            );
+        for group in reading_order_groups(&page_lines) {
+            emit_lines(&group, median_font_size, median_line_height, &mut blocks);
         }
     }
     blocks.join("\n\n")
@@ -305,7 +293,7 @@ fn split_into_columns<'a>(lines: &[&'a MarkdownTextLine]) -> Vec<Vec<&'a Markdow
 /// median, or line height when sizes are degenerate), brevity, and a not-a-sentence
 /// check — never text matching. `size > baseline * 1.4` yields `"# "`, `> 1.2` yields
 /// `"## "`, otherwise `""`.
-fn heading_prefix(
+pub(crate) fn heading_prefix(
     text: &str,
     dominant_font_size: f32,
     line_height: f32,
@@ -332,6 +320,21 @@ fn heading_prefix(
     } else {
         ""
     }
+}
+
+/// Returns the existing geometry-aware reading-order groups for one page.
+///
+/// Two-column pages are emitted left-column-first, with each column ordered from
+/// top to bottom. Single-column pages retain `PDFium`'s extraction order.
+pub(crate) fn reading_order_groups<'a>(
+    lines: &[&'a MarkdownTextLine],
+) -> Vec<Vec<&'a MarkdownTextLine>> {
+    if !detects_two_columns(lines) {
+        return vec![lines.to_vec()];
+    }
+    let mut ordered = lines.to_vec();
+    ordered.sort_by(|a, b| b.y.partial_cmp(&a.y).unwrap_or(std::cmp::Ordering::Equal));
+    split_into_columns(&ordered)
 }
 
 fn word_count(text: &str) -> usize {
@@ -518,6 +521,8 @@ mod tests {
             width: 500.0,
             y: 0.0,
             paragraph_break_before,
+            bold: false,
+            italic: false,
         }
     }
 
@@ -531,6 +536,8 @@ mod tests {
             width,
             y,
             paragraph_break_before: false,
+            bold: false,
+            italic: false,
         }
     }
 
