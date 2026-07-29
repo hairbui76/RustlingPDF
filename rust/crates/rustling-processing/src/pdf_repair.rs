@@ -135,6 +135,29 @@ mod tests {
         fs::set_permissions(path, permissions)
     }
 
+    /// Runs `repair`, retrying while Linux reports `ETXTBSY`.
+    ///
+    /// The fixture scripts are written and then executed straight away. Under the
+    /// full parallel suite another thread can still hold a write descriptor to the
+    /// just-created file when this thread forks, and the exec then fails with
+    /// "Text file busy" — a property of the harness, not of the repair path.
+    #[cfg(unix)]
+    fn repair_retrying_on_busy_executable(
+        runtime: &RepairRuntime,
+        input: &std::path::Path,
+        output: &std::path::Path,
+    ) -> Result<(), RepairError> {
+        for _ in 0..50 {
+            match runtime.repair(input, "input.pdf", output) {
+                Err(error) if error.to_string().contains("Text file busy") => {
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                result => return result,
+            }
+        }
+        runtime.repair(input, "input.pdf", output)
+    }
+
     #[cfg(unix)]
     #[test]
     fn uses_qpdf_with_java_arguments() -> Result<(), Box<dyn std::error::Error>> {
@@ -152,7 +175,11 @@ mod tests {
         let output = directory.path().join("output.pdf");
         fs::write(&input, b"qpdf repair fixture")?;
 
-        RepairRuntime::new(Some(qpdf), settings()).repair(&input, "input.pdf", &output)?;
+        repair_retrying_on_busy_executable(
+            &RepairRuntime::new(Some(qpdf), settings()),
+            &input,
+            &output,
+        )?;
 
         assert_eq!(fs::read(&output)?, b"qpdf repair fixture");
         assert_eq!(
@@ -213,11 +240,14 @@ mod tests {
         let output = directory.path().join("output.pdf");
         fs::write(&input, b"broken")?;
 
-        let error =
-            match RepairRuntime::new(Some(qpdf), settings()).repair(&input, "input.pdf", &output) {
-                Ok(()) => return Err("qpdf failure must not fall through to lopdf".into()),
-                Err(error) => error,
-            };
+        let error = match repair_retrying_on_busy_executable(
+            &RepairRuntime::new(Some(qpdf), settings()),
+            &input,
+            &output,
+        ) {
+            Ok(()) => return Err("qpdf failure must not fall through to lopdf".into()),
+            Err(error) => error,
+        };
 
         assert!(matches!(error, RepairError::ExternalTools { .. }));
         assert!(error.to_string().contains("qpdf exited with 1"));
