@@ -35,14 +35,15 @@ deleted marks are gone from the saved bytes: their text is no longer extractable
 and their image samples are no longer present. Annotations are dropped for every
 page by the rebuild step that follows.
 
-Resources reachable only from a deleted mark go with it. PDFium rebuilds `/Font`,
-`/ExtGState`, and `/XObject` itself; the port additionally drops `/Pattern` and
-`/Shading` entries of the page's own resource dictionary that no surviving content
-stream paints with, because PDFium leaves those two categories untouched and the
-rebuild copies the page's `/Resources` verbatim into the new Form XObject. Without
-that step a tiling pattern's text and images, and a shading's sampled-function
-data, stayed fully extractable from a file whose caller had asked for them to be
-deleted.
+Resources reachable only from a deleted mark go with it. PDFium rebuilds a page's
+own `/Font`, `/ExtGState`, and `/XObject` when it regenerates the page, but it
+never touches `/Pattern` or `/Shading`, and it never rewrites a Form XObject's or a
+pattern's **own** `/Resources` at all — while the rebuild copies the page's
+`/Resources` verbatim into the new Form XObject. Anything left declared therefore
+stays reachable. The port drops every entry in all five categories that no executed
+path names, so a tiling pattern's text and images, a shading's sampled-function
+data, and whole never-invoked forms leave the file rather than staying extractable
+from a document whose caller asked for them to be deleted.
 
 Which entries survive is decided by **resolving each reference to the object it
 names, in the scope where the reference appears** — not by matching resource names.
@@ -77,41 +78,45 @@ designed refusal about a property of the payload, not an unexpected server fault
 so RFC 9110 puts it outside 5xx; `400` would be wrong too, since deep nesting and
 large form counts are legal PDF, not malformed requests. The abort is logged at
 `WARN` with `event = "crop_resource_analysis_aborted"` so operators can watch how
-often it fires without 5xx noise. It never falls back
-to keeping everything, for the same reason this endpoint returns `501` rather than
-cropping without removal when PDFium is missing: a `200` carrying a file that still
-holds the data the caller asked to delete is indistinguishable from a clean one, so
-it is the one failure the caller cannot detect or recover from. Retrying without the
-flag costs nothing that is not recoverable.
+often it fires without 5xx noise.
 
-"Surviving content" is defined by one rule rather than a list: **every content
-stream that will still be in the output file**. Concretely the walk follows every
-declared resource that reaches a content stream — `/XObject` forms, `/Pattern`
-content, `/ExtGState` (its soft-mask group and its `/Font`), and `/Font` Type 3
-glyph procedures — from the page's own resources and, recursively, from every
-scope those reach, honouring resource inheritance (a Form XObject or Type 3 font
-without its own `/Resources` resolves against the enclosing scope, ISO 32000-1
-§8.10.1 and §9.6.5).
+It never falls back to keeping everything, for the same reason this endpoint
+returns `501` rather than cropping without removal when PDFium is missing: a `200`
+carrying a file that still holds the data the caller asked to delete is
+indistinguishable from a clean one, so it is the one failure the caller cannot
+detect or recover from. Retrying without the flag costs nothing that is not
+recoverable.
 
-Declarations are followed, not merely the operators that invoke them, and that is
-load-bearing in both directions:
+"Surviving content" is defined by one rule: **every content stream that will
+still be in the output file**. The walk starts at each page's content and follows
+only what the operators actually execute — `Do` into Form XObjects (recursively,
+honouring resource inheritance), `scn`/`SCN` into tiling-pattern content, `sh`,
+`Tf` into Type 3 glyph procedures, and `gs` into a graphics state's soft-mask
+group and its `/Font` (ISO 32000-1 Table 58, §8.10.1, §9.6.5).
 
-- **Necessary.** A stream survives when some surviving dictionary declares it and
-  nothing prunes that declaration — regardless of whether an operator executes it.
-  PDFium regenerates a page's operators while keeping its resource declarations,
-  so a graphics state that selected a Type 3 font outlives the `gs` that invoked
-  it. More generally, a form's or a pattern's *own* `/Resources` is never rewritten
-  by PDFium and is not touched by this pruning, so an `/XObject` declared there
-  always survives even if nothing does `Do` on it. Following operators alone prunes
-  what such a stream paints with and leaves it naming a resource no dictionary
-  declares — the counter-example that produced this rule was a form whose own
-  resources declared a second, never-invoked form painting a page-level pattern.
-- **Safe, not merely conservative.** The walk runs on the *post-PDFium* document,
-  so "declared" already means "survived PDFium's own resource rebuild". Following
-  declarations therefore follows exactly what is still in the file; it cannot
-  retain something PDFium already dropped. Fixtures where an out-of-crop-only
-  secret is reachable solely through a declared-but-uninvoked path confirm the
-  secret is still removed.
+Anything a resource dictionary declares that no executed path names is **removed
+from that dictionary** — `/Pattern`, `/Shading`, `/XObject`, `/ExtGState`, and
+`/Font` alike — which orphans the stream behind it, and `prune_objects` then
+deletes it. This is what makes the rule true by construction rather than by
+enumerating traversal paths: a stream the walk did not visit is not in the output
+to be visited.
+
+Pruning declarations, rather than traversing them, is load-bearing in both
+directions:
+
+- **Leak.** PDFium never rewrites a Form XObject's or a pattern's *own*
+  `/Resources`, so a declaration there survives whatever PDFium does. A
+  never-invoked form declared inside a surviving form kept an out-of-crop
+  secret extractable through the pattern it named; removing the declaration
+  removes the whole subtree.
+- **Corruption.** Nothing is left naming a resource no dictionary declares,
+  because a stream and the entry that reaches it are removed together.
+- **Cost.** Traversing declarations meant a stream reached under many scopes was
+  re-decoded once per scope: cross-declaring forms turned a 532 KB upload into
+  68 s of work and 57 MB, and a 3.5 MB one into over 10 minutes and 2.7 GB, all
+  under the global PDFium lock. Dead declarations are now removed rather than
+  followed, and the walk's budget counts **decoded content bytes** rather than
+  streams so that the remaining rescan shape is priced correctly.
 
 A path that is *not* followed causes **corruption, not a leak**: the entry is
 pruned while a stream that names it survives, leaving a dangling resource name.

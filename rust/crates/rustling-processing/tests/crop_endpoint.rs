@@ -5,7 +5,7 @@ use axum::{
     http::{Request, StatusCode, header},
     response::Response,
 };
-use lopdf::{Document, Object, Stream, dictionary};
+use lopdf::{Document, Object, Stream, content::Content, dictionary};
 use rustling_processing::app;
 use tower::ServiceExt;
 
@@ -518,13 +518,15 @@ async fn rejects_the_request_when_the_resource_walk_cannot_prove_what_is_live()
 /// job — the bound this replaces was 60 s at 4000 forms, which the 15.9 s
 /// regression it is named for would have passed.
 ///
-/// The threshold is 3x the work ratio rather than 2x because a meaningful and
-/// growing share of the measured time is `PDFium`'s own per-form cost, not the walk;
-/// on heavier fixtures that pushed the observed ratio close enough to a 2x
-/// threshold to risk flaking. The quadratic behaviour is still comfortably outside
-/// it, and the `const size_of::<ResourcesId>()` assertion in `pdf_crop.rs` is the
-/// deterministic guard — this one exists to catch a regression that keeps the type
-/// small but reintroduces the copying elsewhere.
+/// The threshold is 2.5x the work ratio. A 2x threshold sat too close to the
+/// measured ratio on heavier fixtures — a meaningful share of the wall clock is
+/// `PDFium`'s own per-form cost, not the walk — while 3x gave a 24x limit that the
+/// regression it names measured at 24.06x, i.e. a coin flip. At 2.5x the limit is
+/// 20x against a 24x regression: a real 20% margin in both directions.
+///
+/// This is a heuristic, and the `const size_of::<ResourcesId>()` assertion in
+/// `pdf_crop.rs` is the deterministic guard. This test exists to catch a
+/// regression that keeps the type small but reintroduces the copying elsewhere.
 #[tokio::test]
 async fn resource_walk_stays_linear_in_the_number_of_inheriting_forms()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -550,7 +552,7 @@ async fn resource_walk_stays_linear_in_the_number_of_inheriting_forms()
     let growth = large.as_secs_f64() / small.as_secs_f64();
     let work = f64::from(large_forms) / f64::from(small_forms);
     assert!(
-        growth < work * 3.0,
+        growth < work * 2.5,
         "{small_forms} forms took {small:?} and {large_forms} took {large:?} — {growth:.1}x the \
          time for {work:.0}x the work; the walk is no longer linear"
     );
@@ -662,19 +664,24 @@ async fn follows_type3_glyph_procedures_when_deciding_what_is_live()
     Ok(())
 }
 
-/// The general form of the reachability rule, and the counter-example that forced
-/// it: a Form `XObject` declared in *another form's own* `/Resources`.
+/// A Form `XObject` declared in *another form's own* `/Resources` that nothing
+/// ever invokes.
 ///
-/// `PDFium` never rewrites a form's own resource dictionary, and this pruning only
-/// filters `/Pattern` and `/Shading`, so such a declaration always survives — even
-/// when nothing ever does `Do` on it. Following operators alone pruned the pattern
-/// that stream paints and left it in the output naming a resource no dictionary
-/// declared. The rule the walk settled on is therefore not a list of special
-/// cases but one property: traverse every content stream that will still be in the
-/// output file.
+/// `PDFium` never rewrites a form's own resource dictionary, so such a declaration
+/// survives its rebuild. An earlier revision therefore *traversed* it to avoid
+/// leaving a dangling name — which kept the dead stream, and everything it named,
+/// in the output: an out-of-crop secret stayed extractable through it, and
+/// cross-declaring forms rescanned under many scopes turned a 532 KB upload into
+/// 68 s of work.
+///
+/// The declaration is now pruned instead. That is both directions at once: the
+/// dead stream and its pattern leave the file, and nothing is left naming a
+/// resource that no dictionary declares. It is also what makes the walk's rule —
+/// traverse every content stream that will still be in the output file — true by
+/// construction rather than by enumerating paths.
 #[tokio::test]
-async fn follows_form_xobjects_declared_in_another_forms_own_resources()
--> Result<(), Box<dyn std::error::Error>> {
+async fn prunes_form_xobjects_declared_but_never_invoked() -> Result<(), Box<dyn std::error::Error>>
+{
     let response = post_crop(
         "declared-xobject.pdf",
         &pdf_with_form_declaring_an_uninvoked_form()?,
@@ -687,13 +694,18 @@ async fn follows_form_xobjects_declared_in_another_forms_own_resources()
     let response = require_status(response, StatusCode::OK).await?;
     let bytes = to_bytes(response.into_body(), usize::MAX).await?;
     assert!(
-        document_contains(&bytes, b"FORMRESINNERPAT")?,
-        "a pattern painted by a form declared in another form's resources was pruned"
+        !document_contains(&bytes, b"FORMRESINNERPAT")?,
+        "the never-invoked form kept its pattern alive in the output"
     );
     assert!(
         !document_contains(&bytes, b"DECLOUTOFCROP")?,
         "the out-of-crop text survived"
     );
+    assert!(
+        document_contains(&bytes, b"KEEPME")?,
+        "the in-crop text was removed"
+    );
+    assert_no_dangling_pattern_names(&bytes)?;
     Ok(())
 }
 
@@ -746,16 +758,16 @@ fn pdf_with_form_declaring_an_uninvoked_form() -> Result<Vec<u8>, Box<dyn std::e
 }
 
 /// `/ExtGState` can select a font directly (ISO 32000-1 Table 58), so a Type 3
-/// font chosen that way never trips the `Tf` arm.
+/// font chosen that way never trips the `Tf` arm — and `PDFium` regenerates the
+/// page's operators, dropping the `gs` that invoked the state while keeping the
+/// state *declared* with its glyph procedures intact.
 ///
-/// It is also the case that makes operator-driven walking insufficient: `PDFium`
-/// regenerates the page's operators — dropping the `gs` that invoked the state —
-/// while keeping the state *declared* in the rebuilt resources, glyph procedures
-/// and all. Following only operators therefore pruned the pattern those glyphs
-/// paint and left a surviving procedure emitting `/P0 scn` with no `/Pattern`
-/// anywhere.
+/// Both the graphics state and the font are pruned, because after regeneration no
+/// executed path names either. The glyph procedure and the pattern it painted
+/// leave the file with them, so there is nothing left to dangle and nothing left
+/// to extract.
 #[tokio::test]
-async fn follows_fonts_selected_through_the_graphics_state()
+async fn prunes_graphics_states_and_fonts_no_executed_path_names()
 -> Result<(), Box<dyn std::error::Error>> {
     let response = post_crop(
         "extgstate-font.pdf",
@@ -769,13 +781,73 @@ async fn follows_fonts_selected_through_the_graphics_state()
     let response = require_status(response, StatusCode::OK).await?;
     let bytes = to_bytes(response.into_body(), usize::MAX).await?;
     assert!(
-        document_contains(&bytes, b"EGFONTPAT")?,
-        "a pattern painted by a Type 3 glyph selected through /ExtGState was pruned"
+        !document_contains(&bytes, b"EGFONTPAT")?,
+        "the unreferenced graphics state kept its glyph's pattern alive"
     );
     assert!(
         !document_contains(&bytes, b"EGOUTOFCROP")?,
         "the out-of-crop text survived"
     );
+    assert!(
+        document_contains(&bytes, b"KEEPME")?,
+        "the in-crop text was removed"
+    );
+    assert_no_dangling_pattern_names(&bytes)?;
+    Ok(())
+}
+
+/// Fails if any surviving content stream names a `/Pattern` that no reachable
+/// resource dictionary declares — the corruption direction of this pruning.
+fn assert_no_dangling_pattern_names(pdf: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    let document = Document::load_mem(pdf)?;
+    let mut declared = std::collections::HashSet::new();
+    for object in document.objects.values() {
+        let dictionary = match object {
+            Object::Dictionary(dictionary) => Some(dictionary),
+            Object::Stream(stream) => Some(&stream.dict),
+            _ => None,
+        };
+        let Some(patterns) = dictionary
+            .and_then(|dictionary| dictionary.get(b"Pattern").ok())
+            .and_then(|patterns| match patterns {
+                Object::Reference(id) => document.get_dictionary(*id).ok(),
+                Object::Dictionary(entries) => Some(entries),
+                _ => None,
+            })
+        else {
+            continue;
+        };
+        for (name, _) in patterns {
+            declared.insert(name.clone());
+        }
+    }
+    for object in document.objects.values() {
+        let Ok(stream) = object.as_stream() else {
+            continue;
+        };
+        let Ok(decompressed) = stream.decompressed_content() else {
+            continue;
+        };
+        let Ok(content) = Content::decode(&decompressed) else {
+            continue;
+        };
+        for operation in &content.operations {
+            if !matches!(operation.operator.as_str(), "scn" | "SCN") {
+                continue;
+            }
+            if let Some(name) = operation
+                .operands
+                .last()
+                .and_then(|operand| operand.as_name().ok())
+            {
+                assert!(
+                    declared.contains(name),
+                    "a surviving stream paints with /{} but no dictionary declares it",
+                    String::from_utf8_lossy(name)
+                );
+            }
+        }
+    }
     Ok(())
 }
 

@@ -178,7 +178,7 @@ fn rebuild_cropped_pdf(
 ) -> Result<(), CropError> {
     let mut document = load_document(input_path, filename)?;
     if prune_unreferenced_resources {
-        prune_unreferenced_pattern_and_shading(&mut document)?;
+        prune_dead_resource_declarations(&mut document)?;
     }
     let page_ids = document.get_pages().into_values().collect::<Vec<_>>();
     if page_ids.is_empty() {
@@ -212,22 +212,20 @@ fn rebuild_cropped_pdf(
     Ok(())
 }
 
-/// Maximum resource-scope chain depth, and maximum content streams walked, while
-/// working out which patterns and shadings surviving content still paints with.
-/// Both bound the work an adversarial file can force. Exhausting either abandons
-/// pruning for that page and keeps every entry: retaining a secret is bad, but
-/// pruning something still painted corrupts the document, so the bound fails
-/// towards the recoverable side.
 /// Bounds on the resource-reachability walk.
 ///
-/// These exist to stop pathological nesting, not to ration ordinary work: the
-/// walk visits each (stream, scope chain) pair once and carries scopes by
-/// identity rather than by value, so its cost is linear in the document. Real
-/// files sit orders of magnitude below both. Exceeding either is reported as an
-/// error and no file is produced — see [`prune_unreferenced_pattern_and_shading`]
-/// for why the walk never fails open.
+/// The byte budget counts **decoded content bytes**, not streams. A stream reached
+/// under two different scope chains is scanned twice, so a file that makes many
+/// forms reachable under many scopes re-decodes the same bodies quadratically —
+/// cost a stream counter cannot see. Counting scans let a 532 KB upload sit under
+/// a 100 000-scan budget while burning 68 s and 57 MB; counting bytes prices that
+/// shape correctly.
+///
+/// Both bounds exist to stop pathological shapes, not to ration ordinary work.
+/// Exceeding either is reported as an error and no file is produced — see
+/// [`prune_dead_resource_declarations`] for why the walk never fails open.
 const MAX_RESOURCE_SCOPE_DEPTH: usize = 256;
-const MAX_WALKED_SCOPED_STREAMS: usize = 100_000;
+const MAX_SCANNED_CONTENT_BYTES: u64 = 256 * 1024 * 1024;
 
 /// Pins the property that makes the resource walk cheap: a scope is carried by
 /// **identity**, never by value.
@@ -240,20 +238,38 @@ const MAX_WALKED_SCOPED_STREAMS: usize = 100_000;
 /// dictionary was put back into the scope type, that regression is back.
 const _: () = assert!(size_of::<ResourcesId>() <= 2 * size_of::<u32>() + size_of::<usize>());
 
-/// The `/Pattern` and `/Shading` resource categories this pruning considers.
+/// The resource categories this pruning governs.
+///
+/// All five are pruned together, and that is what makes the walk's rule true by
+/// construction rather than by enumeration: an entry no executed path names is
+/// removed from the dictionary that declares it, so the stream behind it is
+/// orphaned and `prune_objects` deletes it. Nothing is then left in the output
+/// that the walk did not traverse.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum ResourceCategory {
     Pattern,
     Shading,
+    XObject,
+    ExtGState,
+    Font,
 }
 
 impl ResourceCategory {
-    const ALL: [Self; 2] = [Self::Pattern, Self::Shading];
+    const ALL: [Self; 5] = [
+        Self::Pattern,
+        Self::Shading,
+        Self::XObject,
+        Self::ExtGState,
+        Self::Font,
+    ];
 
     fn key(self) -> &'static [u8] {
         match self {
             Self::Pattern => b"Pattern",
             Self::Shading => b"Shading",
+            Self::XObject => b"XObject",
+            Self::ExtGState => b"ExtGState",
+            Self::Font => b"Font",
         }
     }
 }
@@ -293,32 +309,42 @@ enum LiveResource {
     Inline(CategoryId, Vec<u8>),
 }
 
-/// Drops `/Pattern` and `/Shading` resource entries that no surviving mark paints
-/// with.
+/// Drops every resource entry that no executed path names, and with it the
+/// streams behind them.
 ///
-/// `PDFium` rebuilds `/Font`, `/ExtGState`, and `/XObject` when it regenerates a
-/// page — which is why a removed image or Form `XObject` really does leave the
-/// file — but it leaves `/Pattern` and `/Shading` exactly as it found them. Since
-/// [`page_form`] copies the page's `/Resources` verbatim into the rebuilt page's
-/// Form `XObject`, an out-of-crop mark painted with a tiling pattern or a shading
-/// would keep its whole subtree reachable, and `prune_objects` would rightly
-/// preserve it.
+/// `PDFium` rebuilds a page's own `/Font`, `/ExtGState`, and `/XObject` when it
+/// regenerates the page, but it never touches `/Pattern` or `/Shading`, and it
+/// never rewrites a Form `XObject`'s or a pattern's **own** `/Resources` at all.
+/// Since [`page_form`] copies the page's `/Resources` verbatim into the rebuilt
+/// page, anything still declared stays reachable and `prune_objects` rightly
+/// preserves it — including a tiling pattern's text and images, a shading's
+/// sampled-function data, and whole never-invoked forms.
 ///
-/// The live set is collected across **every** page first and only then applied, so
-/// an entry any page still paints survives, and each dictionary — including one
+/// So liveness is decided by **execution**: an entry survives only if some path
+/// the operators actually take names it. Everything else is removed from the
+/// dictionary that declares it and falls out of the file. That is what makes the
+/// walk's rule — *traverse every content stream that will still be in the output
+/// file* — true by construction. An earlier revision instead traversed
+/// declarations to avoid dangling names, which left dead streams in the file: they
+/// kept out-of-crop secrets alive through a form's own `/Resources` (which nothing
+/// rewrote), and cross-declaring forms re-scanned under many scopes turned a
+/// 532 KB upload into 68 s of work under the global `PDFium` lock.
+///
+/// The live set is collected across **every** page before anything is applied, so
+/// an entry any page still uses survives, and each dictionary — including one
 /// shared between a page and a form — is filtered exactly once, in place.
 ///
 /// # Errors
 ///
 /// Returns [`CropError::ResourceAnalysis`] when the walk cannot establish what is
-/// live: an undecodable content stream, or nesting beyond the bounds above. The
+/// live: an undecodable content stream, or a document past the bounds above. The
 /// walk never falls back to keeping everything, for the same reason this endpoint
 /// returns `501` instead of silently cropping without removal when `PDFium` is
 /// missing — answering a request to delete data with a file that still contains
-/// it, and a `200` that looks identical to a clean one, is the one outcome the
+/// it, under a `200` that looks identical to a clean one, is the one outcome the
 /// caller cannot detect or recover from. A caller that would rather have the file
 /// than the guarantee can retry with `removeDataOutsideCrop=false`.
-fn prune_unreferenced_pattern_and_shading(document: &mut Document) -> Result<(), CropError> {
+fn prune_dead_resource_declarations(document: &mut Document) -> Result<(), CropError> {
     let mut walk = ResourceWalk::new(document);
     for page_id in document.get_pages().into_values() {
         walk.walk_page(page_id)?;
@@ -357,7 +383,7 @@ struct ResourceWalk<'a> {
     /// 6000-link chain in a ~500 KB upload overflowed the thread stack and
     /// aborted the process.
     queue: VecDeque<(Vec<u8>, Vec<ResourcesId>)>,
-    budget: usize,
+    budget: u64,
 }
 
 impl<'a> ResourceWalk<'a> {
@@ -368,7 +394,7 @@ impl<'a> ResourceWalk<'a> {
             dictionaries: BTreeSet::new(),
             visited: HashSet::new(),
             queue: VecDeque::new(),
-            budget: MAX_WALKED_SCOPED_STREAMS,
+            budget: MAX_SCANNED_CONTENT_BYTES,
         }
     }
 
@@ -385,20 +411,19 @@ impl<'a> ResourceWalk<'a> {
     }
 
     fn scan(&mut self, content: &[u8], chain: &[ResourcesId]) -> Result<(), CropError> {
-        self.budget = self
-            .budget
-            .checked_sub(1)
-            .ok_or_else(|| CropError::ResourceAnalysis {
-                details: format!(
-                    "more than {MAX_WALKED_SCOPED_STREAMS} nested content streams reference \
-                     patterns or shadings"
-                ),
-            })?;
-        for resources_id in chain {
-            if self.dictionaries.insert(*resources_id) {
-                self.enqueue_declared_content(chain, *resources_id)?;
-            }
-        }
+        // Charged in bytes: the same stream reached under two scope chains is
+        // scanned twice, so cost tracks decoded bytes, not stream count.
+        let charge = u64::try_from(content.len()).unwrap_or(u64::MAX);
+        self.budget =
+            self.budget
+                .checked_sub(charge)
+                .ok_or_else(|| CropError::ResourceAnalysis {
+                    details: format!(
+                        "resolving which resources the cropped content still uses would need to \
+                     scan more than {MAX_SCANNED_CONTENT_BYTES} bytes of content streams"
+                    ),
+                })?;
+        self.dictionaries.extend(chain.iter().copied());
         let content = Content::decode(content).map_err(|source| CropError::ResourceAnalysis {
             details: format!("a content stream could not be decoded: {source}"),
         })?;
@@ -420,9 +445,12 @@ impl<'a> ResourceWalk<'a> {
                         self.enqueue(chain, &value, None)?;
                     }
                 }
+                // The entry is marked live whatever its subtype — an image `Do`
+                // must keep its declaration too — but only a Form has content to
+                // follow.
                 "Do" => {
                     if let Some(name) = operand_name(operation.operands.first())
-                        && let Some(value) = resolve_named(self.document, chain, b"XObject", name)
+                        && let Some(value) = self.record(chain, ResourceCategory::XObject, name)
                     {
                         self.enqueue(chain, &value, Some(b"Form"))?;
                     }
@@ -432,8 +460,10 @@ impl<'a> ResourceWalk<'a> {
                 // the page (ISO 32000-1 §9.6.5). A glyph that paints with a
                 // page-level pattern keeps it alive just as a form would.
                 "Tf" => {
-                    if let Some(name) = operand_name(operation.operands.first()) {
-                        self.enqueue_type3_glyph_procedures(chain, name)?;
+                    if let Some(name) = operand_name(operation.operands.first())
+                        && let Some(value) = self.record(chain, ResourceCategory::Font, name)
+                    {
+                        self.enqueue_type3_font(chain, &value)?;
                     }
                 }
                 // A graphics state can reach content two ways: `/SMask /G` names a
@@ -441,8 +471,10 @@ impl<'a> ResourceWalk<'a> {
                 // font directly (ISO 32000-1 Table 58) — including a Type 3 font,
                 // whose glyph procedures `Tf` would never see.
                 "gs" => {
-                    if let Some(name) = operand_name(operation.operands.first()) {
-                        self.enqueue_graphics_state_content(chain, name)?;
+                    if let Some(name) = operand_name(operation.operands.first())
+                        && let Some(value) = self.record(chain, ResourceCategory::ExtGState, name)
+                    {
+                        self.enqueue_graphics_state(chain, &value)?;
                     }
                 }
                 _ => {}
@@ -461,64 +493,6 @@ impl<'a> ResourceWalk<'a> {
         let (live, value) = resolve_resource(self.document, chain, category, name)?;
         self.live.insert(live);
         Some(value)
-    }
-
-    /// Queues every content stream a scope's **declarations** reach, not just the
-    /// ones its operators invoke.
-    ///
-    /// This is the general rule the walk is built on: *traverse every content
-    /// stream that will still be in the output file*. A resource entry has to stay
-    /// declared if any surviving stream names it, and a stream survives when some
-    /// surviving dictionary declares it and nothing prunes that declaration —
-    /// whether or not an operator ever executes it.
-    ///
-    /// Two things make that both necessary and safe:
-    ///
-    /// * **Necessary.** `PDFium` regenerates a page's operators while keeping its
-    ///   resource declarations, so a graphics state that selected a Type 3 font
-    ///   (ISO 32000-1 Table 58) survives with its glyph procedures after the `gs`
-    ///   that invoked it is gone. A form's or a pattern's *own* `/Resources` is
-    ///   never rewritten by `PDFium` at all, and this pruning only filters
-    ///   `/Pattern` and `/Shading`, so an `/XObject` declared there always
-    ///   survives even when nothing does `Do` on it. Following operators alone
-    ///   prunes what such a stream paints with and leaves it naming a resource no
-    ///   dictionary declares.
-    /// * **Safe.** The walk runs on the *post-`PDFium`* document, so "declared"
-    ///   already means "survived `PDFium`'s own resource rebuild". Following
-    ///   declarations therefore follows exactly what is still in the file; it
-    ///   cannot retain something `PDFium` already dropped, which is why this is
-    ///   not merely a conservative over-approximation.
-    fn enqueue_declared_content(
-        &mut self,
-        chain: &[ResourcesId],
-        resources_id: ResourcesId,
-    ) -> Result<(), CropError> {
-        let document = self.document;
-        let Some(resources) = resources_dictionary(document, resources_id) else {
-            return Ok(());
-        };
-        for state in declared_values(document, resources, b"ExtGState") {
-            self.enqueue_graphics_state(chain, &state)?;
-        }
-        for font in declared_values(document, resources, b"Font") {
-            self.enqueue_type3_font(chain, &font)?;
-        }
-        for xobject in declared_values(document, resources, b"XObject") {
-            self.enqueue(chain, &xobject, Some(b"Form"))?;
-        }
-        Ok(())
-    }
-
-    /// Queues every glyph procedure of `name` when it selects a Type 3 font.
-    fn enqueue_type3_glyph_procedures(
-        &mut self,
-        chain: &[ResourcesId],
-        name: &[u8],
-    ) -> Result<(), CropError> {
-        let Some(font) = resolve_named(self.document, chain, b"Font", name) else {
-            return Ok(());
-        };
-        self.enqueue_type3_font(chain, &font)
     }
 
     /// Queues every glyph procedure of a font object, if it is a Type 3 font.
@@ -567,17 +541,6 @@ impl<'a> ResourceWalk<'a> {
 
     /// Queues the content a graphics state parameter dictionary reaches: the
     /// transparency group its soft mask paints, and the font it selects.
-    fn enqueue_graphics_state_content(
-        &mut self,
-        chain: &[ResourcesId],
-        name: &[u8],
-    ) -> Result<(), CropError> {
-        let Some(state) = resolve_named(self.document, chain, b"ExtGState", name) else {
-            return Ok(());
-        };
-        self.enqueue_graphics_state(chain, &state)
-    }
-
     fn enqueue_graphics_state(
         &mut self,
         chain: &[ResourcesId],
@@ -676,17 +639,6 @@ impl<'a> ResourceWalk<'a> {
     }
 }
 
-/// The values a resource dictionary declares under `category`.
-fn declared_values(document: &Document, resources: &Dictionary, category: &[u8]) -> Vec<Object> {
-    resources
-        .get(category)
-        .ok()
-        .and_then(|entries| dereference_dictionary(document, entries))
-        .map_or_else(Vec::new, |(_, entries)| {
-            entries.iter().map(|(_, value)| value.clone()).collect()
-        })
-}
-
 fn operand_name(operand: Option<&Object>) -> Option<&[u8]> {
     operand.and_then(|operand| operand.as_name().ok())
 }
@@ -780,35 +732,6 @@ fn resolve_resource(
             _ => LiveResource::Inline(category_id, name.to_vec()),
         };
         return Some((live, value.clone()));
-    }
-    None
-}
-
-/// Resolves a resource name in any category through the scope chain.
-fn resolve_named(
-    document: &Document,
-    chain: &[ResourcesId],
-    category: &[u8],
-    name: &[u8],
-) -> Option<Object> {
-    for resources_id in chain {
-        let Some(resources) = resources_dictionary(document, *resources_id) else {
-            continue;
-        };
-        let Some(entries) = resources
-            .get(category)
-            .ok()
-            .and_then(|entries| match entries {
-                Object::Reference(object_id) => document.get_dictionary(*object_id).ok(),
-                Object::Dictionary(dictionary) => Some(dictionary),
-                _ => None,
-            })
-        else {
-            continue;
-        };
-        if let Ok(value) = entries.get(name) {
-            return Some(value.clone());
-        }
     }
     None
 }
