@@ -59,7 +59,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ("tesseract", "ocr-pdf"),
     ("OCRmyPDF", "ocr-pdf"),
     ("rar", "pdf-to-cbr"),
-    ("Weasyprint", "html-to-pdf url-to-pdf markdown-to-pdf"),
+    ("Weasyprint", "html-to-pdf url-to-pdf markdown-to-pdf eml-to-pdf"),
     ("Pdftohtml", "pdf-to-html"),
     ("Calibre", "pdf-to-epub ebook-to-pdf"),
     ("FFmpeg", "pdf-to-video"),
@@ -2177,6 +2177,33 @@ mod tests {
         assert_eq!(availability["cbr-to-pdf"].reason, Some("DEPENDENCY"));
         assert!(availability["verify-pdf"].enabled);
         assert_eq!(availability["verify-pdf"].reason, None);
+        Ok(())
+    }
+
+    #[test]
+    fn weasyprint_dependency_disables_html_markdown_and_eml_to_pdf()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        config
+            .dependency_disabled_groups
+            .insert("Weasyprint".to_owned());
+
+        let availability = config.endpoint_availability(&[
+            "html-to-pdf".to_owned(),
+            "url-to-pdf".to_owned(),
+            "markdown-to-pdf".to_owned(),
+            "eml-to-pdf".to_owned(),
+        ]);
+        for endpoint in ["html-to-pdf", "url-to-pdf", "markdown-to-pdf", "eml-to-pdf"] {
+            assert!(
+                !availability[endpoint].enabled,
+                "{endpoint} should be disabled when WeasyPrint is unavailable"
+            );
+            assert_eq!(availability[endpoint].reason, Some("DEPENDENCY"));
+        }
         Ok(())
     }
 
