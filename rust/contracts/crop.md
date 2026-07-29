@@ -57,11 +57,33 @@ own `Do` targets and the page-level patterns it paints with. A form that does ca
 its dictionary happens to omit resolves the way real viewers resolve it rather than
 being lost.
 
+A `/Resources` dictionary that is an indirect object may be **shared** — a Form
+XObject pointing at the very dictionary its page uses is spec-legal and real
+generators emit it. Each such dictionary is filtered once, in place, against a live
+set collected across every page first, so every holder of it agrees and an entry
+any page still paints survives. Writing a filtered copy onto one holder instead
+leaves the others pointing at the unfiltered original, which keeps the dead entry
+reachable.
+
 Both directions are load-bearing and are pinned by tests: retaining an entry only
 an out-of-crop mark referenced re-opens the leak, and dropping one that surviving
-content still paints with leaves a dangling name and visibly corrupts the page. If
-the scope walk exceeds its bounds (32 nested scopes, 4096 content streams) the page
-keeps every entry, because corrupting a document is the worse failure.
+content still paints with leaves a dangling name and visibly corrupts the page.
+
+If the walk cannot establish what is live — an undecodable content stream, or
+nesting past its limits — the request **fails with `500` and no file is produced**,
+naming the cause and pointing at `removeDataOutsideCrop=false`. It never falls back
+to keeping everything, for the same reason this endpoint returns `501` rather than
+cropping without removal when PDFium is missing: a `200` carrying a file that still
+holds the data the caller asked to delete is indistinguishable from a clean one, so
+it is the one failure the caller cannot detect or recover from. Retrying without the
+flag costs nothing that is not recoverable.
+
+The walk itself is linear in the size of the document — it visits each
+(stream, scope) pair once and carries scopes by identity rather than by value, and
+it is iterative rather than recursive so a long chain of inheriting forms cannot
+exhaust the stack. Its limits (256 nested scopes, 100 000 scoped streams) exist to
+stop pathological nesting, not to ration ordinary work; measured documents sit
+orders of magnitude below them.
 
 Verified end to end against plain text, images, Form and nested-Form text, inline
 images, invisible (`3 Tr`) text, optional-content (OCG) marks, `/Contents` arrays,

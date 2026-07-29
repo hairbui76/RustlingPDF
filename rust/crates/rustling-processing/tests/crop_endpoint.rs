@@ -394,6 +394,409 @@ fn tiling_pattern(font_id: lopdf::ObjectId, payload: &[u8]) -> Stream {
     )
 }
 
+/// A Form `XObject` whose `/Resources` is an indirect reference to the page's own
+/// resource dictionary is spec-legal and real generators emit it. Writing a
+/// filtered *copy* of the resources onto the page leaves the form still pointing
+/// at the unfiltered original, so the dead pattern stays reachable and
+/// `prune_objects` rightly keeps it. The dictionary the holders actually point at
+/// has to be the one that gets filtered.
+#[tokio::test]
+async fn prunes_dead_entries_from_resources_shared_by_indirect_reference()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "shared.pdf",
+        &pdf_with_shared_indirect_resources()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        !document_contains(&bytes, b"SHAREDRESSECRET")?,
+        "the dead pattern stayed reachable through the shared resource dictionary"
+    );
+    assert!(
+        document_contains(&bytes, b"SHAREDRESPAT")?,
+        "the live pattern was pruned"
+    );
+    // Every surviving holder must see the same filtered dictionary: no dictionary
+    // anywhere may still list the dead entry.
+    let document = Document::load_mem(&bytes)?;
+    assert!(
+        !document.objects.values().any(|object| object
+            .as_dict()
+            .is_ok_and(|dictionary| dictionary_lists_pattern(dictionary, b"Psec"))),
+        "a resource dictionary still lists the pruned pattern"
+    );
+    Ok(())
+}
+
+fn dictionary_lists_pattern(dictionary: &lopdf::Dictionary, name: &[u8]) -> bool {
+    dictionary
+        .get(b"Pattern")
+        .ok()
+        .and_then(|patterns| patterns.as_dict().ok())
+        .is_some_and(|patterns| patterns.get(name).is_ok())
+}
+
+/// Deeply nested resource scopes must be walked, not bailed on. The previous
+/// revision stopped at 32 and kept every entry, so a 31-deep chain in a 6.9 KB
+/// file silently returned the secret with a clean `200`.
+#[tokio::test]
+async fn walks_deeply_nested_resource_scopes_instead_of_giving_up()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "deep.pdf",
+        &pdf_with_nested_form_scopes(40)?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        !document_contains(&bytes, b"DEEPSECRET")?,
+        "a nested scope chain made the walk give up and keep the secret"
+    );
+    assert!(
+        document_contains(&bytes, b"KEEPME")?,
+        "in-crop text was removed"
+    );
+    Ok(())
+}
+
+/// When the walk cannot establish what is live it must fail loudly rather than
+/// guess in either direction. Keeping everything hands back a `200` and a file
+/// that still holds the data the caller asked to delete; pruning anyway leaves a
+/// `scn` naming a resource no dictionary declares. Both are undetectable to the
+/// caller, so the request errors and no file is produced.
+#[tokio::test]
+async fn rejects_the_request_when_the_resource_walk_cannot_prove_what_is_live()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "undecodable.pdf",
+        &pdf_with_undecodable_form_content()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let body = to_bytes(response.into_body(), usize::MAX).await?;
+    let body = String::from_utf8_lossy(&body);
+    assert!(
+        body.contains("removeDataOutsideCrop=false"),
+        "the error must tell the caller how to proceed: {body}"
+    );
+    assert!(
+        !body.starts_with("%PDF"),
+        "a file must not be produced when the guarantee cannot be met"
+    );
+    Ok(())
+}
+
+/// Scaling guard for the resource walk.
+///
+/// Carrying scopes by value made this quadratic in time and memory — 4000
+/// inheriting forms cost 15.9 s and 1.8 GB of resident memory on the reference
+/// host, versus 1.9 s and no measurable growth once scopes were carried by
+/// identity. The budget is deliberately loose so ordinary CI noise cannot trip it
+/// while a return of the quadratic behaviour still would.
+#[tokio::test]
+async fn resource_walk_stays_linear_in_the_number_of_inheriting_forms()
+-> Result<(), Box<dyn std::error::Error>> {
+    let source = pdf_with_inheriting_forms(4_000)?;
+    let started = std::time::Instant::now();
+    let response = post_crop(
+        "scaling.pdf",
+        &source,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+    )
+    .await?;
+    let elapsed = started.elapsed();
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    require_status(response, StatusCode::OK).await?;
+    assert!(
+        elapsed < std::time::Duration::from_secs(60),
+        "4000 inheriting forms took {elapsed:?}; the walk is no longer linear"
+    );
+    Ok(())
+}
+
+/// A long chain of Form `XObjects` that each inherit their enclosing scope must not
+/// be walked by recursing once per link: inheriting forms do not grow the scope
+/// chain, so the scope-depth bound never fires and the recursion depth is limited
+/// only by how many forms the file contains. That is a stack overflow — the same
+/// remote process kill this endpoint was already fixed for once.
+#[tokio::test]
+async fn walks_a_long_inheriting_form_chain_without_exhausting_the_stack()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "chain.pdf",
+        &pdf_with_inheriting_form_chain(6_000)?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    // Either outcome is acceptable — the walk may report that the document
+    // exceeds its bounds — but the process must survive to answer at all.
+    assert!(
+        response.status() == StatusCode::OK
+            || response.status() == StatusCode::INTERNAL_SERVER_ERROR,
+        "unexpected status {}",
+        response.status()
+    );
+    Ok(())
+}
+
+/// `depth` Form `XObjects` nested one inside the next, none of them carrying
+/// `/Resources`, so every link inherits the page scope.
+fn pdf_with_inheriting_form_chain(depth: usize) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"CHAINPAT"));
+    let mut xobjects = dictionary! {};
+    let mut inner_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 4.into(), 2.into()],
+        },
+        b"q /Pattern cs /P0 scn 0 0 4 2 re f Q".to_vec(),
+    ));
+    xobjects.set(b"L0".to_vec(), inner_id);
+    for level in 1..=depth {
+        let previous = format!("L{}", level - 1);
+        inner_id = document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+                "BBox" => vec![0.into(), 0.into(), 4.into(), 2.into()],
+            },
+            format!("q /{previous} Do Q").into_bytes(),
+        ));
+        xobjects.set(format!("L{level}").into_bytes(), inner_id);
+    }
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        format!("BT /F1 10 Tf 20 40 Td (KEEPME) Tj ET\nq 1 0 0 1 20 10 cm /L{depth} Do Q")
+            .into_bytes(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+            "XObject" => xobjects,
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// A page and a Form `XObject` that share one indirect `/Resources` dictionary
+/// holding both a live pattern and a dead one.
+fn pdf_with_shared_indirect_resources() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let resources_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let live_id = document.add_object(tiling_pattern(font_id, b"SHAREDRESPAT"));
+    let dead_id = document.add_object(tiling_pattern(font_id, b"SHAREDRESSECRET"));
+    let form_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Form",
+            "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 60.into(), 30.into()],
+            // The very dictionary the page uses, by reference.
+            "Resources" => Object::Reference(resources_id),
+        },
+        b"q /Pattern cs /Plive scn 0 0 60 30 re f Q".to_vec(),
+    ));
+    document.objects.insert(
+        resources_id,
+        Object::Dictionary(dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "Plive" => live_id, "Psec" => dead_id },
+            "XObject" => dictionary! { "Fx" => form_id },
+        }),
+    );
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 10 Tf 10 30 Td (KEEPME) Tj ET\n\
+          q 1 0 0 1 5 5 cm /Fx Do Q\n\
+          q /Pattern cs /Psec scn 20 200 160 80 re f Q"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => Object::Reference(resources_id),
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// `depth` Form `XObjects` nested one inside the next, each carrying its own
+/// `/Resources`, with the page's pattern painted only by an out-of-crop mark.
+fn pdf_with_nested_form_scopes(depth: usize) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let secret_id = document.add_object(tiling_pattern(font_id, b"DEEPSECRET"));
+    let leaf_pattern_id = document.add_object(tiling_pattern(font_id, b"DEEPLEAF"));
+    let mut inner_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Form",
+            "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 40.into(), 20.into()],
+            "Resources" => dictionary! {
+                "Pattern" => dictionary! { "P0" => leaf_pattern_id },
+            },
+        },
+        b"q /Pattern cs /P0 scn 0 0 40 20 re f Q".to_vec(),
+    ));
+    for _ in 0..depth {
+        inner_id = document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "XObject",
+                "Subtype" => "Form",
+                "FormType" => 1,
+                "BBox" => vec![0.into(), 0.into(), 40.into(), 20.into()],
+                "Resources" => dictionary! { "XObject" => dictionary! { "Fi" => inner_id } },
+            },
+            b"q /Fi Do Q".to_vec(),
+        ));
+    }
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 10 Tf 20 40 Td (KEEPME) Tj ET\n\
+          q /Pattern cs /P0 scn 20 200 160 80 re f Q\n\
+          q 1 0 0 1 20 10 cm /Ftop Do Q"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => secret_id },
+            "XObject" => dictionary! { "Ftop" => inner_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// A surviving in-crop form whose content stream cannot be parsed, on a page that
+/// carries a pattern — so the walk cannot decide what the form paints with.
+fn pdf_with_undecodable_form_content() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"UNDECODABLEPAT"));
+    let form_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Form",
+            "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 40.into(), 20.into()],
+        },
+        // A truncated inline image: the content parser cannot recover past it, so
+        // whether this form paints `/P0` is unknowable. (`Content::decode` is very
+        // tolerant — it accepts unterminated strings and binary garbage — so this
+        // is close to the only shape that genuinely defeats it.)
+        b"q /Pattern cs /P0 scn BI /W 4 /H 4 ID abc".to_vec(),
+    ));
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 10 Tf 20 40 Td (KEEPME) Tj ET\nq 1 0 0 1 20 10 cm /Fx Do Q".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+            "XObject" => dictionary! { "Fx" => form_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// `count` distinct Form `XObjects` with no `/Resources` of their own, each painting
+/// the page's inherited pattern.
+fn pdf_with_inheriting_forms(count: usize) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"LADDERPAT"));
+    let mut xobjects = dictionary! {};
+    let mut content = Vec::new();
+    for index in 0..count {
+        let form_id = document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "XObject",
+                "Subtype" => "Form",
+                "FormType" => 1,
+                "BBox" => vec![0.into(), 0.into(), 4.into(), 2.into()],
+            },
+            b"q /Pattern cs /P0 scn 0 0 4 2 re f Q".to_vec(),
+        ));
+        let name = format!("Fm{index}");
+        xobjects.set(name.clone().into_bytes(), form_id);
+        content.extend_from_slice(
+            format!(
+                "q 1 0 0 1 {} {} cm /{name} Do Q\n",
+                2 + (index % 40),
+                2 + ((index / 40) % 20)
+            )
+            .as_bytes(),
+        );
+    }
+    content.extend_from_slice(b"BT /F1 10 Tf 20 40 Td (KEEPME) Tj ET");
+    let content_id = document.add_object(Stream::new(dictionary! {}, content));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+            "XObject" => xobjects,
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
 /// Pins a real fidelity limitation of the removal path, and the escape hatch.
 ///
 /// `FPDFPage_GenerateContent` does not round-trip pattern or shading marks: a

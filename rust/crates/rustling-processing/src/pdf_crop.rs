@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{BTreeSet, HashSet, VecDeque},
     path::Path,
 };
 
@@ -8,7 +8,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::{
-    pdf_page_geometry::{PageForm, inherited_value, page_form, replace_page_tree},
+    pdf_page_geometry::{PageForm, page_form, replace_page_tree},
     pdfium_backend::{
         DetectedCropBounds, PdfiumAutoCropAttempt, PdfiumAutoCropError, PdfiumCropContentAttempt,
         PdfiumCropContentError, try_detect_auto_crop_bounds, try_remove_content_outside_crop,
@@ -64,6 +64,12 @@ pub enum CropError {
     },
     #[error(transparent)]
     CropContent(#[from] PdfiumCropContentError),
+    #[error(
+        "could not establish which patterns and shadings the cropped content still uses, so \
+         out-of-crop data cannot be removed safely ({details}); retry with \
+         removeDataOutsideCrop=false to crop without the removal guarantee"
+    )]
+    ResourceAnalysis { details: String },
 }
 
 /// Crops every page using explicit coordinates or PDFium-rendered content bounds.
@@ -212,288 +218,454 @@ fn rebuild_cropped_pdf(
 /// pruning for that page and keeps every entry: retaining a secret is bad, but
 /// pruning something still painted corrupts the document, so the bound fails
 /// towards the recoverable side.
-const MAX_RESOURCE_SCOPE_DEPTH: usize = 32;
-const MAX_WALKED_CONTENT_STREAMS: usize = 4096;
+/// Bounds on the resource-reachability walk.
+///
+/// These exist to stop pathological nesting, not to ration ordinary work: the
+/// walk visits each (stream, scope chain) pair once and carries scopes by
+/// identity rather than by value, so its cost is linear in the document. Real
+/// files sit orders of magnitude below both. Exceeding either is reported as an
+/// error and no file is produced — see [`prune_unreferenced_pattern_and_shading`]
+/// for why the walk never fails open.
+const MAX_RESOURCE_SCOPE_DEPTH: usize = 256;
+const MAX_WALKED_SCOPED_STREAMS: usize = 100_000;
+
+/// Pins the property that makes the resource walk cheap: a scope is carried by
+/// **identity**, never by value.
+///
+/// An earlier revision carried `Vec<Dictionary>` and cloned the page's whole
+/// `/Resources` — including its N-entry `/XObject` sub-dictionary — once per
+/// inheriting form. That is quadratic in both time and memory: a 766 KB upload
+/// with 4000 forms took 15.9 s and 1.8 GB of resident memory, all of it while
+/// holding the global `PDFium` lock. If this assertion ever fails because a
+/// dictionary was put back into the scope type, that regression is back.
+const _: () = assert!(size_of::<ResourcesId>() <= 2 * size_of::<u32>() + size_of::<usize>());
+
+/// The `/Pattern` and `/Shading` resource categories this pruning considers.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum ResourceCategory {
+    Pattern,
+    Shading,
+}
+
+impl ResourceCategory {
+    const ALL: [Self; 2] = [Self::Pattern, Self::Shading];
+
+    fn key(self) -> &'static [u8] {
+        match self {
+            Self::Pattern => b"Pattern",
+            Self::Shading => b"Shading",
+        }
+    }
+}
+
+/// Identifies one `/Resources` dictionary.
+///
+/// A `/Resources` value that is an indirect reference may be **shared** — a Form
+/// `XObject` pointing at the very dictionary its page uses is spec-legal and real
+/// generators emit it. Identifying such a dictionary by its object id, and
+/// filtering that one object once, is what keeps every holder of it consistent.
+/// Writing a filtered *copy* onto the page instead leaves the form still pointing
+/// at the unfiltered original, which keeps the secret reachable.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum ResourcesId {
+    Shared(ObjectId),
+    /// Written directly inside this page or form object, so unshared.
+    InlineIn(ObjectId),
+}
+
+/// Identifies one `/Pattern` or `/Shading` sub-dictionary, which can itself be
+/// shared by object id independently of the `/Resources` dictionaries holding it.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum CategoryId {
+    Shared(ObjectId),
+    InlineIn(ResourcesId, ResourceCategory),
+}
+
+/// One resource entry that surviving content still paints with.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum LiveResource {
+    /// The entry is an indirect reference. The object it names identifies it no
+    /// matter which dictionary or scope reaches it, so a page and a form that
+    /// both call their own different patterns `/P0` cannot be confused.
+    Object(ObjectId),
+    /// The entry is written directly inside a category dictionary, so it is
+    /// unshared and that dictionary plus the name identify it.
+    Inline(CategoryId, Vec<u8>),
+}
 
 /// Drops `/Pattern` and `/Shading` resource entries that no surviving mark paints
 /// with.
 ///
 /// `PDFium` rebuilds `/Font`, `/ExtGState`, and `/XObject` when it regenerates a
-/// page — which is why a removed image or Form `XObject` really does leave the file
-/// — but it leaves `/Pattern` and `/Shading` exactly as it found them. Since
+/// page — which is why a removed image or Form `XObject` really does leave the
+/// file — but it leaves `/Pattern` and `/Shading` exactly as it found them. Since
 /// [`page_form`] copies the page's `/Resources` verbatim into the rebuilt page's
 /// Form `XObject`, an out-of-crop mark painted with a tiling pattern or a shading
 /// would keep its whole subtree reachable, and `prune_objects` would rightly
-/// preserve it: the pattern's text, its images, and a shading's sampled-function
-/// data would all still be extractable from a file whose caller asked for them to
-/// be deleted.
+/// preserve it.
+///
+/// The live set is collected across **every** page first and only then applied, so
+/// an entry any page still paints survives, and each dictionary — including one
+/// shared between a page and a form — is filtered exactly once, in place.
+///
+/// # Errors
+///
+/// Returns [`CropError::ResourceAnalysis`] when the walk cannot establish what is
+/// live: an undecodable content stream, or nesting beyond the bounds above. The
+/// walk never falls back to keeping everything, for the same reason this endpoint
+/// returns `501` instead of silently cropping without removal when `PDFium` is
+/// missing — answering a request to delete data with a file that still contains
+/// it, and a `200` that looks identical to a clean one, is the one outcome the
+/// caller cannot detect or recover from. A caller that would rather have the file
+/// than the guarantee can retry with `removeDataOutsideCrop=false`.
 fn prune_unreferenced_pattern_and_shading(document: &mut Document) -> Result<(), CropError> {
-    let page_ids = document.get_pages().into_values().collect::<Vec<_>>();
-    for page_id in page_ids {
-        let Ok(resources) = inherited_value(document, page_id, b"Resources") else {
-            continue;
-        };
-        let Some(mut resources) = resource_dictionary(document, &resources) else {
-            continue;
-        };
-        if resources.get(b"Pattern").is_err() && resources.get(b"Shading").is_err() {
-            continue;
+    let mut walk = ResourceWalk::new(document);
+    for page_id in document.get_pages().into_values() {
+        walk.walk_page(page_id)?;
+    }
+    let ResourceWalk {
+        live, dictionaries, ..
+    } = walk;
+    for resources_id in dictionaries {
+        for category in ResourceCategory::ALL {
+            retain_live_entries(document, resources_id, category, &live);
         }
-        let Some(referenced) = referenced_pattern_and_shading(document, page_id, &resources) else {
-            continue;
-        };
-        retain_referenced_resources(document, &mut resources, b"Pattern", &referenced.patterns);
-        retain_referenced_resources(document, &mut resources, b"Shading", &referenced.shadings);
-        document
-            .get_dictionary_mut(page_id)?
-            .set("Resources", Object::Dictionary(resources));
     }
     Ok(())
 }
 
-/// Identifies one resource entry of the page's `/Pattern` or `/Shading` dictionary.
-///
-/// Keying on the resolved object — not on the bare resource name — is what makes
-/// this safe across scopes. Names are scope-local: a page and a Form `XObject` it
-/// paints routinely both call their own, different patterns `/P0`, so a name-keyed
-/// keep-set would let a reference made inside the form retain the page's unrelated
-/// entry, which is exactly the leak this pruning exists to close.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-enum ResourceRef {
-    Indirect(ObjectId),
-    /// A directly embedded entry in the page's own resource dictionary. Such an
-    /// object has no id to key on, and nothing outside the page's scope can name
-    /// it, so the page-local name identifies it unambiguously.
-    PageDirect(Vec<u8>),
+/// Reachability walk over the content that survived removal.
+struct ResourceWalk<'a> {
+    document: &'a Document,
+    live: HashSet<LiveResource>,
+    /// Every `/Resources` dictionary reached, and therefore eligible for filtering.
+    dictionaries: BTreeSet<ResourcesId>,
+    /// Streams already walked, keyed by scope chain as well as identity: the same
+    /// form reached under a different chain can resolve its names to different
+    /// entries, so identity alone would miss references.
+    visited: HashSet<(ObjectId, Vec<ResourcesId>)>,
+    /// Pending work. The walk is iterative on purpose: a Form `XObject` that
+    /// inherits its enclosing scope does not grow the scope chain, so recursing
+    /// per link would be bounded only by how many forms the file contains — a
+    /// 6000-link chain in a ~500 KB upload overflowed the thread stack and
+    /// aborted the process.
+    queue: VecDeque<(Vec<u8>, Vec<ResourcesId>)>,
+    budget: usize,
 }
 
-#[derive(Default)]
-struct ReferencedResources {
-    patterns: HashSet<ResourceRef>,
-    shadings: HashSet<ResourceRef>,
-}
+impl<'a> ResourceWalk<'a> {
+    fn new(document: &'a Document) -> Self {
+        Self {
+            document,
+            live: HashSet::new(),
+            dictionaries: BTreeSet::new(),
+            visited: HashSet::new(),
+            queue: VecDeque::new(),
+            budget: MAX_WALKED_SCOPED_STREAMS,
+        }
+    }
 
-/// A resource-resolution scope: dictionaries innermost first, the page's own
-/// resources always last.
-///
-/// A Form `XObject` without its own `/Resources` inherits the enclosing scope
-/// rather than resolving against nothing — that is legal per ISO 32000-1 §8.10.1,
-/// and treating such a form as having no resources both loses the chain (its `Do`
-/// targets stop resolving) and silently prunes patterns its content still paints
-/// with. A form that *does* carry `/Resources` has them searched first, with the
-/// enclosing scope behind: strictly self-contained forms are unaffected, and a
-/// form whose dictionary is missing an entry still resolves the way real viewers
-/// resolve it instead of losing a live reference.
-type ResourceScope = Vec<Dictionary>;
-
-/// Collects every `/Pattern` and `/Shading` entry of the page's own resources that
-/// surviving content still paints with: the page's streams, the Form `XObjects` they
-/// invoke (recursively, honouring resource inheritance), and the content of any
-/// pattern that is itself still referenced.
-///
-/// Returns `None` when the walk exceeds its bounds, which the caller reads as
-/// "keep everything".
-fn referenced_pattern_and_shading(
-    document: &Document,
-    page_id: ObjectId,
-    page_resources: &Dictionary,
-) -> Option<ReferencedResources> {
-    let mut found = ReferencedResources::default();
-    let mut visited: HashSet<ObjectId> = HashSet::new();
-    let mut queue: VecDeque<(Vec<u8>, ResourceScope)> = VecDeque::new();
-    let mut budget = MAX_WALKED_CONTENT_STREAMS;
-    queue.push_back((
-        document.get_page_content(page_id),
-        vec![page_resources.clone()],
-    ));
-
-    while let Some((content, scope)) = queue.pop_front() {
-        budget = budget.checked_sub(1)?;
-        let Ok(content) = Content::decode(&content) else {
-            continue;
+    fn walk_page(&mut self, page_id: ObjectId) -> Result<(), CropError> {
+        let Some(resources_id) = page_resources_id(self.document, page_id) else {
+            return Ok(());
         };
+        let content = self.document.get_page_content(page_id);
+        self.queue.push_back((content, vec![resources_id]));
+        while let Some((content, chain)) = self.queue.pop_front() {
+            self.scan(&content, &chain)?;
+        }
+        Ok(())
+    }
+
+    fn scan(&mut self, content: &[u8], chain: &[ResourcesId]) -> Result<(), CropError> {
+        self.budget = self
+            .budget
+            .checked_sub(1)
+            .ok_or_else(|| CropError::ResourceAnalysis {
+                details: format!(
+                    "more than {MAX_WALKED_SCOPED_STREAMS} nested content streams reference \
+                     patterns or shadings"
+                ),
+            })?;
+        self.dictionaries.extend(chain.iter().copied());
+        let content = Content::decode(content).map_err(|source| CropError::ResourceAnalysis {
+            details: format!("a content stream could not be decoded: {source}"),
+        })?;
         for operation in &content.operations {
             match operation.operator.as_str() {
                 "sh" => {
-                    if let Some(name) = operand_name(operation.operands.first())
-                        && let Some((key, _)) = resolve_resource(document, &scope, b"Shading", name)
-                    {
-                        found.shadings.insert(key);
+                    if let Some(name) = operand_name(operation.operands.first()) {
+                        self.record(chain, ResourceCategory::Shading, name);
                     }
                 }
                 // Both `scn` and `SCN` name a pattern in their LAST operand; an
                 // uncolored pattern is preceded by its colour components.
                 "scn" | "SCN" => {
                     if let Some(name) = operand_name(operation.operands.last())
-                        && let Some((key, value)) =
-                            resolve_resource(document, &scope, b"Pattern", name)
+                        && let Some(value) = self.record(chain, ResourceCategory::Pattern, name)
                     {
-                        found.patterns.insert(key);
                         // A surviving pattern's own content can paint with further
-                        // patterns and shadings; follow it so the keep-set is
-                        // transitively closed.
-                        enqueue_stream_content(
-                            document,
-                            &scope,
-                            &value,
-                            None,
-                            &mut visited,
-                            &mut queue,
-                        )?;
+                        // patterns and shadings; follow it.
+                        self.enqueue(chain, &value, None)?;
                     }
                 }
                 "Do" => {
                     if let Some(name) = operand_name(operation.operands.first())
-                        && let Some((_, value)) =
-                            resolve_resource(document, &scope, b"XObject", name)
+                        && let Some(value) = resolve_xobject(self.document, chain, name)
                     {
-                        enqueue_stream_content(
-                            document,
-                            &scope,
-                            &value,
-                            Some(b"Form"),
-                            &mut visited,
-                            &mut queue,
-                        )?;
+                        self.enqueue(chain, &value, Some(b"Form"))?;
                     }
                 }
                 _ => {}
             }
         }
+        Ok(())
     }
-    Some(found)
+
+    /// Resolves `name` through the scope chain and marks what it lands on live.
+    fn record(
+        &mut self,
+        chain: &[ResourcesId],
+        category: ResourceCategory,
+        name: &[u8],
+    ) -> Option<Object> {
+        let (live, value) = resolve_resource(self.document, chain, category, name)?;
+        self.live.insert(live);
+        Some(value)
+    }
+
+    /// Queues a referenced stream under the scope its own `/Resources` establish —
+    /// or, when it has none, under the enclosing scope it inherits (ISO 32000-1
+    /// §8.10.1).
+    fn enqueue(
+        &mut self,
+        chain: &[ResourcesId],
+        value: &Object,
+        required_subtype: Option<&[u8]>,
+    ) -> Result<(), CropError> {
+        // A pattern or form is an indirect stream object; anything else has no
+        // content to follow.
+        let Object::Reference(object_id) = value else {
+            return Ok(());
+        };
+        let Ok(stream) = self
+            .document
+            .get_object(*object_id)
+            .and_then(Object::as_stream)
+        else {
+            return Ok(());
+        };
+        if let Some(subtype) = required_subtype
+            && !stream
+                .dict
+                .get(b"Subtype")
+                .and_then(Object::as_name)
+                .is_ok_and(|actual| actual == subtype)
+        {
+            return Ok(());
+        }
+        let child = match stream.dict.get(b"Resources") {
+            Ok(resources) => {
+                if chain.len() >= MAX_RESOURCE_SCOPE_DEPTH {
+                    return Err(CropError::ResourceAnalysis {
+                        details: format!(
+                            "resource scopes nest more than {MAX_RESOURCE_SCOPE_DEPTH} deep"
+                        ),
+                    });
+                }
+                let mut child = Vec::with_capacity(chain.len().saturating_add(1));
+                child.push(resources_id(*object_id, resources));
+                child.extend_from_slice(chain);
+                child
+            }
+            // No `/Resources` of its own: inherit the enclosing scope rather than
+            // resolving against nothing, which would lose both its own `Do`
+            // targets and the patterns its content paints with.
+            Err(_) => chain.to_vec(),
+        };
+        if !self.visited.insert((*object_id, child.clone())) {
+            return Ok(());
+        }
+        let content =
+            stream
+                .decompressed_content()
+                .map_err(|source| CropError::ResourceAnalysis {
+                    details: format!("a content stream could not be decompressed: {source}"),
+                })?;
+        self.queue.push_back((content, child));
+        Ok(())
+    }
 }
 
 fn operand_name(operand: Option<&Object>) -> Option<&[u8]> {
     operand.and_then(|operand| operand.as_name().ok())
 }
 
-/// Resolves `name` in `category` through the scope chain, innermost first, and
-/// reports which object it landed on.
+fn resources_id(owner: ObjectId, resources: &Object) -> ResourcesId {
+    match resources {
+        Object::Reference(object_id) => ResourcesId::Shared(*object_id),
+        _ => ResourcesId::InlineIn(owner),
+    }
+}
+
+/// The `/Resources` a page uses, following `/Parent` inheritance to whichever
+/// node actually carries them.
+fn page_resources_id(document: &Document, page_id: ObjectId) -> Option<ResourcesId> {
+    let mut object_id = page_id;
+    let mut visited = HashSet::new();
+    loop {
+        if !visited.insert(object_id) {
+            return None;
+        }
+        let dictionary = document.get_dictionary(object_id).ok()?;
+        if let Ok(resources) = dictionary.get(b"Resources") {
+            return Some(resources_id(object_id, resources));
+        }
+        object_id = dictionary.get(b"Parent").ok()?.as_reference().ok()?;
+    }
+}
+
+fn resources_dictionary(document: &Document, id: ResourcesId) -> Option<&Dictionary> {
+    match id {
+        ResourcesId::Shared(object_id) => document.get_dictionary(object_id).ok(),
+        ResourcesId::InlineIn(owner) => owner_resources(document, owner),
+    }
+}
+
+fn owner_resources(document: &Document, owner: ObjectId) -> Option<&Dictionary> {
+    let resources = match document.get_object(owner).ok()? {
+        Object::Dictionary(dictionary) => dictionary.get(b"Resources").ok()?,
+        Object::Stream(stream) => stream.dict.get(b"Resources").ok()?,
+        _ => return None,
+    };
+    resources.as_dict().ok()
+}
+
+fn owner_resources_mut(document: &mut Document, owner: ObjectId) -> Option<&mut Dictionary> {
+    let resources = match document.objects.get_mut(&owner)? {
+        Object::Dictionary(dictionary) => dictionary.get_mut(b"Resources").ok()?,
+        Object::Stream(stream) => stream.dict.get_mut(b"Resources").ok()?,
+        _ => return None,
+    };
+    resources.as_dict_mut().ok()
+}
+
+/// Locates a category sub-dictionary within a `/Resources` dictionary.
+fn category_dictionary(
+    document: &Document,
+    resources_id: ResourcesId,
+    category: ResourceCategory,
+) -> Option<(CategoryId, &Dictionary)> {
+    let resources = resources_dictionary(document, resources_id)?;
+    match resources.get(category.key()).ok()? {
+        Object::Reference(object_id) => Some((
+            CategoryId::Shared(*object_id),
+            document.get_dictionary(*object_id).ok()?,
+        )),
+        Object::Dictionary(entries) => {
+            Some((CategoryId::InlineIn(resources_id, category), entries))
+        }
+        _ => None,
+    }
+}
+
+/// Resolves `name` through the scope chain, innermost first, and reports which
+/// entry it landed on.
 fn resolve_resource(
     document: &Document,
-    scope: &ResourceScope,
-    category: &[u8],
+    chain: &[ResourcesId],
+    category: ResourceCategory,
     name: &[u8],
-) -> Option<(ResourceRef, Object)> {
-    for (depth, resources) in scope.iter().enumerate() {
-        let Some(entries) = resources
-            .get(category)
-            .ok()
-            .and_then(|entries| resource_dictionary(document, entries))
+) -> Option<(LiveResource, Object)> {
+    for resources_id in chain {
+        let Some((category_id, entries)) = category_dictionary(document, *resources_id, category)
         else {
             continue;
         };
         let Ok(value) = entries.get(name) else {
             continue;
         };
-        let key = match value {
-            Object::Reference(object_id) => ResourceRef::Indirect(*object_id),
-            // Only the page's own dictionary is ever pruned, so a directly
-            // embedded entry found in a nested scope is a different object and
-            // keeps nothing on the page alive.
-            _ if depth + 1 == scope.len() => ResourceRef::PageDirect(name.to_vec()),
-            _ => return None,
+        let live = match value {
+            Object::Reference(object_id) => LiveResource::Object(*object_id),
+            _ => LiveResource::Inline(category_id, name.to_vec()),
         };
-        return Some((key, value.clone()));
+        return Some((live, value.clone()));
     }
     None
 }
 
-/// Queues a referenced stream's content for scanning, under the scope its own
-/// `/Resources` establish — or, when it has none, under the enclosing scope it
-/// inherits.
-fn enqueue_stream_content(
-    document: &Document,
-    scope: &ResourceScope,
-    value: &Object,
-    required_subtype: Option<&[u8]>,
-    visited: &mut HashSet<ObjectId>,
-    queue: &mut VecDeque<(Vec<u8>, ResourceScope)>,
-) -> Option<()> {
-    let Object::Reference(object_id) = value else {
-        // A pattern or form must be an indirect stream object; anything else has
-        // no content to follow.
-        return Some(());
-    };
-    if !visited.insert(*object_id) {
-        return Some(());
-    }
-    let Ok(stream) = document.get_object(*object_id).and_then(Object::as_stream) else {
-        return Some(());
-    };
-    if let Some(subtype) = required_subtype
-        && !stream
-            .dict
-            .get(b"Subtype")
-            .and_then(Object::as_name)
-            .is_ok_and(|actual| actual == subtype)
-    {
-        return Some(());
-    }
-    let Ok(content) = stream.decompressed_content() else {
-        return Some(());
-    };
-    let child = match stream
-        .dict
-        .get(b"Resources")
-        .ok()
-        .and_then(|resources| resource_dictionary(document, resources))
-    {
-        Some(own) => {
-            if scope.len() >= MAX_RESOURCE_SCOPE_DEPTH {
-                return None;
-            }
-            let mut chain = Vec::with_capacity(scope.len().saturating_add(1));
-            chain.push(own);
-            chain.extend(scope.iter().cloned());
-            chain
+fn resolve_xobject(document: &Document, chain: &[ResourcesId], name: &[u8]) -> Option<Object> {
+    for resources_id in chain {
+        let Some(resources) = resources_dictionary(document, *resources_id) else {
+            continue;
+        };
+        let Some(xobjects) = resources
+            .get(b"XObject")
+            .ok()
+            .and_then(|xobjects| match xobjects {
+                Object::Reference(object_id) => document.get_dictionary(*object_id).ok(),
+                Object::Dictionary(dictionary) => Some(dictionary),
+                _ => None,
+            })
+        else {
+            continue;
+        };
+        if let Ok(value) = xobjects.get(name) {
+            return Some(value.clone());
         }
-        None => scope.clone(),
-    };
-    queue.push_back((content, child));
-    Some(())
+    }
+    None
 }
 
-/// Rewrites `resources[category]` inline, keeping only the entries `keep` names.
+/// Filters one category dictionary in place, keeping only live entries.
 ///
-/// The category dictionary is inlined rather than mutated through its reference so
-/// a dictionary shared with an untouched page is never altered in place.
-fn retain_referenced_resources(
-    document: &Document,
-    resources: &mut Dictionary,
-    category: &[u8],
-    keep: &HashSet<ResourceRef>,
+/// Filtering the dictionary the holders actually point at — rather than writing a
+/// filtered copy onto one of them — is what makes a `/Resources` dictionary shared
+/// between a page and a form come out consistent.
+fn retain_live_entries(
+    document: &mut Document,
+    resources_id: ResourcesId,
+    category: ResourceCategory,
+    live: &HashSet<LiveResource>,
 ) {
-    let Some(existing) = resources
-        .get(category)
-        .ok()
-        .and_then(|entries| resource_dictionary(document, entries))
-    else {
+    let Some((category_id, entries)) = category_dictionary(document, resources_id, category) else {
         return;
     };
     let mut retained = Dictionary::new();
-    for (name, value) in &existing {
+    for (name, value) in entries {
         let key = match value {
-            Object::Reference(object_id) => ResourceRef::Indirect(*object_id),
-            _ => ResourceRef::PageDirect(name.clone()),
+            Object::Reference(object_id) => LiveResource::Object(*object_id),
+            _ => LiveResource::Inline(category_id, name.clone()),
         };
-        if keep.contains(&key) {
+        if live.contains(&key) {
             retained.set(name.clone(), value.clone());
         }
     }
-    if retained.is_empty() {
-        resources.remove(category);
-    } else {
-        resources.set(category.to_vec(), Object::Dictionary(retained));
+    if retained.len() == entries.len() {
+        return;
     }
-}
-
-fn resource_dictionary(document: &Document, object: &Object) -> Option<Dictionary> {
-    match object {
-        Object::Reference(object_id) => document.get_dictionary(*object_id).ok().cloned(),
-        Object::Dictionary(dictionary) => Some(dictionary.clone()),
-        _ => None,
+    match category_id {
+        CategoryId::Shared(object_id) => {
+            if let Some(Object::Dictionary(existing)) = document.objects.get_mut(&object_id) {
+                *existing = retained;
+            }
+        }
+        CategoryId::InlineIn(resources_id, category) => {
+            let resources = match resources_id {
+                ResourcesId::Shared(object_id) => document
+                    .objects
+                    .get_mut(&object_id)
+                    .and_then(|object| object.as_dict_mut().ok()),
+                ResourcesId::InlineIn(owner) => owner_resources_mut(document, owner),
+            };
+            if let Some(resources) = resources {
+                if retained.is_empty() {
+                    resources.remove(category.key());
+                } else {
+                    resources.set(category.key().to_vec(), Object::Dictionary(retained));
+                }
+            }
+        }
     }
 }
 

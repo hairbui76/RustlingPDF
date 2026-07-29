@@ -11842,6 +11842,7 @@ fn map_crop_error(error: &CropError) -> ApiError {
         | CropError::WritePdf(_)
         | CropError::CropContentInput(_)
         | CropError::CropContent(_)
+        | CropError::ResourceAnalysis { .. }
         | CropError::CropContentRuntime {
             explicitly_configured: true,
             ..
