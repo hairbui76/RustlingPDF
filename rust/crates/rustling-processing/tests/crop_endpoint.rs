@@ -210,6 +210,92 @@ async fn removes_patterns_and_shadings_only_reachable_from_out_of_crop_marks()
     Ok(())
 }
 
+/// Pins a real fidelity limitation of the removal path, and the escape hatch.
+///
+/// `FPDFPage_GenerateContent` does not round-trip pattern or shading marks: a
+/// pattern fill comes back as a flat colour and an `sh` mark is dropped entirely.
+/// That happens inside `PDFium`, before any resource pruning, so on a page that had
+/// a removal the pattern/shading is already unreferenced and its bytes go too.
+/// `removeDataOutsideCrop=false` never regenerates content, so it preserves both
+/// the marks and their resources exactly — which is what makes this a documented
+/// trade-off of asking for deletion rather than a silent loss.
+#[tokio::test]
+async fn removal_path_loses_pattern_marks_that_clip_only_preserves()
+-> Result<(), Box<dyn std::error::Error>> {
+    let source = pdf_with_in_crop_pattern()?;
+    let coordinates = [("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")];
+
+    let mut clip_only = coordinates.to_vec();
+    clip_only.push(("removeDataOutsideCrop", "false"));
+    let clipped = require_status(
+        post_crop("kept-pattern.pdf", &source, &clip_only).await?,
+        StatusCode::OK,
+    )
+    .await?;
+    let clipped = to_bytes(clipped.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&clipped, b"KEPTPATTERNPAINT")?,
+        "clip-only must preserve a pattern an in-crop mark paints with"
+    );
+
+    let removed = post_crop("kept-pattern.pdf", &source, &coordinates).await?;
+    if removed.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let removed = require_status(removed, StatusCode::OK).await?;
+    let removed = to_bytes(removed.into_body(), usize::MAX).await?;
+    // Documented limitation, asserted so a future PDFium upgrade that starts
+    // round-tripping patterns makes this test fail loudly rather than silently
+    // leaving the contract stale.
+    assert!(
+        !document_contains(&removed, b"KEPTPATTERNPAINT")?,
+        "PDFium now preserves pattern marks through content regeneration — update \
+         the crop contract, which documents that it does not"
+    );
+    assert!(
+        !document_contains(&removed, b"DROPME")?,
+        "the out-of-crop text must still be removed"
+    );
+    Ok(())
+}
+
+/// A page whose only pattern-painted mark is INSIDE the crop rectangle.
+fn pdf_with_in_crop_pattern() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "Pattern",
+            "PatternType" => 1,
+            "PaintType" => 1,
+            "TilingType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 60.into(), 20.into()],
+            "XStep" => 60,
+            "YStep" => 20,
+            "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+        },
+        b"BT /F1 8 Tf 2 2 Td (KEPTPATTERNPAINT) Tj ET".to_vec(),
+    ));
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"/Pattern cs /P0 scn 20 20 100 30 re f\nBT /F1 10 Tf 20 250 Td (DROPME) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
 #[derive(Clone, Copy)]
 enum PatternPayload {
     Text,

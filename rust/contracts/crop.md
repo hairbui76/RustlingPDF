@@ -50,6 +50,22 @@ images, invisible (`3 Tr`) text, optional-content (OCG) marks, `/Contents` array
 Type 3 font text, subset fonts, annotations with appearance streams, rotated pages,
 and multi-page documents.
 
+### Fidelity cost of asking for removal
+
+Removal regenerates each affected page's content stream through PDFium, and
+`FPDFPage_GenerateContent` does not round-trip every construct. Measured on the
+pinned runtime: **a pattern fill comes back as a flat colour, and an `sh` shading
+mark is dropped entirely** — including for marks *inside* the crop rectangle. That
+happens inside PDFium before any resource pruning, so such a page's `/Pattern` and
+`/Shading` resources are already unreferenced and their bytes are removed with
+them.
+
+`removeDataOutsideCrop=false` never regenerates content and preserves both the
+marks and their resources exactly. Callers who need pattern and shading fidelity
+more than they need deletion should use it; this is a trade-off of asking for
+deletion, not a silent loss, and a test pins both halves so a future PDFium upgrade
+that starts round-tripping patterns fails loudly instead of leaving this stale.
+
 ### What is NOT removed
 
 A mark that **straddles** the crop boundary is kept whole. A text run that starts
