@@ -420,11 +420,20 @@ auto-rename/auto-split, plus:
   tint functions. Separation and DeviceN images whose alternate is an `ICCBased` space now
   convert the tint output through the embedded profile (falling back to the declared device
   `/Alternate` when the profile is invalid). DeviceN DCT above four components is
-  parity-not-a-gap: upstream Stirling-PDF 2.14.2 calls PDFBox 3.0.7
-  `PDImage.getImage()`, whose configured TwelveMonkeys 3.13.1 JPEG reader only
-  dispatches source colour spaces for one through four frame components and
-  throws `IIOException` otherwise. Rust deliberately retains its bounded
-  device fallback rather than adding a decoder the Java oracle cannot use.
+  parity-not-a-gap, but not for the reason once written down here: PDFBox
+  3.0.7's `DCTFilter.readImageRaster` sends any `/NumChannels` other than
+  `"3"`/absent (so any DeviceN count above one) straight to
+  `ImageIO.readRaster()`, and TwelveMonkeys 3.13.1's `readRaster` is a
+  passthrough that never calls `getSourceCSType` — that method's 1–4
+  `tableswitch` is unreachable here, and TwelveMonkeys' own
+  `getColorSpaceType()` in fact tolerates more than 4 components (`"5CLR"`
+  for five). The actual cap is the JDK's own `com.sun.imageio.plugins.jpeg`
+  reader: a 4-element `bandOffsets` table indexed by `numComponents - 1` in
+  `readInternal` throws `ArrayIndexOutOfBoundsException` for a 5-component
+  SOF before any entropy decoding — observed upstream as `IIOException:
+  Corrupt JPEG data: Bad segment length` for 5 colorants (`Nf`=5), while 4
+  colorants (`Nf`=4) decode fine. Rust deliberately retains its bounded
+  device fallback rather than adding a decoder the JDK itself cannot run.
   Full editor responses also inspect root AcroForm fields plus their
   inherited metadata and first widget location, and export structured page annotations (with
   full-mode COS data). JSON→PDF rebuilds root fields/one fresh widget and non-widget page

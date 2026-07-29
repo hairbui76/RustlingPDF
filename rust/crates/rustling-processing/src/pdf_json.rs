@@ -657,7 +657,9 @@ pub fn pdf_to_json_metadata(
 /// palette bases, ICC fallbacks, and Separation/`DeviceN` alternates (including `ICCBased`
 /// spot-color alternates) convert through bounded
 /// calibrated color math, including Gray/RGB/Lab DCT samples. DCT `DeviceN` images with more than
-/// four source components and `CCITTFax`/JBIG2/JPX-filtered images remain.
+/// four source components are rejected rather than treated as tint samples — this matches
+/// upstream, whose JDK JPEG reader cannot decode a >4-component frame either, so it is parity and
+/// not a gap. `CCITTFax`/JBIG2/JPX-filtered images remain an actual outstanding decoder gap.
 ///
 /// `lightweight` omits the base64 stream payloads (ports the `omitStreamData`
 /// serialization context) for a smaller preview response.
@@ -770,8 +772,9 @@ fn build_page(
 /// palette bases, ICC fallbacks, and Separation/`DeviceN` alternates (including `ICCBased`
 /// spot-color alternates) convert through bounded
 /// calibrated color math, including Gray/RGB/Lab DCT samples. DCT `DeviceN` images with more than
-/// four source components and `CCITTFax`/JBIG2/JPX-filtered images are skipped rather than
-/// serializing an unusable payload.
+/// four source components are skipped rather than serializing an unusable payload; this is
+/// parity, not a gap — the JDK JPEG reader upstream depends on cannot decode a >4-component frame
+/// either. `CCITTFax`/JBIG2/JPX-filtered images are skipped as an actual outstanding decoder gap.
 fn extract_image_elements(
     document: &Document,
     page_number: u32,

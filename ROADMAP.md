@@ -266,9 +266,24 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
      PORT_STATUS "Remaining"; treat as beyond-parity work).
 
 The DeviceN DCT >4-component probe was closed on 2026-07-29 as
-parity-not-a-gap: upstream PDFBox 3.0.7 reaches the TwelveMonkeys 3.13.1 JPEG
-reader through `PDImage.getImage()`, and that reader rejects frame component
-counts outside 1–4 before decoding.
+parity-not-a-gap, with the mechanism corrected on 2026-07-29 after the
+original write-up misattributed the rejection to TwelveMonkeys: PDFBox
+3.0.7's `DCTFilter.readImageRaster` only takes the color-managed
+`ImageIO.read()` path when `/NumChannels` is `"3"` or absent; a DeviceN
+image's `/NumChannels` (4, 5, …) sends it straight to
+`ImageIO.readRaster()`. TwelveMonkeys 3.13.1's `readRaster` is a raw-raster
+passthrough that never calls `getSourceCSType` — that method's 1–4-component
+`tableswitch` exists but is unreachable on this path (TwelveMonkeys' own
+`getColorSpaceType()` actually tolerates more than 4 components, reporting
+`"5CLR"` for five). The real ceiling is the JDK's own
+`com.sun.imageio.plugins.jpeg` reader: `JPEG.bandOffsets` is a 4-element
+table indexed by `numComponents - 1` inside `readInternal`, so a 5-component
+SOF throws `ArrayIndexOutOfBoundsException` before any entropy decoding.
+Confirmed empirically on the upstream classpath: DeviceN with 4 colorants
+(DCT `Nf`=4) decodes; 5 colorants (`Nf`=5) throws `IIOException: Corrupt
+JPEG data: Bad segment length`, caused by `ArrayIndexOutOfBoundsException:
+Index 4 out of bounds for length 4`. Rust's matching >4-component rejection
+is therefore parity with a JDK limitation, not a TwelveMonkeys one.
 
 ## Removed by maintainer decision (2026-07-28) — not coming back
 
