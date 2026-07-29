@@ -37,28 +37,50 @@ page by the rebuild step that follows.
 
 Resources reachable only from a deleted mark go with it. PDFium rebuilds `/Font`,
 `/ExtGState`, and `/XObject` itself; the port additionally drops `/Pattern` and
-`/Shading` entries that no surviving content stream names, because PDFium leaves
-those two categories untouched and the rebuild copies the page's `/Resources`
-verbatim into the new Form XObject. Without that step a tiling pattern's text and
-images, and a shading's sampled-function data, stayed fully extractable from a file
-whose caller had asked for them to be deleted. Only entries nothing still paints
-with are dropped, and the search is transitive through Form XObjects and through
-patterns that survive.
+`/Shading` entries of the page's own resource dictionary that no surviving content
+stream paints with, because PDFium leaves those two categories untouched and the
+rebuild copies the page's `/Resources` verbatim into the new Form XObject. Without
+that step a tiling pattern's text and images, and a shading's sampled-function
+data, stayed fully extractable from a file whose caller had asked for them to be
+deleted.
+
+Which entries survive is decided by **resolving each reference to the object it
+names, in the scope where the reference appears** — not by matching resource names.
+Names are scope-local: a page and a Form XObject it paints routinely both call
+their own, different patterns `/P0`, and a name-keyed decision would let a
+reference made inside the form retain the page's unrelated secret. The search
+follows Form XObjects and surviving patterns transitively, and **honours resource
+inheritance**: a Form XObject without its own `/Resources` inherits the enclosing
+scope (ISO 32000-1 §8.10.1), so a chain of inheriting forms still resolves both its
+own `Do` targets and the page-level patterns it paints with. A form that does carry
+`/Resources` has them searched first, with the enclosing scope behind it, so a name
+its dictionary happens to omit resolves the way real viewers resolve it rather than
+being lost.
+
+Both directions are load-bearing and are pinned by tests: retaining an entry only
+an out-of-crop mark referenced re-opens the leak, and dropping one that surviving
+content still paints with leaves a dangling name and visibly corrupts the page. If
+the scope walk exceeds its bounds (32 nested scopes, 4096 content streams) the page
+keeps every entry, because corrupting a document is the worse failure.
 
 Verified end to end against plain text, images, Form and nested-Form text, inline
 images, invisible (`3 Tr`) text, optional-content (OCG) marks, `/Contents` arrays,
 Type 3 font text, subset fonts, annotations with appearance streams, rotated pages,
-and multi-page documents.
+multi-page documents, patterns and forms sharing a resource name, and nested forms
+relying on inherited resources.
 
 ### Fidelity cost of asking for removal
 
-Removal regenerates each affected page's content stream through PDFium, and
-`FPDFPage_GenerateContent` does not round-trip every construct. Measured on the
-pinned runtime: **a pattern fill comes back as a flat colour, and an `sh` shading
-mark is dropped entirely** — including for marks *inside* the crop rectangle. That
-happens inside PDFium before any resource pruning, so such a page's `/Pattern` and
-`/Shading` resources are already unreferenced and their bytes are removed with
-them.
+Removal regenerates the content stream of **each page something was removed
+from**, and `FPDFPage_GenerateContent` does not round-trip every construct.
+Measured on the pinned runtime: on such a page **a pattern fill comes back as a
+flat colour, and an `sh` shading mark is dropped entirely** — including for marks
+*inside* the crop rectangle, since regeneration rewrites the whole page. Those
+resources are then unreferenced, so their bytes are removed with them.
+
+A page with nothing outside the crop rectangle is never regenerated and keeps its
+marks and resources verbatim, so this cost applies only where a removal actually
+happened.
 
 `removeDataOutsideCrop=false` never regenerates content and preserves both the
 marks and their resources exactly. Callers who need pattern and shading fidelity

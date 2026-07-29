@@ -206,7 +206,17 @@ fn rebuild_cropped_pdf(
     Ok(())
 }
 
-/// Drops `/Pattern` and `/Shading` resource entries that no surviving mark names.
+/// Maximum resource-scope chain depth, and maximum content streams walked, while
+/// working out which patterns and shadings surviving content still paints with.
+/// Both bound the work an adversarial file can force. Exhausting either abandons
+/// pruning for that page and keeps every entry: retaining a secret is bad, but
+/// pruning something still painted corrupts the document, so the bound fails
+/// towards the recoverable side.
+const MAX_RESOURCE_SCOPE_DEPTH: usize = 32;
+const MAX_WALKED_CONTENT_STREAMS: usize = 4096;
+
+/// Drops `/Pattern` and `/Shading` resource entries that no surviving mark paints
+/// with.
 ///
 /// `PDFium` rebuilds `/Font`, `/ExtGState`, and `/XObject` when it regenerates a
 /// page — which is why a removed image or Form `XObject` really does leave the file
@@ -217,9 +227,6 @@ fn rebuild_cropped_pdf(
 /// preserve it: the pattern's text, its images, and a shading's sampled-function
 /// data would all still be extractable from a file whose caller asked for them to
 /// be deleted.
-///
-/// Only entries no surviving content stream references are dropped, so this cannot
-/// remove something still painted.
 fn prune_unreferenced_pattern_and_shading(document: &mut Document) -> Result<(), CropError> {
     let page_ids = document.get_pages().into_values().collect::<Vec<_>>();
     for page_id in page_ids {
@@ -232,9 +239,11 @@ fn prune_unreferenced_pattern_and_shading(document: &mut Document) -> Result<(),
         if resources.get(b"Pattern").is_err() && resources.get(b"Shading").is_err() {
             continue;
         }
-        let referenced = referenced_pattern_and_shading_names(document, page_id, &resources);
-        retain_named_resources(document, &mut resources, b"Pattern", &referenced.patterns);
-        retain_named_resources(document, &mut resources, b"Shading", &referenced.shadings);
+        let Some(referenced) = referenced_pattern_and_shading(document, page_id, &resources) else {
+            continue;
+        };
+        retain_referenced_resources(document, &mut resources, b"Pattern", &referenced.patterns);
+        retain_referenced_resources(document, &mut resources, b"Shading", &referenced.shadings);
         document
             .get_dictionary_mut(page_id)?
             .set("Resources", Object::Dictionary(resources));
@@ -242,133 +251,219 @@ fn prune_unreferenced_pattern_and_shading(document: &mut Document) -> Result<(),
     Ok(())
 }
 
-#[derive(Default)]
-struct ReferencedNames {
-    patterns: HashSet<Vec<u8>>,
-    shadings: HashSet<Vec<u8>>,
+/// Identifies one resource entry of the page's `/Pattern` or `/Shading` dictionary.
+///
+/// Keying on the resolved object — not on the bare resource name — is what makes
+/// this safe across scopes. Names are scope-local: a page and a Form `XObject` it
+/// paints routinely both call their own, different patterns `/P0`, so a name-keyed
+/// keep-set would let a reference made inside the form retain the page's unrelated
+/// entry, which is exactly the leak this pruning exists to close.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum ResourceRef {
+    Indirect(ObjectId),
+    /// A directly embedded entry in the page's own resource dictionary. Such an
+    /// object has no id to key on, and nothing outside the page's scope can name
+    /// it, so the page-local name identifies it unambiguously.
+    PageDirect(Vec<u8>),
 }
 
-/// Collects every `/Pattern` and `/Shading` resource name reachable from a page's
-/// surviving content: the page's own streams, the Form `XObjects` they invoke
-/// (recursively), and the content of any pattern that is itself still referenced.
-fn referenced_pattern_and_shading_names(
+#[derive(Default)]
+struct ReferencedResources {
+    patterns: HashSet<ResourceRef>,
+    shadings: HashSet<ResourceRef>,
+}
+
+/// A resource-resolution scope: dictionaries innermost first, the page's own
+/// resources always last.
+///
+/// A Form `XObject` without its own `/Resources` inherits the enclosing scope
+/// rather than resolving against nothing — that is legal per ISO 32000-1 §8.10.1,
+/// and treating such a form as having no resources both loses the chain (its `Do`
+/// targets stop resolving) and silently prunes patterns its content still paints
+/// with. A form that *does* carry `/Resources` has them searched first, with the
+/// enclosing scope behind: strictly self-contained forms are unaffected, and a
+/// form whose dictionary is missing an entry still resolves the way real viewers
+/// resolve it instead of losing a live reference.
+type ResourceScope = Vec<Dictionary>;
+
+/// Collects every `/Pattern` and `/Shading` entry of the page's own resources that
+/// surviving content still paints with: the page's streams, the Form `XObjects` they
+/// invoke (recursively, honouring resource inheritance), and the content of any
+/// pattern that is itself still referenced.
+///
+/// Returns `None` when the walk exceeds its bounds, which the caller reads as
+/// "keep everything".
+fn referenced_pattern_and_shading(
     document: &Document,
     page_id: ObjectId,
-    resources: &Dictionary,
-) -> ReferencedNames {
-    let mut found = ReferencedNames::default();
+    page_resources: &Dictionary,
+) -> Option<ReferencedResources> {
+    let mut found = ReferencedResources::default();
     let mut visited: HashSet<ObjectId> = HashSet::new();
-    let mut queue: VecDeque<(Vec<u8>, Dictionary)> = VecDeque::new();
-    queue.push_back((document.get_page_content(page_id), resources.clone()));
+    let mut queue: VecDeque<(Vec<u8>, ResourceScope)> = VecDeque::new();
+    let mut budget = MAX_WALKED_CONTENT_STREAMS;
+    queue.push_back((
+        document.get_page_content(page_id),
+        vec![page_resources.clone()],
+    ));
 
     while let Some((content, scope)) = queue.pop_front() {
+        budget = budget.checked_sub(1)?;
         let Ok(content) = Content::decode(&content) else {
             continue;
         };
         for operation in &content.operations {
             match operation.operator.as_str() {
                 "sh" => {
-                    if let Some(name) = operation
-                        .operands
-                        .first()
-                        .and_then(|operand| operand.as_name().ok())
+                    if let Some(name) = operand_name(operation.operands.first())
+                        && let Some((key, _)) = resolve_resource(document, &scope, b"Shading", name)
                     {
-                        found.shadings.insert(name.to_vec());
+                        found.shadings.insert(key);
                     }
                 }
                 // Both `scn` and `SCN` name a pattern in their LAST operand; an
                 // uncolored pattern is preceded by its colour components.
                 "scn" | "SCN" => {
-                    if let Some(name) = operation
-                        .operands
-                        .last()
-                        .and_then(|operand| operand.as_name().ok())
+                    if let Some(name) = operand_name(operation.operands.last())
+                        && let Some((key, value)) =
+                            resolve_resource(document, &scope, b"Pattern", name)
                     {
-                        found.patterns.insert(name.to_vec());
+                        found.patterns.insert(key);
+                        // A surviving pattern's own content can paint with further
+                        // patterns and shadings; follow it so the keep-set is
+                        // transitively closed.
+                        enqueue_stream_content(
+                            document,
+                            &scope,
+                            &value,
+                            None,
+                            &mut visited,
+                            &mut queue,
+                        )?;
                     }
                 }
                 "Do" => {
-                    if let Some(name) = operation
-                        .operands
-                        .first()
-                        .and_then(|operand| operand.as_name().ok())
-                        && let Some((form_id, form_content, form_resources)) =
-                            form_xobject_content(document, &scope, name)
-                        && visited.insert(form_id)
+                    if let Some(name) = operand_name(operation.operands.first())
+                        && let Some((_, value)) =
+                            resolve_resource(document, &scope, b"XObject", name)
                     {
-                        queue.push_back((form_content, form_resources));
+                        enqueue_stream_content(
+                            document,
+                            &scope,
+                            &value,
+                            Some(b"Form"),
+                            &mut visited,
+                            &mut queue,
+                        )?;
                     }
                 }
                 _ => {}
             }
         }
-        // A pattern that survived can itself paint with further patterns or
-        // shadings; follow those so the keep-set is transitively closed.
-        for name in found.patterns.clone() {
-            if let Some((pattern_id, pattern_content, pattern_resources)) =
-                named_stream_content(document, &scope, b"Pattern", &name)
-                && visited.insert(pattern_id)
-            {
-                queue.push_back((pattern_content, pattern_resources));
-            }
-        }
     }
-    found
+    Some(found)
 }
 
-fn form_xobject_content(
-    document: &Document,
-    resources: &Dictionary,
-    name: &[u8],
-) -> Option<(ObjectId, Vec<u8>, Dictionary)> {
-    let (object_id, content, dictionary, stream_resources) =
-        named_stream(document, resources, b"XObject", name)?;
-    dictionary
-        .get(b"Subtype")
-        .and_then(Object::as_name)
-        .is_ok_and(|subtype| subtype == b"Form")
-        .then_some((object_id, content, stream_resources))
+fn operand_name(operand: Option<&Object>) -> Option<&[u8]> {
+    operand.and_then(|operand| operand.as_name().ok())
 }
 
-fn named_stream_content(
+/// Resolves `name` in `category` through the scope chain, innermost first, and
+/// reports which object it landed on.
+fn resolve_resource(
     document: &Document,
-    resources: &Dictionary,
+    scope: &ResourceScope,
     category: &[u8],
     name: &[u8],
-) -> Option<(ObjectId, Vec<u8>, Dictionary)> {
-    let (object_id, content, _, stream_resources) =
-        named_stream(document, resources, category, name)?;
-    Some((object_id, content, stream_resources))
+) -> Option<(ResourceRef, Object)> {
+    for (depth, resources) in scope.iter().enumerate() {
+        let Some(entries) = resources
+            .get(category)
+            .ok()
+            .and_then(|entries| resource_dictionary(document, entries))
+        else {
+            continue;
+        };
+        let Ok(value) = entries.get(name) else {
+            continue;
+        };
+        let key = match value {
+            Object::Reference(object_id) => ResourceRef::Indirect(*object_id),
+            // Only the page's own dictionary is ever pruned, so a directly
+            // embedded entry found in a nested scope is a different object and
+            // keeps nothing on the page alive.
+            _ if depth + 1 == scope.len() => ResourceRef::PageDirect(name.to_vec()),
+            _ => return None,
+        };
+        return Some((key, value.clone()));
+    }
+    None
 }
 
-fn named_stream(
+/// Queues a referenced stream's content for scanning, under the scope its own
+/// `/Resources` establish — or, when it has none, under the enclosing scope it
+/// inherits.
+fn enqueue_stream_content(
     document: &Document,
-    resources: &Dictionary,
-    category: &[u8],
-    name: &[u8],
-) -> Option<(ObjectId, Vec<u8>, Dictionary, Dictionary)> {
-    let category = resource_dictionary(document, resources.get(category).ok()?)?;
-    let object_id = category.get(name).ok()?.as_reference().ok()?;
-    let stream = document.get_object(object_id).ok()?.as_stream().ok()?;
-    let content = stream.decompressed_content().ok()?;
-    let stream_resources = stream
+    scope: &ResourceScope,
+    value: &Object,
+    required_subtype: Option<&[u8]>,
+    visited: &mut HashSet<ObjectId>,
+    queue: &mut VecDeque<(Vec<u8>, ResourceScope)>,
+) -> Option<()> {
+    let Object::Reference(object_id) = value else {
+        // A pattern or form must be an indirect stream object; anything else has
+        // no content to follow.
+        return Some(());
+    };
+    if !visited.insert(*object_id) {
+        return Some(());
+    }
+    let Ok(stream) = document.get_object(*object_id).and_then(Object::as_stream) else {
+        return Some(());
+    };
+    if let Some(subtype) = required_subtype
+        && !stream
+            .dict
+            .get(b"Subtype")
+            .and_then(Object::as_name)
+            .is_ok_and(|actual| actual == subtype)
+    {
+        return Some(());
+    }
+    let Ok(content) = stream.decompressed_content() else {
+        return Some(());
+    };
+    let child = match stream
         .dict
         .get(b"Resources")
         .ok()
-        .and_then(|nested| resource_dictionary(document, nested))
-        .unwrap_or_default();
-    Some((object_id, content, stream.dict.clone(), stream_resources))
+        .and_then(|resources| resource_dictionary(document, resources))
+    {
+        Some(own) => {
+            if scope.len() >= MAX_RESOURCE_SCOPE_DEPTH {
+                return None;
+            }
+            let mut chain = Vec::with_capacity(scope.len().saturating_add(1));
+            chain.push(own);
+            chain.extend(scope.iter().cloned());
+            chain
+        }
+        None => scope.clone(),
+    };
+    queue.push_back((content, child));
+    Some(())
 }
 
-/// Rewrites `resources[category]` inline, keeping only the named entries.
+/// Rewrites `resources[category]` inline, keeping only the entries `keep` names.
 ///
 /// The category dictionary is inlined rather than mutated through its reference so
 /// a dictionary shared with an untouched page is never altered in place.
-fn retain_named_resources(
+fn retain_referenced_resources(
     document: &Document,
     resources: &mut Dictionary,
     category: &[u8],
-    keep: &HashSet<Vec<u8>>,
+    keep: &HashSet<ResourceRef>,
 ) {
     let Some(existing) = resources
         .get(category)
@@ -379,7 +474,11 @@ fn retain_named_resources(
     };
     let mut retained = Dictionary::new();
     for (name, value) in &existing {
-        if keep.contains(name.as_slice()) {
+        let key = match value {
+            Object::Reference(object_id) => ResourceRef::Indirect(*object_id),
+            _ => ResourceRef::PageDirect(name.clone()),
+        };
+        if keep.contains(&key) {
             retained.set(name.clone(), value.clone());
         }
     }

@@ -210,6 +210,190 @@ async fn removes_patterns_and_shadings_only_reachable_from_out_of_crop_marks()
     Ok(())
 }
 
+/// Resource names are scope-local, so the keep-set has to be keyed by the object a
+/// name resolves to, not by the name itself. Here the page's `/Pattern /P0` is the
+/// secret and only an out-of-crop mark paints it, while a surviving in-crop Form
+/// `XObject` carries its own, different `/P0`. A name-keyed keep-set sees "P0"
+/// referenced from inside the form and retains the page's unrelated entry — the
+/// same privacy-promise violation the pruning exists to close. Sequential names
+/// (`/P0`, `/P1`) collide between a page and its forms routinely.
+#[tokio::test]
+async fn resolves_pattern_names_per_scope_so_a_collision_cannot_retain_a_secret()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "collide.pdf",
+        &pdf_with_colliding_pattern_names()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        !document_contains(&bytes, b"COINCIDESECRET")?,
+        "the page's out-of-crop pattern was retained because a form referenced the \
+         same resource NAME"
+    );
+    assert!(
+        document_contains(&bytes, b"HARMLESSMARK")?,
+        "the in-crop form's own pattern was pruned"
+    );
+    assert!(
+        document_contains(&bytes, b"KEEPME")?,
+        "in-crop text was removed"
+    );
+    Ok(())
+}
+
+/// A Form `XObject` without its own `/Resources` inherits the enclosing scope
+/// (ISO 32000-1 §8.10.1). Treating such a form as having no resources loses the
+/// chain — its own `Do` targets stop resolving — and then prunes a pattern the
+/// surviving content still paints with, leaving a dangling name and visibly
+/// corrupting a spec-valid file. Nothing here is out of crop except the marker
+/// text, so this exercises the pruning alone.
+#[tokio::test]
+async fn honours_form_resource_inheritance_through_a_nested_chain()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "inherit.pdf",
+        &pdf_with_inherited_form_resources()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&bytes, b"LIVEPATTERN")?,
+        "a pattern painted through an inheriting nested form chain was pruned"
+    );
+    // The pattern must still be reachable by name, not merely present as bytes:
+    // a surviving `scn` naming a resource no dictionary declares is a corrupt file.
+    let document = Document::load_mem(&bytes)?;
+    assert!(
+        document.objects.values().any(|object| object
+            .as_dict()
+            .is_ok_and(|dictionary| dictionary.get(b"Pattern").is_ok())
+            || object.as_stream().is_ok_and(|stream| stream
+                .dict
+                .get(b"Resources")
+                .ok()
+                .and_then(|resources| document.dereference(resources).ok())
+                .and_then(|(_, resources)| resources.as_dict().ok().cloned())
+                .is_some_and(|resources| resources.get(b"Pattern").is_ok()))),
+        "the surviving pattern is no longer declared in any resource dictionary"
+    );
+    Ok(())
+}
+
+/// Page `/Pattern /P0` is the secret, painted only out of crop. An in-crop Form
+/// `XObject` declares its OWN `/P0` and paints with that.
+fn pdf_with_colliding_pattern_names() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let secret_pattern_id = document.add_object(tiling_pattern(font_id, b"COINCIDESECRET"));
+    let form_pattern_id = document.add_object(tiling_pattern(font_id, b"HARMLESSMARK"));
+    let form_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Form",
+            "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 80.into(), 40.into()],
+            "Resources" => dictionary! {
+                "Pattern" => dictionary! { "P0" => form_pattern_id },
+            },
+        },
+        b"q /Pattern cs /P0 scn 0 0 80 40 re f Q".to_vec(),
+    ));
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 12 Tf 20 40 Td (KEEPME) Tj ET\n\
+          q /Pattern cs /P0 scn 20 200 160 80 re f Q\n\
+          q 1 0 0 1 20 10 cm /Fx Do Q"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => secret_pattern_id },
+            "XObject" => dictionary! { "Fx" => form_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// In-crop Form A (no `/Resources`) invokes Form B (no `/Resources`), which paints
+/// with the page's inherited `/P0`.
+fn pdf_with_inherited_form_resources() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"LIVEPATTERN"));
+    let inheriting_form = |content: Vec<u8>| {
+        Stream::new(
+            dictionary! {
+                "Type" => "XObject",
+                "Subtype" => "Form",
+                "FormType" => 1,
+                "BBox" => vec![0.into(), 0.into(), 80.into(), 40.into()],
+            },
+            content,
+        )
+    };
+    let inner_form_id = document.add_object(inheriting_form(
+        b"q /Pattern cs /P0 scn 0 0 80 40 re f Q".to_vec(),
+    ));
+    let outer_form_id = document.add_object(inheriting_form(b"q /FormB Do Q".to_vec()));
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 12 Tf 20 40 Td (KEEPME) Tj ET\nq 1 0 0 1 20 10 cm /FormA Do Q".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+            "XObject" => dictionary! { "FormA" => outer_form_id, "FormB" => inner_form_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+fn tiling_pattern(font_id: lopdf::ObjectId, payload: &[u8]) -> Stream {
+    let mut content = b"BT /F1 8 Tf 1 1 Td (".to_vec();
+    content.extend_from_slice(payload);
+    content.extend_from_slice(b") Tj ET");
+    Stream::new(
+        dictionary! {
+            "Type" => "Pattern",
+            "PatternType" => 1,
+            "PaintType" => 1,
+            "TilingType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 40.into(), 20.into()],
+            "XStep" => 40,
+            "YStep" => 20,
+            "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+        },
+        content,
+    )
+}
+
 /// Pins a real fidelity limitation of the removal path, and the escape hatch.
 ///
 /// `FPDFPage_GenerateContent` does not round-trip pattern or shading marks: a
