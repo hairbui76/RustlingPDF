@@ -9,7 +9,7 @@ use std::{
     fs::{self, File},
     io::{ErrorKind, Write},
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::Output,
     sync::Arc,
 };
 
@@ -18,12 +18,12 @@ use thiserror::Error;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 use crate::{
-    ghostscript::{exit_status, ghostscript_commands},
+    pdf_document_ops::{DocumentOperationError, strip_images_to_file},
     pdf_merge::{MergeError, MergeInput, MergeOptions, merge_pdf_paths_to_file},
     pdfium_backend::{
         PdfiumOcrError, PdfiumOcrMode, PdfiumOcrPrepareAttempt, try_prepare_tesseract_pages,
     },
-    process_executor::{ProcessExecutor, ProcessExecutorError},
+    process_executor::{ProcessExecutor, ProcessExecutorError, exit_status},
     runtime_config::OcrProcessSettings,
     tessdata::available_tesseract_languages,
 };
@@ -121,14 +121,8 @@ pub enum OcrError {
     Pdfium(#[from] PdfiumOcrError),
     #[error(transparent)]
     Merge(#[from] MergeError),
-    #[error("Ghostscript is required to remove images after OCR but was not found")]
-    GhostscriptUnavailable,
-    #[error("Ghostscript image removal with '{command}' failed with status {status}: {details}")]
-    GhostscriptFailed {
-        command: String,
-        status: String,
-        details: String,
-    },
+    #[error("could not remove images after OCR: {0}")]
+    RemoveImages(#[from] DocumentOperationError),
     #[error("could not prepare the OCR workspace: {0}")]
     Io(#[from] std::io::Error),
     #[error("could not build the output archive: {0}")]
@@ -514,40 +508,18 @@ fn ocrmypdf_failure(command: String, output: &Output) -> OcrError {
     }
 }
 
+/// Removes every raster image from an OCR'd PDF, keeping the searchable text
+/// layer OCR just added.
+///
+/// This replaces the Ghostscript `-dFILTERIMAGE` pass: image `XObject` resources,
+/// the `Do` operators painting them, and inline images are dropped in-process
+/// with `lopdf`, and the orphaned image streams are pruned so their bytes leave
+/// the file.
 fn remove_images(ocr_pdf: &Path, work_dir: &Path) -> Result<(), OcrError> {
     let stripped = work_dir.join("ocr-no-images.pdf");
-    let commands = ghostscript_commands();
-    let arguments = [
-        OsString::from("-sDEVICE=pdfwrite"),
-        OsString::from("-dFILTERIMAGE"),
-        OsString::from("-o"),
-        stripped.as_os_str().to_owned(),
-        ocr_pdf.as_os_str().to_owned(),
-    ];
-    for command in &commands.candidates {
-        match Command::new(command).args(&arguments).output() {
-            Ok(output) if output.status.success() => {
-                fs::copy(&stripped, ocr_pdf)?;
-                return Ok(());
-            }
-            Ok(output) => {
-                return Err(OcrError::GhostscriptFailed {
-                    command: command.clone(),
-                    status: exit_status(output.status),
-                    details: process_details(&output.stdout, &output.stderr),
-                });
-            }
-            Err(source) if source.kind() == ErrorKind::NotFound => {}
-            Err(source) => {
-                return Err(OcrError::GhostscriptFailed {
-                    command: command.clone(),
-                    status: "not started".to_owned(),
-                    details: source.to_string(),
-                });
-            }
-        }
-    }
-    Err(OcrError::GhostscriptUnavailable)
+    strip_images_to_file(ocr_pdf, "document.pdf", &stripped)?;
+    fs::copy(&stripped, ocr_pdf)?;
+    Ok(())
 }
 
 fn write_sidecar_zip(

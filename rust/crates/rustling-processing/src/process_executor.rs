@@ -3,7 +3,7 @@
 use std::{
     ffi::{OsStr, OsString},
     io::{self, Read},
-    process::{Child, Command, Output, Stdio},
+    process::{Child, Command, ExitStatus, Output, Stdio},
     sync::{Arc, Condvar, Mutex, MutexGuard},
     thread,
     time::{Duration, Instant},
@@ -13,6 +13,14 @@ use sysinfo::{Pid, ProcessesToUpdate, System};
 use thiserror::Error;
 
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+/// Renders a finished child process's exit status for diagnostic messages.
+pub(crate) fn exit_status(status: ExitStatus) -> String {
+    status.code().map_or_else(
+        || "terminated by signal".to_owned(),
+        |code| code.to_string(),
+    )
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct ProcessExecutor {

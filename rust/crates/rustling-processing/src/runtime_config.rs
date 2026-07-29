@@ -31,7 +31,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ),
     (
         "Convert",
-        "pdf-to-img img-to-pdf pdf-to-pdfa file-to-pdf pdf-to-word pdf-to-presentation pdf-to-text pdf-to-html pdf-to-xml html-to-pdf url-to-pdf markdown-to-pdf pdf-to-csv pdf-to-markdown eml-to-pdf pdf-to-epub ebook-to-pdf pdf-to-vector vector-to-pdf pdf-to-video cbz-to-pdf cbr-to-pdf pdf-to-cbz pdf-to-cbr pdf-to-json json-to-pdf pdf-to-rtf",
+        "pdf-to-img img-to-pdf file-to-pdf pdf-to-word pdf-to-presentation pdf-to-text pdf-to-html pdf-to-xml html-to-pdf url-to-pdf markdown-to-pdf pdf-to-csv pdf-to-markdown eml-to-pdf pdf-to-epub ebook-to-pdf pdf-to-video cbz-to-pdf cbr-to-pdf pdf-to-cbz pdf-to-cbr pdf-to-json json-to-pdf pdf-to-rtf",
     ),
     (
         "Security",
@@ -55,7 +55,6 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
         "LibreOffice",
         "file-to-pdf pdf-to-word pdf-to-presentation pdf-to-rtf pdf-to-xml",
     ),
-    ("Ghostscript", "pdf-to-pdfa pdf-to-vector vector-to-pdf"),
     ("tesseract", "ocr-pdf"),
     ("OCRmyPDF", "ocr-pdf"),
     ("rar", "pdf-to-cbr"),
@@ -111,8 +110,6 @@ pub(crate) struct OcrProcessSettings {
 pub(crate) struct RepairProcessSettings {
     pub(crate) qpdf_session_limit: usize,
     pub(crate) qpdf_timeout: Duration,
-    pub(crate) ghostscript_session_limit: usize,
-    pub(crate) ghostscript_timeout: Duration,
 }
 
 #[derive(Clone)]
@@ -666,32 +663,14 @@ impl RuntimeConfig {
             "PROCESS_EXECUTOR_SESSION_LIMIT_QPDF_SESSION_LIMIT",
             2,
         );
-        let ghostscript_session_limit = positive(
-            &["processExecutor", "sessionLimit", "ghostscriptSessionLimit"],
-            "PROCESS_EXECUTOR_SESSION_LIMIT_GHOSTSCRIPT_SESSION_LIMIT",
-            8,
-        );
         let qpdf_timeout_minutes = positive(
             &["processExecutor", "timeoutMinutes", "qpdfTimeoutMinutes"],
             "PROCESS_EXECUTOR_TIMEOUT_MINUTES_QPDF_TIMEOUT_MINUTES",
             30,
         );
-        let ghostscript_timeout_minutes = positive(
-            &[
-                "processExecutor",
-                "timeoutMinutes",
-                "ghostscriptTimeoutMinutes",
-            ],
-            "PROCESS_EXECUTOR_TIMEOUT_MINUTES_GHOSTSCRIPT_TIMEOUT_MINUTES",
-            30,
-        );
         RepairProcessSettings {
             qpdf_session_limit: usize::try_from(qpdf_session_limit).unwrap_or(2),
             qpdf_timeout: Duration::from_secs(qpdf_timeout_minutes.saturating_mul(60)),
-            ghostscript_session_limit: usize::try_from(ghostscript_session_limit).unwrap_or(8),
-            ghostscript_timeout: Duration::from_secs(
-                ghostscript_timeout_minutes.saturating_mul(60),
-            ),
         }
     }
 
@@ -2072,9 +2051,9 @@ mod tests {
         let defaults = config.repair_process_settings();
         assert_eq!(defaults.qpdf_session_limit, 2);
         assert_eq!(defaults.qpdf_timeout.as_secs(), 30 * 60);
-        assert_eq!(defaults.ghostscript_session_limit, 8);
-        assert_eq!(defaults.ghostscript_timeout.as_secs(), 30 * 60);
 
+        // The legacy Ghostscript keys stay in the file and must be accepted and ignored,
+        // never refused: existing installs still carry them.
         fs::write(
             &settings,
             "processExecutor:\n  sessionLimit:\n    qpdfSessionLimit: 5\n    ghostscriptSessionLimit: 6\n  timeoutMinutes:\n    qpdfTimeoutMinutes: 11\n    ghostscriptTimeoutMinutes: 13\n",
@@ -2083,8 +2062,6 @@ mod tests {
         let configured = config.repair_process_settings();
         assert_eq!(configured.qpdf_session_limit, 5);
         assert_eq!(configured.qpdf_timeout.as_secs(), 11 * 60);
-        assert_eq!(configured.ghostscript_session_limit, 6);
-        assert_eq!(configured.ghostscript_timeout.as_secs(), 13 * 60);
         Ok(())
     }
 
@@ -2095,16 +2072,14 @@ mod tests {
         let settings = directory.path().join("settings.yml");
         fs::write(&settings, "{}\n")?;
         let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        let command = directory.path().join("gs");
+        let command = directory.path().join("qpdf");
         config
             .dependency_commands
-            .insert("Ghostscript".to_owned(), command.clone());
-        assert_eq!(config.dependency_command("Ghostscript"), Some(command));
+            .insert("qpdf".to_owned(), command.clone());
+        assert_eq!(config.dependency_command("qpdf"), Some(command));
 
-        config
-            .dependency_disabled_groups
-            .insert("Ghostscript".to_owned());
-        assert_eq!(config.dependency_command("Ghostscript"), None);
+        config.dependency_disabled_groups.insert("qpdf".to_owned());
+        assert_eq!(config.dependency_command("qpdf"), None);
         Ok(())
     }
 
@@ -2472,16 +2447,18 @@ mod tests {
         let settings = directory.path().join("settings.yml");
         fs::write(
             &settings,
-            "endpoints:\n  groupsToRemove: [PageOps, qpdf, Ghostscript]\n",
+            // `Ghostscript` is a removed dependency group. It must still be accepted in
+            // `groupsToRemove` and simply ignored, never refused.
+            "endpoints:\n  groupsToRemove: [PageOps, LibreOffice, Ghostscript]\n",
         )?;
         let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
         assert!(!config.is_group_enabled("PageOps"));
-        assert!(!config.is_group_enabled("qpdf"));
+        assert!(!config.is_group_enabled("LibreOffice"));
         assert!(config.is_group_enabled("Convert"));
         assert!(!config.is_endpoint_enabled("merge-pdfs"));
         assert!(config.is_endpoint_enabled("repair"));
-        assert!(!config.is_endpoint_enabled("pdf-to-pdfa"));
-        assert!(config.is_endpoint_enabled("file-to-pdf"));
+        assert!(!config.is_endpoint_enabled("file-to-pdf"));
+        assert!(config.is_endpoint_enabled("pdf-to-img"));
         let statuses = config.disabled_endpoint_statuses();
         assert_eq!(statuses.get("merge-pdfs"), Some(&false));
         assert!(!statuses.contains_key("repair"));

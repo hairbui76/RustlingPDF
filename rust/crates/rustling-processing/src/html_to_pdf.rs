@@ -16,7 +16,7 @@ use tempfile::TempDir;
 use thiserror::Error;
 use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
-use crate::{ghostscript::exit_status, html_sanitizer::sanitize_html};
+use crate::{html_sanitizer::sanitize_html, process_executor::exit_status};
 
 const WEASYPRINT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_WEASYPRINT_COMMAND";
 const MAX_ARCHIVE_ENTRIES: usize = 100_000;

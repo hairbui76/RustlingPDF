@@ -9,7 +9,6 @@ pub mod ebook_to_pdf;
 pub mod eml_to_pdf;
 pub mod env_compat;
 pub mod extract_image_scans;
-mod ghostscript;
 pub mod hardware_signing;
 pub mod html_sanitizer;
 pub mod html_to_pdf;
@@ -85,7 +84,6 @@ pub mod pdf_to_image;
 pub mod pdf_to_video;
 pub mod pdf_verification;
 pub mod pdf_watermark;
-pub mod pdfa;
 mod pdfium_backend;
 mod pdfium_runtime;
 mod pipeline;
@@ -101,7 +99,6 @@ pub mod svg_to_pdf;
 mod tessdata;
 pub mod ui_data;
 pub mod url_to_pdf;
-pub mod vector_conversion;
 
 use std::{
     cmp::Reverse,
@@ -183,9 +180,8 @@ use crate::{
     pdf_ai_comments::{AiCommentEngineSettings, PdfAiCommentError, annotate_pdf_with_ai_comments},
     pdf_analysis::AnalysisError,
     pdf_attachments::{
-        AttachmentError, AttachmentInput, add_attachments_to_file, add_attachments_to_pdfa3b_file,
-        delete_attachment_to_file, extract_attachments_to_zip, list_attachments,
-        rename_attachment_to_file,
+        AttachmentError, AttachmentInput, add_attachments_to_file, delete_attachment_to_file,
+        extract_attachments_to_zip, list_attachments, rename_attachment_to_file,
     },
     pdf_auto_rename::{AutoRenameError, auto_rename_to_file},
     pdf_auto_split::{AutoSplitError, auto_split_pdf_to_zip},
@@ -277,7 +273,6 @@ use crate::{
     pdf_to_video::{PdfToVideoError, PdfToVideoOptions, VideoFormat, convert_pdf_to_video},
     pdf_verification::{VerificationError, verify_pdf},
     pdf_watermark::{WatermarkError, WatermarkOptions, add_watermark_to_file},
-    pdfa::{PdfArchiveFormat, PdfaError, convert_pdf_to_archive_file},
     pdfium_backend::{
         PdfiumAutoCropError, PdfiumAutoSplitError, PdfiumMergeError, PdfiumRemoveError,
         PdfiumRotateError, PdfiumToImageError,
@@ -290,9 +285,6 @@ use crate::{
     },
     svg_to_pdf::{SvgConversionOutput, SvgInput, SvgToPdfError, convert_svg_files},
     url_to_pdf::{UrlToPdfError, convert_url_to_pdf, output_filename as url_output_filename},
-    vector_conversion::{
-        VectorConversionError, VectorFormat, pdf_to_vector_file, vector_to_pdf_file,
-    },
 };
 
 const ANALYSIS_ANNOTATION_INFO_PATH: &str = "/api/v1/analysis/annotation-info";
@@ -388,10 +380,8 @@ const PDF_TO_XLSX_PATH: &str = "/api/v1/convert/pdf/xlsx";
 const PDF_TO_VIDEO_PATH: &str = "/api/v1/convert/pdf/video";
 const PDF_TO_CBZ_PATH: &str = "/api/v1/convert/pdf/cbz";
 const PDF_TO_CBR_PATH: &str = "/api/v1/convert/pdf/cbr";
-const PDF_TO_PDFA_PATH: &str = "/api/v1/convert/pdf/pdfa";
 const PDF_TO_TEXT_PATH: &str = "/api/v1/convert/pdf/text";
 const PDF_TO_MARKDOWN_PATH: &str = "/api/v1/convert/pdf/markdown";
-const PDF_TO_VECTOR_PATH: &str = "/api/v1/convert/pdf/vector";
 const REDACT_PATH: &str = "/api/v1/security/redact";
 const REMOVE_PAGES_PATH: &str = "/api/v1/general/remove-pages";
 const REMOVE_BLANKS_PATH: &str = "/api/v1/misc/remove-blanks";
@@ -419,7 +409,6 @@ const SPLIT_BY_SIZE_PATH: &str = "/api/v1/general/split-by-size-or-count";
 const SPLIT_CHAPTERS_PATH: &str = "/api/v1/general/split-pdf-by-chapters";
 const SPLIT_SECTIONS_PATH: &str = "/api/v1/general/split-pdf-by-sections";
 const SVG_TO_PDF_PATH: &str = "/api/v1/convert/svg/pdf";
-const VECTOR_TO_PDF_PATH: &str = "/api/v1/convert/vector/pdf";
 const VERIFY_PDF_PATH: &str = "/api/v1/security/verify-pdf";
 const VALIDATE_SIGNATURE_PATH: &str = "/api/v1/security/validate-signature";
 const TIMESTAMP_PDF_PATH: &str = "/api/v1/security/timestamp-pdf";
@@ -804,14 +793,7 @@ struct UploadedMetadataRequest {
 struct UploadedAddAttachmentsRequest {
     file: UploadedPdf,
     attachments: Vec<AttachmentInput>,
-    convert_to_pdfa_3b: bool,
     temp_dir: TempDir,
-}
-
-#[derive(Debug)]
-enum AddAttachmentsWorkflowError {
-    Attachment(AttachmentError),
-    Pdfa(PdfaError),
 }
 
 #[derive(Debug)]
@@ -1083,14 +1065,6 @@ struct UploadedPdfToCbzRequest {
 }
 
 #[derive(Debug)]
-struct UploadedPdfArchiveRequest {
-    file: UploadedPdf,
-    output_format: String,
-    strict: bool,
-    temp_dir: TempDir,
-}
-
-#[derive(Debug)]
 struct UploadedPdfToTextRequest {
     file: UploadedPdf,
     output_format: String,
@@ -1132,14 +1106,6 @@ struct UploadedWatermarkRequest {
 struct UploadedSvgToPdfRequest {
     files: Vec<SvgInput>,
     combine: bool,
-    temp_dir: TempDir,
-}
-
-#[derive(Debug)]
-struct UploadedVectorConversionRequest {
-    file: UploadedPdf,
-    output_format: String,
-    prepress: bool,
     temp_dir: TempDir,
 }
 
@@ -1760,7 +1726,6 @@ fn processing_routes() -> Router {
         .route(POSTER_PRINT_PATH, post(split_for_poster_print))
         .route(SPLIT_SECTIONS_PATH, post(split_sections))
         .route(SVG_TO_PDF_PATH, post(svg_to_pdf))
-        .route(VECTOR_TO_PDF_PATH, post(vector_to_pdf))
         .route(VERIFY_PDF_PATH, post(verify_pdf_route))
         .route(UNLOCK_FORMS_PATH, post(unlock_pdf_forms))
         .route(UPDATE_METADATA_PATH, post(update_metadata))
@@ -1914,10 +1879,8 @@ fn pdf_conversion_routes() -> Router {
         .merge(pdf_video_routes())
         .route(PDF_TO_CBZ_PATH, post(pdf_to_cbz))
         .route(PDF_TO_CBR_PATH, post(pdf_to_cbr))
-        .route(PDF_TO_PDFA_PATH, post(pdf_to_pdfa))
         .route(PDF_TO_TEXT_PATH, post(pdf_to_text))
         .route(PDF_TO_MARKDOWN_PATH, post(pdf_to_markdown))
-        .route(PDF_TO_VECTOR_PATH, post(pdf_to_vector))
 }
 
 fn info_routes() -> Router {
@@ -2205,7 +2168,6 @@ fn async_job_resource_weight(path: &str) -> u32 {
         10
     } else if path.contains("compress")
         || path.contains("repair")
-        || path.contains("pdfa")
         || path.contains("file-to-pdf")
         || path.contains("pdf-to-word")
         || path.contains("pdf-to-presentation")
@@ -2214,7 +2176,6 @@ fn async_job_resource_weight(path: &str) -> u32 {
         || path.contains("img-to-pdf")
         || path.contains("html-to-pdf")
         || path.contains("url-to-pdf")
-        || path.contains("vector")
         || path.contains("ebook")
         || path.contains("epub")
     {
@@ -2315,11 +2276,9 @@ const ASYNC_JOB_PROCESSING_PATHS: &[&str] = &[
     PDF_TO_HTML_PATH,
     PDF_TO_IMAGE_PATH,
     PDF_TO_MARKDOWN_PATH,
-    PDF_TO_PDFA_PATH,
     PDF_TO_PRESENTATION_PATH,
     PDF_TO_SINGLE_PAGE_PATH,
     PDF_TO_TEXT_PATH,
-    PDF_TO_VECTOR_PATH,
     PDF_TO_VIDEO_PATH,
     PDF_TO_WORD_PATH,
     PDF_TO_XLSX_PATH,
@@ -2354,7 +2313,6 @@ const ASYNC_JOB_PROCESSING_PATHS: &[&str] = &[
     UPDATE_METADATA_PATH,
     URL_TO_PDF_PATH,
     VALIDATE_SIGNATURE_PATH,
-    VECTOR_TO_PDF_PATH,
     VERIFY_PDF_PATH,
 ];
 
@@ -3075,40 +3033,15 @@ fn parse_endpoint_list(endpoints: Option<&str>) -> Vec<String> {
 
 async fn add_attachments(multipart: Multipart) -> Result<Response, ApiError> {
     let request = read_add_attachments_request(multipart).await?;
-    let output_filename = if request.convert_to_pdfa_3b {
-        suffixed_filename(&request.file.filename, "_with_attachments_PDFA-3b.pdf")
-    } else {
-        suffixed_filename(&request.file.filename, "_with_attachments.pdf")
-    };
+    let output_filename = suffixed_filename(&request.file.filename, "_with_attachments.pdf");
     let input_path = request.file.path;
     let filename = request.file.filename;
     let attachments = request.attachments;
-    let convert_to_pdfa_3b = request.convert_to_pdfa_3b;
     let temp_dir = request.temp_dir;
     let output_path = temp_dir.path().join("with-attachments.pdf");
     let blocking_output_path = output_path.clone();
-    let pdfa_input_path = temp_dir.path().join("with-attachments-pdfa3b-input.pdf");
     task::spawn_blocking(move || {
-        if convert_to_pdfa_3b {
-            convert_pdf_to_archive_file(
-                &input_path,
-                &filename,
-                PdfArchiveFormat::PdfA3b,
-                false,
-                &pdfa_input_path,
-            )
-            .map_err(AddAttachmentsWorkflowError::Pdfa)?;
-            add_attachments_to_pdfa3b_file(
-                &pdfa_input_path,
-                &filename,
-                &attachments,
-                &blocking_output_path,
-            )
-            .map_err(AddAttachmentsWorkflowError::Attachment)
-        } else {
-            add_attachments_to_file(&input_path, &filename, &attachments, &blocking_output_path)
-                .map_err(AddAttachmentsWorkflowError::Attachment)
-        }
+        add_attachments_to_file(&input_path, &filename, &attachments, &blocking_output_path)
     })
     .await
     .map_err(|error| {
@@ -3117,12 +3050,7 @@ async fn add_attachments(multipart: Multipart) -> Result<Response, ApiError> {
             format!("add attachments task failed: {error}"),
         )
     })?
-    .map_err(|error| match error {
-        AddAttachmentsWorkflowError::Attachment(error) => {
-            map_attachment_error(&error, ADD_ATTACHMENTS_PATH)
-        }
-        AddAttachmentsWorkflowError::Pdfa(error) => map_pdfa_error_at(&error, ADD_ATTACHMENTS_PATH),
-    })?;
+    .map_err(|error| map_attachment_error(&error, ADD_ATTACHMENTS_PATH))?;
     file_response(
         output_path,
         temp_dir,
@@ -4813,73 +4741,6 @@ async fn svg_to_pdf(multipart: Multipart) -> Result<Response, ApiError> {
     .await
 }
 
-async fn vector_to_pdf(multipart: Multipart) -> Result<Response, ApiError> {
-    let request = read_vector_conversion_request(multipart, VECTOR_TO_PDF_PATH).await?;
-    let output_filename = suffixed_filename(&request.file.filename, "_converted.pdf");
-    let input_path = request.file.path;
-    let filename = request.file.filename;
-    let prepress = request.prepress;
-    let temp_dir = request.temp_dir;
-    let output_path = temp_dir.path().join("converted-vector.pdf");
-    let blocking_output_path = output_path.clone();
-    task::spawn_blocking(move || {
-        vector_to_pdf_file(&input_path, &filename, prepress, &blocking_output_path)
-    })
-    .await
-    .map_err(|error| {
-        ApiError::internal_at(
-            VECTOR_TO_PDF_PATH,
-            format!("vector-to-PDF task failed: {error}"),
-        )
-    })?
-    .map_err(|error| map_vector_conversion_error(&error, VECTOR_TO_PDF_PATH))?;
-    file_response(
-        output_path,
-        temp_dir,
-        &output_filename,
-        VECTOR_TO_PDF_PATH,
-        "application/pdf",
-    )
-    .await
-}
-
-async fn pdf_to_vector(multipart: Multipart) -> Result<Response, ApiError> {
-    let request = read_vector_conversion_request(multipart, PDF_TO_VECTOR_PATH).await?;
-    let format = if request.output_format.is_empty() {
-        VectorFormat::Eps
-    } else {
-        VectorFormat::parse(&request.output_format)
-            .map_err(|error| map_vector_conversion_error(&error, PDF_TO_VECTOR_PATH))?
-    };
-    let output_filename = suffixed_filename(
-        &request.file.filename,
-        &format!("_converted.{}", format.extension()),
-    );
-    let input_path = request.file.path;
-    let temp_dir = request.temp_dir;
-    let output_path = temp_dir
-        .path()
-        .join(format!("converted.{}", format.extension()));
-    let blocking_output_path = output_path.clone();
-    task::spawn_blocking(move || pdf_to_vector_file(&input_path, format, &blocking_output_path))
-        .await
-        .map_err(|error| {
-            ApiError::internal_at(
-                PDF_TO_VECTOR_PATH,
-                format!("PDF-to-vector task failed: {error}"),
-            )
-        })?
-        .map_err(|error| map_vector_conversion_error(&error, PDF_TO_VECTOR_PATH))?;
-    file_response(
-        output_path,
-        temp_dir,
-        &output_filename,
-        PDF_TO_VECTOR_PATH,
-        format.content_type(),
-    )
-    .await
-}
-
 async fn cbz_to_pdf(multipart: Multipart) -> Result<Response, ApiError> {
     let request = read_cbz_to_pdf_request(multipart).await?;
     let output_filename = comic_output_filename(&request.file.filename, "_converted.pdf");
@@ -4994,40 +4855,6 @@ async fn pdf_to_cbr(multipart: Multipart) -> Result<Response, ApiError> {
         &output_filename,
         PDF_TO_CBR_PATH,
         "application/octet-stream",
-    )
-    .await
-}
-
-async fn pdf_to_pdfa(multipart: Multipart) -> Result<Response, ApiError> {
-    let request = read_pdf_archive_request(multipart).await?;
-    let format = PdfArchiveFormat::from_output_format(&request.output_format);
-    let output_filename = suffixed_filename(&request.file.filename, format.output_suffix());
-    let input_path = request.file.path;
-    let filename = request.file.filename;
-    let strict = request.strict;
-    let temp_dir = request.temp_dir;
-    let output_path = temp_dir.path().join("converted-archive.pdf");
-    let blocking_output_path = output_path.clone();
-    task::spawn_blocking(move || {
-        convert_pdf_to_archive_file(
-            &input_path,
-            &filename,
-            format,
-            strict,
-            &blocking_output_path,
-        )
-    })
-    .await
-    .map_err(|error| {
-        ApiError::internal_at(PDF_TO_PDFA_PATH, format!("PDF/A task failed: {error}"))
-    })?
-    .map_err(|error| map_pdfa_error(&error))?;
-    file_response(
-        output_path,
-        temp_dir,
-        &output_filename,
-        PDF_TO_PDFA_PATH,
-        "application/pdf",
     )
     .await
 }
@@ -9675,45 +9502,6 @@ async fn read_svg_to_pdf_request(
     })
 }
 
-async fn read_vector_conversion_request(
-    mut multipart: Multipart,
-    api_path: &'static str,
-) -> Result<UploadedVectorConversionRequest, ApiError> {
-    let temp_dir =
-        TempDir::new().map_err(|error| ApiError::internal_at(api_path, error.to_string()))?;
-    let mut file = None;
-    let mut output_format = "eps".to_owned();
-    let mut prepress = false;
-    while let Some(mut field) = multipart
-        .next_field()
-        .await
-        .map_err(|error| ApiError::bad_request_at(api_path, error.body_text()))?
-    {
-        match field.name().unwrap_or_default() {
-            "fileInput" => {
-                let filename = safe_filename(field.file_name());
-                let path = temp_dir.path().join("vector-input");
-                write_field_to_file(&mut field, &path, api_path).await?;
-                file = Some(UploadedPdf { filename, path });
-            }
-            "outputFormat" => {
-                output_format = read_form_value(&mut field, api_path).await?;
-            }
-            "prepress" => {
-                prepress = parse_bool_at(&read_form_value(&mut field, api_path).await?, api_path)?;
-            }
-            _ => drain_field(&mut field, api_path).await?,
-        }
-    }
-    let file = file.ok_or_else(|| ApiError::bad_request_at(api_path, "fileInput is required"))?;
-    Ok(UploadedVectorConversionRequest {
-        file,
-        output_format,
-        prepress,
-        temp_dir,
-    })
-}
-
 async fn read_cbz_to_pdf_request(
     mut multipart: Multipart,
 ) -> Result<UploadedCbzToPdfRequest, ApiError> {
@@ -9850,65 +9638,6 @@ async fn read_pdf_to_cbr_request(
     Ok(UploadedPdfToCbzRequest {
         file,
         dpi,
-        temp_dir,
-    })
-}
-
-async fn read_pdf_archive_request(
-    mut multipart: Multipart,
-) -> Result<UploadedPdfArchiveRequest, ApiError> {
-    let temp_dir = TempDir::new()
-        .map_err(|error| ApiError::internal_at(PDF_TO_PDFA_PATH, error.to_string()))?;
-    let mut file = None;
-    let mut output_format = "pdfa".to_owned();
-    let mut strict = false;
-    while let Some(mut field) = multipart
-        .next_field()
-        .await
-        .map_err(|error| ApiError::bad_request_at(PDF_TO_PDFA_PATH, error.body_text()))?
-    {
-        match field.name().unwrap_or_default() {
-            "fileInput" => {
-                let is_pdf = field.content_type().is_some_and(|content_type| {
-                    content_type.eq_ignore_ascii_case("application/pdf")
-                });
-                if !is_pdf {
-                    drain_field(&mut field, PDF_TO_PDFA_PATH).await?;
-                    return Err(ApiError::bad_request_at(
-                        PDF_TO_PDFA_PATH,
-                        "fileInput must have content type application/pdf",
-                    ));
-                }
-                let filename = field
-                    .file_name()
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .map_or_else(
-                        || "output.pdf".to_owned(),
-                        |value| safe_filename(Some(value)),
-                    );
-                let path = temp_dir.path().join("input.pdf");
-                write_field_to_file(&mut field, &path, PDF_TO_PDFA_PATH).await?;
-                file = Some(UploadedPdf { filename, path });
-            }
-            "outputFormat" => {
-                output_format = read_form_value(&mut field, PDF_TO_PDFA_PATH).await?;
-            }
-            "strict" => {
-                strict = parse_bool_at(
-                    &read_form_value(&mut field, PDF_TO_PDFA_PATH).await?,
-                    PDF_TO_PDFA_PATH,
-                )?;
-            }
-            _ => drain_field(&mut field, PDF_TO_PDFA_PATH).await?,
-        }
-    }
-    let file =
-        file.ok_or_else(|| ApiError::bad_request_at(PDF_TO_PDFA_PATH, "fileInput is required"))?;
-    Ok(UploadedPdfArchiveRequest {
-        file,
-        output_format,
-        strict,
         temp_dir,
     })
 }
@@ -11050,7 +10779,6 @@ async fn read_add_attachments_request(
         .map_err(|error| ApiError::internal_at(ADD_ATTACHMENTS_PATH, error.to_string()))?;
     let mut file = None;
     let mut attachments = Vec::new();
-    let mut convert_to_pdfa_3b = false;
     let mut total_attachment_bytes = 0_u64;
     while let Some(mut field) = multipart
         .next_field()
@@ -11103,11 +10831,21 @@ async fn read_add_attachments_request(
                     size,
                 });
             }
+            // `convertToPdfA3b` was a Ghostscript-backed PDF/A conversion. PDF/A support was
+            // removed from the product, so the flag can no longer be honoured. It is rejected
+            // rather than silently ignored: returning a plain PDF for a request that asked for
+            // an archival conversion would be a silent under-delivery.
             "convertToPdfA3b" => {
-                convert_to_pdfa_3b = parse_bool_at(
+                let requested = parse_bool_at(
                     &read_form_value(&mut field, ADD_ATTACHMENTS_PATH).await?,
                     ADD_ATTACHMENTS_PATH,
                 )?;
+                if requested {
+                    return Err(ApiError::bad_request_at(
+                        ADD_ATTACHMENTS_PATH,
+                        "convertToPdfA3b is no longer supported: PDF/A conversion was removed from this service",
+                    ));
+                }
             }
             _ => drain_field(&mut field, ADD_ATTACHMENTS_PATH).await?,
         }
@@ -11123,7 +10861,6 @@ async fn read_add_attachments_request(
     Ok(UploadedAddAttachmentsRequest {
         file,
         attachments,
-        convert_to_pdfa_3b,
         temp_dir,
     })
 }
@@ -12099,10 +11836,16 @@ fn map_crop_error(error: &CropError) -> ApiError {
         | CropError::Pdf(_)
         | CropError::PageCountMismatch
         | CropError::WritePdf(_)
-        | CropError::GhostscriptInput(_)
-        | CropError::GhostscriptFailed { .. }
-        | CropError::GhostscriptStart { .. }
-        | CropError::GhostscriptNoOutput => ApiError::internal_at(CROP_PATH, error.to_string()),
+        | CropError::CropContentInput(_)
+        | CropError::CropContent(_)
+        | CropError::CropContentRuntime {
+            explicitly_configured: true,
+            ..
+        } => ApiError::internal_at(CROP_PATH, error.to_string()),
+        CropError::CropContentRuntime {
+            explicitly_configured: false,
+            ..
+        } => ApiError::unsupported_at(CROP_PATH, error.to_string()),
     }
 }
 
@@ -12505,59 +12248,6 @@ fn map_svg_to_pdf_error(error: &SvgToPdfError) -> ApiError {
     }
 }
 
-fn map_vector_conversion_error(error: &VectorConversionError, api_path: &'static str) -> ApiError {
-    match error {
-        VectorConversionError::UnsupportedInputFormat(_)
-        | VectorConversionError::UnsupportedOutputFormat(_) => {
-            ApiError::bad_request_at(api_path, error.to_string())
-        }
-        VectorConversionError::GhostscriptUnavailable {
-            explicitly_configured: false,
-        } => ApiError::unsupported_at(api_path, error.to_string()),
-        VectorConversionError::CopyPdf(_)
-        | VectorConversionError::GhostscriptUnavailable {
-            explicitly_configured: true,
-        }
-        | VectorConversionError::GhostscriptStart { .. }
-        | VectorConversionError::GhostscriptFailed { .. }
-        | VectorConversionError::GhostscriptNoOutput => {
-            ApiError::internal_at(api_path, error.to_string())
-        }
-    }
-}
-
-fn map_pdfa_error(error: &PdfaError) -> ApiError {
-    map_pdfa_error_at(error, PDF_TO_PDFA_PATH)
-}
-
-fn map_pdfa_error_at(error: &PdfaError, api_path: &'static str) -> ApiError {
-    match error {
-        PdfaError::InvalidPdfExtension | PdfaError::StrictNonCompliant => {
-            ApiError::bad_request_at(api_path, error.to_string())
-        }
-        PdfaError::GhostscriptUnavailable {
-            explicitly_configured: false,
-        }
-        | PdfaError::StrictVerifierUnavailable {
-            explicitly_configured: false,
-        } => ApiError::unsupported_at(api_path, error.to_string()),
-        PdfaError::GrayIccProfile(_)
-        | PdfaError::Io(_)
-        | PdfaError::GhostscriptUnavailable {
-            explicitly_configured: true,
-        }
-        | PdfaError::GhostscriptStart { .. }
-        | PdfaError::GhostscriptFailed { .. }
-        | PdfaError::GhostscriptNoOutput
-        | PdfaError::StrictVerifierUnavailable {
-            explicitly_configured: true,
-        }
-        | PdfaError::StrictVerification { .. } => {
-            ApiError::internal_at(api_path, error.to_string())
-        }
-    }
-}
-
 fn map_image_overlay_error(error: &ImageOverlayError) -> ApiError {
     match error {
         ImageOverlayError::ReadPdf { .. }
@@ -12938,8 +12628,7 @@ fn map_replace_invert_error(error: &ReplaceInvertError) -> ApiError {
         | ReplaceInvertError::ReadPdf { .. } => {
             ApiError::bad_request_at(REPLACE_INVERT_PDF_PATH, error.to_string())
         }
-        ReplaceInvertError::GhostscriptUnavailable
-        | ReplaceInvertError::PdfiumUnavailable {
+        ReplaceInvertError::PdfiumUnavailable {
             explicitly_configured: false,
             ..
         } => ApiError::unsupported_at(REPLACE_INVERT_PDF_PATH, error.to_string()),
@@ -12949,9 +12638,7 @@ fn map_replace_invert_error(error: &ReplaceInvertError) -> ApiError {
         }
         | ReplaceInvertError::Pdfium(_)
         | ReplaceInvertError::Pdf(_)
-        | ReplaceInvertError::Write(_)
-        | ReplaceInvertError::GhostscriptFailed { .. }
-        | ReplaceInvertError::GhostscriptStart { .. } => {
+        | ReplaceInvertError::Write(_) => {
             ApiError::internal_at(REPLACE_INVERT_PDF_PATH, error.to_string())
         }
     }
@@ -12964,8 +12651,7 @@ fn map_ocr_error(error: &OcrError) -> ApiError {
         }
         OcrError::OcrMyPdfUnavailable
         | OcrError::OcrToolsUnavailable
-        | OcrError::PdfiumUnavailable { .. }
-        | OcrError::GhostscriptUnavailable => {
+        | OcrError::PdfiumUnavailable { .. } => {
             ApiError::unsupported_at(OCR_PDF_PATH, error.to_string())
         }
         OcrError::OcrMyPdfFailed { .. }
@@ -12976,7 +12662,7 @@ fn map_ocr_error(error: &OcrError) -> ApiError {
         | OcrError::TesseractTimeout { .. }
         | OcrError::Pdfium(_)
         | OcrError::Merge(_)
-        | OcrError::GhostscriptFailed { .. }
+        | OcrError::RemoveImages(_)
         | OcrError::Io(_)
         | OcrError::Zip(_) => ApiError::internal_at(OCR_PDF_PATH, error.to_string()),
     }

@@ -20,9 +20,9 @@ use thiserror::Error;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 use crate::{
-    ghostscript::exit_status,
     html_sanitizer::sanitize_html,
     office_sanitizer::{is_sanitizable_extension, sanitize_office_archive},
+    process_executor::exit_status,
 };
 
 const SOFFICE_COMMAND_ENV: &str = "RUSTLING_PROCESSING_SOFFICE_COMMAND";

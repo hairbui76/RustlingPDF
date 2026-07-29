@@ -1,14 +1,14 @@
-use std::{io::ErrorKind, path::Path, process::Command};
+use std::path::Path;
 
 use lopdf::{Document, Stream, dictionary};
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::{
-    ghostscript::{exit_status, ghostscript_commands},
     pdf_page_geometry::{PageForm, page_form, replace_page_tree},
     pdfium_backend::{
-        DetectedCropBounds, PdfiumAutoCropAttempt, PdfiumAutoCropError, try_detect_auto_crop_bounds,
+        DetectedCropBounds, PdfiumAutoCropAttempt, PdfiumAutoCropError, PdfiumCropContentAttempt,
+        PdfiumCropContentError, try_detect_auto_crop_bounds, try_remove_content_outside_crop,
     },
 };
 
@@ -49,27 +49,31 @@ pub enum CropError {
     Pdf(#[from] lopdf::Error),
     #[error("could not write cropped PDF: {0}")]
     WritePdf(std::io::Error),
-    #[error("could not create Ghostscript crop input: {0}")]
-    GhostscriptInput(std::io::Error),
-    #[error("Ghostscript command '{command}' failed with status {status}")]
-    GhostscriptFailed { command: String, status: String },
-    #[error("Ghostscript command '{command}' could not start: {source}")]
-    GhostscriptStart {
-        command: String,
-        #[source]
-        source: std::io::Error,
+    #[error("could not stage the PDF for out-of-crop content removal: {0}")]
+    CropContentInput(std::io::Error),
+    #[error(
+        "removeDataOutsideCrop=true requires PDFium, which is not available on this system: \
+         {details}"
+    )]
+    CropContentRuntime {
+        explicitly_configured: bool,
+        details: String,
     },
-    #[error("Ghostscript reported success without producing a PDF")]
-    GhostscriptNoOutput,
+    #[error(transparent)]
+    CropContent(#[from] PdfiumCropContentError),
 }
 
 /// Crops every page using explicit coordinates or PDFium-rendered content bounds.
 ///
+/// With `remove_data_outside_crop` the out-of-crop content is physically discarded
+/// before the pages are rebuilt; without it the pages are only clipped, so the
+/// original marks stay in the file.
+///
 /// # Errors
 ///
 /// Returns [`CropError`] when request coordinates are missing, the PDF cannot be
-/// read or rebuilt, automatic detection has no `PDFium` runtime, or Ghostscript is
-/// available but fails while physically removing out-of-crop data.
+/// read or rebuilt, or `PDFium` — required for automatic detection and for
+/// out-of-crop content removal — is unavailable or fails.
 pub fn crop_pdf_to_file(
     input_path: &Path,
     filename: &str,
@@ -93,10 +97,28 @@ pub fn crop_pdf_to_file(
     }
 
     let bounds = explicit_bounds(options)?;
-    if options.remove_data_outside_crop
-        && try_ghostscript_crop(input_path, filename, bounds, output_path)?
-    {
-        return Ok(());
+    if options.remove_data_outside_crop {
+        let pruned = NamedTempFile::new_in(output_path.parent().unwrap_or_else(|| Path::new(".")))
+            .map_err(CropError::CropContentInput)?;
+        match try_remove_content_outside_crop(input_path, filename, bounds, pruned.path())? {
+            PdfiumCropContentAttempt::Removed => {}
+            PdfiumCropContentAttempt::Unavailable {
+                explicitly_configured,
+                details,
+            } => {
+                return Err(CropError::CropContentRuntime {
+                    explicitly_configured,
+                    details,
+                });
+            }
+        }
+        let page_count = page_count(pruned.path(), filename)?;
+        return rebuild_cropped_pdf(
+            pruned.path(),
+            filename,
+            &vec![bounds; page_count],
+            output_path,
+        );
     }
     let page_count = page_count(input_path, filename)?;
     rebuild_cropped_pdf(input_path, filename, &vec![bounds; page_count], output_path)
@@ -190,68 +212,6 @@ fn add_cropped_page(
         },
         "Contents" => content_id,
     })
-}
-
-fn try_ghostscript_crop(
-    input_path: &Path,
-    filename: &str,
-    bounds: DetectedCropBounds,
-    output_path: &Path,
-) -> Result<bool, CropError> {
-    let parent = output_path.parent().unwrap_or_else(|| Path::new("."));
-    let mut document = load_document(input_path, filename)?;
-    let page_ids = document.get_pages().into_values().collect::<Vec<_>>();
-    if page_ids.is_empty() {
-        return Err(CropError::NoPages {
-            filename: filename.to_owned(),
-        });
-    }
-    for page_id in page_ids {
-        document.get_dictionary_mut(page_id)?.set(
-            "CropBox",
-            vec![
-                bounds.x.into(),
-                bounds.y.into(),
-                (bounds.x + bounds.width).into(),
-                (bounds.y + bounds.height).into(),
-            ],
-        );
-    }
-    let input = NamedTempFile::new_in(parent).map_err(CropError::GhostscriptInput)?;
-    document
-        .save(input.path())
-        .map_err(CropError::GhostscriptInput)?;
-
-    for command in ghostscript_commands().candidates {
-        let status = Command::new(&command)
-            .arg("-sDEVICE=pdfwrite")
-            .arg("-dUseCropBox")
-            .arg("-o")
-            .arg(output_path)
-            .arg(input.path())
-            .status();
-        match status {
-            Ok(status) if status.success() => {
-                if output_exists(output_path) {
-                    return Ok(true);
-                }
-                return Err(CropError::GhostscriptNoOutput);
-            }
-            Ok(status) => {
-                return Err(CropError::GhostscriptFailed {
-                    command,
-                    status: exit_status(status),
-                });
-            }
-            Err(source) if source.kind() == ErrorKind::NotFound => {}
-            Err(source) => return Err(CropError::GhostscriptStart { command, source }),
-        }
-    }
-    Ok(false)
-}
-
-fn output_exists(path: &Path) -> bool {
-    path.metadata().is_ok_and(|metadata| metadata.len() > 0)
 }
 
 fn load_document(path: &Path, filename: &str) -> Result<Document, CropError> {

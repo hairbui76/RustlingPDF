@@ -64,6 +64,15 @@ pub enum PdfiumRemoveAttempt {
 }
 
 #[derive(Debug)]
+pub enum PdfiumCropContentAttempt {
+    Removed,
+    Unavailable {
+        explicitly_configured: bool,
+        details: String,
+    },
+}
+
+#[derive(Debug)]
 pub enum PdfiumAutoCropAttempt {
     Detected(Vec<DetectedCropBounds>),
     Unavailable {
@@ -709,6 +718,32 @@ pub enum PdfiumAutoSplitError {
     Io(#[from] io::Error),
     #[error("could not build the auto-split ZIP archive: {0}")]
     Zip(#[from] zip::result::ZipError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PdfiumCropContentError {
+    #[error("could not lock the PDFium runtime because another operation panicked")]
+    RuntimePoisoned,
+    #[error("could not read '{filename}' as a PDF with PDFium: {source}")]
+    ReadPdf {
+        filename: String,
+        #[source]
+        source: PdfiumError,
+    },
+    #[error("could not inspect page {page_number} content for cropping: {source}")]
+    Inspect {
+        page_number: usize,
+        #[source]
+        source: PdfiumError,
+    },
+    #[error("could not discard out-of-crop content on page {page_number}: {source}")]
+    Remove {
+        page_number: usize,
+        #[source]
+        source: PdfiumError,
+    },
+    #[error("could not write the cropped PDF: {0}")]
+    Save(#[source] PdfiumError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -3278,6 +3313,84 @@ pub fn try_remove_pdf_pages_to_file(
         .save_to_file(output_path)
         .map_err(PdfiumRemoveError::Save)?;
     Ok(PdfiumRemoveAttempt::Removed)
+}
+
+/// Physically discards every page object that lies entirely outside `bounds`,
+/// writing the pruned document to `output_path`.
+///
+/// This is the pure-`PDFium` replacement for the Ghostscript
+/// `pdfwrite -dUseCropBox` pass the crop endpoint used for
+/// `removeDataOutsideCrop=true`, and it reproduces the same rule Ghostscript
+/// actually applied: a mark whose bounding box misses the crop rectangle is
+/// culled, while a mark that straddles the boundary is kept whole (neither
+/// Ghostscript nor this port splits a text run or a path at the crop edge).
+/// Removed objects are gone from the regenerated content stream, so their text
+/// and image data no longer survive in the saved file.
+pub fn try_remove_content_outside_crop(
+    input_path: &Path,
+    filename: &str,
+    bounds: DetectedCropBounds,
+    output_path: &Path,
+) -> Result<PdfiumCropContentAttempt, PdfiumCropContentError> {
+    let runtime = shared_pdfium_runtime();
+    let pdfium = match &runtime.instance {
+        Ok(pdfium) => pdfium,
+        Err(details) => {
+            return Ok(PdfiumCropContentAttempt::Unavailable {
+                explicitly_configured: runtime.explicitly_configured,
+                details: details.clone(),
+            });
+        }
+    };
+    let pdfium = pdfium
+        .lock()
+        .map_err(|_| PdfiumCropContentError::RuntimePoisoned)?;
+    let document =
+        pdfium
+            .load_pdf_from_file(input_path, None)
+            .map_err(|source| PdfiumCropContentError::ReadPdf {
+                filename: filename.to_owned(),
+                source,
+            })?;
+    let left = bounds.x;
+    let bottom = bounds.y;
+    let right = bounds.x + bounds.width;
+    let top = bounds.y + bounds.height;
+    for (page_index, mut page) in document.pages().iter().enumerate() {
+        let page_number = page_index.saturating_add(1);
+        let objects = page.objects();
+        let mut doomed = Vec::new();
+        for (index, object) in objects.iter().enumerate() {
+            let object_bounds =
+                object
+                    .bounds()
+                    .map_err(|source| PdfiumCropContentError::Inspect {
+                        page_number,
+                        source,
+                    })?;
+            let outside = object_bounds.right().value <= left
+                || object_bounds.left().value >= right
+                || object_bounds.top().value <= bottom
+                || object_bounds.bottom().value >= top;
+            if outside {
+                doomed.push(index);
+            }
+        }
+        // Removing by index invalidates the indices after it, so work backwards.
+        for index in doomed.into_iter().rev() {
+            page.objects_mut()
+                .remove_object_at_index(index)
+                .map(|_| ())
+                .map_err(|source| PdfiumCropContentError::Remove {
+                    page_number,
+                    source,
+                })?;
+        }
+    }
+    document
+        .save_to_file(output_path)
+        .map_err(PdfiumCropContentError::Save)?;
+    Ok(PdfiumCropContentAttempt::Removed)
 }
 
 pub fn try_detect_auto_crop_bounds(
