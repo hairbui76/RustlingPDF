@@ -64,7 +64,7 @@ async fn native_conversion_preserves_pages_text_order_and_images()
 
 /// `/Rotate 90|180|270` pages must land text at the same plausible non-zero offsets as
 /// the unrotated baseline and rotate at the CSS level, with the section reserving the
-/// rotated layout box. Regression: mixing PDFium's rotation-aware page extents with
+/// rotated layout box. Regression: mixing `PDFium`'s rotation-aware page extents with
 /// unrotated text coordinates clamped every run to `top:0.00pt`.
 #[tokio::test]
 async fn rotated_pages_position_text_and_rotate_the_canvas()

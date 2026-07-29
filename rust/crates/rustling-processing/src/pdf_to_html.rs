@@ -33,7 +33,6 @@ use crate::{
     },
 };
 
-const PDFTOHTML_COMMAND_ENV: &str = "RUSTLING_PROCESSING_PDFTOHTML_COMMAND";
 const MAX_OUTPUT_FILES: usize = 100_000;
 const MAX_OUTPUT_BYTES: u64 = 200 * 1024 * 1024;
 const MAX_HTML_BYTES: usize = 64 * 1024 * 1024;
@@ -203,21 +202,16 @@ enum ExternalAttempt {
 
 /// Converts a PDF to a ZIP of HTML, CSS, and extracted images.
 ///
-/// Poppler complex-mode output is preferred when `pdftohtml` can be started.
-/// A missing executable falls back to the native `PDFium` renderer.
+/// `commands` is the candidate `pdftohtml` list, which the caller takes from startup
+/// dependency discovery so this module never resolves a different binary than the one
+/// the service reported as available. Poppler complex-mode output is preferred when one
+/// of the candidates can be started; nothing runnable falls back to the native `PDFium`
+/// renderer.
 ///
 /// # Errors
 ///
 /// Returns [`PdfToHtmlError`] when the selected renderer cannot read the PDF,
 /// conversion fails, safety limits are exceeded, or no output is produced.
-pub fn convert_pdf_to_html(
-    input_path: &Path,
-    filename: &str,
-    output_path: &Path,
-) -> Result<PdfToHtmlBackend, PdfToHtmlError> {
-    convert_pdf_to_html_with_commands(input_path, filename, output_path, &pdftohtml_commands())
-}
-
 pub(crate) fn convert_pdf_to_html_with_commands(
     input_path: &Path,
     filename: &str,
@@ -415,10 +409,8 @@ fn render_native_html(
             let x = bounded_coordinate(image.x * layout.scale, page_width);
             let width = bounded_extent(image.width * layout.scale, page_width - x);
             let height = bounded_extent(image.height * layout.scale, page_height);
-            let top = bounded_coordinate(
-                page_height - image.y * layout.scale - height,
-                page_height,
-            );
+            let top =
+                bounded_coordinate(page_height - image.y * layout.scale - height, page_height);
             push_html(
                 &mut html,
                 &format!(
@@ -545,8 +537,7 @@ fn page_layout(page: &MarkdownPageGeometry) -> PageLayout {
     // 200,000 x 150,000 pt box into a square and destroy the page's aspect ratio.
     let scale = (MAX_PAGE_DIMENSION_POINTS / width)
         .min(MAX_PAGE_DIMENSION_POINTS / height)
-        .min(1.0)
-        .max(f32::MIN_POSITIVE);
+        .clamp(f32::MIN_POSITIVE, 1.0);
     let canvas_width = (width * scale).max(1.0);
     let canvas_height = (height * scale).max(1.0);
     let rotation_degrees = match page.rotation_degrees {
@@ -763,19 +754,6 @@ fn run_pdftohtml(
     Ok(ExternalAttempt::Unavailable)
 }
 
-fn pdftohtml_commands() -> Vec<String> {
-    if let Ok(command) = crate::env_compat::var(PDFTOHTML_COMMAND_ENV)
-        && !command.trim().is_empty()
-    {
-        return vec![command];
-    }
-    if cfg!(windows) {
-        vec!["pdftohtml.exe".to_owned(), "pdftohtml".to_owned()]
-    } else {
-        vec!["pdftohtml".to_owned()]
-    }
-}
-
 fn process_details(stdout: &[u8], stderr: &[u8]) -> String {
     let bytes = if stderr.is_empty() { stdout } else { stderr };
     let details = String::from_utf8_lossy(bytes);
@@ -840,7 +818,7 @@ mod tests {
 
     /// Rotated pages must position text exactly like the unrotated page, because the
     /// renderer keeps content in unrotated user space and applies `/Rotate` once as a
-    /// CSS transform. Before this fix the section used PDFium's rotation-aware extents
+    /// CSS transform. Before this fix the section used `PDFium`'s rotation-aware extents
     /// while the runs used unrotated coordinates, so `page_height - line.y` went negative
     /// and every run clamped to `top:0.00pt`.
     #[test]
@@ -898,7 +876,9 @@ mod tests {
                 "rotation {rotation} must carry its canvas transform, got:\n{html}"
             );
             // The canvas keeps the unrotated page box.
-            assert!(html.contains("<div class=\"page-canvas\" style=\"width:612.00pt;height:792.00pt"));
+            assert!(
+                html.contains("<div class=\"page-canvas\" style=\"width:612.00pt;height:792.00pt")
+            );
             let tops = text_run_tops(&html);
             assert_eq!(
                 tops, baseline_tops,
@@ -1017,8 +997,7 @@ mod tests {
     /// aspect ratio and the relative placement of its content. Clamping each side
     /// independently used to turn a 200,000 x 150,000 pt box into a 20,000 pt square.
     #[test]
-    fn oversized_page_boxes_scale_down_proportionally()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn oversized_page_boxes_scale_down_proportionally() -> Result<(), Box<dyn std::error::Error>> {
         let pages = [MarkdownPageGeometry {
             page: 0,
             width: 200_000.0,
@@ -1053,26 +1032,28 @@ mod tests {
         std::fs::write(work_dir.join("a.html"), vec![b'a'; 4_096])?;
         std::fs::write(work_dir.join("b.html"), vec![b'b'; 4_096])?;
 
-        let too_large = super::package_outputs_within(
+        let Err(too_large) = super::package_outputs_within(
             &work_dir,
             &directory.path().join("too-large.zip"),
             10,
             1_024,
-        )
-        .expect_err("an over-cap output must not be archived");
+        ) else {
+            panic!("an over-cap output must not be archived");
+        };
         assert!(matches!(too_large, PdfToHtmlError::OutputTooLarge));
         assert!(
             !too_large.is_client_input_error(),
             "an output-size cap is a server-side policy, not bad client input"
         );
 
-        let too_many = super::package_outputs_within(
+        let Err(too_many) = super::package_outputs_within(
             &work_dir,
             &directory.path().join("too-many.zip"),
             1,
             1024 * 1024,
-        )
-        .expect_err("an over-count output must not be archived");
+        ) else {
+            panic!("an over-count output must not be archived");
+        };
         assert!(matches!(too_many, PdfToHtmlError::TooManyOutputs));
         assert!(!too_many.is_client_input_error());
 
@@ -1082,7 +1063,12 @@ mod tests {
         assert!(PdfToHtmlError::HtmlTooLarge.is_client_input_error());
 
         // Under the caps the archive is still produced.
-        super::package_outputs_within(&work_dir, &directory.path().join("ok.zip"), 10, 1024 * 1024)?;
+        super::package_outputs_within(
+            &work_dir,
+            &directory.path().join("ok.zip"),
+            10,
+            1024 * 1024,
+        )?;
         Ok(())
     }
 

@@ -247,8 +247,12 @@ pub struct ExtractedPageImage {
 }
 
 /// Optional safety limits for callers that package extracted images with other output.
+///
+/// Supplying these also opts into the per-placement metadata list, because `images` is
+/// what keeps that list bounded.
 #[derive(Debug, Clone, Copy)]
 pub struct PdfiumExtractImageLimits {
+    /// Maximum number of image placements, which also bounds the returned metadata.
     pub images: usize,
     pub pixels_per_image: u64,
     pub encoded_bytes: u64,
@@ -2040,6 +2044,20 @@ fn is_blank_rgba(rgba: &[u8], threshold: i32, white_percent: f32) -> bool {
     (f64::from(white) / f64::from(total)) * 100.0 >= f64::from(white_percent)
 }
 
+/// Writes every deduplicated top-level page image into a flat ZIP.
+///
+/// `limits` both bounds the work and selects the output shape. With `Some(..)` the
+/// returned [`PdfiumExtractImagesAttempt::Extracted`] carries one
+/// [`ExtractedPageImage`] per *placement* — a reused image appears once per draw so a
+/// renderer can position each occurrence — and `limits.images` is what bounds that
+/// list. With `None` nothing is bounded, so no placement list is built: duplicates are
+/// skipped outright and the archive is the only output.
+///
+/// # Errors
+///
+/// Returns [`PdfiumExtractImagesError`] when the runtime lock is poisoned, `PDFium`
+/// cannot read the document or a page, an image cannot be decoded or encoded, a
+/// supplied limit is exceeded, or the archive cannot be written.
 #[allow(clippy::too_many_lines)]
 pub fn try_extract_page_images_to_zip(
     input_path: &Path,
@@ -2050,6 +2068,7 @@ pub fn try_extract_page_images_to_zip(
     output_path: &Path,
     limits: Option<PdfiumExtractImageLimits>,
 ) -> Result<PdfiumExtractImagesAttempt, PdfiumExtractImagesError> {
+    let collect_placements = limits.is_some();
     let runtime = shared_pdfium_runtime();
     let pdfium = match &runtime.instance {
         Ok(pdfium) => pdfium,
@@ -2131,6 +2150,13 @@ pub fn try_extract_page_images_to_zip(
                 })?;
             let fingerprint = image_fingerprint(&image);
             let filename = if let Some(filename) = seen_images.get(&fingerprint) {
+                // Reused image data is archived once but drawn once per placement, so a
+                // caller that needs placements takes another reference to the same asset.
+                // A caller that does not want placements skips the duplicate outright
+                // rather than allocating an entry per placement it will discard.
+                if !collect_placements {
+                    continue;
+                }
                 filename.clone()
             } else {
                 let encoded = encode_image(&image, format).map_err(|source| {
@@ -2157,15 +2183,17 @@ pub fn try_extract_page_images_to_zip(
                 image_number += 1;
                 filename
             };
-            let bounds = object.bounds().ok();
-            images.push(ExtractedPageImage {
-                filename,
-                page: usize::try_from(page_index).unwrap_or_default(),
-                x: bounds.map_or(0.0, |bounds| bounds.left().value),
-                y: bounds.map_or(0.0, |bounds| bounds.bottom().value),
-                width: bounds.map_or(0.0, |bounds| bounds.width().value),
-                height: bounds.map_or(0.0, |bounds| bounds.height().value),
-            });
+            if collect_placements {
+                let bounds = object.bounds().ok();
+                images.push(ExtractedPageImage {
+                    filename,
+                    page: usize::try_from(page_index).unwrap_or_default(),
+                    x: bounds.map_or(0.0, |bounds| bounds.left().value),
+                    y: bounds.map_or(0.0, |bounds| bounds.bottom().value),
+                    width: bounds.map_or(0.0, |bounds| bounds.width().value),
+                    height: bounds.map_or(0.0, |bounds| bounds.height().value),
+                });
+            }
         }
     }
     archive.finish()?;
