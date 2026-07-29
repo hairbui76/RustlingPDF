@@ -466,13 +466,13 @@ fn invert_full_color(
 ///
 /// Two layers are rewritten:
 ///
-/// * **Content streams** — page contents and (nested, shared) Form XObjects. Every
+/// * **Content streams** — page contents and (nested, shared) Form `XObjects`. Every
 ///   `DeviceGray`/`DeviceRGB` colour operator (`g`, `G`, `rg`, `RG`, and `sc`/`scn`/`SC`/`SCN`
 ///   under a `cs`/`CS`-selected device space) is replaced by the equivalent `k`/`K` operator
 ///   using the PDF device conversion of ISO 32000-1 §10.4. Colours already in `DeviceCMYK`
-///   are left untouched, and non-device spaces (ICCBased, Indexed, Separation, DeviceN, Lab,
+///   are left untouched, and non-device spaces (`ICCBased`, Indexed, Separation, `DeviceN`, Lab,
 ///   Pattern) are preserved verbatim rather than guessed at.
-/// * **Image XObjects** — 8-bit-per-component gray/RGB images, including `ICCBased` ones,
+/// * **Image `XObjects`** — 8-bit-per-component gray/RGB images, including `ICCBased` ones,
 ///   are resampled into `DeviceCMYK`. An embedded ICC profile is first converted to sRGB with
 ///   `moxcms` (the same bounded ICC handling `pdf_json` uses) before the device conversion.
 ///
@@ -582,7 +582,11 @@ fn convert_content_to_cmyk(
                     continue;
                 }
             }
-            "k" | "K" => set_space(&mut state, operation.operator == "K", DeviceColorSpace::Other),
+            "k" | "K" => set_space(
+                &mut state,
+                operation.operator == "K",
+                DeviceColorSpace::Other,
+            ),
             "cs" | "CS" => {
                 let stroking = operation.operator == "CS";
                 let space = operation
@@ -611,7 +615,9 @@ fn convert_content_to_cmyk(
                     state.non_stroking
                 };
                 let converted = match space {
-                    DeviceColorSpace::Gray => single_component(&operation.operands).map(gray_to_cmyk),
+                    DeviceColorSpace::Gray => {
+                        single_component(&operation.operands).map(gray_to_cmyk)
+                    }
                     DeviceColorSpace::Rgb => three_components(&operation.operands).map(rgb_to_cmyk),
                     DeviceColorSpace::Other => None,
                 };
@@ -654,12 +660,7 @@ fn rgb_to_cmyk(rgb: [f32; 3]) -> [f32; 4] {
     let magenta = (1.0 - rgb[1]).clamp(0.0, 1.0);
     let yellow = (1.0 - rgb[2]).clamp(0.0, 1.0);
     let black = cyan.min(magenta).min(yellow);
-    [
-        cyan - black,
-        magenta - black,
-        yellow - black,
-        black,
-    ]
+    [cyan - black, magenta - black, yellow - black, black]
 }
 
 fn rgb_bytes_to_cmyk_bytes(rgb: &[u8]) -> Vec<u8> {
@@ -777,7 +778,7 @@ fn device_color_space_names(
         .collect()
 }
 
-/// Rewrites eligible image XObjects into `DeviceCMYK`.
+/// Rewrites eligible image `XObjects` into `DeviceCMYK`.
 ///
 /// Images that act as soft masks or stencil masks, carry a `/Decode` array, use a
 /// non-8-bit depth, use a colour space this conversion does not model, or whose data
@@ -846,7 +847,13 @@ fn image_cmyk_samples(document: &Document, stream: &lopdf::Stream) -> Option<Vec
     if stream.dict.get(b"ImageMask").is_ok() || stream.dict.get(b"Decode").is_ok() {
         return None;
     }
-    if stream.dict.get(b"BitsPerComponent").and_then(Object::as_i64).ok()? != 8 {
+    if stream
+        .dict
+        .get(b"BitsPerComponent")
+        .and_then(Object::as_i64)
+        .ok()?
+        != 8
+    {
         return None;
     }
     if !decodable_with_lopdf(&stream.dict) {
@@ -911,14 +918,16 @@ impl ImageColorSpace {
 }
 
 fn image_color_space(document: &Document, stream: &lopdf::Stream) -> Option<ImageColorSpace> {
-    let (_, color_space) = document.dereference(stream.dict.get(b"ColorSpace").ok()?).ok()?;
+    let (_, color_space) = document
+        .dereference(stream.dict.get(b"ColorSpace").ok()?)
+        .ok()?;
     match color_space {
         Object::Name(name) => match name.as_slice() {
             b"DeviceGray" | b"G" | b"CalGray" => Some(ImageColorSpace::Gray),
             b"DeviceRGB" | b"RGB" | b"CalRGB" => Some(ImageColorSpace::Rgb),
             _ => None,
         },
-        Object::Array(values) => icc_image_color_space(document, &values),
+        Object::Array(values) => icc_image_color_space(document, values),
         _ => None,
     }
 }

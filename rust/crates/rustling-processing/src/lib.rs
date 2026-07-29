@@ -11827,6 +11827,10 @@ fn map_crop_error(error: &CropError) -> ApiError {
         CropError::PdfiumRuntime {
             explicitly_configured: false,
             ..
+        }
+        | CropError::CropContentRuntime {
+            explicitly_configured: false,
+            ..
         } => ApiError::unsupported_at(CROP_PATH, error.to_string()),
         CropError::PdfiumRuntime {
             explicitly_configured: true,
@@ -11842,10 +11846,6 @@ fn map_crop_error(error: &CropError) -> ApiError {
             explicitly_configured: true,
             ..
         } => ApiError::internal_at(CROP_PATH, error.to_string()),
-        CropError::CropContentRuntime {
-            explicitly_configured: false,
-            ..
-        } => ApiError::unsupported_at(CROP_PATH, error.to_string()),
     }
 }
 

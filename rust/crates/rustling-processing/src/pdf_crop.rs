@@ -181,6 +181,11 @@ fn rebuild_cropped_pdf(
         .collect();
     replace_page_tree(&mut document, root_pages_id, pages)?;
     document.catalog_mut()?.remove(b"AcroForm");
+    // Rebuilding the page tree orphans the original page objects, their annotations,
+    // and — after out-of-crop content removal — PDFium's superseded content streams.
+    // Unreferenced objects are still bytes in the saved file, so a crop that promised
+    // to delete data would otherwise leave it recoverable. Prune before writing.
+    document.prune_objects();
     document.renumber_objects();
     document.compress();
     document.save(output_path).map_err(CropError::WritePdf)?;

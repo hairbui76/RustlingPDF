@@ -24,13 +24,13 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 use crate::{
     pdf_markdown::{heading_prefix, reading_order_groups},
-    process_executor::exit_status,
     pdfium_backend::{
         ExtractImageFormat, ExtractedPageImage, MarkdownPageGeometry, MarkdownTextLine,
         PdfiumExtractImageLimits, PdfiumExtractImagesAttempt, PdfiumExtractImagesError,
         PdfiumMarkdownAttempt, PdfiumTextError, try_extract_markdown_lines,
         try_extract_page_images_to_zip,
     },
+    process_executor::exit_status,
 };
 
 const MAX_OUTPUT_FILES: usize = 100_000;

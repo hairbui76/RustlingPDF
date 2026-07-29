@@ -21,21 +21,16 @@ type AddAttachmentsApiParams = ToolApiParams[typeof ENDPOINT];
 // attachment files are uploaded via the named "attachments" field (see
 // buildFormData); the model lists them but they are not scalar parameters.
 export const addAttachmentsToApiParams = (
-  parameters: AddAttachmentsParameters,
+  _parameters: AddAttachmentsParameters,
 ): AddAttachmentsApiParams => ({
   attachments: [],
-  convertToPdfA3b: parameters.convertToPdfA3b,
 });
 
 // Reconstruct the tool's UI parameters from an add-attachments request body (the
 // attachment files themselves are not recoverable from stored parameters).
 export const addAttachmentsFromApiParams = (
-  apiParams: AddAttachmentsApiParams,
-): Partial<AddAttachmentsParameters> => ({
-  convertToPdfA3b:
-    apiParams.convertToPdfA3b ??
-    DEFAULT_ADD_ATTACHMENTS_PARAMETERS.convertToPdfA3b,
-});
+  _apiParams: AddAttachmentsApiParams,
+): Partial<AddAttachmentsParameters> => ({});
 
 const buildFormData = (
   parameters: AddAttachmentsParameters,

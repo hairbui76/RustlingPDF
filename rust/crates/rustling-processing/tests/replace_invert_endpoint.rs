@@ -421,7 +421,9 @@ fn assert_component(
         .iter()
         .map(|operand| match operand {
             Object::Real(value) => Ok(*value),
-            Object::Integer(value) => Ok(*value as f32),
+            Object::Integer(value) => i16::try_from(*value)
+                .map(f32::from)
+                .map_err(|_| format!("CMYK operand out of range: {value}")),
             other => Err(format!("non-numeric CMYK operand: {other:?}")),
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -435,9 +437,7 @@ fn assert_component(
     Ok(())
 }
 
-fn image_and_mask(
-    document: &Document,
-) -> Result<(Stream, Stream), Box<dyn std::error::Error>> {
+fn image_and_mask(document: &Document) -> Result<(Stream, Stream), Box<dyn std::error::Error>> {
     let mut base = None;
     let mut mask = None;
     for object in document.objects.values() {

@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode, header},
@@ -114,7 +116,7 @@ async fn remove_data_outside_crop_discards_out_of_crop_text()
     .await?;
     let clipped = to_bytes(clipped.into_body(), usize::MAX).await?;
     assert!(
-        find_bytes(&clipped, b"OUTSIDECROP").is_some(),
+        document_contains(&clipped, b"OUTSIDECROP")?,
         "clip-only mode must keep the original marks in the file"
     );
 
@@ -135,8 +137,12 @@ async fn remove_data_outside_crop_discards_out_of_crop_text()
     let removed = require_status(removed, StatusCode::OK).await?;
     let removed = to_bytes(removed.into_body(), usize::MAX).await?;
     assert!(
-        find_bytes(&removed, b"OUTSIDECROP").is_none(),
+        !document_contains(&removed, b"OUTSIDECROP")?,
         "out-of-crop text survived removeDataOutsideCrop=true"
+    );
+    assert!(
+        document_contains(&removed, b"INSIDECROP")?,
+        "in-crop text was removed too"
     );
     let document = Document::load_mem(&removed)?;
     let page_id = document
@@ -148,8 +154,37 @@ async fn remove_data_outside_crop_discards_out_of_crop_text()
     Ok(())
 }
 
+/// Whether `marker` appears anywhere in the document.
+///
+/// Both encodings that matter are searched, in raw bytes and inside every
+/// decompressed stream: the crop rebuild Flate-compresses its output, and
+/// `PDFium` re-emits text-showing operands as hex strings when it regenerates a
+/// page's content. A naive ASCII scan of the raw bytes would therefore report
+/// every marker as absent and let the removal assertion pass vacuously.
+fn document_contains(pdf: &[u8], marker: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    let mut hex = String::with_capacity(marker.len() * 2);
+    for byte in marker {
+        write!(hex, "{byte:02X}")?;
+    }
+    let hex = hex.into_bytes();
+    let contains = |haystack: &[u8]| {
+        find_bytes(haystack, marker).is_some() || find_bytes(haystack, &hex).is_some()
+    };
+    if contains(pdf) {
+        return Ok(true);
+    }
+    let document = Document::load_mem(pdf)?;
+    Ok(document.objects.values().any(|object| {
+        object.as_stream().is_ok_and(|stream| {
+            stream
+                .decompressed_content()
+                .is_ok_and(|content| contains(&content))
+        })
+    }))
+}
+
 /// One page with a text run well inside the crop rectangle and another well
-/// outside it, both uncompressed so the assertions can look at raw bytes.
+/// outside it.
 fn pdf_with_text_inside_and_outside() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut document = Document::with_version("1.7");
     let root_pages_id = document.new_object_id();

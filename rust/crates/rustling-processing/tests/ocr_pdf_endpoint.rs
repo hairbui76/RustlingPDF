@@ -97,7 +97,7 @@ async fn ocr_follows_available_tooling() -> Result<(), Box<dyn std::error::Error
 
 /// `removeImagesAfter=true` used to shell out to Ghostscript `-dFILTERIMAGE`.
 /// It is now pure Rust, so it must work with no external image tool: the OCR'd
-/// PDF comes back with every image XObject and its bytes gone, while the page's
+/// PDF comes back with every image `XObject` and its bytes gone, while the page's
 /// text layer stays. The fixture carries real text next to the image, so the
 /// assertion does not depend on what OCR happens to recognise in a synthetic
 /// bitmap; `skip-text` keeps that text rather than replacing it.
@@ -123,9 +123,10 @@ async fn remove_images_after_strips_images_without_an_external_tool()
     assert!(bytes.starts_with(b"%PDF"));
     let document = Document::load_mem(&bytes)?;
     assert!(
-        !document.objects.values().any(|object| object
-            .as_stream()
-            .is_ok_and(|stream| stream
+        !document
+            .objects
+            .values()
+            .any(|object| object.as_stream().is_ok_and(|stream| stream
                 .dict
                 .get(b"Subtype")
                 .and_then(Object::as_name)
@@ -143,7 +144,10 @@ async fn remove_images_after_strips_images_without_an_external_tool()
                 .any(|operation| matches!(operation.operator.as_str(), "Tj" | "TJ"))
         })
     });
-    assert!(has_text, "the OCR text layer was removed along with the images");
+    assert!(
+        has_text,
+        "the OCR text layer was removed along with the images"
+    );
     Ok(())
 }
 

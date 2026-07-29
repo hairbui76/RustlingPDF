@@ -8,9 +8,9 @@ use std::{
 
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage, imageops};
 use pdfium_render::prelude::{
-    PdfDocument, PdfFontWeight, PdfPage, PdfPageObjectCommon, PdfPageObjectsCommon,
-    PdfPagePaperSize, PdfPageRenderRotation, PdfPageText, PdfPoints, PdfRenderConfig, Pdfium,
-    PdfiumError,
+    PdfDocument, PdfFontWeight, PdfPage, PdfPageContentRegenerationStrategy, PdfPageObjectCommon,
+    PdfPageObjectsCommon, PdfPagePaperSize, PdfPageRenderRotation, PdfPageText, PdfPoints,
+    PdfRenderConfig, Pdfium, PdfiumError,
 };
 use rxing::{
     BarcodeFormat, BinaryBitmap, DecodeHintValue, DecodeHints, Luma8LuminanceSource,
@@ -742,6 +742,8 @@ pub enum PdfiumCropContentError {
         #[source]
         source: PdfiumError,
     },
+    #[error("could not stage removed page content for disposal: {0}")]
+    Trash(#[source] PdfiumError),
     #[error("could not write the cropped PDF: {0}")]
     Save(#[source] PdfiumError),
 }
@@ -3345,29 +3347,56 @@ pub fn try_remove_content_outside_crop(
     let pdfium = pdfium
         .lock()
         .map_err(|_| PdfiumCropContentError::RuntimePoisoned)?;
-    let document =
-        pdfium
-            .load_pdf_from_file(input_path, None)
-            .map_err(|source| PdfiumCropContentError::ReadPdf {
-                filename: filename.to_owned(),
-                source,
-            })?;
+    let mut document = pdfium
+        .load_pdf_from_file(input_path, None)
+        .map_err(|source| PdfiumCropContentError::ReadPdf {
+            filename: filename.to_owned(),
+            source,
+        })?;
     let left = bounds.x;
     let bottom = bounds.y;
     let right = bounds.x + bounds.width;
     let top = bounds.y + bounds.height;
-    for (page_index, mut page) in document.pages().iter().enumerate() {
-        let page_number = page_index.saturating_add(1);
-        let objects = page.objects();
+
+    let page_count = document.pages().len();
+    // Detached page objects must be handed back to PDFium rather than dropped:
+    // `pdfium-render` marks a removed object unowned, and its `Drop` then calls
+    // `FPDFPageObj_Destroy` on a handle this PDFium build refuses to free that way
+    // (verified: it segfaults for both path and text objects). Parking the removed
+    // objects on a scratch page transfers ownership back, and deleting that page
+    // before saving lets PDFium free them through its own page teardown.
+    let mut trash = document
+        .pages_mut()
+        .create_page_at_end(PdfPagePaperSize::a4())
+        .map_err(PdfiumCropContentError::Trash)?;
+    trash.set_content_regeneration_strategy(PdfPageContentRegenerationStrategy::Manual);
+    drop(trash);
+    let trash_index = document.pages().len().saturating_sub(1);
+
+    for page_index in 0..page_count {
+        let page_number = usize::try_from(page_index).unwrap_or(usize::MAX) + 1;
+        let mut page =
+            document
+                .pages()
+                .get(page_index)
+                .map_err(|source| PdfiumCropContentError::Inspect {
+                    page_number,
+                    source,
+                })?;
+        // Regenerating after every single removal both wastes work and re-enters
+        // PDFium mid-mutation; do it once, after the page has been pruned.
+        page.set_content_regeneration_strategy(PdfPageContentRegenerationStrategy::Manual);
+        let object_count = page.objects().len();
         let mut doomed = Vec::new();
-        for (index, object) in objects.iter().enumerate() {
-            let object_bounds =
-                object
-                    .bounds()
-                    .map_err(|source| PdfiumCropContentError::Inspect {
-                        page_number,
-                        source,
-                    })?;
+        for index in 0..object_count {
+            let object_bounds = page
+                .objects()
+                .get(index)
+                .and_then(|object| object.bounds())
+                .map_err(|source| PdfiumCropContentError::Inspect {
+                    page_number,
+                    source,
+                })?;
             let outside = object_bounds.right().value <= left
                 || object_bounds.left().value >= right
                 || object_bounds.top().value <= bottom
@@ -3376,17 +3405,40 @@ pub fn try_remove_content_outside_crop(
                 doomed.push(index);
             }
         }
+        if doomed.is_empty() {
+            continue;
+        }
         // Removing by index invalidates the indices after it, so work backwards.
         for index in doomed.into_iter().rev() {
-            page.objects_mut()
+            let removed = page
+                .objects_mut()
                 .remove_object_at_index(index)
-                .map(|_| ())
                 .map_err(|source| PdfiumCropContentError::Remove {
                     page_number,
                     source,
                 })?;
+            let mut trash = document
+                .pages()
+                .get(trash_index)
+                .map_err(PdfiumCropContentError::Trash)?;
+            trash
+                .objects_mut()
+                .add_object(removed)
+                .map(|_| ())
+                .map_err(PdfiumCropContentError::Trash)?;
         }
+        page.regenerate_content()
+            .map_err(|source| PdfiumCropContentError::Remove {
+                page_number,
+                source,
+            })?;
     }
+
+    document
+        .pages()
+        .get(trash_index)
+        .and_then(pdfium_render::prelude::PdfPage::delete)
+        .map_err(PdfiumCropContentError::Trash)?;
     document
         .save_to_file(output_path)
         .map_err(PdfiumCropContentError::Save)?;

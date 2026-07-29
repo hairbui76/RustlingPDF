@@ -13659,7 +13659,7 @@
           "Misc"
         ],
         "summary": "Repair a PDF file",
-        "description": "This endpoint repairs a given PDF file by running Ghostscript (primary), qpdf (fallback), or PDFBox (if no external tools available). The PDF is first saved to a temporary location, repaired, read back, and then returned as a response. Input:PDF Output:PDF Type:SISO",
+        "description": "This endpoint repairs a given PDF file by running qpdf, or an in-process structural rewrite when qpdf is unavailable. The PDF is first saved to a temporary location, repaired, read back, and then returned as a response. Input:PDF Output:PDF Type:SISO",
         "operationId": "repairPdf",
         "requestBody": {
           "content": {
@@ -56162,7 +56162,7 @@
           },
           "optimizeForEbook": {
             "type": "boolean",
-            "description": "Optimize the output PDF for ebook reading using Ghostscript",
+            "description": "Accepted for compatibility; no longer changes the output (the Ghostscript optimisation pass was removed)",
             "default": false
           }
         }
@@ -56179,7 +56179,7 @@
           },
           "optimizeForEbook": {
             "type": "boolean",
-            "description": "Optimize the output PDF for ebook reading using Ghostscript",
+            "description": "Accepted for compatibility; no longer changes the output (the Ghostscript optimisation pass was removed)",
             "default": false
           }
         }

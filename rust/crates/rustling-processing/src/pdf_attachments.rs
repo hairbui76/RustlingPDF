@@ -263,7 +263,7 @@ pub fn rename_attachment_to_file(
             name: attachment_name.to_owned(),
         });
     }
-    let _ = replace_specifications(&mut document, renamed)?;
+    replace_specifications(&mut document, renamed)?;
     document.save(output_path)?;
     Ok(())
 }
@@ -299,7 +299,7 @@ pub fn delete_attachment_to_file(
             name: attachment_name.to_owned(),
         });
     }
-    let _ = replace_specifications(&mut document, retained)?;
+    replace_specifications(&mut document, retained)?;
     document.save(output_path)?;
     Ok(())
 }

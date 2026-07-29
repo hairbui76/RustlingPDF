@@ -42,22 +42,11 @@ export interface ConvertParameters extends BaseParameters {
     downloadHtml: boolean;
     includeAllRecipients: boolean;
   };
-  pdfaOptions: {
-    outputFormat: string;
-    strict?: boolean;
-  };
-  pdfxOptions: {
-    outputFormat: string;
-  };
-  cbrOptions: {
-    optimizeForEbook: boolean;
-  };
+  cbrOptions: Record<string, never>;
   pdfToCbrOptions: {
     dpi: number;
   };
-  cbzOptions: {
-    optimizeForEbook: boolean;
-  };
+  cbzOptions: Record<string, never>;
   cbzOutputOptions: {
     dpi: number;
   };
@@ -65,7 +54,6 @@ export interface ConvertParameters extends BaseParameters {
     embedAllFonts: boolean;
     includeTableOfContents: boolean;
     includePageNumbers: boolean;
-    optimizeForEbook: boolean;
   };
   epubOptions?: {
     detectChapters: boolean;
@@ -104,22 +92,11 @@ export const defaultParameters: ConvertParameters = {
     downloadHtml: false,
     includeAllRecipients: false,
   },
-  pdfaOptions: {
-    outputFormat: "pdfa-2b",
-    strict: false,
-  },
-  pdfxOptions: {
-    outputFormat: "pdfx",
-  },
-  cbrOptions: {
-    optimizeForEbook: false,
-  },
+  cbrOptions: {},
   pdfToCbrOptions: {
     dpi: 150,
   },
-  cbzOptions: {
-    optimizeForEbook: false,
-  },
+  cbzOptions: {},
   cbzOutputOptions: {
     dpi: 150,
   },
@@ -127,7 +104,6 @@ export const defaultParameters: ConvertParameters = {
     embedAllFonts: false,
     includeTableOfContents: false,
     includePageNumbers: false,
-    optimizeForEbook: false,
   },
   epubOptions: {
     detectChapters: true,

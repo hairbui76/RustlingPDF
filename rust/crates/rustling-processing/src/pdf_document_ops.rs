@@ -504,7 +504,7 @@ mod strip_images_tests {
         let output = directory.path().join("output.pdf");
 
         let mut document = Document::with_version("1.7");
-        let pages_id = document.new_object_id();
+        let page_tree_id = document.new_object_id();
         let font_id = document.add_object(dictionary! {
             "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
         });
@@ -528,7 +528,7 @@ mod strip_images_tests {
         ));
         let page_id = document.add_object(dictionary! {
             "Type" => "Page",
-            "Parent" => pages_id,
+            "Parent" => page_tree_id,
             "MediaBox" => vec![0.into(), 0.into(), 100.into(), 100.into()],
             "Resources" => dictionary! {
                 "Font" => dictionary! { "F1" => font_id },
@@ -537,7 +537,7 @@ mod strip_images_tests {
             "Contents" => content_id,
         });
         document.objects.insert(
-            pages_id,
+            page_tree_id,
             Object::Dictionary(dictionary! {
                 "Type" => "Pages",
                 "Kids" => vec![Object::Reference(page_id)],
@@ -545,7 +545,7 @@ mod strip_images_tests {
             }),
         );
         let catalog_id =
-            document.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
+            document.add_object(dictionary! { "Type" => "Catalog", "Pages" => page_tree_id });
         document.trailer.set("Root", catalog_id);
         document.save(&input)?;
 
@@ -580,9 +580,10 @@ mod strip_images_tests {
         let xobjects = resources.get(b"XObject")?.as_dict()?;
         assert!(xobjects.is_empty(), "an image XObject resource remained");
         assert!(
-            !stripped.objects.values().any(|object| object
-                .as_stream()
-                .is_ok_and(|stream| stream
+            !stripped
+                .objects
+                .values()
+                .any(|object| object.as_stream().is_ok_and(|stream| stream
                     .dict
                     .get(b"Subtype")
                     .and_then(Object::as_name)

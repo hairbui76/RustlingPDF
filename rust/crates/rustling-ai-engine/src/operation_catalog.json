@@ -4,7 +4,7 @@
     "properties": {
       "optimizeForEbook": {
         "default": false,
-        "description": "Optimize the output PDF for ebook reading using Ghostscript",
+        "description": "Accepted for compatibility; no longer changes the output (the Ghostscript optimisation pass was removed)",
         "type": "boolean"
       }
     },
@@ -16,7 +16,7 @@
     "properties": {
       "optimizeForEbook": {
         "default": false,
-        "description": "Optimize the output PDF for ebook reading using Ghostscript",
+        "description": "Accepted for compatibility; no longer changes the output (the Ghostscript optimisation pass was removed)",
         "type": "boolean"
       }
     },

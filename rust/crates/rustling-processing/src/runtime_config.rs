@@ -925,7 +925,11 @@ impl RuntimeConfig {
         // settings keys and command override must keep being accepted and ignored,
         // because existing settings.yml files still carry them.
         if yaml_present(&["processExecutor", "sessionLimit", "ghostscriptSessionLimit"])
-            || yaml_present(&["processExecutor", "timeoutMinutes", "ghostscriptTimeoutMinutes"])
+            || yaml_present(&[
+                "processExecutor",
+                "timeoutMinutes",
+                "ghostscriptTimeoutMinutes",
+            ])
             || env_present(&[
                 "RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND",
                 "STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND",
@@ -933,7 +937,8 @@ impl RuntimeConfig {
                 "PROCESS_EXECUTOR_TIMEOUT_MINUTES_GHOSTSCRIPT_TIMEOUT_MINUTES",
             ])
         {
-            ignored.push("processExecutor.*.ghostscript* / RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND");
+            ignored
+                .push("processExecutor.*.ghostscript* / RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND");
         }
         for key in ignored {
             tracing::warn!(

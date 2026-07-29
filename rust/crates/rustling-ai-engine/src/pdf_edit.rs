@@ -748,8 +748,17 @@ mod tests {
     fn generated_catalog_contains_all_current_operations() -> Result<(), Box<dyn std::error::Error>>
     {
         let catalog = operation_catalog()?;
-        assert_eq!(catalog.len(), 70);
+        // 70 before the Ghostscript removal deleted convert/pdf/pdfa,
+        // convert/pdf/vector, and convert/vector/pdf from the spec.
+        assert_eq!(catalog.len(), 67);
         assert!(catalog.contains_key("/api/v1/general/rotate-pdf"));
+        for removed in [
+            "/api/v1/convert/pdf/pdfa",
+            "/api/v1/convert/pdf/vector",
+            "/api/v1/convert/vector/pdf",
+        ] {
+            assert!(!catalog.contains_key(removed), "{removed}");
+        }
         Ok(())
     }
 
