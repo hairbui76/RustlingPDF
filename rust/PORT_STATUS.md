@@ -76,6 +76,33 @@ persisted browser-storage keys, the `StirlingPDFClassification` PDF Info key,
 headers (the deep-link scheme and `stirling_*` MCP tool identifiers were on
 this list until their features were removed in batch 7).
 
+**Deliberate behavioural divergences — upstream defects not reproduced
+(2026-07-30).** An audit of three bugs Stirling-PDF fixed after v2.14.2 found
+that two of them are *not* upstream-specific: upstream still carries them, and
+we chose not to match. Both are recorded in their contracts.
+
+- **`security/cert-sign` visible-signature placement.** Upstream
+  (`CertSignController.java:414`) builds `new PDRectangle(0, 0, 200, 50)` and
+  PDFBox copies `/Rect` verbatim with no `/Matrix`, so a signature on a page
+  with an offset MediaBox or CropBox is applied and valid but **invisible**, and
+  a `/Rotate 90` page draws it sideways. We derive placement from
+  CropBox-clipped-to-MediaBox including its origin, counter-rotate via the
+  appearance `/Matrix`, and scale uniformly to fit small pages. Signature
+  integrity is unaffected (`coversEntireDocument` stays true).
+- **`general/rearrange-pages` inherited page attributes.** Upstream
+  (`PDPageTree.add`, `PDPageTree.java:511-515`) only rewrites `/Parent`, so
+  re-parenting drops `/MediaBox`, `/CropBox`, `/Rotate` and `/Resources`
+  carried on intermediate `/Pages` nodes — legal and common per ISO 32000-1
+  §7.7.3.4. We materialize inherited attributes onto each page first, in every
+  mode. (Upstream's own DUPLICATE cyclic-page-node bug, #6851, was never
+  present here: duplicated pages have always been cloned into distinct
+  objects.)
+
+The third was a genuine parity gap and is now closed: `misc/add-stamp`,
+`misc/add-image` and `security/add-watermark` appended page content without
+PDFBox's `resetContext` prologue, so an unbalanced `q` in the original stream
+displaced the mark by the leaked transform.
+
 **Batch-6 validation (2026-07-28, historical — pre-batch-7 totals):** `cargo fmt --check`
 and strict locked all-target workspace Clippy are clean; the full workspace
 suite (`cargo test --workspace --locked` with PDFium bound via
