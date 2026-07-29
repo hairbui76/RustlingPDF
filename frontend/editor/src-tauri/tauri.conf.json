@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "RustlingPDF",
   "mainBinaryName": "RustlingPDF",
-  "version": "2.15.0",
+  "version": "3.0.0",
   "identifier": "stirling.pdf.dev",
   "build": {
     "frontendDist": "../dist",
