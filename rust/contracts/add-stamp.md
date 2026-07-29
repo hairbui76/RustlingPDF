@@ -57,7 +57,17 @@ state, so a source page whose own stream leaves a `q ... cm` open cannot drag
 that transform onto the stamp. For balanced page content the wrapper is a
 visual no-op, and — as in PDFBox — it is omitted entirely when the page has no
 existing content, because a lone `Q` there would underflow the graphics state
-stack. Only one level of imbalance is unwound, matching upstream.
+stack.
+
+Precisely, the stamp resumes from the state captured by the most recent `q` the
+page's own stream left unmatched, or from the page's initial state when that
+stream is balanced. The number of unmatched `q`s does not matter:
+`q q 0.5 0 0 0.5 300 400 cm` resets cleanly, because the innermost unmatched
+`q` saved the state from before the `cm`. What survives is state the stream
+changed at nesting depth zero, outside any `q` — a page that scales with
+`0.5 0 0 0.5 0 0 cm` and only afterwards leaves a `q` unmatched still scales the
+stamp. PDFBox writes the same single `q`/`Q` pair and behaves identically, so
+this residual is shared with upstream rather than a divergence.
 
 ## Response
 

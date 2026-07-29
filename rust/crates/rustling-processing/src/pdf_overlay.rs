@@ -337,11 +337,11 @@ pub(crate) fn install_xobject(
 /// The final `true` is `PDFBox`'s `resetContext`: it inserts a stream holding a
 /// bare `q` at the front of the page's `/Contents` array and opens the appended
 /// stream with the matching `Q`. Because the array is consumed as one
-/// concatenated stream, the appended content then always starts from the page's
-/// initial graphics state - even when the original stream leaves a `q` open.
-/// Without it a page whose content ends inside `q ... cm` silently drags that
-/// transform onto everything we draw afterwards, which is exactly how stamps,
-/// overlaid images and watermarks end up in the wrong place at the wrong size.
+/// concatenated stream, that `Q` pops whatever the page's own content left on
+/// the graphics state stack. Without it a page whose content ends inside
+/// `q ... cm` silently drags that transform onto everything we draw afterwards,
+/// which is exactly how stamps, overlaid images and watermarks end up in the
+/// wrong place at the wrong size.
 ///
 /// For balanced content the wrapper is a visual no-op: `q` pushes the initial
 /// state and `Q` pops it right back off.
@@ -350,8 +350,20 @@ pub(crate) fn install_xobject(
 /// `PDFBox`'s `sourcePage.hasContents()` guard - a lone `Q` on an empty page
 /// would underflow the graphics state stack.
 ///
-/// Like `PDFBox`, this only unwinds a single unbalanced `q`. Content that leaves
-/// two or more open is broken beyond what the upstream contract repairs.
+/// # What the single `Q` does and does not restore
+///
+/// The appended content resumes from the state captured by the most recent `q`
+/// the page's own stream left unmatched, or from the page's initial state when
+/// that stream is balanced. The count of unmatched `q`s is irrelevant:
+/// `q q 0.5 0 0 0.5 300 400 cm` resets cleanly, because the innermost unmatched
+/// `q` saved the state from before the `cm` ran.
+///
+/// What survives is state the stream changed at nesting depth zero, outside any
+/// `q`. A page whose content opens `0.5 0 0 0.5 0 0 cm` and only afterwards
+/// leaves a `q` unmatched still scales the appended content by 0.5, because the
+/// `Q` restores the state as of that `q` - which already carried the scale.
+/// `PDFBox` behaves identically, writing the same single `q`/`Q` pair, so this
+/// is a shared residual limit rather than a divergence.
 pub(crate) fn append_page_content_with_reset(
     document: &mut Document,
     page_id: ObjectId,
@@ -431,6 +443,18 @@ pub(crate) mod test_support {
     /// The same drawing with the `q` properly closed.
     pub(crate) const BALANCED_CONTENT: &[u8] =
         b"q 0.5 0 0 0.5 300 400 cm\nBT /F1 36 Tf 60 700 Td (BALANCED-Q) Tj ET\nQ\n";
+
+    /// Two unmatched `q`s, both opened before anything touched the state. The
+    /// single `Q` still restores the initial state, so nesting depth alone
+    /// never defeats the reset.
+    pub(crate) const DOUBLY_UNBALANCED_CONTENT: &[u8] =
+        b"q q 0.5 0 0 0.5 300 400 cm\nBT /F1 36 Tf 60 700 Td (DOUBLE-Q) Tj ET\n";
+
+    /// The shape the reset genuinely cannot repair: the transform is applied at
+    /// nesting depth zero, *before* the stream leaves a `q` unmatched, so the
+    /// state the `Q` restores already carries it.
+    pub(crate) const LEAK_OUTSIDE_SAVE_CONTENT: &[u8] =
+        b"0.5 0 0 0.5 0 0 cm\nq 1 0 0 1 100 100 cm\nBT /F1 36 Tf 60 700 Td (OUTER-CM) Tj ET\n";
 
     /// Builds a single-page A4 PDF whose page content is exactly `content`.
     pub(crate) fn single_page_pdf(content: &[u8]) -> Vec<u8> {
@@ -546,8 +570,8 @@ mod tests {
     use super::{
         OverlayOptions, append_page_content_with_reset, prepare_overlay_guide,
         test_support::{
-            BALANCED_CONTENT, IDENTITY, UNBALANCED_CONTENT, assert_matrix_eq, ctm_at_xobject,
-            page_pdf, single_page_pdf,
+            BALANCED_CONTENT, DOUBLY_UNBALANCED_CONTENT, IDENTITY, LEAK_OUTSIDE_SAVE_CONTENT,
+            UNBALANCED_CONTENT, assert_matrix_eq, ctm_at_xobject, page_pdf, single_page_pdf,
         },
     };
 
@@ -584,6 +608,43 @@ mod tests {
         assert_matrix_eq(
             ctm_at_xobject(&document, page_id, "Mark").ok_or("the mark is not drawn")?,
             IDENTITY,
+        );
+        Ok(())
+    }
+
+    /// The reset is not a count of `q`s: two saves opened before the transform
+    /// ran still reset cleanly, because the innermost unmatched `q` captured
+    /// the state from before the `cm`.
+    #[test]
+    fn several_unmatched_saves_still_reset_to_the_initial_state()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut document = Document::load_mem(&single_page_pdf(DOUBLY_UNBALANCED_CONTENT))?;
+        let page_id = first_page(&document)?;
+        append_page_content_with_reset(&mut document, page_id, b"q /Mark Do Q\n")?;
+        assert_matrix_eq(
+            ctm_at_xobject(&document, page_id, "Mark").ok_or("the mark is not drawn")?,
+            IDENTITY,
+        );
+        Ok(())
+    }
+
+    /// Pins the residual limit the single `q`/`Q` pair cannot cover, so it is
+    /// learned from a test rather than from prose.
+    ///
+    /// The page scales at nesting depth zero and only then leaves a `q`
+    /// unmatched, so the state that `q` saved already carries the scale and the
+    /// `Q` restores it. The appended content keeps the 0.5 scale but does lose
+    /// the inner `100 100` translate. `PDFBox` produces the same result; this
+    /// documents shared behaviour, not a regression.
+    #[test]
+    fn state_changed_outside_any_save_survives_the_reset() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut document = Document::load_mem(&single_page_pdf(LEAK_OUTSIDE_SAVE_CONTENT))?;
+        let page_id = first_page(&document)?;
+        append_page_content_with_reset(&mut document, page_id, b"q /Mark Do Q\n")?;
+        assert_matrix_eq(
+            ctm_at_xobject(&document, page_id, "Mark").ok_or("the mark is not drawn")?,
+            [0.5, 0.0, 0.0, 0.5, 0.0, 0.0],
         );
         Ok(())
     }

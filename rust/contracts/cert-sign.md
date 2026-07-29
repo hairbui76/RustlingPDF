@@ -79,8 +79,12 @@ hardcoded:
   widget `/Rect` is sized for the rotated extent — 200x50 for 0/180, 50x200 for
   90/270 — and anchored to the corner the viewer shows bottom-left. Per ISO
   32000-1 12.5.5 the transformed `/BBox` is then fitted into `/Rect`;
-- if the visible box is smaller than the badge, `/Rect` shrinks to the box so
-  the widget still falls inside the page.
+- if the visible box is smaller than the badge, `/Rect` shrinks to fit inside
+  the box. Because a viewer stretches the transformed `/BBox` to fill `/Rect`
+  (ISO 32000-1 12.5.5), both axes shrink by the same factor — the smaller of the
+  two — so the badge keeps its 4:1 aspect ratio instead of being squashed on a
+  page that is tight on one axis only. The badge is never enlarged beyond its
+  natural 200x50.
 
 On the ordinary origin-anchored, unrotated page this reproduces the previous
 `/Rect [0 0 200 50]` exactly.

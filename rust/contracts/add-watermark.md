@@ -40,8 +40,16 @@ still returns a rewritten PDF. The Rust route preserves that behavior.
   graphics state. A source page whose own stream leaves a `q ... cm` open
   therefore cannot shift or rescale the grid. The wrapper is a visual no-op for
   balanced content and is omitted when the page has no existing content, where a
-  lone `Q` would underflow the graphics state stack. Only one level of imbalance
-  is unwound, matching upstream.
+  lone `Q` would underflow the graphics state stack.
+- Precisely, the grid resumes from the state captured by the most recent `q` the
+  page's own stream left unmatched, or from the page's initial state when that
+  stream is balanced. The number of unmatched `q`s does not matter:
+  `q q 0.5 0 0 0.5 300 400 cm` resets cleanly, because the innermost unmatched
+  `q` saved the state from before the `cm`. What survives is state the stream
+  changed at nesting depth zero, outside any `q` — a page that scales with
+  `0.5 0 0 0.5 0 0 cm` and only afterwards leaves a `q` unmatched still scales
+  the grid. PDFBox writes the same single `q`/`Q` pair and behaves identically,
+  so this residual is shared with upstream rather than a divergence.
 - Every page receives the watermark.
 - `convertPDFToImage=true` sends the completed document through the shared
   native `PDFium` full-page rasterization path, using the configured maximum

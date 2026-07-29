@@ -320,8 +320,21 @@ fn appearance_placement(previous: &Document, page_id: ObjectId) -> AppearancePla
     } else {
         (APPEARANCE_WIDTH, APPEARANCE_HEIGHT)
     };
-    let width = extent_width.min(visible[2] - visible[0]);
-    let height = extent_height.min(visible[3] - visible[1]);
+    // ISO 32000-1 12.5.5 stretches the transformed `/BBox` to fill `/Rect`, so
+    // clamping the two axes independently would squash the badge on a page that
+    // is tight on one axis only (a 120x800 page gave a 0.6 x 1.0 fit). Shrink
+    // both axes by the same factor, and never enlarge past the natural size.
+    let available_width = visible[2] - visible[0];
+    let available_height = visible[3] - visible[1];
+    let scale = (available_width / extent_width)
+        .min(available_height / extent_height)
+        .min(1.0);
+    // The trailing clamps only absorb `f32` rounding in `scale * extent` (at
+    // most an ulp, e.g. 120.00001 for a 120pt-wide page), so the widget never
+    // pokes outside the box it was fitted to. They cannot re-introduce a
+    // non-uniform fit.
+    let width = (extent_width * scale).min(available_width);
+    let height = (extent_height * scale).min(available_height);
     // Anchor on the corner the viewer shows bottom-left once `/Rotate` has been
     // applied, so the badge lands in the same visual spot on every page.
     let (left, bottom) = match rotation {
@@ -1022,13 +1035,49 @@ amwXixTh3YlrdOneww==\n\
     }
 
     /// A page smaller than the badge still has to show it inside the page.
+    ///
+    /// The badge keeps its 4:1 aspect ratio while doing so. A viewer stretches
+    /// the transformed `/BBox` to fill `/Rect` (ISO 32000-1 12.5.5), so clamping
+    /// the axes independently would render it squashed - each case below is a
+    /// page where the two axes would otherwise scale by different factors.
     #[test]
-    fn visible_widget_shrinks_to_fit_a_tiny_page() -> Result<(), Box<dyn std::error::Error>> {
-        assert_values_eq(
-            widget_rect(&signed_page([0, 0, 120, 30], None, None)?)?,
-            [0.0, 0.0, 120.0, 30.0],
-            "tiny page",
-        );
+    fn visible_widget_shrinks_uniformly_on_small_pages() -> Result<(), Box<dyn std::error::Error>> {
+        for (label, media_box, rotation, expected) in [
+            // Both axes tight by the same 0.6, so uniform and independent
+            // clamping agree here.
+            ("tiny page", [0, 0, 120, 30], None, [0.0, 0.0, 120.0, 30.0]),
+            // Narrow and tall: width forces 0.6, height would allow 16.
+            (
+                "narrow page",
+                [0, 0, 120, 800],
+                None,
+                [0.0, 0.0, 120.0, 30.0],
+            ),
+            // Wide and short: height forces 0.4, width would allow 4.
+            ("short page", [0, 0, 800, 20], None, [0.0, 0.0, 80.0, 20.0]),
+            // Rotated, so the badge is 50x200 before fitting: height forces
+            // 0.5, width would allow 8.
+            (
+                "narrow rotated page",
+                [0, 0, 400, 100],
+                Some(90),
+                [375.0, 0.0, 400.0, 100.0],
+            ),
+        ] {
+            let rect = widget_rect(&signed_page(media_box, None, rotation)?)?;
+            assert_values_eq(rect, expected, label);
+            let width = rect[2] - rect[0];
+            let height = rect[3] - rect[1];
+            let (long, short) = if width >= height {
+                (width, height)
+            } else {
+                (height, width)
+            };
+            assert!(
+                (long / short - 4.0).abs() < 0.001,
+                "{label}: the badge must keep its 4:1 aspect, got {width}x{height}"
+            );
+        }
         Ok(())
     }
 
