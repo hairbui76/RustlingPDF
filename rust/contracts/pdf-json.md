@@ -285,8 +285,7 @@ not available through the configured Poppler data paths), token-preserving in-pl
 the classes the full-document fast path still defers (`Type0`/`Type3`, interior-kerned multi-string
 `TJ`, invoked-Form text — boundary-aligned simple-font `Tj`/`TJ` edits are now rewritten in place,
 see `/api/v1/convert/text-editor/pdf` above), font-program
-round-trip, complex inline filter parameters, DCT DeviceN images with more than four JPEG source components,
-and rich
+round-trip, complex inline filter parameters, and rich
 non-widget-annotation appearance streams
 remain outstanding (`Tx`/`Ch`/`Btn` widget appearance streams are ported — see above).
 Nested/multi-widget form hierarchies and annotation reply chains are not parity gaps:
@@ -323,7 +322,11 @@ their tint transforms. DCT DeviceN images with one to four JPEG components likew
 source planes, perform Adobe/`ColorTransform` JPEG colour conversion, apply per-component `/Decode`
 mappings in the same order as PDF.js, and then evaluate the DeviceN tint function. Declared
 dimensions and component counts must match the JPEG header; mismatches and DeviceN JPEGs above four
-components are rejected rather than silently treating decoder-projected RGB as tint samples.
+components are rejected rather than silently treating decoder-projected RGB as tint samples. This
+is upstream parity, not an outstanding decoder gap: Stirling-PDF 2.14.2 uses PDFBox 3.0.7
+`PDImage.getImage()` and the runtime TwelveMonkeys JPEG reader 3.13.1, whose source-colour-space
+dispatch accepts only one through four frame components and throws `IIOException` for every other
+count. Rust keeps the bounded device fallback rather than inventing support the Java oracle lacks.
 Direct CalGray/CalRGB images, calibrated Indexed palette bases, compatible ICC fallbacks, and
 calibrated Separation/DeviceN alternates convert to sRGB with bounded gamma, matrix, black-point,
 Bradford-adaptation, and transfer-function math. Gray/RGB DCT calibrated images retain their source

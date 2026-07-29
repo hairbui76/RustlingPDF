@@ -27,6 +27,10 @@ nor the platform's `ffmpeg` is installed, the route returns HTTP 501. Invalid mu
 PDF input, DPI, duration, opacity, or unsafe watermark size return HTTP 400. PDFium and FFmpeg
 execution failures return HTTP 500.
 
+Startup discovery exposes this unconditional requirement through
+`endpoints-availability`: `pdf-to-video` is disabled with reason `DEPENDENCY`
+when FFmpeg is missing, and `group-enabled?group=FFmpeg` returns `false`.
+
 The current Java controller deliberately comments out its mapping while FFmpeg CVEs are assessed.
 The Rust port exposes this endpoint for an intentional Rust-side cutover; deployers should make
 the same FFmpeg security assessment and may disable route access at their reverse proxy until then.

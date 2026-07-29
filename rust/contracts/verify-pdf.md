@@ -35,6 +35,15 @@ The executable is resolved in this order:
 An unavailable auto-discovered runtime returns `501`. A configured command
 that cannot start, fails, or returns an invalid report returns `500`.
 
+This is an input-conditional dependency, not a route-wide one. Startup
+discovery still reports `group-enabled?group=veraPDF` as `false` when the tool
+is missing, but `endpoints-availability` keeps `verify-pdf` enabled because a
+PDF with no declared validation profile completes through the native
+`not-pdfa` path. A PDF that declares PDF/A, PDF/UA, or WTPDF then receives the
+documented request-time `501` if veraPDF is absent. The route-level
+availability shape has no conditional-capability state, so disabling the whole
+route would be less truthful than preserving the working native path.
+
 ## Response
 
 The route returns `application/json` containing the existing

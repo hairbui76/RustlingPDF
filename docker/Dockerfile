@@ -151,16 +151,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
 #     Ghostscript, qpdf (trixie's 12.2 satisfies the >=12 minimum),
 #     Tesseract + eng + osd, OCRmyPDF (+unpaper/pngquant helpers), WeasyPrint
 #     (trixie's 62.3 satisfies the >=58 minimum), poppler-utils (pdftohtml),
-#     7zip (CBR extraction fallback: the backend probes unrar, then 7z),
+#     7zip (general archive tooling; its RAR handler is capability-probed),
 #     metric-compatible + broad-coverage fonts incl. CJK.
 #   excluded — Calibre (~1 GB; ebook<->PDF endpoints self-disable with reason
 #     DEPENDENCY), ImageMagick + Python venv extras + unoserver (Java-backend
-#     needs; the Rust service calls soffice directly), unrar (non-free; 7zip
-#     covers CBR reading), ffmpeg (PDF->video stays an explicit opt-in),
+#     needs; the Rust service calls soffice directly), unrar and 7zip-rar
+#     (non-free, so CBR->PDF self-disables), ffmpeg (PDF->video stays an
+#     explicit opt-in), veraPDF,
 #     xvfb (the -nogui LibreOffice builds convert headless without X).
 # This sits between upstream's "standard" and "ultra-lite" variants: every
-# discovered-at-startup tool except Calibre, with graceful DEPENDENCY
-# degradation for anything missing.
+# common conversion tools, with graceful DEPENDENCY degradation for optional
+# tools omitted by the image.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl tini fontconfig \
       libreoffice-writer-nogui libreoffice-calc-nogui \

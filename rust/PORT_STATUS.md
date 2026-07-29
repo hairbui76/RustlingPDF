@@ -252,6 +252,10 @@ auto-rename/auto-split, plus:
   WeasyPrint PDF, with Java-compatible redirects for disabled or rejected targets.
 - `convert/cbr/pdf` — RAR/CBR → naturally ordered image PDF through `unrar` or
   a read-only 7-Zip fallback, with bounded extraction and link rejection.
+  Startup accepts 7-Zip only when `7z i` lists a RAR handler. Debian trixie's
+  DFSG `7zip` build omits that handler and the non-free `7zip-rar` plugin, so
+  the shipped image reports this route dependency-disabled instead of failing
+  every CBR at request time.
 - `convert/pdf/cbr` — PDFium-rendered PNG pages → RAR-backed CBR through `rar`.
 - `convert/pdf/pdfa` — PDF/A-1b/2b/3b and PDF/X through Ghostscript, with embedded
   sRGB/Gray ICC profiles and optional strict veraPDF validation.
@@ -291,7 +295,17 @@ auto-rename/auto-split, plus:
 - `config/app-config`, endpoint/group status/availability, and
   `settings/get-endpoints-status` —
   base/custom YAML configuration, public bootstrap values, endpoint-disable
-  status, and timestamp configuration. (`settings/update-enable-analytics` —
+  status, timestamp configuration, and startup discovery for every external
+  executable the Rust routes actually invoke. Java-only `Java`, `Python`,
+  `OpenCV`, `ImageMagick`, `Javascript`, `CLI`, and `Unoconvert` group names
+  are inert legacy configuration strings rather than phantom available tools.
+  Missing FFmpeg and RAR creation/extraction tools now dependency-disable
+  `pdf-to-video`, `pdf-to-cbr`, and `cbr-to-pdf`; `pdf-to-markdown` correctly
+  stays independent of `pdftohtml`. veraPDF is represented as a conditional
+  capability: its group disables when missing, while `verify-pdf` remains
+  available for the native no-declared-profile result and returns 501 only
+  when an input actually needs conformance validation.
+  (`settings/update-enable-analytics` —
   the server-persisted analytics consent — was removed in batch 7; consent is
   client-side state now. The secured `admin/settings` mutation family and
   `admin/server-certificate` routes, with cert-sign's `certType=SERVER`, were
@@ -405,7 +419,12 @@ auto-rename/auto-split, plus:
   perform Adobe/`ColorTransform` conversion, apply `/Decode` in PDF.js order, and evaluate their
   tint functions. Separation and DeviceN images whose alternate is an `ICCBased` space now
   convert the tint output through the embedded profile (falling back to the declared device
-  `/Alternate` when the profile is invalid); DeviceN DCT above four components remains.
+  `/Alternate` when the profile is invalid). DeviceN DCT above four components is
+  parity-not-a-gap: upstream Stirling-PDF 2.14.2 calls PDFBox 3.0.7
+  `PDImage.getImage()`, whose configured TwelveMonkeys 3.13.1 JPEG reader only
+  dispatches source colour spaces for one through four frame components and
+  throws `IIOException` otherwise. Rust deliberately retains its bounded
+  device fallback rather than adding a decoder the Java oracle cannot use.
   Full editor responses also inspect root AcroForm fields plus their
   inherited metadata and first widget location, and export structured page annotations (with
   full-mode COS data). JSON→PDF rebuilds root fields/one fresh widget and non-widget page

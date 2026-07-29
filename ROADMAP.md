@@ -260,12 +260,15 @@ license-persist serde round-trip dropping comments) were fixed in batch 4.
    static budget a deliberate divergence? Upstream reference:
    `ResourceMonitor`/`DynamicJobQueue` in Stirling-PDF `app/common`.
 4. **PDF-JSON deep-fidelity program** (multi-session, pick slices):
-   - DeviceN DCT > 4 components — **probe first** whether PDFBox itself decodes
-     5+-component JPEGs; if not, reclassify as parity-not-a-gap in the ledger.
    - CCITTFax/JBIG2/JPX inline-image decoding (needs new bounded decoders).
    - Type0/Type3 byte-parity + interior-kerning-run rewrite + true Type3 glyph
      synthesis (upstream's own oracle is partially poisoned here — see
      PORT_STATUS "Remaining"; treat as beyond-parity work).
+
+The DeviceN DCT >4-component probe was closed on 2026-07-29 as
+parity-not-a-gap: upstream PDFBox 3.0.7 reaches the TwelveMonkeys 3.13.1 JPEG
+reader through `PDImage.getImage()`, and that reader rejects frame component
+counts outside 1–4 before decoding.
 
 ## Removed by maintainer decision (2026-07-28) — not coming back
 

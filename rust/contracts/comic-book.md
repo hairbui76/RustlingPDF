@@ -46,6 +46,9 @@ and optional boolean `optimizeForEbook` (default false). It returns
 - The request runs an external RAR extractor. It first uses
   `RUSTLING_PROCESSING_UNRAR_COMMAND` when configured; otherwise it tries
   `unrar` and then a read-only 7-Zip (`7z`/`7zz`) fallback.
+- Startup discovery disables `cbr-to-pdf` with reason `DEPENDENCY` when none of
+  those extractors is usable. For 7-Zip, existence alone is insufficient:
+  discovery requires `7z i` to list a RAR handler.
 - Extracted files are recursively bounded to 100,000 files and 2,000 MiB,
   symbolic links are rejected, and supported image files use the same natural
   filename ordering and PDF embedding path as CBZ-to-PDF.
@@ -90,6 +93,12 @@ uses `comic_converted.cbr`.
 - CBR-to-PDF is a secure external-adapter implementation rather than Java's
   embedded Junrar reader. It supports current RAR variants that the configured
   extractor supports, including RAR5 with the 7-Zip fallback.
+- Debian's `7zip` package omits RAR support for DFSG licensing reasons; its
+  separate `7zip-rar` plugin is non-free. The shipped container deliberately
+  installs neither that plugin nor `unrar`, so its startup probe reports
+  `cbr-to-pdf` as dependency-disabled instead of advertising a fallback that
+  will reject every RAR archive. Operators may supply an extractor without
+  changing the image's licensing policy.
 - PDF-to-CBR requires a licensed or otherwise provisioned `rar` command at
   deployment time. No CBR is synthesized as ZIP, because that would violate the
   CBR media contract.
