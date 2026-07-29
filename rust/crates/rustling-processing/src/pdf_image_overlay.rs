@@ -1,12 +1,12 @@
 use std::{fs, io::Cursor, path::Path};
 
 use image::{DynamicImage, ImageReader, Limits};
-use lopdf::{Document, Object, ObjectId, Stream, dictionary};
+use lopdf::{Document, ObjectId};
 use thiserror::Error;
 
 use crate::{
     image_to_pdf::{ImageToPdfError, add_color_image_xobject},
-    pdf_overlay::{append_original_contents, install_xobject},
+    pdf_overlay::{append_page_content_with_reset, install_xobject},
     pdf_page_geometry::{PageForm, page_form},
 };
 
@@ -203,19 +203,7 @@ fn apply_overlay(
         pdf_number(options.x),
         pdf_number(options.y),
     );
-    let overlay_id = document.add_object(Stream::new(dictionary! {}, content.into_bytes()));
-    let original = document
-        .get_dictionary(page_id)?
-        .get(b"Contents")
-        .ok()
-        .cloned();
-    let mut contents = Vec::new();
-    append_original_contents(document, original, &mut contents);
-    contents.push(Object::Reference(overlay_id));
-    document
-        .get_dictionary_mut(page_id)?
-        .set("Contents", contents);
-    Ok(())
+    append_page_content_with_reset(document, page_id, content.as_bytes())
 }
 
 fn is_svg(bytes: &[u8]) -> bool {
@@ -303,7 +291,54 @@ fn pdf_number(value: f32) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_svg, unsafe_svg, with_default_svg_dimensions};
+    use std::fs;
+
+    use lopdf::Document;
+
+    use crate::pdf_overlay::test_support::{
+        BALANCED_CONTENT, UNBALANCED_CONTENT, assert_matrix_eq, ctm_at_xobject, single_page_pdf,
+    };
+
+    use super::{
+        ImageOverlayOptions, is_svg, overlay_image_to_file, unsafe_svg, with_default_svg_dimensions,
+    };
+
+    /// The overlaid image must land at the requested user-space coordinates at
+    /// its intrinsic size, whatever the page's own stream left on the graphics
+    /// state stack.
+    #[test]
+    fn overlaid_images_ignore_an_unbalanced_page_stream() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempfile::tempdir()?;
+        let overlay_image = directory.path().join("overlay.png");
+        image::RgbaImage::from_pixel(40, 25, image::Rgba([0, 0, 255, 255])).save(&overlay_image)?;
+        let options = ImageOverlayOptions {
+            x: 100.0,
+            y: 200.0,
+            every_page: false,
+        };
+
+        let mut placements = Vec::new();
+        for (name, content) in [
+            ("balanced", BALANCED_CONTENT),
+            ("unbalanced", UNBALANCED_CONTENT),
+        ] {
+            let input = directory.path().join(format!("{name}.pdf"));
+            let output = directory.path().join(format!("{name}-overlaid.pdf"));
+            fs::write(&input, single_page_pdf(content))?;
+            overlay_image_to_file(&input, "input.pdf", &overlay_image, options, &output)?;
+            let document = Document::load(&output)?;
+            let page_id = *document.get_pages().values().next().ok_or("no page")?;
+            placements.push(
+                ctm_at_xobject(&document, page_id, "OverlayImage0")
+                    .ok_or("the overlay is not drawn")?,
+            );
+        }
+
+        assert_matrix_eq(placements[1], placements[0]);
+        assert_matrix_eq(placements[1], [40.0, 0.0, 0.0, 25.0, 100.0, 200.0]);
+        Ok(())
+    }
 
     #[test]
     fn detects_svg_from_content_instead_of_filename() {

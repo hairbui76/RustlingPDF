@@ -47,6 +47,18 @@ aspect ratio is preserved, `fontSize` is used as physical height, alpha is
 retained through a PDF soft mask, and Java-compatible page-boundary clamping is
 applied before rotation.
 
+## Appended content and graphics state
+
+Stamps are appended to the page's `/Contents` array with PDFBox's
+`AppendMode.APPEND, resetContext = true` semantics: a stream holding a bare `q`
+is inserted at the front of the array and the stamp stream opens with the
+matching `Q`. The stamp therefore always draws from the page's initial graphics
+state, so a source page whose own stream leaves a `q ... cm` open cannot drag
+that transform onto the stamp. For balanced page content the wrapper is a
+visual no-op, and — as in PDFBox — it is omitted entirely when the page has no
+existing content, because a lone `Q` there would underflow the graphics state
+stack. Only one level of imbalance is unwound, matching upstream.
+
 ## Response
 
 Success returns `200`, `Content-Type: application/pdf`, and an attachment named

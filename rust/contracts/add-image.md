@@ -26,6 +26,15 @@ top-left corner.
 - The overlay is appended to the first page unless `everyPage=true`, in which
   case it is appended to every page.
 - Existing page content and inherited resources are preserved.
+- The overlay is appended with PDFBox's `AppendMode.APPEND,
+  resetContext = true` semantics: a stream holding a bare `q` is inserted at the
+  front of the page's `/Contents` array and the overlay stream opens with the
+  matching `Q`, so the image is always placed from the page's initial graphics
+  state. A source page whose own stream leaves a `q ... cm` open therefore
+  cannot shift or rescale the overlay. The wrapper is a visual no-op for
+  balanced content and is omitted when the page has no existing content, where a
+  lone `Q` would underflow the graphics state stack. Only one level of imbalance
+  is unwound, matching upstream.
 - External SVG resources, XML document declarations/entities, and remote CSS
   imports are rejected before SVG parsing. Inline `data:` resources remain
   supported.

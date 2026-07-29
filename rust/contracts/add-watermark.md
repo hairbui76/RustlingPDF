@@ -33,6 +33,15 @@ still returns a rewritten PDF. The Rust route preserves that behavior.
   center rotation, and exclusive edge placement follow the Java formulas.
 - Opacity is installed through an `ExtGState`; inherited page resources and
   existing page content remain intact.
+- The watermark grid is appended with PDFBox's `AppendMode.APPEND,
+  resetContext = true` semantics: a stream holding a bare `q` is inserted at the
+  front of the page's `/Contents` array and the watermark stream opens with the
+  matching `Q`, so the tiling is always laid out from the page's initial
+  graphics state. A source page whose own stream leaves a `q ... cm` open
+  therefore cannot shift or rescale the grid. The wrapper is a visual no-op for
+  balanced content and is omitted when the page has no existing content, where a
+  lone `Q` would underflow the graphics state stack. Only one level of imbalance
+  is unwound, matching upstream.
 - Every page receives the watermark.
 - `convertPDFToImage=true` sends the completed document through the shared
   native `PDFium` full-page rasterization path, using the configured maximum

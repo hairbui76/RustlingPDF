@@ -2,7 +2,7 @@ use std::{fmt::Write as _, fs::File, io::BufReader, path::Path};
 
 use chrono::{Datelike, Local};
 use image::{ImageReader, Limits};
-use lopdf::{Dictionary, Document, Object, ObjectId, Stream, decode_text_string, dictionary};
+use lopdf::{Dictionary, Document, Object, ObjectId, decode_text_string, dictionary};
 use rand::RngExt as _;
 use thiserror::Error;
 
@@ -10,7 +10,7 @@ use crate::{
     image_to_pdf::{ImageToPdfError, add_color_image_xobject},
     page_selection::{PageSelectionError, parse_page_list},
     pdf_image_overlay::{ImageOverlayError, import_svg_form},
-    pdf_overlay::{append_original_contents, install_xobject},
+    pdf_overlay::{append_page_content_with_reset, install_xobject},
     pdf_page_geometry::{PageForm, inherited_value},
 };
 
@@ -309,18 +309,7 @@ fn apply_stamp(
         pdf_number(x),
         pdf_number(y),
     );
-    let content_id = document.add_object(Stream::new(dictionary! {}, content.into_bytes()));
-    let original = document
-        .get_dictionary(page_id)?
-        .get(b"Contents")
-        .ok()
-        .cloned();
-    let mut contents = Vec::new();
-    append_original_contents(document, original, &mut contents);
-    contents.push(Object::Reference(content_id));
-    document
-        .get_dictionary_mut(page_id)?
-        .set("Contents", contents);
+    append_page_content_with_reset(document, page_id, content.as_bytes())?;
     Ok(())
 }
 
@@ -634,9 +623,65 @@ pub(crate) fn pdf_number(value: f32) -> String {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Local, TimeZone as _};
+    use std::fs;
 
-    use super::{StampOptions, format_custom_date, normalized_color, stamp_position};
+    use chrono::{Local, TimeZone as _};
+    use lopdf::Document;
+
+    use crate::pdf_overlay::test_support::{
+        BALANCED_CONTENT, UNBALANCED_CONTENT, assert_matrix_eq, ctm_at_xobject, single_page_pdf,
+    };
+
+    use super::{
+        StampOptions, add_stamp_to_file, format_custom_date, normalized_color, stamp_position,
+    };
+
+    /// A stamp must land in the same place whether or not the page it is put on
+    /// happens to leave a `q` open. Before the append reset, the leaked
+    /// `0.5` scale and `300 400` translate moved every stamp on such a page.
+    #[test]
+    fn image_stamps_ignore_an_unbalanced_page_stream() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let stamp_image = directory.path().join("stamp.png");
+        image::RgbaImage::from_pixel(20, 10, image::Rgba([255, 0, 0, 255])).save(&stamp_image)?;
+        let options = StampOptions {
+            stamp_type: "image".to_owned(),
+            stamp_text: String::new(),
+            alphabet: "roman".to_owned(),
+            font_size: 60.0,
+            rotation: 0.0,
+            opacity: 1.0,
+            position: 1,
+            override_x: -1.0,
+            override_y: -1.0,
+            custom_margin: "medium".to_owned(),
+            custom_color: "#d3d3d3".to_owned(),
+            page_numbers: "all".to_owned(),
+        };
+
+        let mut placements = Vec::new();
+        for (name, content) in [
+            ("balanced", BALANCED_CONTENT),
+            ("unbalanced", UNBALANCED_CONTENT),
+        ] {
+            let input = directory.path().join(format!("{name}.pdf"));
+            let output = directory.path().join(format!("{name}-stamped.pdf"));
+            fs::write(&input, single_page_pdf(content))?;
+            add_stamp_to_file(&input, "input.pdf", Some(&stamp_image), &options, &output)?;
+            let document = Document::load(&output)?;
+            let page_id = *document.get_pages().values().next().ok_or("no page")?;
+            placements.push(
+                ctm_at_xobject(&document, page_id, "Stamp1").ok_or("the stamp is not drawn")?,
+            );
+        }
+
+        assert_matrix_eq(placements[1], placements[0]);
+        // Position 1 is the top-left cell: a 20x10 image asked for at height 60
+        // is drawn 120x60 at the 0.035 margin, not halved to 60x30 and shoved to
+        // (312.6, 778.4) by the leaked transform.
+        assert_matrix_eq(placements[1], [120.0, 0.0, 0.0, 60.0, 25.1475, 756.8525]);
+        Ok(())
+    }
 
     #[test]
     fn converts_common_java_date_patterns() {

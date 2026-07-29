@@ -1,7 +1,7 @@
 use std::{fmt::Write as _, fs::File, io::BufReader, path::Path};
 
 use image::{ImageReader, Limits};
-use lopdf::{Document, Object, ObjectId, Stream, dictionary};
+use lopdf::{Document, ObjectId};
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -9,7 +9,7 @@ use crate::{
     image_to_pdf::{ImageToPdfError, add_color_image_xobject},
     pdf_flatten::{FlattenError, flatten_pdf_to_file},
     pdf_image_overlay::{ImageOverlayError, import_svg_form},
-    pdf_overlay::{append_original_contents, install_xobject},
+    pdf_overlay::{append_page_content_with_reset, install_xobject},
     pdf_page_geometry::{PageForm, inherited_value},
     pdf_stamp::{font_family, install_graphics_state, pdf_number, xml_escape},
 };
@@ -303,7 +303,7 @@ fn apply_text_watermark(
             );
         }
     }
-    append_page_content(document, page_id, content.into_bytes())?;
+    append_page_content_with_reset(document, page_id, content.as_bytes())?;
     Ok(())
 }
 
@@ -352,7 +352,7 @@ fn apply_image_watermark(
             );
         }
     }
-    append_page_content(document, page_id, content.into_bytes())?;
+    append_page_content_with_reset(document, page_id, content.as_bytes())?;
     Ok(())
 }
 
@@ -405,26 +405,6 @@ fn validate_placement_count(columns: usize, rows: usize) -> Result<(), Watermark
     }
 }
 
-fn append_page_content(
-    document: &mut Document,
-    page_id: ObjectId,
-    content: Vec<u8>,
-) -> Result<(), lopdf::Error> {
-    let content_id = document.add_object(Stream::new(dictionary! {}, content));
-    let original = document
-        .get_dictionary(page_id)?
-        .get(b"Contents")
-        .ok()
-        .cloned();
-    let mut contents = Vec::new();
-    append_original_contents(document, original, &mut contents);
-    contents.push(Object::Reference(content_id));
-    document
-        .get_dictionary_mut(page_id)?
-        .set("Contents", contents);
-    Ok(())
-}
-
 fn media_box(document: &Document, page_id: ObjectId) -> Result<[f32; 4], lopdf::Error> {
     let media_box = inherited_value(document, page_id, b"MediaBox")?;
     let (_, media_box) = document.dereference(&media_box)?;
@@ -462,7 +442,70 @@ fn normalized_color(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{image_axis_positions, normalized_color, rotated_extents, text_axis_positions};
+    use std::fs;
+
+    use lopdf::Document;
+
+    use crate::pdf_overlay::test_support::{
+        BALANCED_CONTENT, UNBALANCED_CONTENT, assert_matrix_eq, ctm_at_xobject, single_page_pdf,
+    };
+
+    use super::{
+        WatermarkOptions, add_watermark_to_file, image_axis_positions, normalized_color,
+        rotated_extents, text_axis_positions,
+    };
+
+    /// The watermark grid is laid out in page user space; an unbalanced `q` in
+    /// the page's own stream used to shrink and shift the whole tiling.
+    #[test]
+    fn watermark_tiles_ignore_an_unbalanced_page_stream() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempfile::tempdir()?;
+        let watermark_image = directory.path().join("watermark.png");
+        image::RgbaImage::from_pixel(30, 30, image::Rgba([0, 128, 0, 255]))
+            .save(&watermark_image)?;
+        let options = WatermarkOptions {
+            watermark_type: "image".to_owned(),
+            watermark_text: String::new(),
+            alphabet: "roman".to_owned(),
+            font_size: 50.0,
+            rotation: 0.0,
+            opacity: 0.5,
+            width_spacer: 50,
+            height_spacer: 50,
+            custom_color: "#d3d3d3".to_owned(),
+            convert_pdf_to_image: false,
+        };
+
+        let mut placements = Vec::new();
+        for (name, content) in [
+            ("balanced", BALANCED_CONTENT),
+            ("unbalanced", UNBALANCED_CONTENT),
+        ] {
+            let input = directory.path().join(format!("{name}.pdf"));
+            let output = directory.path().join(format!("{name}-watermarked.pdf"));
+            fs::write(&input, single_page_pdf(content))?;
+            add_watermark_to_file(
+                &input,
+                "input.pdf",
+                Some(&watermark_image),
+                &options,
+                &output,
+            )?;
+            let document = Document::load(&output)?;
+            let page_id = *document.get_pages().values().next().ok_or("no page")?;
+            placements.push(
+                ctm_at_xobject(&document, page_id, "WatermarkImage0")
+                    .ok_or("the watermark is not drawn")?,
+            );
+        }
+
+        // `ctm_at_xobject` reports the first tile, which sits at the page
+        // origin at its own 50x50 size in both cases.
+        assert_matrix_eq(placements[1], placements[0]);
+        assert_matrix_eq(placements[1], [50.0, 0.0, 0.0, 50.0, 0.0, 0.0]);
+        Ok(())
+    }
 
     #[test]
     fn text_and_image_grids_preserve_java_edge_rules() {

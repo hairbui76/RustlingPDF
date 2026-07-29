@@ -331,7 +331,76 @@ pub(crate) fn install_xobject(
     Ok(())
 }
 
-pub(crate) fn append_original_contents(
+/// Appends a content stream to a page the way `PDFBox`'s
+/// `PDPageContentStream(doc, page, AppendMode.APPEND, true, true)` does.
+///
+/// The final `true` is `PDFBox`'s `resetContext`: it inserts a stream holding a
+/// bare `q` at the front of the page's `/Contents` array and opens the appended
+/// stream with the matching `Q`. Because the array is consumed as one
+/// concatenated stream, the appended content then always starts from the page's
+/// initial graphics state - even when the original stream leaves a `q` open.
+/// Without it a page whose content ends inside `q ... cm` silently drags that
+/// transform onto everything we draw afterwards, which is exactly how stamps,
+/// overlaid images and watermarks end up in the wrong place at the wrong size.
+///
+/// For balanced content the wrapper is a visual no-op: `q` pushes the initial
+/// state and `Q` pops it right back off.
+///
+/// The wrapper is emitted only when the page already has content, mirroring
+/// `PDFBox`'s `sourcePage.hasContents()` guard - a lone `Q` on an empty page
+/// would underflow the graphics state stack.
+///
+/// Like `PDFBox`, this only unwinds a single unbalanced `q`. Content that leaves
+/// two or more open is broken beyond what the upstream contract repairs.
+pub(crate) fn append_page_content_with_reset(
+    document: &mut Document,
+    page_id: ObjectId,
+    content: &[u8],
+) -> Result<(), lopdf::Error> {
+    let original = document
+        .get_dictionary(page_id)?
+        .get(b"Contents")
+        .ok()
+        .cloned();
+    let reset_context = page_has_contents(document, original.as_ref());
+
+    let mut appended = Vec::with_capacity(content.len() + 3);
+    if reset_context {
+        // The leading newline keeps the `Q` a token of its own even when the
+        // preceding stream ends mid-token; consumers are required to insert a
+        // separator between array members, but not all of them do.
+        appended.extend_from_slice(b"\nQ\n");
+    }
+    appended.extend_from_slice(content);
+    let appended_id = document.add_object(Stream::new(dictionary! {}, appended));
+
+    let mut contents = Vec::new();
+    if reset_context {
+        let save_id = document.add_object(Stream::new(dictionary! {}, b"q\n".to_vec()));
+        contents.push(Object::Reference(save_id));
+    }
+    append_original_contents(document, original, &mut contents);
+    contents.push(Object::Reference(appended_id));
+    document
+        .get_dictionary_mut(page_id)?
+        .set("Contents", contents);
+    Ok(())
+}
+
+/// Mirrors `PDFBox` `PDPage.hasContents()`: content exists when `/Contents`
+/// resolves to a non-empty stream or a non-empty array.
+fn page_has_contents(document: &Document, contents: Option<&Object>) -> bool {
+    let Some(contents) = contents else {
+        return false;
+    };
+    match document.dereference(contents) {
+        Ok((_, Object::Stream(stream))) => !stream.content.is_empty(),
+        Ok((_, Object::Array(items))) => !items.is_empty(),
+        _ => false,
+    }
+}
+
+fn append_original_contents(
     document: &mut Document,
     contents: Option<Object>,
     output: &mut Vec<Object>,
@@ -348,9 +417,231 @@ pub(crate) fn append_original_contents(
     }
 }
 
+/// Helpers shared by the graphics-state regression tests of every surface that
+/// appends content to an existing page.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use lopdf::{Document, Object, ObjectId, Stream, content::Content, dictionary};
+
+    /// A content stream that leaves a `q` open after scaling and translating,
+    /// exactly the shape that used to drag its transform onto appended content.
+    pub(crate) const UNBALANCED_CONTENT: &[u8] =
+        b"q 0.5 0 0 0.5 300 400 cm\nBT /F1 36 Tf 60 700 Td (UNBALANCED-Q) Tj ET\n";
+
+    /// The same drawing with the `q` properly closed.
+    pub(crate) const BALANCED_CONTENT: &[u8] =
+        b"q 0.5 0 0 0.5 300 400 cm\nBT /F1 36 Tf 60 700 Td (BALANCED-Q) Tj ET\nQ\n";
+
+    /// Builds a single-page A4 PDF whose page content is exactly `content`.
+    pub(crate) fn single_page_pdf(content: &[u8]) -> Vec<u8> {
+        page_pdf(Some(content), [0, 0, 595, 842])
+    }
+
+    /// Builds a single-page PDF with the requested `/MediaBox`, and with no
+    /// `/Contents` entry at all when `content` is `None`.
+    pub(crate) fn page_pdf(content: Option<&[u8]>, media_box: [i64; 4]) -> Vec<u8> {
+        let mut document = Document::with_version("1.7");
+        let tree_root_id = document.new_object_id();
+        let mut page = dictionary! {
+            "Type" => "Page",
+            "Parent" => tree_root_id,
+            "MediaBox" => media_box.into_iter().map(Object::Integer).collect::<Vec<_>>(),
+            "Resources" => dictionary! {},
+        };
+        if let Some(content) = content {
+            let content_id = document.add_object(Stream::new(dictionary! {}, content.to_vec()));
+            page.set("Contents", content_id);
+        }
+        let page_id = document.add_object(page);
+        document.objects.insert(
+            tree_root_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Kids" => vec![Object::Reference(page_id)],
+                "Count" => 1,
+            }),
+        );
+        let catalog_id = document.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => tree_root_id,
+        });
+        document.trailer.set("Root", catalog_id);
+        let mut bytes = Vec::new();
+        let _ = document.save_to(&mut bytes);
+        bytes
+    }
+
+    /// Replays a page's concatenated content stream and returns the current
+    /// transformation matrix in force when `name` is drawn with `Do`.
+    ///
+    /// This is the matrix a viewer actually applies to the appended artwork, so
+    /// comparing it against the same operation on balanced input proves where
+    /// the mark lands without needing a rasterizer.
+    pub(crate) fn ctm_at_xobject(
+        document: &Document,
+        page_id: ObjectId,
+        name: &str,
+    ) -> Option<[f32; 6]> {
+        let content = Content::decode(&document.get_page_content(page_id)).ok()?;
+        let mut ctm = IDENTITY;
+        let mut stack: Vec<[f32; 6]> = Vec::new();
+        for operation in &content.operations {
+            match operation.operator.as_str() {
+                "q" => stack.push(ctm),
+                "Q" => ctm = stack.pop().unwrap_or(ctm),
+                "cm" => {
+                    let operands = operation
+                        .operands
+                        .iter()
+                        .map(Object::as_float)
+                        .collect::<Result<Vec<_>, _>>()
+                        .ok()?;
+                    ctm = concat(<[f32; 6]>::try_from(operands).ok()?, ctm);
+                }
+                "Do" => {
+                    let drawn = operation
+                        .operands
+                        .first()
+                        .and_then(|operand| operand.as_name().ok());
+                    if drawn == Some(name.as_bytes()) {
+                        return Some(ctm);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    pub(crate) const IDENTITY: [f32; 6] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+
+    /// `left` applied before `right`, which is what `cm` does to the CTM.
+    fn concat(left: [f32; 6], right: [f32; 6]) -> [f32; 6] {
+        [
+            left[0] * right[0] + left[1] * right[2],
+            left[0] * right[1] + left[1] * right[3],
+            left[2] * right[0] + left[3] * right[2],
+            left[2] * right[1] + left[3] * right[3],
+            left[4] * right[0] + left[5] * right[2] + right[4],
+            left[4] * right[1] + left[5] * right[3] + right[5],
+        ]
+    }
+
+    /// Compares two matrices with a tolerance that absorbs the five-decimal
+    /// rounding our content writers apply.
+    pub(crate) fn assert_matrix_eq(actual: [f32; 6], expected: [f32; 6]) {
+        for (actual, expected) in actual.into_iter().zip(expected) {
+            assert!(
+                (actual - expected).abs() < 0.001,
+                "matrix mismatch: {actual:?} vs {expected:?}"
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{OverlayOptions, prepare_overlay_guide};
+    use lopdf::{Document, Object, ObjectId, Stream, dictionary};
+
+    use super::{
+        OverlayOptions, append_page_content_with_reset, prepare_overlay_guide,
+        test_support::{
+            BALANCED_CONTENT, IDENTITY, UNBALANCED_CONTENT, assert_matrix_eq, ctm_at_xobject,
+            page_pdf, single_page_pdf,
+        },
+    };
+
+    fn first_page(document: &Document) -> Result<ObjectId, Box<dyn std::error::Error>> {
+        Ok(*document
+            .get_pages()
+            .values()
+            .next()
+            .ok_or("the fixture has no page")?)
+    }
+
+    /// The defect: content appended after an unbalanced `q ... cm` inherited
+    /// that transform, so a mark asked for in unscaled page space was drawn
+    /// half-size and 300x400 away from where it belonged.
+    #[test]
+    fn appended_content_starts_from_the_initial_graphics_state()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut document = Document::load_mem(&single_page_pdf(UNBALANCED_CONTENT))?;
+        let page_id = first_page(&document)?;
+        append_page_content_with_reset(&mut document, page_id, b"q /Mark Do Q\n")?;
+        assert_matrix_eq(
+            ctm_at_xobject(&document, page_id, "Mark").ok_or("the mark is not drawn")?,
+            IDENTITY,
+        );
+        Ok(())
+    }
+
+    /// Wrapping already-balanced content in `q`/`Q` has to change nothing.
+    #[test]
+    fn balanced_pages_are_unaffected_by_the_reset() -> Result<(), Box<dyn std::error::Error>> {
+        let mut document = Document::load_mem(&single_page_pdf(BALANCED_CONTENT))?;
+        let page_id = first_page(&document)?;
+        append_page_content_with_reset(&mut document, page_id, b"q /Mark Do Q\n")?;
+        assert_matrix_eq(
+            ctm_at_xobject(&document, page_id, "Mark").ok_or("the mark is not drawn")?,
+            IDENTITY,
+        );
+        Ok(())
+    }
+
+    /// A page with no `/Contents` must not get a `Q` with nothing to restore -
+    /// that underflows the graphics state stack. `PDFBox` guards this the same
+    /// way with `sourcePage.hasContents()`.
+    #[test]
+    fn pages_without_content_get_no_unbalanced_restore() -> Result<(), Box<dyn std::error::Error>> {
+        let mut document = Document::load_mem(&page_pdf(None, [0, 0, 595, 842]))?;
+        let page_id = first_page(&document)?;
+        // A payload with no `Q` of its own, so any restore in the result can
+        // only have come from the reset wrapper.
+        append_page_content_with_reset(&mut document, page_id, b"/Mark Do\n")?;
+        let content = String::from_utf8_lossy(&document.get_page_content(page_id)).into_owned();
+        assert!(
+            !content.contains('Q'),
+            "an empty page must not gain a restore operator: {content}"
+        );
+        assert_eq!(
+            document
+                .get_dictionary(page_id)?
+                .get(b"Contents")?
+                .as_array()?
+                .len(),
+            1,
+            "an empty page must not gain a prefix save stream either"
+        );
+        assert_matrix_eq(
+            ctm_at_xobject(&document, page_id, "Mark").ok_or("the mark is not drawn")?,
+            IDENTITY,
+        );
+        Ok(())
+    }
+
+    /// The same has to hold when `/Contents` is already an array rather than a
+    /// single stream: every original member survives, in order, between the
+    /// new save and restore.
+    #[test]
+    fn existing_contents_arrays_keep_every_member() -> Result<(), Box<dyn std::error::Error>> {
+        let mut document = Document::load_mem(&single_page_pdf(b"q 2 0 0 2 0 0 cm\n"))?;
+        let page_id = first_page(&document)?;
+        let second = document.add_object(Stream::new(dictionary! {}, b"1 0 0 1 7 9 cm\n".to_vec()));
+        let first = document.get_dictionary(page_id)?.get(b"Contents")?.clone();
+        document
+            .get_dictionary_mut(page_id)?
+            .set("Contents", vec![first, Object::Reference(second)]);
+
+        append_page_content_with_reset(&mut document, page_id, b"q /Mark Do Q\n")?;
+        let content = String::from_utf8_lossy(&document.get_page_content(page_id)).into_owned();
+        assert!(content.contains("2 0 0 2 0 0 cm"), "{content}");
+        assert!(content.contains("1 0 0 1 7 9 cm"), "{content}");
+        assert_matrix_eq(
+            ctm_at_xobject(&document, page_id, "Mark").ok_or("the mark is not drawn")?,
+            IDENTITY,
+        );
+        Ok(())
+    }
 
     #[test]
     fn sequential_mode_preserves_java_file_switch_order() -> Result<(), super::OverlayError> {
