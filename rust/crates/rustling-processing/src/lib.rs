@@ -13274,6 +13274,58 @@ mod tests {
     };
     use crate::runtime_config::RuntimeConfig;
 
+    /// Pins the HTTP status each PDF-to-HTML failure class maps to. The two output caps
+    /// live in `package_outputs`, which both renderers share, so they must answer 5xx
+    /// instead of blaming the client for a cap the request cannot influence.
+    #[test]
+    fn pdf_to_html_output_caps_answer_a_server_error() {
+        use axum::http::StatusCode;
+
+        use super::map_pdf_to_html_error;
+        use crate::pdf_to_html::PdfToHtmlError;
+
+        assert_eq!(
+            map_pdf_to_html_error(&PdfToHtmlError::OutputTooLarge).status,
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            map_pdf_to_html_error(&PdfToHtmlError::TooManyOutputs).status,
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        // Input-shaped rejections stay 400, and a missing renderer stays 501.
+        assert_eq!(
+            map_pdf_to_html_error(&PdfToHtmlError::DocumentTooLarge).status,
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            map_pdf_to_html_error(&PdfToHtmlError::NativeUnavailable {
+                explicitly_configured: false,
+                details: "no runtime".to_owned(),
+            })
+            .status,
+            StatusCode::NOT_IMPLEMENTED
+        );
+    }
+
+    /// An incomplete Markdown reconstruction must be an explicit error, never a 200 with
+    /// the tail of the document missing.
+    #[test]
+    fn pdf_to_markdown_incomplete_extraction_is_a_client_error() {
+        use axum::http::StatusCode;
+
+        use super::map_pdf_markdown_error;
+        use crate::pdf_markdown::PdfMarkdownError;
+
+        assert_eq!(
+            map_pdf_markdown_error(&PdfMarkdownError::TooManyLines {
+                filename: "huge.pdf".to_owned(),
+                limit: 200_000,
+            })
+            .status,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
     #[test]
     fn parses_legacy_multipart_size_values() {
         assert_eq!(parse_data_size("2000MB"), Some(DEFAULT_MAX_UPLOAD_BYTES));

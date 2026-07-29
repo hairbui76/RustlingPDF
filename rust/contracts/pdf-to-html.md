@@ -72,12 +72,31 @@ All four rotations are handled, including `/Rotate 180`, which earlier revisions
 ignored. Rotation changes neither the offsets of the emitted runs nor their DOM
 order.
 
-The native path bounds retained text (32 MiB), generated HTML (64 MiB), image
-count (10,000), pixels per decoded image (25 million), encoded image bytes
-(128 MiB), total flat ZIP entries (100,000), and total unpacked output
-(200 MiB). The shared geometry extraction also caps pages at 10,000 and lines
-at 200,000. Limit violations and malformed/encrypted PDFs return a client error
-without panicking.
+## Limits
+
+Two groups of limits apply, and they differ in scope and in status code.
+
+**Native-path input limits** — these judge the upload, so they return
+`400 Bad Request`:
+
+- pages: 10,000
+- reconstructed text lines: 200,000 (from the shared geometry extractor)
+- retained text: 32 MiB
+- generated HTML: 64 MiB
+- extracted images: 10,000
+- pixels per decoded image: 25 million
+- encoded image bytes: 128 MiB
+
+**Shared output limits** — enforced when the workspace is archived, so they apply
+to the **external Poppler path as well as the native one**:
+
+- total flat ZIP entries: 100,000
+- total archived output: 200 MiB
+
+Because a legitimate large Poppler conversion can reach these, they are treated
+as a server-side capacity policy and return `500 Internal Server Error`; the
+request is not blamed for a cap it cannot see or influence. Malformed and
+encrypted PDFs remain `400 Bad Request`, and no limit violation panics.
 
 ## Explicit native divergences from Poppler `-c`
 

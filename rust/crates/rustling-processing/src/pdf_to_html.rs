@@ -147,6 +147,13 @@ pub enum PdfToHtmlError {
 }
 
 impl PdfToHtmlError {
+    /// Returns true when the upload itself is what the endpoint rejected.
+    ///
+    /// [`Self::TooManyOutputs`] and [`Self::OutputTooLarge`] are deliberately excluded:
+    /// they are raised by `package_outputs`, which is shared by both renderers, so they
+    /// also fire for a legitimate large Poppler conversion. They express how much output
+    /// this service is willing to materialise — a server-side policy — so they map to a
+    /// 5xx rather than blaming the client for a cap it cannot see.
     #[must_use]
     pub fn is_client_input_error(&self) -> bool {
         match self {
@@ -167,12 +174,12 @@ impl PdfToHtmlError {
                 | PdfiumExtractImagesError::EncodedImagesTooLarge { .. },
             )
             | Self::NoPages
-            | Self::TooManyOutputs
-            | Self::OutputTooLarge
             | Self::HtmlTooLarge
             | Self::TextTooLarge
             | Self::DocumentTooLarge => true,
-            Self::PdftohtmlFailed { .. }
+            Self::TooManyOutputs
+            | Self::OutputTooLarge
+            | Self::PdftohtmlFailed { .. }
             | Self::PdftohtmlStart { .. }
             | Self::NativeUnavailable { .. }
             | Self::NativeText(PdfiumTextError::RuntimePoisoned)
@@ -654,12 +661,24 @@ fn is_safe_flat_name(name: &str) -> bool {
         })
 }
 
+/// Archives the workspace for **either** renderer, bounding how much output the service
+/// materialises. Both caps are server-side policy, not a client-input judgement; see
+/// [`PdfToHtmlError::is_client_input_error`].
 fn package_outputs(work_dir: &Path, output_path: &Path) -> Result<(), PdfToHtmlError> {
+    package_outputs_within(work_dir, output_path, MAX_OUTPUT_FILES, MAX_OUTPUT_BYTES)
+}
+
+fn package_outputs_within(
+    work_dir: &Path,
+    output_path: &Path,
+    max_files: usize,
+    max_bytes: u64,
+) -> Result<(), PdfToHtmlError> {
     let mut outputs = Vec::new();
     for entry in fs::read_dir(work_dir)? {
         let path = entry?.path();
         if path.is_file() {
-            if outputs.len() >= MAX_OUTPUT_FILES {
+            if outputs.len() >= max_files {
                 return Err(PdfToHtmlError::TooManyOutputs);
             }
             outputs.push(path);
@@ -681,7 +700,7 @@ fn package_outputs(work_dir: &Path, output_path: &Path) -> Result<(), PdfToHtmlE
             .filter(|name| is_safe_flat_name(name))
             .ok_or_else(|| PdfToHtmlError::UnsafeOutputName(path.display().to_string()))?;
         zip.start_file(name, options)?;
-        let remaining = MAX_OUTPUT_BYTES
+        let remaining = max_bytes
             .checked_sub(total_bytes)
             .ok_or(PdfToHtmlError::OutputTooLarge)?;
         let input = File::open(path)?;
@@ -973,6 +992,50 @@ mod tests {
         let mut html = String::new();
         archive.by_name("source.html")?.read_to_string(&mut html)?;
         assert!(html.contains("external marker"));
+        Ok(())
+    }
+
+    /// `package_outputs` is shared by the external and native renderers, so its caps must
+    /// not be reported as a client input error: a legitimate large Poppler conversion
+    /// would then fail as `400 Bad Request` blaming the client for a server-side cap.
+    #[test]
+    fn shared_output_caps_are_server_side_conditions() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let work_dir = directory.path().join("work");
+        std::fs::create_dir(&work_dir)?;
+        std::fs::write(work_dir.join("a.html"), vec![b'a'; 4_096])?;
+        std::fs::write(work_dir.join("b.html"), vec![b'b'; 4_096])?;
+
+        let too_large = super::package_outputs_within(
+            &work_dir,
+            &directory.path().join("too-large.zip"),
+            10,
+            1_024,
+        )
+        .expect_err("an over-cap output must not be archived");
+        assert!(matches!(too_large, PdfToHtmlError::OutputTooLarge));
+        assert!(
+            !too_large.is_client_input_error(),
+            "an output-size cap is a server-side policy, not bad client input"
+        );
+
+        let too_many = super::package_outputs_within(
+            &work_dir,
+            &directory.path().join("too-many.zip"),
+            1,
+            1024 * 1024,
+        )
+        .expect_err("an over-count output must not be archived");
+        assert!(matches!(too_many, PdfToHtmlError::TooManyOutputs));
+        assert!(!too_many.is_client_input_error());
+
+        // Input-shaped rejections stay client errors.
+        assert!(PdfToHtmlError::DocumentTooLarge.is_client_input_error());
+        assert!(PdfToHtmlError::TextTooLarge.is_client_input_error());
+        assert!(PdfToHtmlError::HtmlTooLarge.is_client_input_error());
+
+        // Under the caps the archive is still produced.
+        super::package_outputs_within(&work_dir, &directory.path().join("ok.zip"), 10, 1024 * 1024)?;
         Ok(())
     }
 
