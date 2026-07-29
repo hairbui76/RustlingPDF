@@ -1,21 +1,31 @@
 //! Incremental PDF signature placeholder support.
 //!
-//! This module creates an invisible signature field and reserves an exact-size
-//! `/Contents` gap in a new PDF revision. A key provider creates detached CMS
-//! bytes for [`PdfSignaturePlaceholder::signed_bytes`], then the caller fills
-//! that gap without changing any signed byte. No HTTP route uses this yet.
+//! This module creates a signature field - invisible, or with a visible page
+//! widget - and reserves an exact-size `/Contents` gap in a new PDF revision. A
+//! key provider creates detached CMS bytes for
+//! [`PdfSignaturePlaceholder::signed_bytes`], then the caller fills that gap
+//! without changing any signed byte. `POST /api/v1/security/cert-sign` and the
+//! hardware-signing routes both run through here.
 
 use chrono::Utc;
 use lopdf::{
-    Dictionary, Document, IncrementalDocument, Object, Stream, StringFormat,
+    Dictionary, Document, IncrementalDocument, Object, ObjectId, Stream, StringFormat,
     content::{Content, Operation},
     dictionary,
 };
 use thiserror::Error;
 
+use crate::pdf_page_geometry::inherited_value;
+
 const BYTE_RANGE_WIDTH: usize = 19;
 const BYTE_RANGE_MARKER: i64 = i64::MAX;
 const MAX_RESERVED_SIGNATURE_BYTES: usize = 512 * 1024;
+/// The visible signature badge is drawn at this size in appearance space and is
+/// scaled down only when the page is too small to hold it.
+const APPEARANCE_WIDTH: f32 = 200.0;
+const APPEARANCE_HEIGHT: f32 = 50.0;
+/// US Letter, the size a viewer assumes when a page declares no `/MediaBox`.
+const DEFAULT_PAGE_BOX: [f32; 4] = [0.0, 0.0, 612.0, 792.0];
 
 /// Optional metadata recorded in the PDF signature dictionary.
 #[derive(Clone, Copy, Debug, Default)]
@@ -145,15 +155,17 @@ impl PdfSignaturePlaceholder {
         if let Some(appearance) = appearance {
             let page_id =
                 page_id_for_number(incremental.get_prev_documents(), appearance.page_number)?;
+            let placement = appearance_placement(incremental.get_prev_documents(), page_id);
             let appearance_id = add_visible_appearance(
                 &mut incremental,
                 appearance,
                 &signing_time.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
                 metadata.reason,
+                placement,
             )?;
             field.set("Type", "Annot");
             field.set("Subtype", "Widget");
-            field.set("Rect", rectangle(0, 0, 200, 50));
+            field.set("Rect", rectangle(placement.rect));
             field.set("P", Object::Reference(page_id));
             field.set("F", Object::Integer(4));
             field.set(
@@ -278,11 +290,130 @@ fn page_id_for_number(
         .ok_or(PdfSigningError::AppearancePageMissing(page_number as usize))
 }
 
+/// Where the signature widget sits on the target page, and how its appearance
+/// has to be turned so it still reads upright once the viewer applies
+/// `/Rotate`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct AppearancePlacement {
+    rect: [f32; 4],
+    matrix: [f32; 6],
+}
+
+/// Anchors the visible signature to the page a viewer actually shows.
+///
+/// The Java oracle (and `PDFBox`'s `PDDocument.addSignature`, which copies the
+/// template widget's `/Rect` verbatim) hardcodes `[0 0 200 50]` in absolute
+/// user space with no `/Matrix`. That is only correct for the common
+/// `MediaBox [0 0 w h]`, `/Rotate 0` page: on a page whose box does not start
+/// at the origin the widget lands outside the visible area and the user is told
+/// the document was signed while seeing nothing, and on a `/Rotate` page the
+/// badge renders sideways. We deliberately diverge and derive the placement
+/// from the page instead - for an origin-anchored, unrotated page the result is
+/// byte-identical to the old `[0 0 200 50]`.
+fn appearance_placement(previous: &Document, page_id: ObjectId) -> AppearancePlacement {
+    let visible = visible_page_box(previous, page_id);
+    let rotation = page_rotation(previous, page_id);
+    // The widget rectangle has to cover the appearance *after* `/Matrix` has
+    // turned it, so a quarter turn swaps the extents.
+    let (extent_width, extent_height) = if rotation == 90 || rotation == 270 {
+        (APPEARANCE_HEIGHT, APPEARANCE_WIDTH)
+    } else {
+        (APPEARANCE_WIDTH, APPEARANCE_HEIGHT)
+    };
+    let width = extent_width.min(visible[2] - visible[0]);
+    let height = extent_height.min(visible[3] - visible[1]);
+    // Anchor on the corner the viewer shows bottom-left once `/Rotate` has been
+    // applied, so the badge lands in the same visual spot on every page.
+    let (left, bottom) = match rotation {
+        90 => (visible[2] - width, visible[1]),
+        180 => (visible[2] - width, visible[3] - height),
+        270 => (visible[0], visible[3] - height),
+        _ => (visible[0], visible[1]),
+    };
+    AppearancePlacement {
+        rect: [left, bottom, left + width, bottom + height],
+        // Counter-rotate against `/Rotate`: the viewer turns the page clockwise,
+        // so the badge is turned the same amount anticlockwise and comes out
+        // level. Per ISO 32000-1 12.5.5 the transformed `/BBox` is then fitted
+        // into `/Rect`, which is why `/Rect` above is sized post-rotation.
+        matrix: match rotation {
+            90 => [0.0, 1.0, -1.0, 0.0, 0.0, 0.0],
+            180 => [-1.0, 0.0, 0.0, -1.0, 0.0, 0.0],
+            270 => [0.0, -1.0, 1.0, 0.0, 0.0, 0.0],
+            _ => [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+        },
+    }
+}
+
+/// The area a viewer actually paints: `/CropBox` clipped to `/MediaBox` when
+/// that leaves something usable, otherwise `/MediaBox`. Both are inheritable
+/// and neither is required to start at the origin.
+fn visible_page_box(previous: &Document, page_id: ObjectId) -> [f32; 4] {
+    let media_box = page_box(previous, page_id, b"MediaBox").unwrap_or(DEFAULT_PAGE_BOX);
+    let Some(crop_box) = page_box(previous, page_id, b"CropBox") else {
+        return media_box;
+    };
+    let clipped = [
+        crop_box[0].max(media_box[0]),
+        crop_box[1].max(media_box[1]),
+        crop_box[2].min(media_box[2]),
+        crop_box[3].min(media_box[3]),
+    ];
+    if clipped[2] - clipped[0] > 0.0 && clipped[3] - clipped[1] > 0.0 {
+        clipped
+    } else {
+        media_box
+    }
+}
+
+/// Reads an inheritable page rectangle, normalized so the lower-left corner
+/// really is the lower-left corner. Malformed, degenerate and non-finite
+/// rectangles are reported as absent rather than propagated into the geometry.
+fn page_box(previous: &Document, page_id: ObjectId, key: &[u8]) -> Option<[f32; 4]> {
+    let value = inherited_value(previous, page_id, key).ok()?;
+    let (_, value) = previous.dereference(&value).ok()?;
+    let values = value
+        .as_array()
+        .ok()?
+        .iter()
+        .map(Object::as_float)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    let [left, bottom, right, top] = <[f32; 4]>::try_from(values).ok()?;
+    let normalized = [
+        left.min(right),
+        bottom.min(top),
+        left.max(right),
+        bottom.max(top),
+    ];
+    let usable = normalized.iter().all(|value| value.is_finite())
+        && normalized[2] - normalized[0] > 0.0
+        && normalized[3] - normalized[1] > 0.0;
+    usable.then_some(normalized)
+}
+
+/// The page's inherited `/Rotate`, normalized to `0`, `90`, `180` or `270`.
+/// Anything else (including the values ISO 32000-1 forbids) is treated as no
+/// rotation.
+fn page_rotation(previous: &Document, page_id: ObjectId) -> i64 {
+    let rotation = inherited_value(previous, page_id, b"Rotate")
+        .ok()
+        .and_then(|value| {
+            previous
+                .dereference(&value)
+                .ok()
+                .and_then(|(_, value)| value.as_i64().ok())
+        })
+        .map_or(0, |value| value.rem_euclid(360));
+    if rotation % 90 == 0 { rotation } else { 0 }
+}
+
 fn add_visible_appearance(
     incremental: &mut IncrementalDocument,
     appearance: PdfSignatureAppearance<'_>,
     signing_time: &str,
     reason: Option<&str>,
+    placement: AppearancePlacement,
 ) -> Result<lopdf::ObjectId, PdfSigningError> {
     let font_id = incremental.new_document.add_object(dictionary! {
         "Type" => "Font",
@@ -350,7 +481,8 @@ fn add_visible_appearance(
             "Type" => "XObject",
             "Subtype" => "Form",
             "FormType" => 1,
-            "BBox" => rectangle(0, 0, 200, 50),
+            "BBox" => rectangle([0.0, 0.0, APPEARANCE_WIDTH, APPEARANCE_HEIGHT]),
+            "Matrix" => Object::Array(placement.matrix.into_iter().map(Object::Real).collect()),
             "Resources" => resources,
         },
         content,
@@ -392,8 +524,8 @@ fn appearance_line(value: &str, max_characters: usize) -> String {
         .collect()
 }
 
-fn rectangle(left: i64, bottom: i64, right: i64, top: i64) -> Object {
-    Object::Array(vec![left.into(), bottom.into(), right.into(), top.into()])
+fn rectangle(values: [f32; 4]) -> Object {
+    Object::Array(values.into_iter().map(Object::Real).collect())
 }
 
 fn acro_form_dictionary(
@@ -804,6 +936,267 @@ amwXixTh3YlrdOneww==\n\
                 .any(|window| window == b"Signed by Signer Name")
         );
         Ok(())
+    }
+
+    /// The defect: the widget rectangle was the absolute `[0 0 200 50]`, so on
+    /// a page whose visible box does not start at the origin the signature was
+    /// applied and valid but rendered nowhere the reader could see it.
+    #[test]
+    fn visible_widget_follows_an_offset_page_box() -> Result<(), Box<dyn std::error::Error>> {
+        for (label, media_box, crop_box, expected) in [
+            (
+                "origin-anchored",
+                [0, 0, 595, 842],
+                None,
+                [0.0, 0.0, 200.0, 50.0],
+            ),
+            (
+                "offset MediaBox",
+                [100, 100, 695, 942],
+                None,
+                [100.0, 100.0, 300.0, 150.0],
+            ),
+            (
+                "offset CropBox",
+                [0, 0, 595, 842],
+                Some([200, 300, 500, 700]),
+                [200.0, 300.0, 400.0, 350.0],
+            ),
+        ] {
+            let rect = widget_rect(&signed_page(media_box, crop_box, None)?)?;
+            assert_values_eq(rect, expected, label);
+        }
+        Ok(())
+    }
+
+    /// A widget that overlaps the visible box is not enough on a `/Rotate`
+    /// page: without a counter-rotating `/Matrix` the badge reads sideways.
+    #[test]
+    fn visible_widget_counter_rotates_against_page_rotation()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (rotation, expected_rect, expected_matrix) in [
+            (0, [0.0, 0.0, 200.0, 50.0], [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
+            (
+                90,
+                [545.0, 0.0, 595.0, 200.0],
+                [0.0, 1.0, -1.0, 0.0, 0.0, 0.0],
+            ),
+            (
+                180,
+                [395.0, 792.0, 595.0, 842.0],
+                [-1.0, 0.0, 0.0, -1.0, 0.0, 0.0],
+            ),
+            (
+                270,
+                [0.0, 642.0, 50.0, 842.0],
+                [0.0, -1.0, 1.0, 0.0, 0.0, 0.0],
+            ),
+        ] {
+            let label = format!("/Rotate {rotation}");
+            let document = signed_page([0, 0, 595, 842], None, Some(rotation))?;
+            assert_values_eq(widget_rect(&document)?, expected_rect, &label);
+
+            let field_id = widget_id(&document)?;
+            let appearance_id = document
+                .get_object(field_id)?
+                .as_dict()?
+                .get(b"AP")?
+                .as_dict()?
+                .get(b"N")?
+                .as_reference()?;
+            let appearance = document.get_object(appearance_id)?.as_stream()?;
+            assert_values_eq(
+                numbers(&appearance.dict, b"Matrix")?,
+                expected_matrix,
+                &label,
+            );
+            // The appearance itself always stays 200x50; only /Matrix and /Rect
+            // change, which is what ISO 32000-1 12.5.5 fits together.
+            assert_values_eq(
+                numbers(&appearance.dict, b"BBox")?,
+                [0.0, 0.0, 200.0, 50.0],
+                &label,
+            );
+        }
+        Ok(())
+    }
+
+    /// A page smaller than the badge still has to show it inside the page.
+    #[test]
+    fn visible_widget_shrinks_to_fit_a_tiny_page() -> Result<(), Box<dyn std::error::Error>> {
+        assert_values_eq(
+            widget_rect(&signed_page([0, 0, 120, 30], None, None)?)?,
+            [0.0, 0.0, 120.0, 30.0],
+            "tiny page",
+        );
+        Ok(())
+    }
+
+    /// `/MediaBox`, `/CropBox` and `/Rotate` may all be inherited from the
+    /// `/Pages` node, and the placement has to see them there too.
+    #[test]
+    fn visible_widget_reads_inherited_page_attributes() -> Result<(), Box<dyn std::error::Error>> {
+        let source = inherited_attribute_pdf()?;
+        let placeholder = PdfSignaturePlaceholder::prepare_with_metadata_and_appearance(
+            &source,
+            8_192,
+            PdfSignatureMetadata::default(),
+            Some(PdfSignatureAppearance {
+                page_number: 1,
+                signer_name: "Signer",
+                show_logo: false,
+            }),
+        )?;
+        let document = Document::load_mem(&placeholder.complete(&[])?)?;
+        assert_values_eq(
+            widget_rect(&document)?,
+            [645.0, 100.0, 695.0, 300.0],
+            "inherited attributes",
+        );
+        Ok(())
+    }
+
+    /// Compares PDF numbers with a tolerance rather than bit-for-bit.
+    fn assert_values_eq<const N: usize>(actual: [f32; N], expected: [f32; N], label: &str) {
+        for (actual, expected) in actual.into_iter().zip(expected) {
+            assert!(
+                (actual - expected).abs() < 0.001,
+                "{label}: {actual} is not {expected}"
+            );
+        }
+    }
+
+    /// Reads a fixed-length numeric array out of a PDF dictionary.
+    fn numbers<const N: usize>(
+        dictionary: &Dictionary,
+        key: &[u8],
+    ) -> Result<[f32; N], Box<dyn std::error::Error>> {
+        let values = dictionary
+            .get(key)?
+            .as_array()?
+            .iter()
+            .map(Object::as_float)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(<[f32; N]>::try_from(values).map_err(|_| "unexpected array length")?)
+    }
+
+    fn signed_page(
+        media_box: [i64; 4],
+        crop_box: Option<[i64; 4]>,
+        rotation: Option<i64>,
+    ) -> Result<Document, Box<dyn std::error::Error>> {
+        let source = page_pdf(media_box, crop_box, rotation)?;
+        let placeholder = PdfSignaturePlaceholder::prepare_with_metadata_and_appearance(
+            &source,
+            8_192,
+            PdfSignatureMetadata::default(),
+            Some(PdfSignatureAppearance {
+                page_number: 1,
+                signer_name: "Signer",
+                show_logo: false,
+            }),
+        )?;
+        Ok(Document::load_mem(&placeholder.complete(&[])?)?)
+    }
+
+    fn widget_id(document: &Document) -> Result<lopdf::ObjectId, Box<dyn std::error::Error>> {
+        let page_id = document.get_pages()[&1];
+        let annotations = document.get_object(page_id)?.as_dict()?.get(b"Annots")?;
+        let annotations = document.dereference(annotations)?.1.as_array()?;
+        Ok(annotations
+            .first()
+            .ok_or("the page carries no widget")?
+            .as_reference()?)
+    }
+
+    fn widget_rect(document: &Document) -> Result<[f32; 4], Box<dyn std::error::Error>> {
+        let field_id = widget_id(document)?;
+        let rect = document
+            .get_object(field_id)?
+            .as_dict()?
+            .get(b"Rect")?
+            .as_array()?
+            .iter()
+            .map(Object::as_float)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(<[f32; 4]>::try_from(rect).map_err(|_| "the widget rectangle is malformed")?)
+    }
+
+    fn page_pdf(
+        media_box: [i64; 4],
+        crop_box: Option<[i64; 4]>,
+        rotation: Option<i64>,
+    ) -> Result<Vec<u8>, lopdf::Error> {
+        let mut document = Document::with_version("1.7");
+        let pages_id = document.new_object_id();
+        let content_id = document.add_object(Stream::new(Dictionary::new(), Vec::new()));
+        let mut page = dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "MediaBox" => media_box.into_iter().map(Object::Integer).collect::<Vec<_>>(),
+            "Contents" => content_id,
+        };
+        if let Some(crop_box) = crop_box {
+            page.set(
+                "CropBox",
+                crop_box
+                    .into_iter()
+                    .map(Object::Integer)
+                    .collect::<Vec<_>>(),
+            );
+        }
+        if let Some(rotation) = rotation {
+            page.set("Rotate", Object::Integer(rotation));
+        }
+        let page_object_id = document.add_object(page);
+        document.objects.insert(
+            pages_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Kids" => vec![Object::Reference(page_object_id)],
+                "Count" => 1,
+            }),
+        );
+        let catalog_id = document.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => pages_id,
+        });
+        document.trailer.set("Root", Object::Reference(catalog_id));
+        let mut bytes = Vec::new();
+        document.save_to(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    /// A page that declares nothing itself: `/MediaBox`, `/CropBox` and
+    /// `/Rotate` all come from the `/Pages` node above it.
+    fn inherited_attribute_pdf() -> Result<Vec<u8>, lopdf::Error> {
+        let mut document = Document::with_version("1.7");
+        let pages_id = document.new_object_id();
+        let content_id = document.add_object(Stream::new(Dictionary::new(), Vec::new()));
+        let page_object_id = document.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "Contents" => content_id,
+        });
+        document.objects.insert(
+            pages_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "MediaBox" => vec![0.into(), 0.into(), 842.into(), 1191.into()],
+                "CropBox" => vec![100.into(), 100.into(), 695.into(), 942.into()],
+                "Rotate" => 90,
+                "Kids" => vec![Object::Reference(page_object_id)],
+                "Count" => 1,
+            }),
+        );
+        let catalog_id = document.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => pages_id,
+        });
+        document.trailer.set("Root", Object::Reference(catalog_id));
+        let mut bytes = Vec::new();
+        document.save_to(&mut bytes)?;
+        Ok(bytes)
     }
 
     #[test]

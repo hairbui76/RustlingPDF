@@ -63,6 +63,39 @@ CurrentUser certificate and runs the same independent verification.
 UTC date, and reason text. `showLogo=true` adds a vector mark without loading
 an external image. Missing pages and non-positive page numbers return `400`.
 
+### Visible widget placement
+
+The appearance stream is always 200x50 in its own space (`/BBox
+[0 0 200 50]`). Where it lands is derived from the target page rather than
+hardcoded:
+
+- the anchor is the lower-left corner of the page's `/CropBox` clipped to its
+  `/MediaBox`, falling back to `/MediaBox` when that leaves nothing usable and
+  to Letter when neither box is present or parseable. Both boxes are read
+  through the inheritance chain and are normalized, so a reversed, degenerate
+  or non-finite rectangle is treated as absent;
+- `/Rotate` (also inherited, normalized to 0/90/180/270, anything else treated
+  as 0) is compensated by a counter-rotating appearance `/Matrix`, and the
+  widget `/Rect` is sized for the rotated extent — 200x50 for 0/180, 50x200 for
+  90/270 — and anchored to the corner the viewer shows bottom-left. Per ISO
+  32000-1 12.5.5 the transformed `/BBox` is then fitted into `/Rect`;
+- if the visible box is smaller than the badge, `/Rect` shrinks to the box so
+  the widget still falls inside the page.
+
+On the ordinary origin-anchored, unrotated page this reproduces the previous
+`/Rect [0 0 200 50]` exactly.
+
+This is a deliberate divergence from the Java oracle. `CertSignController`
+builds its template with `new PDRectangle(0, 0, 200, 50)` and PDFBox's
+`PDDocument.addSignature` copies that `/Rect` verbatim
+(`assignSignatureRectangle`), with no `/Matrix` and no reference to the page's
+boxes or rotation. Upstream therefore reports "signed successfully" while
+placing the widget entirely outside the visible area of a page whose box does
+not start at the origin, and renders it sideways on a `/Rotate` page. The
+signature was valid in both cases, so the user was shown nothing to verify.
+RustlingPDF keeps the upstream visual result where it is correct and fixes it
+where it is not.
+
 The managed server certificate (`certType=SERVER`) was removed with
 server-side state; only caller-supplied material and desktop hardware tokens
 are supported. Less common traditional PEM ciphers/curves remain unimplemented
