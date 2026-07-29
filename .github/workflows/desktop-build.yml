@@ -27,6 +27,13 @@ name: Desktop build (reusable)
 # With productName "RustlingPDF" (no space) this is a no-op safeguard — it
 # only fires again if a space ever re-enters the product name.
 #
+# The windows leg additionally runs the MSI through a real
+# install -> assert -> uninstall -> assert lifecycle check
+# (src-tauri/windows/scripts/verify-msi-lifecycle.ps1) after uploading its
+# artifact: WiX is Windows-only, so this is the only place the uninstall
+# cleanup contract in rust/contracts/desktop-windows-installer.md can be
+# proven rather than desk-checked.
+#
 # harden-runner only guards the Linux legs: step-security/harden-runner
 # supports Linux runners only (documented upstream), so the windows/macos
 # matrix legs run without it.
@@ -288,3 +295,33 @@ jobs:
           name: desktop-${{ matrix.platform }}
           path: dist-desktop/
           if-no-files-found: error
+
+      # Install -> assert -> uninstall -> assert on the MSI that was just
+      # built. WiX is Windows-only and MSI semantics cannot be emulated, so
+      # this runner is the only place the uninstall-cleanup contract
+      # (rust/contracts/desktop-windows-installer.md) can be proven: that the
+      # registry keys provisioning.wxs authors are actually gone afterwards,
+      # that the provisioning file is removed while the user's own state in the
+      # same directory survives, and that Add/Remove Programs offers Uninstall.
+      #
+      # Deliberately placed AFTER the artifact upload: a bundle that fails this
+      # check is still downloadable for diagnosis, and the job then fails, so a
+      # non-uninstallable MSI cannot be released. Hosted runners are ephemeral
+      # and admin, and already carry the WebView2 Runtime, so the install's
+      # bootstrapper CustomAction is skipped.
+      - name: Verify MSI install/uninstall lifecycle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -Path dist-desktop -Filter *.msi | Select-Object -First 1
+          if (-not $msi) { throw "No .msi found in dist-desktop" }
+          & frontend/editor/src-tauri/windows/scripts/verify-msi-lifecycle.ps1 -MsiPath $msi.FullName -LogDirectory msi-lifecycle-logs
+          exit $LASTEXITCODE
+
+      - name: Upload MSI lifecycle logs
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: msi-lifecycle-logs-${{ matrix.platform }}
+          path: msi-lifecycle-logs/
+          if-no-files-found: ignore

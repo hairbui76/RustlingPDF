@@ -115,3 +115,14 @@ jobs:
       - name: Cross-check the provisioner crate (windows-msvc)
         working-directory: frontend/editor/src-tauri/provisioner
         run: cargo check --locked --target x86_64-pc-windows-msvc
+
+      # The provisioner's uninstall-time removal mode is plain std::fs with no
+      # Windows APIs, so it runs natively here. These tests are the only
+      # automated proof that `stirling-provision.exe --remove` deletes exactly
+      # stirling-provisioning.json and refuses everything else — it executes
+      # elevated (as LocalSystem on the all-users branch) from an MSI deferred
+      # CustomAction, so a widened deletion scope would be a privileged
+      # arbitrary-delete.
+      - name: Test the provisioner crate (host target)
+        working-directory: frontend/editor/src-tauri/provisioner
+        run: cargo test --locked
