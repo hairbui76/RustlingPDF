@@ -63,7 +63,6 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
         "Weasyprint",
         "html-to-pdf url-to-pdf markdown-to-pdf eml-to-pdf",
     ),
-    ("Pdftohtml", "pdf-to-html"),
     ("Calibre", "pdf-to-epub ebook-to-pdf"),
     ("FFmpeg", "pdf-to-video"),
     ("unrar", "cbr-to-pdf"),
@@ -2213,8 +2212,8 @@ mod tests {
     }
 
     #[test]
-    fn pdftohtml_is_not_a_dependency_of_pdf_to_markdown() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn pdftohtml_gates_neither_pdf_to_html_nor_pdf_to_markdown()
+    -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let settings = directory.path().join("settings.yml");
         fs::write(&settings, "{}\n")?;
@@ -2222,7 +2221,9 @@ mod tests {
         config
             .dependency_disabled_groups
             .insert("Pdftohtml".to_owned());
-        assert!(!config.is_endpoint_enabled("pdf-to-html"));
+        // `pdf-to-html` falls back to the native PDFium renderer, and
+        // `pdf-to-markdown` never invoked pdftohtml at all.
+        assert!(config.is_endpoint_enabled("pdf-to-html"));
         assert!(config.is_endpoint_enabled("pdf-to-markdown"));
         Ok(())
     }
@@ -2445,6 +2446,22 @@ mod tests {
             config.endpoint_availability(&["ocr-pdf".to_owned()])["ocr-pdf"].reason,
             Some("DEPENDENCY")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn pdf_to_html_remains_available_without_external_converters()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        config
+            .dependency_disabled_groups
+            .extend(["LibreOffice".to_owned(), "Pdftohtml".to_owned()]);
+
+        assert!(config.is_endpoint_enabled("pdf-to-html"));
+        assert!(config.is_endpoint_enabled("pdf-to-markdown"));
         Ok(())
     }
 

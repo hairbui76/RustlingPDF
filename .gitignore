@@ -34,3 +34,7 @@ testing/differential/_generated/
 
 # Claude Code personal per-machine settings
 .claude/settings.local.json
+
+# Harness core maintenance binary
+scripts/bin/harness
+scripts/bin/harness.exe

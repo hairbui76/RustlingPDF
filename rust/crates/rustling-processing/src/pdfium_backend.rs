@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashSet, hash_map::DefaultHasher},
+    collections::{HashMap, HashSet, hash_map::DefaultHasher},
     fs::File,
     hash::{Hash, Hasher},
     io::{self, Cursor, Write},
@@ -8,8 +8,9 @@ use std::{
 
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage, imageops};
 use pdfium_render::prelude::{
-    PdfDocument, PdfPage, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPagePaperSize,
-    PdfPageRenderRotation, PdfPageText, PdfPoints, PdfRenderConfig, Pdfium, PdfiumError,
+    PdfDocument, PdfFontWeight, PdfPage, PdfPageObjectCommon, PdfPageObjectsCommon,
+    PdfPagePaperSize, PdfPageRenderRotation, PdfPageText, PdfPoints, PdfRenderConfig, Pdfium,
+    PdfiumError,
 };
 use rxing::{
     BarcodeFormat, BinaryBitmap, DecodeHintValue, DecodeHints, Luma8LuminanceSource,
@@ -179,14 +180,40 @@ pub struct MarkdownTextLine {
     pub y: f32,
     /// True when a vertical gap before this line suggests a paragraph break.
     pub paragraph_break_before: bool,
+    /// True when most sampled non-whitespace glyphs have a bold font weight.
+    pub bold: bool,
+    /// True when most sampled non-whitespace glyphs carry `PDFium`'s italic font flag.
+    pub italic: bool,
+}
+
+/// Dimensions for one PDF page, in PDF points.
+///
+/// `width`/`height` describe the **unrotated** page box, matching the user-space
+/// coordinates reported for text ([`MarkdownTextLine`]) and image placements
+/// ([`ExtractedPageImage`]). `rotation_degrees` carries the page's intrinsic
+/// `/Rotate` value separately so a renderer can apply it once, in one place, instead
+/// of mixing rotated page extents with unrotated content coordinates.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MarkdownPageGeometry {
+    /// Zero-based source page index.
+    pub page: usize,
+    pub width: f32,
+    pub height: f32,
+    /// Intrinsic `/Rotate`, normalised to 0, 90, 180, or 270 degrees clockwise.
+    pub rotation_degrees: u16,
 }
 
 #[derive(Debug)]
 pub enum PdfiumMarkdownAttempt {
     Extracted {
         lines: Vec<MarkdownTextLine>,
+        pages: Vec<MarkdownPageGeometry>,
         median_font_size: f32,
         median_line_height: f32,
+        /// True when [`MAX_MARKDOWN_LINES`] stopped extraction before the last page,
+        /// so `lines` is incomplete. Callers must never emit a success response while
+        /// this is set; there is no page cap, so page geometry is always complete.
+        line_limit_reached: bool,
     },
     Unavailable {
         explicitly_configured: bool,
@@ -196,11 +223,39 @@ pub enum PdfiumMarkdownAttempt {
 
 #[derive(Debug)]
 pub enum PdfiumExtractImagesAttempt {
-    Extracted,
+    Extracted {
+        images: Vec<ExtractedPageImage>,
+    },
     Unavailable {
         explicitly_configured: bool,
         details: String,
     },
+}
+
+/// Placement metadata for an extracted top-level page image.
+///
+/// Reused image data has one archive `filename` but one metadata entry per placement.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExtractedPageImage {
+    pub filename: String,
+    /// Zero-based source page index.
+    pub page: usize,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+/// Optional safety limits for callers that package extracted images with other output.
+///
+/// Supplying these also opts into the per-placement metadata list, because `images` is
+/// what keeps that list bounded.
+#[derive(Debug, Clone, Copy)]
+pub struct PdfiumExtractImageLimits {
+    /// Maximum number of image placements, which also bounds the returned metadata.
+    pub images: usize,
+    pub pixels_per_image: u64,
+    pub encoded_bytes: u64,
 }
 
 #[derive(Debug)]
@@ -730,6 +785,19 @@ pub enum PdfiumExtractImagesError {
         #[source]
         source: PdfiumError,
     },
+    #[error("page images exceed the configured limit of {limit}")]
+    TooManyImages { limit: usize },
+    #[error(
+        "image {image_number} on page {page_number} has {pixels} pixels, exceeding the configured limit of {limit}"
+    )]
+    UnsafeImageDimensions {
+        page_number: usize,
+        image_number: usize,
+        pixels: u64,
+        limit: u64,
+    },
+    #[error("encoded page images exceed the configured {limit}-byte output limit")]
+    EncodedImagesTooLarge { limit: u64 },
     #[error("could not encode image {image_number} on page {page_number}: {source}")]
     EncodeImage {
         page_number: usize,
@@ -1976,6 +2044,21 @@ fn is_blank_rgba(rgba: &[u8], threshold: i32, white_percent: f32) -> bool {
     (f64::from(white) / f64::from(total)) * 100.0 >= f64::from(white_percent)
 }
 
+/// Writes every deduplicated top-level page image into a flat ZIP.
+///
+/// `limits` both bounds the work and selects the output shape. With `Some(..)` the
+/// returned [`PdfiumExtractImagesAttempt::Extracted`] carries one
+/// [`ExtractedPageImage`] per *placement* — a reused image appears once per draw so a
+/// renderer can position each occurrence — and `limits.images` is what bounds that
+/// list. With `None` nothing is bounded, so no placement list is built: duplicates are
+/// skipped outright and the archive is the only output.
+///
+/// # Errors
+///
+/// Returns [`PdfiumExtractImagesError`] when the runtime lock is poisoned, `PDFium`
+/// cannot read the document or a page, an image cannot be decoded or encoded, a
+/// supplied limit is exceeded, or the archive cannot be written.
+#[allow(clippy::too_many_lines)]
 pub fn try_extract_page_images_to_zip(
     input_path: &Path,
     filename: &str,
@@ -1983,7 +2066,9 @@ pub fn try_extract_page_images_to_zip(
     format: ExtractImageFormat,
     extension: &str,
     output_path: &Path,
+    limits: Option<PdfiumExtractImageLimits>,
 ) -> Result<PdfiumExtractImagesAttempt, PdfiumExtractImagesError> {
+    let collect_placements = limits.is_some();
     let runtime = shared_pdfium_runtime();
     let pdfium = match &runtime.instance {
         Ok(pdfium) => pdfium,
@@ -2006,7 +2091,9 @@ pub fn try_extract_page_images_to_zip(
     let output = File::create(output_path)?;
     let mut archive = ZipWriter::new(output);
     let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
-    let mut seen_images = HashSet::new();
+    let mut seen_images: HashMap<u64, String> = HashMap::new();
+    let mut images = Vec::new();
+    let mut encoded_bytes = 0_u64;
     for page_index in 0..document.pages().len() {
         let page_number = usize::try_from(page_index).unwrap_or_default() + 1;
         let page = document.pages().get(page_index).map_err(|source| {
@@ -2020,6 +2107,40 @@ pub fn try_extract_page_images_to_zip(
             let Some(image_object) = object.as_image_object() else {
                 continue;
             };
+            if let Some(limits) = limits
+                && images.len() >= limits.images
+            {
+                return Err(PdfiumExtractImagesError::TooManyImages {
+                    limit: limits.images,
+                });
+            }
+            if let Some(limits) = limits {
+                let width = image_object.width().map_err(|source| {
+                    PdfiumExtractImagesError::DecodeImage {
+                        page_number,
+                        image_number,
+                        source,
+                    }
+                })?;
+                let height = image_object.height().map_err(|source| {
+                    PdfiumExtractImagesError::DecodeImage {
+                        page_number,
+                        image_number,
+                        source,
+                    }
+                })?;
+                let pixels = u64::try_from(width)
+                    .unwrap_or(u64::MAX)
+                    .saturating_mul(u64::try_from(height).unwrap_or(u64::MAX));
+                if pixels > limits.pixels_per_image {
+                    return Err(PdfiumExtractImagesError::UnsafeImageDimensions {
+                        page_number,
+                        image_number,
+                        pixels,
+                        limit: limits.pixels_per_image,
+                    });
+                }
+            }
             let image = image_object
                 .get_processed_image(&document)
                 .map_err(|source| PdfiumExtractImagesError::DecodeImage {
@@ -2028,26 +2149,55 @@ pub fn try_extract_page_images_to_zip(
                     source,
                 })?;
             let fingerprint = image_fingerprint(&image);
-            if !seen_images.insert(fingerprint) {
-                continue;
-            }
-            let encoded = encode_image(&image, format).map_err(|source| {
-                PdfiumExtractImagesError::EncodeImage {
-                    page_number,
-                    image_number,
-                    source,
+            let filename = if let Some(filename) = seen_images.get(&fingerprint) {
+                // Reused image data is archived once but drawn once per placement, so a
+                // caller that needs placements takes another reference to the same asset.
+                // A caller that does not want placements skips the duplicate outright
+                // rather than allocating an entry per placement it will discard.
+                if !collect_placements {
+                    continue;
                 }
-            })?;
-            archive.start_file(
-                format!("{base_filename}_page_{page_number}_{image_number}.{extension}"),
-                options,
-            )?;
-            archive.write_all(&encoded)?;
-            image_number += 1;
+                filename.clone()
+            } else {
+                let encoded = encode_image(&image, format).map_err(|source| {
+                    PdfiumExtractImagesError::EncodeImage {
+                        page_number,
+                        image_number,
+                        source,
+                    }
+                })?;
+                encoded_bytes =
+                    encoded_bytes.saturating_add(u64::try_from(encoded.len()).unwrap_or(u64::MAX));
+                if let Some(limits) = limits
+                    && encoded_bytes > limits.encoded_bytes
+                {
+                    return Err(PdfiumExtractImagesError::EncodedImagesTooLarge {
+                        limit: limits.encoded_bytes,
+                    });
+                }
+                let filename =
+                    format!("{base_filename}_page_{page_number}_{image_number}.{extension}");
+                archive.start_file(&filename, options)?;
+                archive.write_all(&encoded)?;
+                seen_images.insert(fingerprint, filename.clone());
+                image_number += 1;
+                filename
+            };
+            if collect_placements {
+                let bounds = object.bounds().ok();
+                images.push(ExtractedPageImage {
+                    filename,
+                    page: usize::try_from(page_index).unwrap_or_default(),
+                    x: bounds.map_or(0.0, |bounds| bounds.left().value),
+                    y: bounds.map_or(0.0, |bounds| bounds.bottom().value),
+                    width: bounds.map_or(0.0, |bounds| bounds.width().value),
+                    height: bounds.map_or(0.0, |bounds| bounds.height().value),
+                });
+            }
         }
     }
     archive.finish()?;
-    Ok(PdfiumExtractImagesAttempt::Extracted)
+    Ok(PdfiumExtractImagesAttempt::Extracted { images })
 }
 
 fn image_fingerprint(image: &DynamicImage) -> u64 {
@@ -2651,13 +2801,20 @@ pub fn try_detect_largest_text_title(
 }
 
 /// Upper bounds keeping the Markdown line extraction memory-safe on pathological input.
-const MAX_MARKDOWN_LINES: usize = 200_000;
+///
+/// There is deliberately no page cap here: page count alone costs no retained memory,
+/// and a shared cap silently dropped tail pages for every caller. Callers that need a
+/// page bound apply their own to the returned [`MarkdownPageGeometry`] list.
+pub(crate) const MAX_MARKDOWN_LINES: usize = 200_000;
 const MAX_MARKDOWN_GLYPH_SAMPLES: usize = 1_000_000;
 
 /// A mutable visual line assembled from consecutive same-baseline text segments.
 struct LineAccumulator {
     text: String,
     sizes: Vec<f32>,
+    style_samples: usize,
+    bold_samples: usize,
+    italic_samples: usize,
     top: f32,
     bottom: f32,
     height: f32,
@@ -2700,10 +2857,13 @@ pub fn try_extract_markdown_lines(
             source,
         })?;
     let mut lines = Vec::new();
+    let mut pages = Vec::new();
     let mut glyph_sizes = Vec::new();
     let mut line_heights = Vec::new();
+    let mut line_limit_reached = false;
     for page_index in 0..document.pages().len() {
         if lines.len() >= MAX_MARKDOWN_LINES {
+            line_limit_reached = true;
             break;
         }
         let page_number = usize::try_from(page_index).unwrap_or_default() + 1;
@@ -2715,12 +2875,32 @@ pub fn try_extract_markdown_lines(
                     page_number,
                     source,
                 })?;
+        // FPDF_GetPageWidthF/HeightF are rotation-aware, but text and image geometry are
+        // not, so undo the swap here and report the intrinsic rotation separately.
+        let rotation_degrees = match page.rotation() {
+            Ok(PdfPageRenderRotation::Degrees90) => 90,
+            Ok(PdfPageRenderRotation::Degrees180) => 180,
+            Ok(PdfPageRenderRotation::Degrees270) => 270,
+            Ok(PdfPageRenderRotation::None) | Err(_) => 0,
+        };
+        let (rotated_width, rotated_height) = (page.width().value, page.height().value);
+        let (width, height) = if matches!(rotation_degrees, 90 | 270) {
+            (rotated_height, rotated_width)
+        } else {
+            (rotated_width, rotated_height)
+        };
+        pages.push(MarkdownPageGeometry {
+            page: usize::try_from(page_index).unwrap_or_default(),
+            width,
+            height,
+            rotation_degrees,
+        });
         let text = page.text().map_err(|source| PdfiumTextError::ReadText {
             page_number,
             source,
         })?;
         let accumulators = accumulate_page_lines(&text, page_number)?;
-        append_page_lines(
+        line_limit_reached |= append_page_lines(
             usize::try_from(page_index).unwrap_or_default(),
             accumulators,
             &mut lines,
@@ -2732,8 +2912,10 @@ pub fn try_extract_markdown_lines(
     let median_line_height = crate::pdf_markdown::median(&line_heights, 12.0);
     Ok(PdfiumMarkdownAttempt::Extracted {
         lines,
+        pages,
         median_font_size,
         median_line_height,
+        line_limit_reached,
     })
 }
 
@@ -2765,6 +2947,9 @@ fn accumulate_page_lines(
         }
         let right = left + width;
         let mut sizes = Vec::new();
+        let mut style_samples = 0_usize;
+        let mut bold_samples = 0_usize;
+        let mut italic_samples = 0_usize;
         for character in segment
             .chars()
             .map_err(|source| PdfiumTextError::ReadText {
@@ -2777,12 +2962,22 @@ fn accumulate_page_lines(
             let size = character.unscaled_font_size().value;
             if !whitespace && size.is_finite() && size > 0.0 {
                 sizes.push(size);
+                style_samples += 1;
+                if character.font_weight().is_some_and(font_weight_is_bold) {
+                    bold_samples += 1;
+                }
+                if character.font_is_italic() {
+                    italic_samples += 1;
+                }
             }
         }
         merge_segment_into_line(
             &mut accumulators,
             &value,
             &sizes,
+            style_samples,
+            bold_samples,
+            italic_samples,
             top,
             bottom,
             height,
@@ -2800,6 +2995,9 @@ fn merge_segment_into_line(
     accumulators: &mut Vec<LineAccumulator>,
     text: &str,
     sizes: &[f32],
+    style_samples: usize,
+    bold_samples: usize,
+    italic_samples: usize,
     top: f32,
     bottom: f32,
     height: f32,
@@ -2819,6 +3017,9 @@ fn merge_segment_into_line(
             }
             current.text.push_str(text);
             current.sizes.extend_from_slice(sizes);
+            current.style_samples = current.style_samples.saturating_add(style_samples);
+            current.bold_samples = current.bold_samples.saturating_add(bold_samples);
+            current.italic_samples = current.italic_samples.saturating_add(italic_samples);
             current.top = current.top.max(top);
             current.bottom = current.bottom.min(bottom);
             current.height = current.height.max(height);
@@ -2830,6 +3031,9 @@ fn merge_segment_into_line(
     accumulators.push(LineAccumulator {
         text: text.to_owned(),
         sizes: sizes.to_vec(),
+        style_samples,
+        bold_samples,
+        italic_samples,
         top,
         bottom,
         height,
@@ -2846,11 +3050,11 @@ fn append_page_lines(
     lines: &mut Vec<MarkdownTextLine>,
     glyph_sizes: &mut Vec<f32>,
     line_heights: &mut Vec<f32>,
-) {
+) -> bool {
     let mut previous_bottom: Option<f32> = None;
     for accumulator in accumulators {
         if lines.len() >= MAX_MARKDOWN_LINES {
-            break;
+            return true;
         }
         let paragraph_break_before = match previous_bottom {
             Some(previous) if accumulator.height > 0.0 => {
@@ -2876,8 +3080,24 @@ fn append_page_lines(
             width: (accumulator.right - accumulator.left).max(0.0),
             y: accumulator.top,
             paragraph_break_before,
+            bold: accumulator.style_samples > 0
+                && accumulator.bold_samples.saturating_mul(2) >= accumulator.style_samples,
+            italic: accumulator.style_samples > 0
+                && accumulator.italic_samples.saturating_mul(2) >= accumulator.style_samples,
         });
     }
+    false
+}
+
+fn font_weight_is_bold(weight: PdfFontWeight) -> bool {
+    matches!(
+        weight,
+        PdfFontWeight::Weight600
+            | PdfFontWeight::Weight700Bold
+            | PdfFontWeight::Weight800
+            | PdfFontWeight::Weight900
+            | PdfFontWeight::Custom(600..)
+    )
 }
 
 /// Returns the most frequent glyph font size, breaking ties toward the larger size.

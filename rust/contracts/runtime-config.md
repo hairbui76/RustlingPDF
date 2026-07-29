@@ -94,6 +94,10 @@ no-op for endpoint availability today: an operator who previously relied on
 silently stay enabled — only the corresponding `group-enabled?group=qpdf` or
 `group-enabled?group=veraPDF` query still reports `false`.
 
+`pdftohtml` discovery is optional for `pdf-to-html`: a discovered executable is
+retained and preferred for compatibility, but its absence no longer disables the
+endpoint because the PDFium-backed native renderer is the fallback.
+
 `dependenciesReady` means startup probing has completed, not that every optional
 tool is installed. Embedded/test router constructors intentionally remain
 process-free; the service binary selects the discovery-enabled constructor.

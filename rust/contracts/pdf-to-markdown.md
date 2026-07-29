@@ -33,12 +33,29 @@ extracts each page in document order and applies the same paragraph, bullet,
 soft-hyphen, and escaping rules but does not infer headings. Empty pages produce no
 output block. Malformed PDFs are `400 Bad Request`.
 
+## Completeness and limits
+
+There is no page-count limit: every page of the document is converted, however long it
+is. The shared geometry extractor bounds retained lines at 200,000 for memory safety;
+reaching that bound means the reconstruction is incomplete, so the route returns
+`400 Bad Request` naming the limit instead of a `200 OK` body with the tail of the
+document silently missing. A successful response therefore always covers the whole
+input.
+
 ## Parity gaps
 
 Java's `PdfMarkdownConverter` also infers borderless/ruled tables, table continuation
 across pages, bold-label emphasis, and images. Those layout-specific features are
 deliberately not yet claimed; the ported slice covers size-based heading inference,
 two-column reading order, and textual content in page order.
+
+Column detection is only as good as the line assembly it runs on. Lines are built by
+merging consecutive PDFium text segments that share a vertical centre, with no
+horizontal-gap bound, so on a page whose content stream interleaves the columns on a
+shared baseline the two columns are fused into one wide line before detection runs; the
+gutter is then invisible and the merged text is emitted as a single paragraph. Pages
+whose content stream emits one column at a time are detected as documented above.
+`convert/pdf/html` shares this line assembler and the same limitation.
 
 ## Verification
 
@@ -50,5 +67,7 @@ fallbacks), line-based Markdown assembly (headings, bullets, paragraph breaks, p
 separation, left-before-right column order), paragraph assembly, escaping, and
 soft-hyphen repair. An end-to-end test
 builds a PDF with a large-font line and body text and confirms the PDFium path promotes
-only the large line to a heading. HTTP tests cover content type, output filename, page
-order, and missing/malformed uploads.
+only the large line to a heading. A regression test converts an 11,000-page document and
+asserts the first, 10,000th, 10,001st, and last page markers all survive, pinning the
+absence of a page cap. HTTP tests cover content type, output filename, page order, and
+missing/malformed uploads.
