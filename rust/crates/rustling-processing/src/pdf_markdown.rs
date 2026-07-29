@@ -13,7 +13,9 @@ use std::{fs, path::Path};
 use lopdf::Document;
 use thiserror::Error;
 
-use crate::pdfium_backend::{MarkdownTextLine, PdfiumMarkdownAttempt, try_extract_markdown_lines};
+use crate::pdfium_backend::{
+    MAX_MARKDOWN_LINES, MarkdownTextLine, PdfiumMarkdownAttempt, try_extract_markdown_lines,
+};
 
 /// A heading is at most this many words; longer lines are treated as body text.
 const MAX_HEADING_WORDS: usize = 12;
@@ -32,6 +34,10 @@ pub enum PdfMarkdownError {
         #[source]
         source: lopdf::Error,
     },
+    #[error(
+        "'{filename}' reconstructs more than {limit} text lines, the safety limit for Markdown conversion"
+    )]
+    TooManyLines { filename: String, limit: usize },
     #[error("could not write converted Markdown: {0}")]
     Write(#[from] std::io::Error),
 }
@@ -54,8 +60,17 @@ pub fn pdf_to_markdown_file(
             lines,
             median_font_size,
             median_line_height,
-            ..
+            line_limit_reached,
+            pages: _,
         }) => {
+            // Never answer 200 with a silently shortened document: an incomplete
+            // extraction is reported as an explicit typed error instead.
+            if line_limit_reached {
+                return Err(PdfMarkdownError::TooManyLines {
+                    filename: filename.to_owned(),
+                    limit: MAX_MARKDOWN_LINES,
+                });
+            }
             let markdown = build_markdown_from_lines(&lines, median_font_size, median_line_height);
             fs::write(output_path, markdown)?;
             Ok(())
@@ -626,6 +641,64 @@ mod tests {
             build_markdown_from_lines(&lines, 10.0, 12.0),
             "First body line second line"
         );
+    }
+
+    /// Regression: a page count far above the former shared 10,000-page cap must not be
+    /// silently shortened. The cap was removed from the shared primitive precisely
+    /// because this endpoint destructured the truncation flag away and answered 200 with
+    /// the tail pages missing.
+    #[test]
+    fn converts_every_page_of_a_document_above_the_former_page_cap()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use lopdf::{Document, Object, Stream, dictionary};
+
+        const PAGE_COUNT: usize = 11_000;
+
+        let mut document = Document::with_version("1.7");
+        let pages_id = document.new_object_id();
+        let font_id = document.add_object(dictionary! {
+            "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+        });
+        let mut page_ids = Vec::with_capacity(PAGE_COUNT);
+        for index in 0..PAGE_COUNT {
+            let content = format!("BT /F1 12 Tf 20 100 Td (marker{index}) Tj ET");
+            let content_id = document.add_object(Stream::new(dictionary! {}, content.into_bytes()));
+            page_ids.push(document.add_object(dictionary! {
+                "Type" => "Page",
+                "Parent" => pages_id,
+                "MediaBox" => vec![0.into(), 0.into(), 200.into(), 160.into()],
+                "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+                "Contents" => content_id,
+            }));
+        }
+        let page_count = i64::try_from(PAGE_COUNT)?;
+        document.objects.insert(
+            pages_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Kids" => page_ids.into_iter().map(Object::Reference).collect::<Vec<_>>(),
+                "Count" => page_count,
+            }),
+        );
+        let catalog_id =
+            document.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
+        document.trailer.set("Root", catalog_id);
+
+        let directory = tempfile::tempdir()?;
+        let input = directory.path().join("many-pages.pdf");
+        document.save(&input)?;
+        let output = directory.path().join("many-pages.md");
+        super::pdf_to_markdown_file(&input, "many-pages.pdf", &output)?;
+        let markdown = std::fs::read_to_string(&output)?;
+
+        // First, boundary, and last page markers must all survive.
+        for marker in ["marker0", "marker9999", "marker10000", "marker10999"] {
+            assert!(
+                markdown.contains(marker),
+                "'{marker}' is missing, so the conversion silently dropped content"
+            );
+        }
+        Ok(())
     }
 
     #[test]

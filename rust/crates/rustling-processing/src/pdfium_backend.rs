@@ -202,7 +202,10 @@ pub enum PdfiumMarkdownAttempt {
         pages: Vec<MarkdownPageGeometry>,
         median_font_size: f32,
         median_line_height: f32,
-        truncated: bool,
+        /// True when [`MAX_MARKDOWN_LINES`] stopped extraction before the last page,
+        /// so `lines` is incomplete. Callers must never emit a success response while
+        /// this is set; there is no page cap, so page geometry is always complete.
+        line_limit_reached: bool,
     },
     Unavailable {
         explicitly_configured: bool,
@@ -2762,9 +2765,12 @@ pub fn try_detect_largest_text_title(
 }
 
 /// Upper bounds keeping the Markdown line extraction memory-safe on pathological input.
-const MAX_MARKDOWN_LINES: usize = 200_000;
+///
+/// There is deliberately no page cap here: page count alone costs no retained memory,
+/// and a shared cap silently dropped tail pages for every caller. Callers that need a
+/// page bound apply their own to the returned [`MarkdownPageGeometry`] list.
+pub(crate) const MAX_MARKDOWN_LINES: usize = 200_000;
 const MAX_MARKDOWN_GLYPH_SAMPLES: usize = 1_000_000;
-const MAX_MARKDOWN_PAGES: usize = 10_000;
 
 /// A mutable visual line assembled from consecutive same-baseline text segments.
 struct LineAccumulator {
@@ -2818,10 +2824,10 @@ pub fn try_extract_markdown_lines(
     let mut pages = Vec::new();
     let mut glyph_sizes = Vec::new();
     let mut line_heights = Vec::new();
-    let mut truncated = false;
+    let mut line_limit_reached = false;
     for page_index in 0..document.pages().len() {
-        if lines.len() >= MAX_MARKDOWN_LINES || pages.len() >= MAX_MARKDOWN_PAGES {
-            truncated = true;
+        if lines.len() >= MAX_MARKDOWN_LINES {
+            line_limit_reached = true;
             break;
         }
         let page_number = usize::try_from(page_index).unwrap_or_default() + 1;
@@ -2843,7 +2849,7 @@ pub fn try_extract_markdown_lines(
             source,
         })?;
         let accumulators = accumulate_page_lines(&text, page_number)?;
-        truncated |= append_page_lines(
+        line_limit_reached |= append_page_lines(
             usize::try_from(page_index).unwrap_or_default(),
             accumulators,
             &mut lines,
@@ -2858,7 +2864,7 @@ pub fn try_extract_markdown_lines(
         pages,
         median_font_size,
         median_line_height,
-        truncated,
+        line_limit_reached,
     })
 }
 

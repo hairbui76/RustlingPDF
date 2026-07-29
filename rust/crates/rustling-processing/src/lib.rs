@@ -12861,7 +12861,9 @@ fn map_pdf_text_error(error: &PdfTextError) -> ApiError {
 
 fn map_pdf_markdown_error(error: &PdfMarkdownError) -> ApiError {
     match error {
-        PdfMarkdownError::ReadPdf { .. } | PdfMarkdownError::ExtractText { .. } => {
+        PdfMarkdownError::ReadPdf { .. }
+        | PdfMarkdownError::ExtractText { .. }
+        | PdfMarkdownError::TooManyLines { .. } => {
             ApiError::bad_request_at(PDF_TO_MARKDOWN_PATH, error.to_string())
         }
         PdfMarkdownError::Write(_) => {

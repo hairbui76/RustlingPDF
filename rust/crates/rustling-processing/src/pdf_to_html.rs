@@ -33,6 +33,7 @@ const MAX_OUTPUT_FILES: usize = 100_000;
 const MAX_OUTPUT_BYTES: u64 = 200 * 1024 * 1024;
 const MAX_HTML_BYTES: usize = 64 * 1024 * 1024;
 const MAX_NATIVE_TEXT_BYTES: usize = 32 * 1024 * 1024;
+const MAX_NATIVE_PAGES: usize = 10_000;
 const MAX_NATIVE_IMAGES: usize = 10_000;
 const MAX_NATIVE_IMAGE_PIXELS: u64 = 25_000_000;
 const MAX_NATIVE_IMAGE_BYTES: u64 = 128 * 1024 * 1024;
@@ -248,20 +249,20 @@ fn render_native(
     base_name: &str,
     work_dir: &Path,
 ) -> Result<(), PdfToHtmlError> {
-    let (lines, pages, median_font_size, median_line_height, truncated) =
+    let (lines, pages, median_font_size, median_line_height, line_limit_reached) =
         match try_extract_markdown_lines(input_path, filename)? {
             PdfiumMarkdownAttempt::Extracted {
                 lines,
                 pages,
                 median_font_size,
                 median_line_height,
-                truncated,
+                line_limit_reached,
             } => (
                 lines,
                 pages,
                 median_font_size,
                 median_line_height,
-                truncated,
+                line_limit_reached,
             ),
             PdfiumMarkdownAttempt::Unavailable {
                 explicitly_configured,
@@ -273,7 +274,9 @@ fn render_native(
                 });
             }
         };
-    if truncated {
+    // The shared text primitive has no page cap; the native renderer owns its own so a
+    // huge document is refused outright instead of rendered with missing pages.
+    if line_limit_reached || pages.len() > MAX_NATIVE_PAGES {
         return Err(PdfToHtmlError::DocumentTooLarge);
     }
     if pages.is_empty() {
