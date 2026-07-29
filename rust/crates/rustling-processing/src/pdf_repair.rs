@@ -86,8 +86,18 @@ impl RepairRuntime {
         }
 
         if let Some(command) = &self.qpdf_command {
+            // Deliberate divergence from Java's `RepairController`, which passes
+            // `--replace-input` *and* an output path. qpdf rejects that combination
+            // outright — `--replace-input` rewrites the input file in place and
+            // forbids a second positional argument, so every real qpdf (verified on
+            // 11.9.0 and 12.3.2) exits 2 with `unknown argument <output>` and never
+            // writes the output file. Java hides the failure because it ignores the
+            // qpdf exit code and returns the never-created temp file; this service
+            // checks the exit code, so the same arguments surface as a hard 500.
+            // Dropping `--replace-input` keeps the intended structural normalization
+            // (`--qdf --object-streams=disable`) and writes the repaired document to
+            // the output path, which is what the caller consumes.
             let arguments = [
-                OsString::from("--replace-input"),
                 OsString::from("--qdf"),
                 OsString::from("--object-streams=disable"),
                 input_path.as_os_str().to_owned(),
@@ -224,7 +234,7 @@ mod tests {
         executable(
             &qpdf,
             &format!(
-                "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\ncp \"$4\" \"$5\"\nexit 3\n",
+                "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\ncp \"$3\" \"$4\"\nexit 3\n",
                 arguments.display()
             ),
         )?;
@@ -242,7 +252,6 @@ mod tests {
         assert_eq!(
             fs::read_to_string(arguments)?.lines().collect::<Vec<_>>(),
             vec![
-                "--replace-input",
                 "--qdf",
                 "--object-streams=disable",
                 input.to_str().ok_or("non-UTF-8 input path")?,
@@ -252,12 +261,83 @@ mod tests {
         Ok(())
     }
 
+    /// Guards the fix for the `--replace-input` regression against a *real* qpdf
+    /// rather than a shell stub: `--replace-input` forbids an output positional,
+    /// so the previous argument list made every qpdf-only repair exit 2. Skips
+    /// when no qpdf is discoverable, which keeps the gate green on hosts without
+    /// the optional dependency.
     #[test]
-    fn rewrites_in_process_when_no_external_tool_was_discovered()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn repairs_a_damaged_document_with_a_real_qpdf() -> Result<(), Box<dyn std::error::Error>> {
+        let Some(qpdf) = discoverable_qpdf() else {
+            return Ok(());
+        };
         let directory = tempdir()?;
         let input = directory.path().join("input.pdf");
         let output = directory.path().join("output.pdf");
+        fs::write(&input, damaged_pdf()?)?;
+
+        // No Ghostscript: exactly the desktop-bundle configuration, where qpdf is
+        // the only external repair tool that ships.
+        RepairRuntime::new(None, Some(qpdf.clone()), settings()).repair(
+            &input,
+            "input.pdf",
+            &output,
+        )?;
+
+        let repaired = fs::read(&output)?;
+        assert!(
+            repaired.starts_with(b"%PDF-"),
+            "qpdf wrote a non-PDF output"
+        );
+        assert!(
+            Document::load_mem(&repaired).is_ok(),
+            "output does not parse"
+        );
+        // qpdf itself must now consider the repaired file structurally sound.
+        let check = std::process::Command::new(&qpdf)
+            .arg("--check")
+            .arg(&output)
+            .output()?;
+        assert_eq!(
+            check.status.code(),
+            Some(0),
+            "qpdf --check rejected the repaired output: {}",
+            String::from_utf8_lossy(&check.stdout)
+        );
+        Ok(())
+    }
+
+    fn discoverable_qpdf() -> Option<std::path::PathBuf> {
+        let configured = crate::env_compat::var_os("RUSTLING_PROCESSING_QPDF_COMMAND")
+            .filter(|command| !command.is_empty())
+            .map(std::path::PathBuf::from);
+        let candidates = configured.map_or_else(
+            || vec![std::path::PathBuf::from("qpdf")],
+            |command| vec![command],
+        );
+        candidates.into_iter().find(|command| {
+            std::process::Command::new(command)
+                .arg("--version")
+                .output()
+                .is_ok_and(|output| output.status.success())
+        })
+    }
+
+    /// A structurally valid PDF whose `startxref` offset points nowhere, which is
+    /// the corruption class qpdf reconstructs (and reports with exit code 3).
+    fn damaged_pdf() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let mut healthy = Vec::new();
+        single_page_document().save_to(&mut healthy)?;
+        let text = String::from_utf8_lossy(&healthy).into_owned();
+        let Some(offset) = text.rfind("startxref") else {
+            return Err("serialized PDF has no startxref".into());
+        };
+        let mut damaged = healthy[..offset].to_vec();
+        damaged.extend_from_slice(b"startxref\n999999999\n%%EOF\n");
+        Ok(damaged)
+    }
+
+    fn single_page_document() -> Document {
         let mut document = Document::with_version("1.7");
         let pages_root_id = document.new_object_id();
         let page_object_id = document.add_object(dictionary! {
@@ -278,6 +358,16 @@ mod tests {
             "Pages" => pages_root_id,
         });
         document.trailer.set("Root", catalog_id);
+        document
+    }
+
+    #[test]
+    fn rewrites_in_process_when_no_external_tool_was_discovered()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let input = directory.path().join("input.pdf");
+        let output = directory.path().join("output.pdf");
+        let mut document = single_page_document();
         document.save(&input)?;
 
         RepairRuntime::new(None, None, settings()).repair(&input, "input.pdf", &output)?;
