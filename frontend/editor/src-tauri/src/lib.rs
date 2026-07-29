@@ -1,27 +1,43 @@
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
 
 pub mod commands;
+pub mod launch_intent;
 mod utils;
 
 use commands::connection::apply_provisioning_if_present;
 use commands::{
     add_opened_file, can_install_updates, check_for_update, cleanup_backend, clear_opened_files,
-    complete_setup, download_and_install_update, forward_files_to_window, get_app_version,
-    get_backend_port, get_desktop_os, get_opened_files, get_update_mode, is_default_pdf_handler,
-    is_first_launch, open_files_in_new_window, open_in_new_window, pop_opened_files,
+    complete_setup, download_and_install_update, forward_files_to_window,
+    forward_files_to_window_with_intent, get_app_version, get_backend_port, get_desktop_os,
+    get_opened_files, get_update_mode, is_default_pdf_handler, is_first_launch,
+    open_files_in_new_window, open_in_new_window, pop_opened_batches, pop_opened_files,
     pop_window_file_ids, print_pdf_file_native, proxy_local_pdf_request, reset_setup_completion,
     restart_app, set_as_default_pdf_handler, set_update_mode, start_backend, target_window_label,
     MAIN_WINDOW_LABEL,
 };
+use launch_intent::{debounce_intent_batch, parse_launch_args, INTENT_AGGREGATOR};
 use utils::{add_log, get_tauri_logs};
 
-// Extract existing file paths from CLI args (skips the executable name).
-fn parse_launch_files(args: &[String]) -> Vec<String> {
-    args.iter()
-        .skip(1)
-        .filter(|arg| std::path::Path::new(arg).exists())
-        .cloned()
-        .collect()
+// Buffer an intent-carrying launch (Explorer context menu `--tool <action>`)
+// in the process-wide aggregator and schedule the debounce sleeper that may
+// flush it. Explorer starts one process per selected file, so N selected
+// files become N calls here; exactly one sleeper forwards the merged batch to
+// the target window (picked at flush time), as a single `files-changed`.
+fn queue_intent_launch(app: &AppHandle, tool: String, files: Vec<String>) {
+    let generation = INTENT_AGGREGATOR.add(&tool, files, tokio::time::Instant::now());
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Some(batch) = debounce_intent_batch(&INTENT_AGGREGATOR, &tool, generation).await {
+            let label = target_window_label(&app).unwrap_or_else(|| MAIN_WINDOW_LABEL.to_string());
+            add_log(format!(
+                "📂 Forwarding {} file(s) with intent '{}' to window '{}'",
+                batch.len(),
+                tool,
+                label
+            ));
+            forward_files_to_window_with_intent(&app, &label, batch, Some(tool));
+        }
+    });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,22 +62,28 @@ pub fn run() {
             // (e.g. "open with" / double-click while the app is running).
             add_log(format!("📂 Second instance detected with args: {:?}", args));
 
-            let files = parse_launch_files(&args);
+            let parsed = parse_launch_args(&args);
             // Route to the window the user is in (focused -> main -> any) so opens
             // consolidate into one window instead of spawning a new one.
             let label = target_window_label(app).unwrap_or_else(|| MAIN_WINDOW_LABEL.to_string());
 
-            if !files.is_empty() {
+            if parsed.files.is_empty() {
+                if let Some(window) = app.get_webview_window(&label) {
+                    // No files: just bring the app to the front.
+                    let _ = window.set_focus();
+                    let _ = window.unminimize();
+                }
+            } else if let Some(tool) = parsed.tool {
+                // Context-menu launch: aggregate multi-select siblings before
+                // forwarding (Explorer fires one process per selected file).
+                queue_intent_launch(app, tool, parsed.files);
+            } else {
                 add_log(format!(
                     "📂 Forwarding {} file(s) to existing window '{}'",
-                    files.len(),
+                    parsed.files.len(),
                     label
                 ));
-                forward_files_to_window(app, &label, files);
-            } else if let Some(window) = app.get_webview_window(&label) {
-                // No files: just bring the app to the front.
-                let _ = window.set_focus();
-                let _ = window.unminimize();
+                forward_files_to_window(app, &label, parsed.files);
             }
         }))
         .setup(|app| {
@@ -70,9 +92,25 @@ pub fn run() {
             // Files passed on the command line at first launch load into the main
             // window once the frontend mounts.
             let args: Vec<String> = std::env::args().collect();
-            for path in parse_launch_files(&args) {
-                add_log(format!("📂 Initial file from command line: {}", path));
-                add_opened_file(path);
+            let parsed = parse_launch_args(&args);
+            if let Some(tool) = parsed.tool {
+                // Cold context-menu launch: route through the same aggregator
+                // as the single-instance callback so the sibling processes of
+                // a multi-select merge into this batch. The flushed batch
+                // lands in the queue; the frontend pops it on mount.
+                if !parsed.files.is_empty() {
+                    add_log(format!(
+                        "📂 Initial intent '{}' with {} file(s) from command line",
+                        tool,
+                        parsed.files.len()
+                    ));
+                    queue_intent_launch(app.handle(), tool, parsed.files);
+                }
+            } else {
+                for path in parsed.files {
+                    add_log(format!("📂 Initial file from command line: {}", path));
+                    add_opened_file(path);
+                }
             }
 
             if let Err(err) = apply_provisioning_if_present(app.handle()) {
@@ -97,6 +135,7 @@ pub fn run() {
             get_backend_port,
             get_opened_files,
             pop_opened_files,
+            pop_opened_batches,
             clear_opened_files,
             open_in_new_window,
             open_files_in_new_window,
