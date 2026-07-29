@@ -56,6 +56,13 @@ clipping path. Nothing is deleted: the original marks stay in the file, hidden b
 fully recoverable. Callers that need the data gone must leave the flag at its
 default.
 
+### Automatic mode
+
+`autoCrop=true` ignores `removeDataOutsideCrop` and always takes the clip-only path,
+as it did before Ghostscript was removed — the flag has only ever been wired to the
+manual-coordinate branch. Automatic mode therefore hides out-of-crop content rather
+than deleting it. Callers who need removal must pass explicit coordinates.
+
 ### Requirements
 
 Content removal runs on the pinned PDFium runtime — the same runtime automatic
