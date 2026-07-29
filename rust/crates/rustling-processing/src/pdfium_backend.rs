@@ -3365,12 +3365,18 @@ pub fn try_remove_content_outside_crop(
     // (verified: it segfaults for both path and text objects). Parking the removed
     // objects on a scratch page transfers ownership back, and deleting that page
     // before saving lets PDFium free them through its own page teardown.
+    //
+    // The scratch page is created ONCE and held for the whole run. Re-fetching it
+    // with `pages().get()` would be a bug with two teeth: `PdfPage::from_pdfium`
+    // unconditionally re-applies the default `AutomaticOnEveryChange` strategy to
+    // the shared `PdfPageIndexCache`, so every `add_object` would run
+    // `FPDFPage_GenerateContent` over the whole scratch page — quadratic in the
+    // number of removed objects, and a hard PDFium crash in `UpdateResourcesDict`
+    // for a Type 3 font text object.
     let mut trash = document
         .pages_mut()
         .create_page_at_end(PdfPagePaperSize::a4())
         .map_err(PdfiumCropContentError::Trash)?;
-    trash.set_content_regeneration_strategy(PdfPageContentRegenerationStrategy::Manual);
-    drop(trash);
     let trash_index = document.pages().len().saturating_sub(1);
 
     for page_index in 0..page_count {
@@ -3408,6 +3414,10 @@ pub fn try_remove_content_outside_crop(
         if doomed.is_empty() {
             continue;
         }
+        // Re-assert the scratch page's strategy: fetching any page writes the
+        // default back into the shared cache, and the invariant that keeps the
+        // scratch page from being regenerated is what stops PDFium crashing.
+        trash.set_content_regeneration_strategy(PdfPageContentRegenerationStrategy::Manual);
         // Removing by index invalidates the indices after it, so work backwards.
         for index in doomed.into_iter().rev() {
             let removed = page
@@ -3417,10 +3427,6 @@ pub fn try_remove_content_outside_crop(
                     page_number,
                     source,
                 })?;
-            let mut trash = document
-                .pages()
-                .get(trash_index)
-                .map_err(PdfiumCropContentError::Trash)?;
             trash
                 .objects_mut()
                 .add_object(removed)
@@ -3434,6 +3440,9 @@ pub fn try_remove_content_outside_crop(
             })?;
     }
 
+    // Dropping the held scratch page first keeps `delete()` from operating on a
+    // stale wrapper; the objects parked on it are freed by PDFium's page teardown.
+    drop(trash);
     document
         .pages()
         .get(trash_index)

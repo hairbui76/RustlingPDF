@@ -154,6 +154,293 @@ async fn remove_data_outside_crop_discards_out_of_crop_text()
     Ok(())
 }
 
+/// `PDFium` rebuilds `/Font`, `/ExtGState`, and `/XObject` when it regenerates a
+/// page, but leaves `/Pattern` and `/Shading` alone — and the crop rebuild copies
+/// the page's `/Resources` verbatim into the new Form `XObject`. An out-of-crop mark
+/// painted with a tiling pattern or a shading therefore used to keep its whole
+/// subtree reachable, so the pattern's text, the pattern's images, and a shading's
+/// sampled-function data all stayed extractable from a file whose caller had asked
+/// for them to be deleted.
+#[tokio::test]
+async fn removes_patterns_and_shadings_only_reachable_from_out_of_crop_marks()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, source, secret) in [
+        (
+            "tiling pattern painting text",
+            pdf_with_out_of_crop_pattern(PatternPayload::Text)?,
+            b"PATTERNSECRET".as_slice(),
+        ),
+        (
+            "tiling pattern painting an image",
+            pdf_with_out_of_crop_pattern(PatternPayload::Image)?,
+            b"PATIMGSECRETABCD".as_slice(),
+        ),
+        (
+            "shading with a sampled function",
+            pdf_with_out_of_crop_shading()?,
+            b"SHADESAMPLESECRET".as_slice(),
+        ),
+    ] {
+        let response = post_crop(
+            "resources.pdf",
+            &source,
+            &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+        )
+        .await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+                return Err(std::io::Error::other(
+                    "configured PDFium runtime did not execute out-of-crop removal",
+                )
+                .into());
+            }
+            return Ok(());
+        }
+        let response = require_status(response, StatusCode::OK).await?;
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        assert!(
+            !document_contains(&bytes, secret)?,
+            "{label}: the out-of-crop resource survived"
+        );
+        assert!(
+            document_contains(&bytes, b"KEEPME")?,
+            "{label}: the in-crop text was removed too"
+        );
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum PatternPayload {
+    Text,
+    Image,
+}
+
+/// A page whose in-crop text is plain, and whose only out-of-crop mark is a
+/// rectangle filled with a tiling pattern. The pattern's own content carries the
+/// secret, so nothing but the pattern subtree can leak it.
+fn pdf_with_out_of_crop_pattern(
+    payload: PatternPayload,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = match payload {
+        PatternPayload::Text => document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "Pattern",
+                "PatternType" => 1,
+                "PaintType" => 1,
+                "TilingType" => 1,
+                "BBox" => vec![0.into(), 0.into(), 60.into(), 20.into()],
+                "XStep" => 60,
+                "YStep" => 20,
+                "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+            },
+            b"BT /F1 8 Tf 2 2 Td (PATTERNSECRET) Tj ET".to_vec(),
+        )),
+        PatternPayload::Image => {
+            let image_id = document.add_object(Stream::new(
+                dictionary! {
+                    "Type" => "XObject",
+                    "Subtype" => "Image",
+                    "Width" => 4,
+                    "Height" => 4,
+                    "ColorSpace" => Object::Name(b"DeviceGray".to_vec()),
+                    "BitsPerComponent" => 8,
+                },
+                b"PATIMGSECRETABCD".to_vec(),
+            ));
+            document.add_object(Stream::new(
+                dictionary! {
+                    "Type" => "Pattern",
+                    "PatternType" => 1,
+                    "PaintType" => 1,
+                    "TilingType" => 1,
+                    "BBox" => vec![0.into(), 0.into(), 20.into(), 20.into()],
+                    "XStep" => 20,
+                    "YStep" => 20,
+                    "Resources" => dictionary! {
+                        "XObject" => dictionary! { "PIm" => image_id },
+                    },
+                },
+                b"q 20 0 0 20 0 0 cm /PIm Do Q".to_vec(),
+            ))
+        }
+    };
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"/Pattern cs /P0 scn 20 250 100 30 re f\nBT /F1 10 Tf 20 40 Td (KEEPME) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// A page whose only out-of-crop mark is an `sh` shading whose Type 0 function
+/// carries the secret in its sample stream.
+fn pdf_with_out_of_crop_shading() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let samples = b"SHADESAMPLESECRET";
+    let function_id = document.add_object(Stream::new(
+        dictionary! {
+            "FunctionType" => 0,
+            "Domain" => vec![0.into(), 1.into()],
+            "Range" => vec![0.into(), 1.into()],
+            "Size" => vec![i64::try_from(samples.len())?.into()],
+            "BitsPerSample" => 8,
+        },
+        samples.to_vec(),
+    ));
+    let shading_id = document.add_object(dictionary! {
+        "ShadingType" => 2,
+        "ColorSpace" => Object::Name(b"DeviceGray".to_vec()),
+        "Coords" => vec![20.into(), 240.into(), 180.into(), 290.into()],
+        "Function" => function_id,
+        "Extend" => vec![Object::Boolean(true), Object::Boolean(true)],
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"q 20 240 160 50 re W n /Sh0 sh Q\nBT /F1 10 Tf 20 40 Td (KEEPME) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Shading" => dictionary! { "Sh0" => shading_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+fn finish_single_page(
+    mut document: Document,
+    root_pages_id: lopdf::ObjectId,
+    page_id: lopdf::ObjectId,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    document.objects.insert(
+        root_pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![Object::Reference(page_id)],
+            "Count" => 1,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => root_pages_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
+/// A Type 3 font text run outside the crop rectangle used to take the whole
+/// process down with SIGSEGV: the scratch page that re-homes removed objects was
+/// re-fetched per removal, which reset its content-regeneration strategy in
+/// `pdfium-render`'s shared cache, so every `add_object` ran
+/// `FPDFPage_GenerateContent` over it and `PDFium` crashed in
+/// `UpdateResourcesDict`. The endpoint is unauthenticated, so that was a
+/// remote-triggerable denial of service for every other caller in the process.
+#[tokio::test]
+async fn removes_type3_font_text_outside_the_crop_without_crashing()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "type3.pdf",
+        &pdf_with_type3_text_outside_the_crop()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+            return Err(std::io::Error::other(
+                "configured PDFium runtime did not execute out-of-crop removal",
+            )
+            .into());
+        }
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        !document_contains(&bytes, b"SSS")?,
+        "the out-of-crop Type 3 text survived"
+    );
+    Ok(())
+}
+
+/// One page whose only mark is a Type 3 font text run placed above the crop
+/// rectangle, with a glyph procedure and the full Type 3 dictionary shape
+/// (`/CharProcs`, `/Encoding`, `/FontMatrix`, `/FontBBox`) `PDFium` walks when it
+/// rebuilds a page's resources.
+fn pdf_with_type3_text_outside_the_crop() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let glyph_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"20 0 0 0 20 20 d1 0 0 20 20 re f".to_vec(),
+    ));
+    let char_procs_id = document.add_object(dictionary! { "S" => glyph_id });
+    let encoding_id = document.add_object(dictionary! {
+        "Type" => "Encoding",
+        "Differences" => vec![83.into(), Object::Name(b"S".to_vec())],
+    });
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font",
+        "Subtype" => "Type3",
+        "FontBBox" => vec![0.into(), 0.into(), 20.into(), 20.into()],
+        "FontMatrix" => vec![
+            Object::Real(0.05), 0.into(), 0.into(), Object::Real(0.05), 0.into(), 0.into(),
+        ],
+        "CharProcs" => char_procs_id,
+        "Encoding" => encoding_id,
+        "FirstChar" => 83,
+        "LastChar" => 83,
+        "Widths" => vec![20.into()],
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /T3 12 Tf 20 250 Td (SSS) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! { "Font" => dictionary! { "T3" => font_id } },
+        "Contents" => content_id,
+    });
+    document.objects.insert(
+        root_pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![Object::Reference(page_id)],
+            "Count" => 1,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => root_pages_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
 /// Whether `marker` appears anywhere in the document.
 ///
 /// Both encodings that matter are searched, in raw bytes and inside every

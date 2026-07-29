@@ -35,6 +35,21 @@ deleted marks are gone from the saved bytes: their text is no longer extractable
 and their image samples are no longer present. Annotations are dropped for every
 page by the rebuild step that follows.
 
+Resources reachable only from a deleted mark go with it. PDFium rebuilds `/Font`,
+`/ExtGState`, and `/XObject` itself; the port additionally drops `/Pattern` and
+`/Shading` entries that no surviving content stream names, because PDFium leaves
+those two categories untouched and the rebuild copies the page's `/Resources`
+verbatim into the new Form XObject. Without that step a tiling pattern's text and
+images, and a shading's sampled-function data, stayed fully extractable from a file
+whose caller had asked for them to be deleted. Only entries nothing still paints
+with are dropped, and the search is transitive through Form XObjects and through
+patterns that survive.
+
+Verified end to end against plain text, images, Form and nested-Form text, inline
+images, invisible (`3 Tr`) text, optional-content (OCG) marks, `/Contents` arrays,
+Type 3 font text, subset fonts, annotations with appearance streams, rotated pages,
+and multi-page documents.
+
 ### What is NOT removed
 
 A mark that **straddles** the crop boundary is kept whole. A text run that starts
@@ -43,11 +58,12 @@ including the ones outside; the same holds for a path or an image that overlaps 
 edge, and for the interior of a Form XObject whose own bounding box overlaps the
 edge. Such content is clipped at render time but remains in the file.
 
-This is not a regression against the Ghostscript branch this replaces: it is the
-same rule Ghostscript applied. `pdfwrite -dUseCropBox` culled marks that missed the
-crop box and passed straddling text runs through unsplit, because `pdfwrite` cannot
-split a glyph run at a clip edge either. The port reproduces that behaviour rather
-than claiming a stronger guarantee than the endpoint has ever delivered.
+This straddling rule is not a regression against the Ghostscript branch this
+replaces: it is the same rule Ghostscript applied. `pdfwrite -dUseCropBox` culled
+marks that missed the crop box and passed straddling text runs through unsplit,
+because `pdfwrite` cannot split a glyph run at a clip edge either. The port
+reproduces that behaviour rather than claiming a stronger guarantee than the
+endpoint has ever delivered.
 
 ### When the flag is not set
 
@@ -90,7 +106,10 @@ variable and ignored.
 Endpoint tests cover multi-page manual crop geometry and clipping, response
 naming, missing-coordinate validation, and native PDFium automatic detection
 against rendered black content. Unit coverage verifies the white-threshold
-coordinate conversion. A dedicated test pins the removal promise: a page carrying
+coordinate conversion. Dedicated tests pin the removal promise: a page carrying
 text inside and outside the crop rectangle comes back with the outside text absent
 from the saved bytes when `removeDataOutsideCrop=true`, and still present when it
-is `false`.
+is `false`; a tiling pattern painting text, a tiling pattern painting an image, and
+a shading with a Type 0 sampled function all lose their payloads when only an
+out-of-crop mark referenced them; and a Type 3 font text run outside the crop is
+removed without crashing the process.
