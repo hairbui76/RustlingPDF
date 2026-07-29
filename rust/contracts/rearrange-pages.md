@@ -27,6 +27,22 @@ Rust compatibility contract for `RearrangePagesPDFController.rearrangePages()`.
 The implementation rewrites the existing page tree in place with `lopdf`; it does
 not create a separate document or copy resources between documents.
 
+## Inherited page attributes
+
+Every selected page is re-parented onto the root `/Pages` node, which severs it
+from any intermediate `/Pages` node it used to inherit from. Before that
+happens, `/Resources`, `/MediaBox`, `/CropBox` and `/Rotate` are materialized
+onto each page dictionary itself; attributes a page already declares are left
+alone, because they override anything an ancestor offers. A source whose
+intermediate node carries `/MediaBox [0 0 595 842] /Rotate 90` therefore keeps
+that geometry in the output instead of losing it and falling back to Letter.
+
+This is a deliberate divergence from the Java oracle: PDFBox's
+`PDPageTree.add(PDPage)` only rewrites `/Parent`, so the upstream in-place
+rearrange drops the same attributes. Matching that would emit structurally
+lossy PDFs, so RustlingPDF fixes it instead. Inheritance itself is legal and
+common (ISO 32000-1 7.7.3.4).
+
 ## Verification
 
 Unit tests cover all predefined order algorithms. Endpoint tests cover custom

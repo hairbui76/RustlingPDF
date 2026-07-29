@@ -134,6 +134,39 @@ pub fn replace_page_tree(
     Ok(())
 }
 
+/// Writes every attribute a page currently inherits from an ancestor onto the
+/// page dictionary itself.
+///
+/// `/Resources`, `/MediaBox`, `/CropBox` and `/Rotate` may legally live on any
+/// intermediate `/Pages` node (ISO 32000-1 7.7.3.4), and a page only inherits
+/// from the ancestors it still has. Any caller that re-parents pages onto a
+/// different `/Pages` node has to materialize the inherited values first,
+/// otherwise re-rooting silently drops them - a page under an intermediate node
+/// carrying `/MediaBox [0 0 595 842] /Rotate 90` comes back out of the tree
+/// with neither, so viewers fall back to Letter and lose the rotation.
+///
+/// Attributes the page already sets itself are left untouched: they override
+/// anything an ancestor offers.
+///
+/// # Errors
+///
+/// Returns an error when `page_id` does not resolve to a dictionary.
+pub fn materialize_inherited_attributes(
+    document: &mut Document,
+    page_id: ObjectId,
+) -> Result<(), lopdf::Error> {
+    for attribute in INHERITABLE_PAGE_ATTRIBUTES {
+        if document.get_dictionary(page_id)?.has(attribute) {
+            continue;
+        }
+        let Ok(value) = inherited_value(document, page_id, attribute) else {
+            continue;
+        };
+        document.get_dictionary_mut(page_id)?.set(attribute, value);
+    }
+    Ok(())
+}
+
 pub fn inherited_value(
     document: &Document,
     mut object_id: ObjectId,

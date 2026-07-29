@@ -3,7 +3,10 @@ use std::{collections::HashSet, path::Path};
 use lopdf::{Document, Object};
 use thiserror::Error;
 
-use crate::page_selection::{PageSelectionError, parse_page_list};
+use crate::{
+    page_selection::{PageSelectionError, parse_page_list},
+    pdf_page_geometry::materialize_inherited_attributes,
+};
 
 #[derive(Debug, Error)]
 pub enum RearrangePagesError {
@@ -52,6 +55,14 @@ pub fn rearrange_pdf_pages_to_file(
         page_ids.len(),
     )?;
     let root_pages_id = document.catalog()?.get(b"Pages")?.as_reference()?;
+
+    // Every page below is re-parented onto the root `/Pages` node, which cuts
+    // it off from any intermediate node it used to inherit `/MediaBox`,
+    // `/CropBox`, `/Rotate` or `/Resources` from. Pin those down first, while
+    // the original tree is still intact.
+    for &page_id in &page_ids {
+        materialize_inherited_attributes(&mut document, page_id)?;
+    }
 
     let mut seen = HashSet::new();
     let mut new_page_ids = Vec::with_capacity(page_order.len());
@@ -174,7 +185,131 @@ fn duplicate_order(
 
 #[cfg(test)]
 mod tests {
-    use super::page_order;
+    use std::collections::HashSet;
+
+    use lopdf::{Document, Object, Stream, dictionary};
+
+    use super::{page_order, rearrange_pdf_pages_to_file};
+
+    /// Two pages under an intermediate `/Pages` node that supplies `/MediaBox`
+    /// and `/Rotate`, which is legal (ISO 32000-1 7.7.3.4) and which
+    /// re-rooting the tree silently destroys.
+    fn nested_page_tree_pdf() -> Vec<u8> {
+        let mut document = Document::with_version("1.7");
+        let root_pages_id = document.new_object_id();
+        let intermediate_id = document.new_object_id();
+        let page_ids = ["one", "two"]
+            .into_iter()
+            .map(|label| {
+                let content = document.add_object(Stream::new(
+                    dictionary! {},
+                    format!("BT /F1 24 Tf 72 700 Td ({label}) Tj ET\n").into_bytes(),
+                ));
+                document.add_object(dictionary! {
+                    "Type" => "Page",
+                    "Parent" => intermediate_id,
+                    "Resources" => dictionary! {},
+                    "Contents" => content,
+                })
+            })
+            .collect::<Vec<_>>();
+        document.objects.insert(
+            intermediate_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Parent" => root_pages_id,
+                "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()],
+                "Rotate" => 90,
+                "Kids" => page_ids.iter().copied().map(Object::Reference).collect::<Vec<_>>(),
+                "Count" => 2,
+            }),
+        );
+        document.objects.insert(
+            root_pages_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Kids" => vec![Object::Reference(intermediate_id)],
+                "Count" => 2,
+            }),
+        );
+        let catalog_id = document.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => root_pages_id,
+        });
+        document.trailer.set("Root", catalog_id);
+        let mut bytes = Vec::new();
+        let _ = document.save_to(&mut bytes);
+        bytes
+    }
+
+    /// The defect: every mode re-parents pages onto the root `/Pages` node, so
+    /// attributes held by an intermediate node vanished. The output had no
+    /// `/MediaBox` and no `/Rotate`, and readers fell back to Letter.
+    #[test]
+    fn rearranging_keeps_attributes_inherited_from_intermediate_nodes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let input = directory.path().join("nested.pdf");
+        std::fs::write(&input, nested_page_tree_pdf())?;
+
+        for mode in ["REVERSE_ORDER", "DUPLICATE", "ODD_EVEN_SPLIT"] {
+            let output = directory.path().join(format!("{mode}.pdf"));
+            rearrange_pdf_pages_to_file(&input, "nested.pdf", Some("2"), Some(mode), &output)?;
+            let document = Document::load(&output)?;
+            let pages = document.get_pages();
+            assert!(!pages.is_empty(), "{mode} produced no pages");
+            for page_id in pages.into_values() {
+                let page = document.get_dictionary(page_id)?;
+                let media_box = page
+                    .get(b"MediaBox")
+                    .map_err(|_| format!("{mode}: page lost its MediaBox"))?
+                    .as_array()?
+                    .iter()
+                    .map(Object::as_float)
+                    .collect::<Result<Vec<_>, _>>()?;
+                assert_eq!(media_box, vec![0.0, 0.0, 595.0, 842.0], "{mode}");
+                assert_eq!(
+                    page.get(b"Rotate")
+                        .map_err(|_| format!("{mode}: page lost its Rotate"))?
+                        .as_i64()?,
+                    90,
+                    "{mode}"
+                );
+                assert!(page.has(b"Resources"), "{mode}: page lost its Resources");
+            }
+        }
+        Ok(())
+    }
+
+    /// Upstream's DUPLICATE mode once put the same page node under `/Kids`
+    /// several times, which makes the page tree cyclic (Stirling-PDF #6851).
+    /// Every slot must stay a distinct object.
+    #[test]
+    fn duplicate_mode_emits_a_distinct_page_object_per_slot()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let input = directory.path().join("nested.pdf");
+        let output = directory.path().join("duplicated.pdf");
+        std::fs::write(&input, nested_page_tree_pdf())?;
+        rearrange_pdf_pages_to_file(&input, "nested.pdf", Some("4"), Some("DUPLICATE"), &output)?;
+
+        let document = Document::load(&output)?;
+        let root_pages_id = document.catalog()?.get(b"Pages")?.as_reference()?;
+        let kids = document
+            .get_dictionary(root_pages_id)?
+            .get(b"Kids")?
+            .as_array()?
+            .iter()
+            .map(Object::as_reference)
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(kids.len(), 8);
+        assert_eq!(
+            kids.iter().collect::<HashSet<_>>().len(),
+            8,
+            "duplicated slots must not share one page object"
+        );
+        Ok(())
+    }
 
     #[test]
     fn matches_the_java_predefined_orders() -> Result<(), Box<dyn std::error::Error>> {
