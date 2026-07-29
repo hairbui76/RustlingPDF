@@ -1,39 +1,44 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fileOpenService } from "@app/services/fileOpenService";
+import {
+  fileOpenService,
+  type OpenedFileBatch,
+} from "@app/services/fileOpenService";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export function useOpenedFile() {
-  const [openedFilePaths, setOpenedFilePaths] = useState<string[]>([]);
+  const [openedFileBatches, setOpenedFileBatches] = useState<OpenedFileBatch[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
-  const openedFilePathsRef = useRef<string[]>([]);
+  const openedFileBatchesRef = useRef<OpenedFileBatch[]>([]);
 
-  const clearOpenedFilePaths = useCallback(() => {
-    openedFilePathsRef.current = [];
-    setOpenedFilePaths([]);
+  const clearOpenedFileBatches = useCallback(() => {
+    openedFileBatchesRef.current = [];
+    setOpenedFileBatches([]);
   }, []);
 
-  const consumeOpenedFilePaths = useCallback(() => {
-    const current = openedFilePathsRef.current;
-    openedFilePathsRef.current = [];
-    setOpenedFilePaths([]);
+  const consumeOpenedFileBatches = useCallback(() => {
+    const current = openedFileBatchesRef.current;
+    openedFileBatchesRef.current = [];
+    setOpenedFileBatches([]);
     return current;
   }, []);
 
   useEffect(() => {
-    // Function to read and process files from storage
+    // Function to read and process file batches from storage
     const readFilesFromStorage = async () => {
-      console.log("🔍 Reading files from storage...");
+      console.log("🔍 Reading file batches from storage...");
       try {
-        const filePaths = await fileOpenService.getOpenedFiles();
-        console.log("🔍 fileOpenService.getOpenedFiles() returned:", filePaths);
+        const batches = await fileOpenService.popOpenedFileBatches();
+        console.log(
+          "🔍 fileOpenService.popOpenedFileBatches() returned:",
+          batches,
+        );
 
-        if (filePaths.length > 0) {
-          console.log(
-            `✅ Found ${filePaths.length} file(s) in storage:`,
-            filePaths,
-          );
-          openedFilePathsRef.current = filePaths;
-          setOpenedFilePaths(filePaths);
+        if (batches.length > 0) {
+          console.log(`✅ Found ${batches.length} batch(es) in storage`);
+          openedFileBatchesRef.current = batches;
+          setOpenedFileBatches(batches);
         }
       } catch (error) {
         console.error("❌ Failed to read files from storage:", error);
@@ -67,9 +72,9 @@ export function useOpenedFile() {
   }, []);
 
   return {
-    openedFilePaths,
+    openedFileBatches,
     loading,
-    clearOpenedFilePaths,
-    consumeOpenedFilePaths,
+    clearOpenedFileBatches,
+    consumeOpenedFileBatches,
   };
 }
