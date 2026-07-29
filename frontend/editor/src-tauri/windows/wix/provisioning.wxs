@@ -82,6 +82,12 @@
           [INSTALLDIR]stirling_thumbnail_handler.dll and would otherwise survive
           the DLL it names) belongs to us and is force-deleted. The shared
           SOFTWARE\Classes\CLSID parent is deliberately left alone.
+
+          InprocServer32 carries the attribute too, which is redundant — the
+          parent's Name="-" row already takes it — but keeps each authored key
+          paired with its own removal instruction, so splitting or reordering
+          these elements later cannot silently orphan one. Deleting an already
+          deleted key is a no-op for MSI.
         -->
         <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Value="RustlingPDF Thumbnail Handler" KeyPath="yes" />
@@ -230,15 +236,22 @@
     <!--
       Uninstall counterparts. stirling-provisioning.json is written by a
       CustomAction, so MSI never learned about the file and cannot remove it on
-      its own; `stirling-provision.exe -\-remove` (XML comments cannot contain a
-      literal double hyphen — same escaping convention as `-\-tool` above)
-      deletes exactly that one file
-      (it refuses any other file name) and never touches the directory around
-      it, which holds the user's settings.yml / custom_settings.yml / logs.
+      its own. The provisioner's removal mode — spelled `-\-remove`, because an
+      XML comment cannot contain a literal double hyphen; same convention as
+      `-\-tool` above — deletes exactly that one file (it refuses any other file
+      name) and never touches the directory around it, which holds the user's
+      settings.yml / custom_settings.yml / logs.
 
       Return="ignore": leftover administrative config must never be able to
       block or roll back an uninstall. A failure is recorded in the MSI log; the
       Windows lifecycle check asserts the file is actually gone.
+
+      Known limitation: these are deferred, not commit, actions, and no rollback
+      counterpart is authored. An uninstall that fails after this point and
+      rolls back leaves the product installed but the provisioning file gone,
+      until MDM re-pushes it. A commit action would avoid that but cannot be
+      used: by InstallFinalize, RemoveFiles has already deleted the executable
+      it would have to run.
     -->
     <CustomAction
       Id="RemoveProvisioningFilePerUser"

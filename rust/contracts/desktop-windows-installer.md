@@ -195,7 +195,12 @@ Supporting details:
   (unit-tested in `provisioner/src/main.rs`). It runs elevated — as LocalSystem
   on the all-users branch — so a widened scope would be a privileged arbitrary
   delete. A symlink planted at the target path is deleted as a link, not
-  followed.
+  followed;
+- **known limitation**: the actions are `deferred` with no rollback
+  counterpart, so an uninstall that fails *after* them and rolls back leaves the
+  product installed with its provisioning file gone until MDM re-pushes it. A
+  `commit` action would avoid this but cannot be used — by `InstallFinalize`,
+  `RemoveFiles` has already deleted the executable it would have to run.
 
 ## Uninstall — what is deliberately left behind
 
