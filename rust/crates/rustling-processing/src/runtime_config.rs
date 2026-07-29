@@ -59,7 +59,10 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ("tesseract", "ocr-pdf"),
     ("OCRmyPDF", "ocr-pdf"),
     ("rar", "pdf-to-cbr"),
-    ("Weasyprint", "html-to-pdf url-to-pdf markdown-to-pdf eml-to-pdf"),
+    (
+        "Weasyprint",
+        "html-to-pdf url-to-pdf markdown-to-pdf eml-to-pdf",
+    ),
     ("Pdftohtml", "pdf-to-html"),
     ("Calibre", "pdf-to-epub ebook-to-pdf"),
     ("FFmpeg", "pdf-to-video"),
