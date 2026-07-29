@@ -47,8 +47,12 @@ and optional boolean `optimizeForEbook` (default false). It returns
   `RUSTLING_PROCESSING_UNRAR_COMMAND` when configured; otherwise it tries
   `unrar` and then a read-only 7-Zip (`7z`/`7zz`) fallback.
 - Startup discovery disables `cbr-to-pdf` with reason `DEPENDENCY` when none of
-  those extractors is usable. For 7-Zip, existence alone is insufficient:
-  discovery requires `7z i` to list a RAR handler.
+  those extractors is usable. For a 7-Zip-shaped candidate (its `i` output
+  parses as a `7z i` listing, regardless of the resolved file name), existence
+  alone is insufficient: discovery requires `7z i` to list BOTH a RAR format
+  handler under `Formats:` and a RAR decompression codec under `Codecs:` — the
+  format handler alone only proves the tool can open a `.rar` container, not
+  decompress one.
 - Extracted files are recursively bounded to 100,000 files and 2,000 MiB,
   symbolic links are rejected, and supported image files use the same natural
   filename ordering and PDF embedding path as CBZ-to-PDF.
@@ -93,12 +97,16 @@ uses `comic_converted.cbr`.
 - CBR-to-PDF is a secure external-adapter implementation rather than Java's
   embedded Junrar reader. It supports current RAR variants that the configured
   extractor supports, including RAR5 with the 7-Zip fallback.
-- Debian's `7zip` package omits RAR support for DFSG licensing reasons; its
-  separate `7zip-rar` plugin is non-free. The shipped container deliberately
-  installs neither that plugin nor `unrar`, so its startup probe reports
-  `cbr-to-pdf` as dependency-disabled instead of advertising a fallback that
-  will reject every RAR archive. Operators may supply an extractor without
-  changing the image's licensing policy.
+- Debian's `7zip` package ships the RAR *format handler* (it can open a `.rar`
+  container, list entries, and extract any stored uncompressed ones) but omits
+  the RAR *decompression codecs* for DFSG licensing reasons; those codecs live
+  only in the separate non-free `7zip-rar` plugin. The shipped container
+  deliberately installs neither that plugin nor `unrar`, so its startup probe
+  — which requires both the format handler and a decompression codec before
+  treating 7-Zip as RAR-capable — reports `cbr-to-pdf` as dependency-disabled
+  instead of advertising a fallback that can open a RAR-compressed archive but
+  fail to decompress any entry in it. Operators may supply an extractor
+  without changing the image's licensing policy.
 - PDF-to-CBR requires a licensed or otherwise provisioned `rar` command at
   deployment time. No CBR is synthesized as ZIP, because that would violate the
   CBR media contract.

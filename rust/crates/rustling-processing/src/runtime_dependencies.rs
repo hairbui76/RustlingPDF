@@ -198,43 +198,110 @@ fn dependency_capability_available(
     capability: Option<DependencyCapability>,
 ) -> bool {
     match capability {
-        Some(DependencyCapability::RarExtraction) if is_seven_zip(command) => {
-            run_with_timeout(command, &["i"]).is_some_and(|output| {
-                output.status.success()
-                    && seven_zip_reports_rar(&String::from_utf8_lossy(&output.stdout))
-            })
+        Some(DependencyCapability::RarExtraction) => {
+            seven_zip_rar_capability(command).unwrap_or(true)
         }
-        None | Some(DependencyCapability::RarExtraction) => true,
+        None => true,
     }
 }
 
-fn is_seven_zip(command: &Path) -> bool {
-    command
-        .file_stem()
-        .and_then(OsStr::to_str)
-        .is_some_and(|name| name.eq_ignore_ascii_case("7z") || name.eq_ignore_ascii_case("7zz"))
+/// Probes `command i` for genuine RAR *decompression* capability, independent of the
+/// candidate's file name. The probe used to run only when the file stem was exactly
+/// `7z`/`7zz`; an operator pointing `RUSTLING_PROCESSING_UNRAR_COMMAND` at a 7-Zip binary
+/// under any other name (a renamed copy, a wrapper script, `/opt/vendor/archiver`, ...)
+/// skipped the check entirely and was assumed capable unconditionally — the same
+/// truthfulness gap this module exists to close, just reached through the file name
+/// instead of the RAR-handler/codec confusion.
+///
+/// Returns `None` when `command i` does not produce a `7z i`-style capability listing at
+/// all (no `Formats:` section) — the shape genuine `unrar` produces, since it has no `i`
+/// subcommand. The caller treats `None` as "assume capable", preserving the long-standing
+/// behaviour for real `unrar`, which always supports RAR.
+fn seven_zip_rar_capability(command: &Path) -> Option<bool> {
+    let output = run_with_timeout(command, &["i"])?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    is_seven_zip_capability_listing(&stdout).then(|| seven_zip_reports_rar(&stdout))
 }
 
-/// Whether `7z i` output lists a RAR *format handler* (the `Formats:` section), not merely a
-/// RAR *codec* (the separate `Codecs:` section). 7-Zip builds can list `Rar1`/`Rar3`/`Rar5`
-/// codecs while still lacking the format handler needed to actually open `.rar` archives — e.g.
-/// Debian's DFSG-compliant `7zip` package, which omits the handler for licensing reasons but
-/// still ships the codecs. Only the `Formats:` section proves extraction capability.
+fn is_seven_zip_capability_listing(output: &str) -> bool {
+    output.lines().any(|line| line.trim() == "Formats:")
+}
+
+/// Whether `7z i` output proves genuine RAR *decompression* capability.
+///
+/// 7-Zip's RAR format handler shows up under `Formats:` as `Rar`/`Rar5`. That only lets the
+/// tool recognise and open a `.rar` container — list its entries, and extract any that
+/// happen to be stored uncompressed. Actually decompressing a RAR-compressed entry requires
+/// one of the RAR *codecs* (`Rar`/`Rar1`/`Rar2`/`Rar3`/`Rar5`), which appear under the
+/// separate `Codecs:` section.
+///
+/// This distinction is exactly what makes Debian's DFSG-compliant `7zip` package a false
+/// positive under a `Formats:`-only check: its `debian/copyright` lists
+/// `Files-Excluded: CPP/7zip/Compress/Rar*` (the codec sources) as encumbered by the
+/// non-free unRAR licence, but does **not** exclude `CPP/7zip/Archive/Rar/` (the format
+/// handler) — so the shipped `7z i` still lists `Rar`/`Rar5` under `Formats:` while having
+/// zero RAR entries under `Codecs:`. A probe that only looks at `Formats:` therefore reports
+/// this build as RAR-capable, which is false: it can open a `.rar` archive and list/extract
+/// stored entries, but cannot decompress a single RAR-compressed entry because no RAR
+/// decoder is registered. Installing the non-free `7zip-rar` plugin adds exactly the missing
+/// `Codecs:` entries (`Rar1`/`Rar2`/`Rar3`/`Rar5`) without touching `Formats:` at all.
+///
+/// We therefore require BOTH a `Formats:` handler and a `Codecs:` entry: the codec is the
+/// necessary condition (no decoder, no decompression, full stop), and the format handler is
+/// required in addition because without it 7-Zip cannot recognise/open a `.rar` container at
+/// all regardless of which codecs happen to be linked in — so a hypothetical build with a
+/// stray RAR codec but no format handler would not be genuinely RAR-capable either.
 fn seven_zip_reports_rar(output: &str) -> bool {
-    formats_section(output).any(|line| {
+    section_has_rar_entry(formats_section(output)) && section_has_rar_entry(codecs_section(output))
+}
+
+fn section_has_rar_entry<'a>(mut lines: impl Iterator<Item = &'a str>) -> bool {
+    lines.any(|line| {
         line.split_ascii_whitespace()
-            .any(|field| field.starts_with("Rar"))
+            .any(|field| matches!(field, "Rar" | "Rar1" | "Rar2" | "Rar3" | "Rar5"))
     })
 }
 
-/// Yields the lines of the `Formats:` section of `7z i` output, stopping at the blank line
-/// that separates it from the next section (e.g. `Codecs:`, `Hashers:`).
+/// Yields the lines of the `Formats:` section of `7z i` output.
 fn formats_section(output: &str) -> impl Iterator<Item = &str> {
+    section(output, "Formats:")
+}
+
+/// Yields the lines of the `Codecs:` section of `7z i` output.
+fn codecs_section(output: &str) -> impl Iterator<Item = &str> {
+    section(output, "Codecs:")
+}
+
+/// Yields the lines of the named section (e.g. `Formats:`, `Codecs:`) of `7z i` output,
+/// stopping at whichever comes first: a blank line, or the next section header (`Codecs:`,
+/// `Hashers:`, `Libs:`, or any other bare `Word:` line). `7z i` normally separates sections
+/// with a blank line, but stopping on a header too means the boundary is correct even when a
+/// build happens not to blank-line-separate two sections — previously, a `Formats:` section
+/// not followed by a blank line let the scan run straight into the next section (e.g.
+/// `Codecs:`'s `Rar1` line), producing a false positive. This is a conservative fix: a blank
+/// line *inside* a section, or a localised (non-English) header, both still terminate the
+/// section early or late respectively, but neither the 7-Zip CLI nor its `i` output ever do
+/// that in practice (7-Zip's own output is English-only).
+fn section<'a>(output: &'a str, heading: &'static str) -> impl Iterator<Item = &'a str> {
     output
         .lines()
-        .skip_while(|line| line.trim() != "Formats:")
+        .skip_while(move |line| line.trim() != heading)
         .skip(1)
-        .take_while(|line| !line.trim().is_empty())
+        .take_while(|line| {
+            let trimmed = line.trim();
+            !trimmed.is_empty() && !is_section_header(trimmed)
+        })
+}
+
+/// Whether a trimmed line is itself a section header — a single bare word followed by a
+/// colon and nothing else (`Formats:`, `Codecs:`, `Hashers:`, `Libs:`, ...).
+fn is_section_header(trimmed: &str) -> bool {
+    trimmed.strip_suffix(':').is_some_and(|name| {
+        !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    })
 }
 
 fn resolve_command(command: &OsStr) -> Option<PathBuf> {
@@ -333,7 +400,7 @@ mod tests {
 
     use super::{
         DEPENDENCY_SPECS, configured_or_platform_candidates_with, dependency_group_names,
-        parse_version, resolve_command, seven_zip_reports_rar,
+        is_seven_zip_capability_listing, parse_version, resolve_command, seven_zip_reports_rar,
     };
 
     #[test]
@@ -446,67 +513,137 @@ mod tests {
         Ok(())
     }
 
+    // The fixtures below are trimmed excerpts of `7z i` captured from the actual Debian
+    // packages `docker/Dockerfile` installs: `7zip_23.01+dfsg-11_amd64.deb` (base, DFSG,
+    // no RAR codecs) and the same binary with the non-free `7zip-rar_23.01-4_amd64.deb`
+    // plugin's `Codecs/Rar.so` installed alongside it. Both list `Rar`/`Rar5` under
+    // `Formats:` in every case — the DFSG package does NOT omit the format handler, only
+    // the decompression codecs. Irrelevant `Formats:`/`Codecs:` rows were dropped for
+    // brevity; every remaining line is copied verbatim, including exact spacing.
+
+    const REAL_DFSG_FORMATS_AND_CODECS: &str = "7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n\
+         \n\
+         Formats:\n\
+         0 C...F..........c.a.m+.. w...0  7z       7z            7 z BC AF ' 1C\n\
+         0  ......................  Compound msi msp doc xls ppt D0 CF 11 E0 A1 B1 1A E1\n\
+         0  ...F..................  Rar      rar r00       R a r ! 1A 07 00\n\
+         0  ...F..................  Rar5     rar r00       R a r ! 1A 07 01 00\n\
+         0 C...FMG........c.a.m+.. wud.0  zip      zip z01 zipx jar xpi odt ods docx xlsx epub ipa apk appx P K 03 04\n\
+         \n\
+         Codecs:\n\
+         0  EDF  6F00181 AES256CBC\n\
+         0  ED     30401 PPMD\n\
+         0  ED     30101 LZMA\n\
+         0  ED         0 Copy\n\
+         0  EDF  3030103 BCJ\n\
+         0 4ED   303011B BCJ2\n\
+         \n\
+         Hashers:\n\
+               4        1 CRC32\n";
+
     #[test]
-    fn seven_zip_requires_an_installed_rar_handler() {
-        assert!(!seven_zip_reports_rar(
-            "Formats:\n  C   F         7z       7z\n      F         zip      zip\n"
-        ));
-        assert!(seven_zip_reports_rar(
-            "Formats:\n               Rar      rar r00\n               Rar5     rar r00\n"
-        ));
+    fn seven_zip_rejects_real_debian_dfsg_output_without_rar_codec() {
+        // Real captured shape: Formats: has Rar/Rar5 (the handler is NOT excluded), but
+        // Codecs: has no Rar/Rar1/Rar2/Rar3/Rar5 entry (the codecs ARE excluded per
+        // debian/copyright's `Files-Excluded: CPP/7zip/Compress/Rar*`). This build can open
+        // a .rar container and list/extract stored entries, but cannot decompress a single
+        // RAR-compressed entry — it must be rejected.
+        assert!(!seven_zip_reports_rar(REAL_DFSG_FORMATS_AND_CODECS));
     }
 
     #[test]
-    fn seven_zip_accepts_rar_listed_under_formats() {
-        let output = "7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov\n\
+    fn seven_zip_accepts_real_rar_plugin_output() {
+        // Same binary as above, plus the non-free 7zip-rar plugin's Codecs/Rar.so: Codecs:
+        // gains Rar1/Rar2/Rar3/Rar5 while Formats: is untouched. Now genuinely RAR-capable.
+        let output = REAL_DFSG_FORMATS_AND_CODECS.replace(
+            "0 4ED   303011B BCJ2\n\
              \n\
-             Formats:\n\
-             Name        Extension  Add Extract\n\
-             +  7z          7z         +  +\n\
-             Zip         zip        +  +\n\
-             Rar                    +  rar r00\n\
-             Rar5                   +  rar\n\
+             Hashers:",
+            "0 4ED   303011B BCJ2\n\
+             1   D     40301 Rar1\n\
+             1   D     40302 Rar2\n\
+             1   D     40303 Rar3\n\
+             1   D     40305 Rar5\n\
              \n\
-             Codecs:\n\
-              0    100301   COPY\n\
-              030401   Rar1\n\
-              030403   Rar3\n\
-              030405   Rar5\n";
-        assert!(seven_zip_reports_rar(output));
+             Hashers:",
+        );
+        assert!(seven_zip_reports_rar(&output));
     }
 
     #[test]
-    fn seven_zip_rejects_rar_codecs_without_a_formats_handler() {
-        // Rar1/Rar3 appear only under Codecs: (decoder building blocks another format can
-        // reuse), with no Rar/Rar5 entry under Formats: — 7z cannot actually open .rar this way.
+    fn seven_zip_rejects_codecs_only_without_formats_handler() {
+        // Synthetic: a Rar codec present under Codecs: is not sufficient on its own — without
+        // a Formats: handler, 7-Zip cannot recognise/open a .rar container in the first place.
         let output = "7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov\n\
              \n\
              Formats:\n\
-             Name        Extension  Add Extract\n\
-             +  7z          7z         +  +\n\
-             Zip         zip        +  +\n\
+             0 C...F..........c.a.m+.. w...0  7z       7z            7 z BC AF ' 1C\n\
+             0 C...FMG........c.a.m+.. wud.0  zip      zip z01 zipx jar xpi odt ods docx xlsx epub ipa apk appx P K 03 04\n\
              \n\
              Codecs:\n\
-              0    100301   COPY\n\
-              030401   Rar1\n\
-              030403   Rar3\n";
+             0  ED         0 Copy\n\
+             1   D     40301 Rar1\n\
+             1   D     40303 Rar3\n\
+             1   D     40305 Rar5\n\
+             \n\
+             Hashers:\n\
+                   4        1 CRC32\n";
         assert!(!seven_zip_reports_rar(output));
     }
 
     #[test]
-    fn seven_zip_rejects_dfsg_style_output_with_no_rar_anywhere() {
-        // Debian's DFSG-compliant 7zip package omits RAR support entirely (both the format
-        // handler and the codecs) for licensing reasons.
+    fn seven_zip_rejects_codecs_only_without_formats_handler_and_no_blank_line_boundary() {
+        // Same logical content as `seven_zip_rejects_codecs_only_without_formats_handler`,
+        // but with the blank line between Formats: and Codecs: removed. Under the previous
+        // `take_while(!blank)` implementation, formats_section would run straight past the
+        // missing blank line into the Codecs: line and its Rar1 entry, wrongly treating Rar1
+        // as if it were a Formats: handler — a false positive. Terminating on the next
+        // section header too (this fixture's regression pin) keeps the answer correct
+        // regardless of blank-line formatting.
+        let output = "7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov\n\
+             \n\
+             Formats:\n\
+             0 C...F..........c.a.m+.. w...0  7z       7z            7 z BC AF ' 1C\n\
+             0 C...FMG........c.a.m+.. wud.0  zip      zip z01 zipx jar xpi odt ods docx xlsx epub ipa apk appx P K 03 04\n\
+             Codecs:\n\
+             0  ED         0 Copy\n\
+             1   D     40301 Rar1\n\
+             1   D     40303 Rar3\n\
+             1   D     40305 Rar5\n\
+             Hashers:\n\
+                   4        1 CRC32\n";
+        assert!(!seven_zip_reports_rar(output));
+    }
+
+    #[test]
+    fn seven_zip_rejects_output_with_no_rar_anywhere() {
+        // A minimal/older 7-Zip or p7zip build that lacks RAR support entirely: no Rar/Rar5
+        // handler under Formats:, and no Rar codec under Codecs: either.
         let output = "p7zip Version 16.02 (locale=en_US.UTF-8,Utf16=on,HugeFiles=on,64 bits,4 CPUs)\n\
              \n\
              Formats:\n\
-             Name        Extension  Add Extract\n\
-             +  7z          7z         +  +\n\
-             Zip         zip        +  +\n\
+             0 C...F..........c.a.m+.. w...0  7z       7z            7 z BC AF ' 1C\n\
+             0 C...FMG........c.a.m+.. wud.0  zip      zip z01 zipx jar xpi odt ods docx xlsx epub ipa apk appx P K 03 04\n\
              \n\
              Codecs:\n\
-              0    100301   COPY\n\
-              0    100303   BCJ2\n";
+             0  ED         0 Copy\n\
+             0 4ED   303011B BCJ2\n\
+             \n\
+             Hashers:\n\
+                   4        1 CRC32\n";
         assert!(!seven_zip_reports_rar(output));
+    }
+
+    #[test]
+    fn seven_zip_capability_listing_requires_a_formats_section() {
+        assert!(is_seven_zip_capability_listing(
+            REAL_DFSG_FORMATS_AND_CODECS
+        ));
+        // Genuine `unrar` has no `i` subcommand; its output (whatever it is) never contains
+        // a bare `Formats:` line, so it must not be mistaken for a 7-Zip listing.
+        assert!(!is_seven_zip_capability_listing(
+            "RAR 6.24 beta 1   Copyright (c) 1993-2024 Alexander Roshal\nUsage: unrar <command>\n"
+        ));
+        assert!(!is_seven_zip_capability_listing(""));
     }
 }

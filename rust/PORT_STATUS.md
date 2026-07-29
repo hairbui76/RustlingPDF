@@ -252,10 +252,16 @@ auto-rename/auto-split, plus:
   WeasyPrint PDF, with Java-compatible redirects for disabled or rejected targets.
 - `convert/cbr/pdf` — RAR/CBR → naturally ordered image PDF through `unrar` or
   a read-only 7-Zip fallback, with bounded extraction and link rejection.
-  Startup accepts 7-Zip only when `7z i` lists a RAR handler. Debian trixie's
-  DFSG `7zip` build omits that handler and the non-free `7zip-rar` plugin, so
-  the shipped image reports this route dependency-disabled instead of failing
-  every CBR at request time.
+  Startup accepts 7-Zip only when `7z i` lists BOTH a RAR format handler under
+  `Formats:` AND a RAR decompression codec under `Codecs:`. Debian trixie's
+  DFSG `7zip` build ships the format handler (it can open a `.rar` and
+  list/extract stored entries) but excludes the RAR codecs, and the shipped
+  image installs neither the non-free `7zip-rar` plugin nor `unrar`; verified
+  at runtime against the real `7zip_23.01+dfsg-11` binary, the startup probe
+  correctly reports this route dependency-disabled instead of advertising a
+  fallback that opens a RAR-compressed CBR but cannot decompress a page out
+  of it. Pointing the same probe at that binary with the `7zip-rar` plugin's
+  `Codecs/Rar.so` installed alongside it reports the route enabled.
 - `convert/pdf/cbr` — PDFium-rendered PNG pages → RAR-backed CBR through `rar`.
 - `convert/pdf/pdfa` — PDF/A-1b/2b/3b and PDF/X through Ghostscript, with embedded
   sRGB/Gray ICC profiles and optional strict veraPDF validation.

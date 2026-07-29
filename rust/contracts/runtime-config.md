@@ -57,11 +57,20 @@ names. It resolves configured command overrides and platform `PATH` candidates
 for Ghostscript, OCRmyPDF, Tesseract, LibreOffice, WeasyPrint, `pdftohtml`,
 QPDF, RAR creation, Calibre, FFmpeg, veraPDF, and RAR extraction through
 `unrar` or `7z`/`7zz`. QPDF below 12.0.0 and WeasyPrint below 58.0 are treated
-as unavailable, matching Java's minimum-version gates. A 7-Zip candidate is
-accepted only when `7z i` reports an installed RAR handler: Debian's DFSG
-`7zip` package deliberately omits that handler unless the non-free
-`7zip-rar` plugin is installed. Image-scan extraction is native and no longer
-probes Python or OpenCV. Each process probe has a five-second kill timeout.
+as unavailable, matching Java's minimum-version gates. A 7-Zip-shaped candidate
+(any candidate whose `i` output parses as a `7z i` capability listing,
+independent of the resolved file name) is accepted only when `7z i` reports
+BOTH a RAR *format handler* under `Formats:` AND a RAR *decompression codec*
+under the separate `Codecs:` section. Debian's DFSG `7zip` package ships the
+format handler (listing/opening a `.rar` container, and extracting stored
+entries, both still work) but deliberately excludes the RAR codecs — so a
+`Formats:`-only check would wrongly accept it; decompressing a RAR-compressed
+entry needs the non-free `7zip-rar` plugin, which adds only the missing
+`Codecs:` entries. A candidate whose `i` output does not parse as a 7-Zip
+listing at all (genuine `unrar`, which has no `i` subcommand) is assumed
+capable, matching `unrar`'s unconditional RAR support. Image-scan extraction
+is native and no longer probes Python or OpenCV. Each process probe has a
+five-second kill timeout.
 Missing groups feed the same endpoint-alternative logic as configured group
 removal and surface as reason `DEPENDENCY`; explicit endpoint/group removal
 still takes precedence as reason `CONFIG`. The exact executable paths accepted
