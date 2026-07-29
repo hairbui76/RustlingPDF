@@ -531,6 +531,146 @@ async fn resource_walk_stays_linear_in_the_number_of_inheriting_forms()
     Ok(())
 }
 
+/// A Type 3 font's glyph procedures are content streams, and a Type 3 font
+/// without its own `/Resources` resolves names against the page (ISO 32000-1
+/// §9.6.5). A walk that only follows `Do` never sees them, so a pattern painted
+/// only by a glyph looked dead: it was pruned while the glyph procedure kept
+/// emitting `/P0 scn`, leaving a dangling name and a corrupt page.
+#[tokio::test]
+async fn follows_type3_glyph_procedures_when_deciding_what_is_live()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "type3-pattern.pdf",
+        &pdf_with_type3_glyph_painting_a_pattern()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&bytes, b"T3LIVEPAT")?,
+        "a pattern painted by a Type 3 glyph procedure was pruned"
+    );
+    Ok(())
+}
+
+/// A soft mask paints a form `XObject` to derive the mask, so that form's content
+/// keeps whatever it references alive even though nothing invokes it with `Do`.
+#[tokio::test]
+async fn follows_soft_mask_groups_when_deciding_what_is_live()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "smask.pdf",
+        &pdf_with_soft_mask_group_painting_a_pattern()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&bytes, b"SMASKLIVEPAT")?,
+        "a pattern painted by a soft-mask group was pruned"
+    );
+    Ok(())
+}
+
+/// A Type 3 font whose glyph procedure paints the page's inherited pattern, with
+/// the text drawn inside the crop rectangle.
+fn pdf_with_type3_glyph_painting_a_pattern() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"T3LIVEPAT"));
+    let glyph_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"20 0 0 0 20 20 d1 /Pattern cs /P0 scn 0 0 20 20 re f".to_vec(),
+    ));
+    let char_procs_id = document.add_object(dictionary! { "S" => glyph_id });
+    let encoding_id = document.add_object(dictionary! {
+        "Type" => "Encoding",
+        "Differences" => vec![83.into(), Object::Name(b"S".to_vec())],
+    });
+    // Deliberately no `/Resources`: the glyph inherits the page's.
+    let type3_id = document.add_object(dictionary! {
+        "Type" => "Font",
+        "Subtype" => "Type3",
+        "FontBBox" => vec![0.into(), 0.into(), 20.into(), 20.into()],
+        "FontMatrix" => vec![
+            Object::Real(0.05), 0.into(), 0.into(), Object::Real(0.05), 0.into(), 0.into(),
+        ],
+        "CharProcs" => char_procs_id,
+        "Encoding" => encoding_id,
+        "FirstChar" => 83,
+        "LastChar" => 83,
+        "Widths" => vec![20.into()],
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /T3 12 Tf 20 30 Td (SSS) Tj ET\nBT /F1 10 Tf 20 60 Td (KEEPME) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id, "T3" => type3_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// An `/ExtGState` soft mask whose group form paints the page's pattern.
+fn pdf_with_soft_mask_group_painting_a_pattern() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"SMASKLIVEPAT"));
+    let group_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Form",
+            "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 60.into(), 30.into()],
+            "Group" => dictionary! { "S" => "Transparency", "CS" => "DeviceGray" },
+        },
+        b"q /Pattern cs /P0 scn 0 0 60 30 re f Q".to_vec(),
+    ));
+    let state_id = document.add_object(dictionary! {
+        "Type" => "ExtGState",
+        "SMask" => dictionary! { "S" => "Luminosity", "G" => group_id },
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"q /GS0 gs 0 0 1 rg 10 10 60 30 re f Q\n\
+          BT /F1 10 Tf 20 60 Td (KEEPME) Tj ET"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+            "ExtGState" => dictionary! { "GS0" => state_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
 /// A long chain of Form `XObjects` that each inherit their enclosing scope must not
 /// be walked by recursing once per link: inheriting forms do not grow the scope
 /// chain, so the scope-depth bound never fires and the recursion depth is limited

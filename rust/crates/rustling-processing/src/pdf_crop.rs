@@ -411,9 +411,25 @@ impl<'a> ResourceWalk<'a> {
                 }
                 "Do" => {
                     if let Some(name) = operand_name(operation.operands.first())
-                        && let Some(value) = resolve_xobject(self.document, chain, name)
+                        && let Some(value) = resolve_named(self.document, chain, b"XObject", name)
                     {
                         self.enqueue(chain, &value, Some(b"Form"))?;
+                    }
+                }
+                // A Type 3 font's glyph procedures are content streams too, and a
+                // Type 3 font without its own `/Resources` resolves names against
+                // the page (ISO 32000-1 §9.6.5). A glyph that paints with a
+                // page-level pattern keeps it alive just as a form would.
+                "Tf" => {
+                    if let Some(name) = operand_name(operation.operands.first()) {
+                        self.enqueue_type3_glyph_procedures(chain, name)?;
+                    }
+                }
+                // A soft mask names a form XObject whose content is painted to
+                // derive the mask, so it too can reference patterns and shadings.
+                "gs" => {
+                    if let Some(name) = operand_name(operation.operands.first()) {
+                        self.enqueue_soft_mask_group(chain, name)?;
                     }
                 }
                 _ => {}
@@ -432,6 +448,102 @@ impl<'a> ResourceWalk<'a> {
         let (live, value) = resolve_resource(self.document, chain, category, name)?;
         self.live.insert(live);
         Some(value)
+    }
+
+    /// Queues every glyph procedure of `name` when it selects a Type 3 font.
+    fn enqueue_type3_glyph_procedures(
+        &mut self,
+        chain: &[ResourcesId],
+        name: &[u8],
+    ) -> Result<(), CropError> {
+        let document = self.document;
+        let Some(font) = resolve_named(document, chain, b"Font", name) else {
+            return Ok(());
+        };
+        let Some((font_id, font)) = dereference_dictionary(document, &font) else {
+            return Ok(());
+        };
+        if !font
+            .get(b"Subtype")
+            .and_then(Object::as_name)
+            .is_ok_and(|subtype| subtype == b"Type3")
+        {
+            return Ok(());
+        }
+        let child = match (font_id, font.get(b"Resources").ok()) {
+            // Inherits the enclosing scope, so its identity does not matter.
+            (_, None) => chain.to_vec(),
+            (Some(font_id), resources) => Self::child_chain(chain, font_id, resources)?,
+            // A directly embedded font declaring its own resources has no identity
+            // to key that scope on. Guessing either way risks pruning something the
+            // glyphs still paint with, so the walk reports that it cannot decide.
+            (None, Some(_)) => {
+                return Err(CropError::ResourceAnalysis {
+                    details: "a directly embedded Type 3 font declares its own resources"
+                        .to_owned(),
+                });
+            }
+        };
+        let Some((_, procedures)) = font
+            .get(b"CharProcs")
+            .ok()
+            .and_then(|procedures| dereference_dictionary(document, procedures))
+        else {
+            return Ok(());
+        };
+        for (_, procedure) in procedures {
+            self.enqueue(&child, procedure, None)?;
+        }
+        Ok(())
+    }
+
+    /// Queues the transparency group a graphics state's soft mask paints.
+    fn enqueue_soft_mask_group(
+        &mut self,
+        chain: &[ResourcesId],
+        name: &[u8],
+    ) -> Result<(), CropError> {
+        let document = self.document;
+        let Some(state) = resolve_named(document, chain, b"ExtGState", name) else {
+            return Ok(());
+        };
+        let Some((_, state)) = dereference_dictionary(document, &state) else {
+            return Ok(());
+        };
+        let Some((_, mask)) = state
+            .get(b"SMask")
+            .ok()
+            .and_then(|mask| dereference_dictionary(document, mask))
+        else {
+            return Ok(());
+        };
+        let Ok(group) = mask.get(b"G") else {
+            return Ok(());
+        };
+        let group = group.clone();
+        self.enqueue(chain, &group, Some(b"Form"))
+    }
+
+    /// The scope a nested stream resolves against: its own `/Resources` searched
+    /// first, with the enclosing scope behind, or the enclosing scope unchanged
+    /// when it declares none.
+    fn child_chain(
+        chain: &[ResourcesId],
+        owner: ObjectId,
+        resources: Option<&Object>,
+    ) -> Result<Vec<ResourcesId>, CropError> {
+        let Some(resources) = resources else {
+            return Ok(chain.to_vec());
+        };
+        if chain.len() >= MAX_RESOURCE_SCOPE_DEPTH {
+            return Err(CropError::ResourceAnalysis {
+                details: format!("resource scopes nest more than {MAX_RESOURCE_SCOPE_DEPTH} deep"),
+            });
+        }
+        let mut child = Vec::with_capacity(chain.len().saturating_add(1));
+        child.push(resources_id(owner, resources));
+        child.extend_from_slice(chain);
+        Ok(child)
     }
 
     /// Queues a referenced stream under the scope its own `/Resources` establish —
@@ -464,25 +576,10 @@ impl<'a> ResourceWalk<'a> {
         {
             return Ok(());
         }
-        let child = match stream.dict.get(b"Resources") {
-            Ok(resources) => {
-                if chain.len() >= MAX_RESOURCE_SCOPE_DEPTH {
-                    return Err(CropError::ResourceAnalysis {
-                        details: format!(
-                            "resource scopes nest more than {MAX_RESOURCE_SCOPE_DEPTH} deep"
-                        ),
-                    });
-                }
-                let mut child = Vec::with_capacity(chain.len().saturating_add(1));
-                child.push(resources_id(*object_id, resources));
-                child.extend_from_slice(chain);
-                child
-            }
-            // No `/Resources` of its own: inherit the enclosing scope rather than
-            // resolving against nothing, which would lose both its own `Do`
-            // targets and the patterns its content paints with.
-            Err(_) => chain.to_vec(),
-        };
+        // No `/Resources` of its own: inherit the enclosing scope rather than
+        // resolving against nothing, which would lose both its own `Do` targets
+        // and the patterns its content paints with.
+        let child = Self::child_chain(chain, *object_id, stream.dict.get(b"Resources").ok())?;
         if !self.visited.insert((*object_id, child.clone())) {
             return Ok(());
         }
@@ -594,15 +691,21 @@ fn resolve_resource(
     None
 }
 
-fn resolve_xobject(document: &Document, chain: &[ResourcesId], name: &[u8]) -> Option<Object> {
+/// Resolves a resource name in any category through the scope chain.
+fn resolve_named(
+    document: &Document,
+    chain: &[ResourcesId],
+    category: &[u8],
+    name: &[u8],
+) -> Option<Object> {
     for resources_id in chain {
         let Some(resources) = resources_dictionary(document, *resources_id) else {
             continue;
         };
-        let Some(xobjects) = resources
-            .get(b"XObject")
+        let Some(entries) = resources
+            .get(category)
             .ok()
-            .and_then(|xobjects| match xobjects {
+            .and_then(|entries| match entries {
                 Object::Reference(object_id) => document.get_dictionary(*object_id).ok(),
                 Object::Dictionary(dictionary) => Some(dictionary),
                 _ => None,
@@ -610,11 +713,28 @@ fn resolve_xobject(document: &Document, chain: &[ResourcesId], name: &[u8]) -> O
         else {
             continue;
         };
-        if let Ok(value) = xobjects.get(name) {
+        if let Ok(value) = entries.get(name) {
             return Some(value.clone());
         }
     }
     None
+}
+
+/// Resolves an object to a dictionary, reporting its id when it is indirect.
+///
+/// A directly embedded dictionary has no id, and therefore no identity a resource
+/// scope can be keyed on — callers that need one must say so rather than invent it.
+fn dereference_dictionary<'a>(
+    document: &'a Document,
+    object: &'a Object,
+) -> Option<(Option<ObjectId>, &'a Dictionary)> {
+    match object {
+        Object::Reference(object_id) => {
+            Some((Some(*object_id), document.get_dictionary(*object_id).ok()?))
+        }
+        Object::Dictionary(dictionary) => Some((None, dictionary)),
+        _ => None,
+    }
 }
 
 /// Filters one category dictionary in place, keeping only live entries.

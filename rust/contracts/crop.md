@@ -78,6 +78,13 @@ holds the data the caller asked to delete is indistinguishable from a clean one,
 it is the one failure the caller cannot detect or recover from. Retrying without the
 flag costs nothing that is not recoverable.
 
+What counts as "surviving content" is every stream a mark can reach: page
+contents, Form XObjects (recursively, honouring inheritance), the content of
+patterns that survive, **Type 3 glyph procedures** (a Type 3 font without its own
+`/Resources` resolves against the page, ISO 32000-1 §9.6.5), and the transparency
+group a graphics state's soft mask paints. Missing any of them prunes something
+still painted.
+
 The walk itself is linear in the size of the document — it visits each
 (stream, scope) pair once and carries scopes by identity rather than by value, and
 it is iterative rather than recursive so a long chain of inheriting forms cannot
