@@ -27,6 +27,12 @@ lands or the queue changes.
   maintainer decision 2026-07-28); legacy login/mcp/storage/policy settings
   keys are ignored with a startup warning, never refused.
 - Canonical app version lives in `rust/VERSION` (consumed by `build.rs`).
+- **No automated dependency PRs** (maintainer decision 2026-07-29):
+  `.github/dependabot.yml` was removed and its open PRs closed — the noise
+  outweighed the value, since several bumps needed real code adaptation and
+  the ecosystem-blocked majors had to be re-closed repeatedly. Dependencies
+  are now bumped deliberately, as part of the work-item that needs them.
+  (The batch 3–5 records below mention dependabot; they are historical.)
 - Verified quick start: `task rust:install && task dev`.
 
 ## Landed — Batch 7 (2026-07-29, `batch7/no-auth-stateless`)
