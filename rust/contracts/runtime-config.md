@@ -77,7 +77,13 @@ inputs that declare no validation profile, while `group-enabled?group=veraPDF`
 reports `false` and declared PDF/A, PDF/UA, or WTPDF profiles still receive a
 request-time `501`. The same route-level rule keeps native repair/compression
 and non-CMYK replace/invert modes available when their optional external tools
-are absent.
+are absent. Because neither `qpdf` nor `veraPDF` gates any endpoint in the
+tool-group map, `endpoints.groupsToRemove: [qpdf]` and `[veraPDF]` are both a
+no-op for endpoint availability today: an operator who previously relied on
+`groupsToRemove: [qpdf]` to disable `repair`/`compress-pdf`, or on
+`groupsToRemove: [veraPDF]` to disable `verify-pdf`, will find both routes
+silently stay enabled — only the corresponding `group-enabled?group=qpdf` or
+`group-enabled?group=veraPDF` query still reports `false`.
 
 `dependenciesReady` means startup probing has completed, not that every optional
 tool is installed. Embedded/test router constructors intentionally remain
