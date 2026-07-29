@@ -44,10 +44,29 @@ The native ZIP contains:
 Text is reconstructed into visual lines from PDFium segment/glyph geometry.
 Each line carries its page-space position, width, dominant font size, and
 majority bold/italic flags where PDFium reports them. The existing Markdown
-heading detector is reused to emit `h1`/`h2` elements, and the existing
-two-column gutter detector is reused so DOM order is left-column-first and then
-right-column while CSS retains visual placement. Source text is escaped with
-Ammonia before insertion into HTML.
+heading detector is reused to emit `h1`/`h2` elements. Source text is escaped
+with Ammonia before insertion into HTML.
+
+### DOM order
+
+Each page's reconstructed lines are sorted by descending user-space top edge, so
+DOM order follows vertical visual order regardless of the order PDFium returned
+the segments in (that order depends on the page's display orientation, which is
+why a rotated page arrives bottom-to-top). Horizontal order *within* a line stays
+as PDFium assembled it.
+
+The existing Markdown two-column gutter detector then runs, and when it fires the
+left column is emitted before the right. Its usefulness here is limited, and the
+limit is not the detector: line assembly merges consecutive segments that share a
+vertical centre with no horizontal-gap bound, so on a page whose content stream
+interleaves the columns on a shared baseline both columns are already fused into
+one wide line before the detector sees the page. The gutter is then invisible and
+the merged text is emitted as a single run at the left column's offset,
+overlapping where the right column should be. Pages whose content stream emits
+one column at a time are unaffected. This is a property of the shared line
+assembler, so `convert/pdf/markdown` has the same limitation; fixing it means
+bounding the merge horizontally, which changes both endpoints and is not part of
+this surface's claims.
 
 Top-level page image objects are extracted through the shared PDFium image
 extractor, encoded as PNG, deduplicated by decoded pixels, and positioned from
@@ -103,7 +122,8 @@ encrypted PDFs remain `400 Bad Request`, and no limit violation panics.
 The native renderer is a faithful approximation, not Poppler parity:
 
 - positioning is per reconstructed visual line, not exact per-glyph placement;
-  kerning, character transforms, clipping, and rotated/vertical text can differ;
+  kerning, character transforms, clipping, and text rotated *within* a page
+  (as opposed to the page's own `/Rotate`) can differ;
 - source fonts are not embedded or reproduced by family; CSS uses browser
   fallback fonts, and PDFium's weight/style reporting can be incomplete;
 - Poppler's complex-mode page/background images are not generated;
@@ -114,8 +134,15 @@ The native renderer is a faithful approximation, not Poppler parity:
   clipping, and unusual transformation matrices are approximate;
 - vector artwork, shadings, patterns, annotations, form controls, and page
   decorations are not converted into equivalent HTML;
-- links, tagged-PDF semantics, tables, lists, and reading order beyond the
-  existing two-column heuristic are not reconstructed; and
+- links, tagged-PDF semantics, tables, and lists are not reconstructed, and
+  reading order is only vertical order plus the two-column heuristic described
+  above, so multi-column, sidebar, and callout layouts can be emitted in an order
+  a reader would not follow;
+- a page box larger than 20,000 pt on either side (well beyond the 14,400 pt
+  format maximum) is scaled down uniformly, along with every coordinate, extent,
+  and font size on it, so the aspect ratio survives but absolute point sizes no
+  longer match the source; a non-finite or non-positive box falls back to
+  612 x 792 pt; and
 - native output is one HTML file plus one CSS file, so its markup and filenames
   differ from Poppler's implementation-specific complex-mode files.
 
@@ -131,6 +158,11 @@ error.
 ## Verification
 
 Module tests assert renderer selection, native semantic/positioned markup,
-escaping, two-column order, a valid multi-page native ZIP, and clean damaged-PDF
-failure. HTTP tests cover native page/text/image output, multi-page order,
-damaged input, missing-file validation, and installed-Poppler precedence.
+escaping, two-column order on an unaligned-baseline layout, the 0/90/180/270
+rotation layout boxes and canvas transforms, proportional scaling of an oversized
+page box, that both shared output caps are non-client errors, a valid multi-page
+native ZIP, and clean damaged-PDF failure. A library test pins the mapped HTTP
+status for both output caps, `DocumentTooLarge`, and a missing renderer. HTTP
+tests cover native page/text/image output, multi-page order, all four rotations
+end to end through PDFium, damaged input, missing-file validation, and
+installed-Poppler precedence.

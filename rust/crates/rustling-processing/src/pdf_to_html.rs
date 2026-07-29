@@ -412,10 +412,13 @@ fn render_native_html(
         )?;
 
         for image in images.iter().filter(|image| image.page == page.page) {
-            let x = bounded_coordinate(image.x, page_width);
-            let width = bounded_extent(image.width, page_width - x);
-            let height = bounded_extent(image.height, page_height);
-            let top = bounded_coordinate(page_height - image.y - height, page_height);
+            let x = bounded_coordinate(image.x * layout.scale, page_width);
+            let width = bounded_extent(image.width * layout.scale, page_width - x);
+            let height = bounded_extent(image.height * layout.scale, page_height);
+            let top = bounded_coordinate(
+                page_height - image.y * layout.scale - height,
+                page_height,
+            );
             push_html(
                 &mut html,
                 &format!(
@@ -440,8 +443,7 @@ fn render_native_html(
                 append_text_run(
                     &mut html,
                     line,
-                    page_height,
-                    page_width,
+                    &layout,
                     median_font_size,
                     median_line_height,
                 )?;
@@ -456,19 +458,21 @@ fn render_native_html(
 fn append_text_run(
     html: &mut String,
     line: &MarkdownTextLine,
-    page_height: f32,
-    page_width: f32,
+    layout: &PageLayout,
     median_font_size: f32,
     median_line_height: f32,
 ) -> Result<(), PdfToHtmlError> {
-    let font_size = if line.dominant_font_size.is_finite() && line.dominant_font_size > 0.0 {
-        line.dominant_font_size.clamp(1.0, 200.0)
+    let page_width = layout.canvas_width;
+    let page_height = layout.canvas_height;
+    let raw_font_size = if line.dominant_font_size.is_finite() && line.dominant_font_size > 0.0 {
+        line.dominant_font_size
     } else {
-        median_font_size.clamp(1.0, 200.0)
+        median_font_size
     };
-    let x = bounded_coordinate(line.x, page_width);
-    let top = bounded_coordinate(page_height - line.y, page_height);
-    let width = bounded_extent(line.width, page_width - x);
+    let font_size = (raw_font_size * layout.scale).clamp(1.0, 200.0);
+    let x = bounded_coordinate(line.x * layout.scale, page_width);
+    let top = bounded_coordinate(page_height - line.y * layout.scale, page_height);
+    let width = bounded_extent(line.width * layout.scale, page_width - x);
     let weight = if line.bold { 700 } else { 400 };
     let style = if line.italic { "italic" } else { "normal" };
     let tag = match heading_prefix(
@@ -504,6 +508,10 @@ struct PageLayout {
     display_width: f32,
     display_height: f32,
     rotation_degrees: u16,
+    /// Uniform factor applied to every content coordinate, extent, and font size so an
+    /// absurdly large page box stays inside [`MAX_PAGE_DIMENSION_POINTS`] without losing
+    /// its aspect ratio. `1.0` for every page inside the limit.
+    scale: f32,
 }
 
 impl PageLayout {
@@ -531,16 +539,16 @@ impl PageLayout {
 }
 
 fn page_layout(page: &MarkdownPageGeometry) -> PageLayout {
-    let canvas_width = if page.width.is_finite() && page.width > 0.0 {
-        page.width.clamp(1.0, MAX_PAGE_DIMENSION_POINTS)
-    } else {
-        DEFAULT_PAGE_WIDTH_POINTS
-    };
-    let canvas_height = if page.height.is_finite() && page.height > 0.0 {
-        page.height.clamp(1.0, MAX_PAGE_DIMENSION_POINTS)
-    } else {
-        DEFAULT_PAGE_HEIGHT_POINTS
-    };
+    let width = usable_dimension(page.width, DEFAULT_PAGE_WIDTH_POINTS);
+    let height = usable_dimension(page.height, DEFAULT_PAGE_HEIGHT_POINTS);
+    // Clamp proportionally: shrinking each side independently would turn a
+    // 200,000 x 150,000 pt box into a square and destroy the page's aspect ratio.
+    let scale = (MAX_PAGE_DIMENSION_POINTS / width)
+        .min(MAX_PAGE_DIMENSION_POINTS / height)
+        .min(1.0)
+        .max(f32::MIN_POSITIVE);
+    let canvas_width = (width * scale).max(1.0);
+    let canvas_height = (height * scale).max(1.0);
     let rotation_degrees = match page.rotation_degrees {
         90 => 90,
         180 => 180,
@@ -558,6 +566,16 @@ fn page_layout(page: &MarkdownPageGeometry) -> PageLayout {
         display_width,
         display_height,
         rotation_degrees,
+        scale,
+    }
+}
+
+/// Returns a usable positive page extent, substituting `fallback` for a degenerate one.
+fn usable_dimension(value: f32, fallback: f32) -> f32 {
+    if value.is_finite() && value > 0.0 {
+        value
+    } else {
+        fallback
     }
 }
 
@@ -992,6 +1010,35 @@ mod tests {
         let mut html = String::new();
         archive.by_name("source.html")?.read_to_string(&mut html)?;
         assert!(html.contains("external marker"));
+        Ok(())
+    }
+
+    /// A page box beyond the CSS safety limit is scaled down uniformly, keeping its
+    /// aspect ratio and the relative placement of its content. Clamping each side
+    /// independently used to turn a 200,000 x 150,000 pt box into a 20,000 pt square.
+    #[test]
+    fn oversized_page_boxes_scale_down_proportionally()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let pages = [MarkdownPageGeometry {
+            page: 0,
+            width: 200_000.0,
+            height: 150_000.0,
+            rotation_degrees: 0,
+        }];
+        // Half-way down the page, one tenth in from the left.
+        let lines = [positioned_line("Wide", 20_000.0, 40_000.0, 75_000.0)];
+        let html = render_native_html("wide.pdf", "wide", &pages, &lines, 10.0, 12.0, &[])?;
+
+        // 200,000 / 150,000 = 4:3 is preserved at the 20,000 pt cap.
+        assert!(
+            html.contains("style=\"width:20000.00pt;height:15000.00pt\""),
+            "aspect ratio was not preserved, got:\n{html}"
+        );
+        // scale = 0.1, so x 20,000 -> 2,000 and top 150,000 - 75,000 -> 7,500.
+        assert!(
+            html.contains("left:2000.00pt;top:7500.00pt;width:4000.00pt"),
+            "content was not scaled with the page, got:\n{html}"
+        );
         Ok(())
     }
 

@@ -49,6 +49,14 @@ across pages, bold-label emphasis, and images. Those layout-specific features ar
 deliberately not yet claimed; the ported slice covers size-based heading inference,
 two-column reading order, and textual content in page order.
 
+Column detection is only as good as the line assembly it runs on. Lines are built by
+merging consecutive PDFium text segments that share a vertical centre, with no
+horizontal-gap bound, so on a page whose content stream interleaves the columns on a
+shared baseline the two columns are fused into one wide line before detection runs; the
+gutter is then invisible and the merged text is emitted as a single paragraph. Pages
+whose content stream emits one column at a time are detected as documented above.
+`convert/pdf/html` shares this line assembler and the same limitation.
+
 ## Verification
 
 Unit tests cover the ported `heading_prefix` decision (size-ratio thresholds, the
