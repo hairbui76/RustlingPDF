@@ -1,9 +1,9 @@
 # RustlingPDF
 
 A locally hosted PDF toolbox with a **pure-Rust backend**: one `axum` service
-serving 160+ PDF-processing REST endpoints (merge, split, convert, OCR, forms,
-redaction, signing, pipelines, async jobs, …), an optional Rust AI engine, and a
-React single-page UI. The server keeps **no accounts and no server-side state**:
+serving 162 REST endpoints (merge, split, convert, OCR, forms, redaction,
+signing, pipelines, async jobs, …), an optional Rust AI engine, and a React
+single-page UI. The server keeps **no accounts and no server-side state**:
 every request is self-contained, results are ephemeral (TTL-swept scratch
 space), and all user preferences live client-side.
 
@@ -14,6 +14,29 @@ zero unexplained gaps; during the port a live differential harness semantically
 diffed both backends' outputs). This repository carries that Rust backend forward as its own
 product — there is **no Java in this repo** and no dependency on a JVM at build
 or run time. See [LICENSE](LICENSE) for upstream attribution.
+
+## What it can do
+
+RustlingPDF exposes **162 REST endpoints** under `/api/v1/...`: organizing
+pages (merge, split five ways, rotate, rearrange, crop, N-up, booklets, …),
+converting to and from PDF (Office, images, HTML, Markdown, EPUB, comic-book
+archives, video slideshow, …), OCR and repair, security (passwords,
+watermarks, certificate + hardware signing, RFC 3161 timestamping, redaction,
+signature validation), inspection, forms, attachments, pipeline filters, async
+jobs, and a mobile-scanner phone-to-desktop transfer. **17** of the 162 need a
+specific external tool (LibreOffice, WeasyPrint, Ghostscript, Calibre, unrar,
+FFmpeg, or Tesseract/OCRmyPDF); missing tools are reported cleanly as
+unavailable, never a crash or silently wrong output.
+
+An optional, separately-run **AI engine** (off by default, its own container)
+adds document classification, a math/claims auditor, PDF review-comment
+generation, an AI edit planner, and structured-document-to-PDF generation. No
+document content ever reaches it — or leaves the machine — unless you
+explicitly enable it and supply your own Anthropic/OpenAI/Ollama key.
+
+The complete, code-derived endpoint reference — one row per route, grouped by
+task, with what each does and which need an external tool — is
+[`docs/product/features.md`](docs/product/features.md).
 
 ## Layout
 
@@ -51,9 +74,9 @@ Smoke check: `curl http://127.0.0.1:8080/api/v1/info/status`
 
 Optional external tools (discovered at startup; missing ones simply disable
 their endpoints with reason `DEPENDENCY`): LibreOffice, Ghostscript, qpdf ≥ 12,
-Tesseract/OCRmyPDF, WeasyPrint ≥ 58, Poppler `pdftohtml`, Calibre, unrar.
-Full operator guide, ports/binding, configuration and environment reference:
-[`rust/RUNNING_WITH_RUST.md`](rust/RUNNING_WITH_RUST.md).
+Tesseract/OCRmyPDF, WeasyPrint ≥ 58, Poppler `pdftohtml`, Calibre, unrar,
+FFmpeg. Full operator guide, ports/binding, configuration and environment
+reference: [`rust/RUNNING_WITH_RUST.md`](rust/RUNNING_WITH_RUST.md).
 
 ## Status
 
