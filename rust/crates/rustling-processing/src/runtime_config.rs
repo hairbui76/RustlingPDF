@@ -2188,7 +2188,9 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let settings = directory.path().join("settings.yml");
-        fs::write(&settings, "{}\n")?;
+        // enableUrlToPDF must be turned on so url-to-pdf's availability reflects only the
+        // WeasyPrint dependency being tested here, not its own separate CONFIG-disabled default.
+        fs::write(&settings, "system:\n  enableUrlToPDF: true\n")?;
         let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
         config
             .dependency_disabled_groups
