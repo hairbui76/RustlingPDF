@@ -215,11 +215,26 @@ fn is_seven_zip(command: &Path) -> bool {
         .is_some_and(|name| name.eq_ignore_ascii_case("7z") || name.eq_ignore_ascii_case("7zz"))
 }
 
+/// Whether `7z i` output lists a RAR *format handler* (the `Formats:` section), not merely a
+/// RAR *codec* (the separate `Codecs:` section). 7-Zip builds can list `Rar1`/`Rar3`/`Rar5`
+/// codecs while still lacking the format handler needed to actually open `.rar` archives — e.g.
+/// Debian's DFSG-compliant `7zip` package, which omits the handler for licensing reasons but
+/// still ships the codecs. Only the `Formats:` section proves extraction capability.
 fn seven_zip_reports_rar(output: &str) -> bool {
-    output.lines().any(|line| {
+    formats_section(output).any(|line| {
         line.split_ascii_whitespace()
-            .any(|field| field == "Rar" || field.starts_with("Rar"))
+            .any(|field| field.starts_with("Rar"))
     })
+}
+
+/// Yields the lines of the `Formats:` section of `7z i` output, stopping at the blank line
+/// that separates it from the next section (e.g. `Codecs:`, `Hashers:`).
+fn formats_section(output: &str) -> impl Iterator<Item = &str> {
+    output
+        .lines()
+        .skip_while(|line| line.trim() != "Formats:")
+        .skip(1)
+        .take_while(|line| !line.trim().is_empty())
 }
 
 fn resolve_command(command: &OsStr) -> Option<PathBuf> {
@@ -439,5 +454,59 @@ mod tests {
         assert!(seven_zip_reports_rar(
             "Formats:\n               Rar      rar r00\n               Rar5     rar r00\n"
         ));
+    }
+
+    #[test]
+    fn seven_zip_accepts_rar_listed_under_formats() {
+        let output = "7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov\n\
+             \n\
+             Formats:\n\
+             Name        Extension  Add Extract\n\
+             +  7z          7z         +  +\n\
+             Zip         zip        +  +\n\
+             Rar                    +  rar r00\n\
+             Rar5                   +  rar\n\
+             \n\
+             Codecs:\n\
+              0    100301   COPY\n\
+              030401   Rar1\n\
+              030403   Rar3\n\
+              030405   Rar5\n";
+        assert!(seven_zip_reports_rar(output));
+    }
+
+    #[test]
+    fn seven_zip_rejects_rar_codecs_without_a_formats_handler() {
+        // Rar1/Rar3 appear only under Codecs: (decoder building blocks another format can
+        // reuse), with no Rar/Rar5 entry under Formats: — 7z cannot actually open .rar this way.
+        let output = "7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov\n\
+             \n\
+             Formats:\n\
+             Name        Extension  Add Extract\n\
+             +  7z          7z         +  +\n\
+             Zip         zip        +  +\n\
+             \n\
+             Codecs:\n\
+              0    100301   COPY\n\
+              030401   Rar1\n\
+              030403   Rar3\n";
+        assert!(!seven_zip_reports_rar(output));
+    }
+
+    #[test]
+    fn seven_zip_rejects_dfsg_style_output_with_no_rar_anywhere() {
+        // Debian's DFSG-compliant 7zip package omits RAR support entirely (both the format
+        // handler and the codecs) for licensing reasons.
+        let output = "p7zip Version 16.02 (locale=en_US.UTF-8,Utf16=on,HugeFiles=on,64 bits,4 CPUs)\n\
+             \n\
+             Formats:\n\
+             Name        Extension  Add Extract\n\
+             +  7z          7z         +  +\n\
+             Zip         zip        +  +\n\
+             \n\
+             Codecs:\n\
+              0    100301   COPY\n\
+              0    100303   BCJ2\n";
+        assert!(!seven_zip_reports_rar(output));
     }
 }
