@@ -1,4 +1,4 @@
-use crate::commands::files::add_opened_file;
+use crate::commands::files::{add_opened_batch, add_opened_file};
 use crate::utils::add_log;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -201,8 +201,27 @@ pub fn target_window_label(app: &AppHandle) -> Option<String> {
 // (when --new-window is NOT set). The emit is targeted at `label` so only that
 // window pops the queue - other windows ignore it and keep their own files.
 pub fn forward_files_to_window(app: &AppHandle, label: &str, paths: Vec<String>) {
-    for path in &paths {
-        add_opened_file(path.clone());
+    forward_files_to_window_with_intent(app, label, paths, None);
+}
+
+// Same as `forward_files_to_window` but the batch carries an optional tool
+// intent (Explorer context-menu `--tool <action>` launches, post-aggregation).
+// The intent rides in the queue itself - not the event payload - so a cold
+// launch whose frontend mounts later still sees it; `files-changed` stays a
+// plain unit-payload nudge for back-compat.
+pub fn forward_files_to_window_with_intent(
+    app: &AppHandle,
+    label: &str,
+    paths: Vec<String>,
+    tool: Option<String>,
+) {
+    match tool {
+        Some(tool) => add_opened_batch(paths, Some(tool)),
+        None => {
+            for path in &paths {
+                add_opened_file(path.clone());
+            }
+        }
     }
     if let Some(window) = app.get_webview_window(label) {
         let _ = app.emit_to(label, "files-changed", ());

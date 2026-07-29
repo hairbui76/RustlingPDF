@@ -45,11 +45,84 @@
       </Component>
     </DirectoryRef>
 
+    <!--
+      Explorer cascade context menu for .pdf files (registry-only SubCommands
+      pattern, Windows 7+). The parent verb declares MUIVerb + an EMPTY
+      SubCommands value, which tells the shell to enumerate the sub-verbs from
+      the `shell` subkey; the NN_ prefixes on the sub-verb keys control their
+      order. Each command runs the installed app with `-\-tool <action>` — the
+      action names MUST stay identical to TOOL_INTENT_ACTIONS in
+      frontend/editor/src-tauri/src/launch_intent.rs and TOOL_INTENT_ACTIONS
+      in frontend/editor/src/desktop/services/toolIntentService.ts.
+      Notes:
+      - `[!Path]` is the runtime-formatted path of the main executable's File
+        entry in the bundler-generated main.wxs (the same reference its own
+        deep-link/file-association commands use).
+      - `SubCommands` uses Value="" deliberately; WiX v3 allows the empty
+        string here (EmptyRule.CanBeEmpty) and writes an empty REG_SZ.
+      - `MultiSelectModel=Player` lifts the default 15-item multi-select cap;
+        Explorer still launches one process per selected file, which the app
+        aggregates into a single batch (launch_intent.rs).
+      - On Windows 11 these verbs appear under "Show more options" (the legacy
+        menu); top-level Win11 placement would need a packaged
+        IExplorerCommand extension and is a documented follow-up.
+    -->
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="PdfContextMenuRootComponent" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}">
+          <RegistryValue Type="string" Name="MUIVerb" Value="{{product_name}}" KeyPath="yes" />
+          <RegistryValue Type="string" Name="SubCommands" Value="" />
+          <RegistryValue Type="string" Name="Icon" Value="&quot;[!Path]&quot;,0" />
+        </RegistryKey>
+      </Component>
+      <Component Id="PdfContextMenuOpenComponent" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\01_open">
+          <RegistryValue Type="string" Name="MUIVerb" Value="Open" KeyPath="yes" />
+          <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\01_open\command">
+          <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool open &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
+      <Component Id="PdfContextMenuMergeComponent" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\02_merge">
+          <RegistryValue Type="string" Name="MUIVerb" Value="Merge" KeyPath="yes" />
+          <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\02_merge\command">
+          <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool merge &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
+      <Component Id="PdfContextMenuCompressComponent" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\03_compress">
+          <RegistryValue Type="string" Name="MUIVerb" Value="Compress" KeyPath="yes" />
+          <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\03_compress\command">
+          <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool compress &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
+      <Component Id="PdfContextMenuConvertComponent" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\04_convert">
+          <RegistryValue Type="string" Name="MUIVerb" Value="Convert" KeyPath="yes" />
+          <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\04_convert\command">
+          <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool convert &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+
     <ComponentGroup Id="ProvisioningComponentGroup">
       <ComponentRef Id="ProvisionerBinaryComponent" />
       <ComponentRef Id="ThumbnailHandlerDllComponent" />
       <ComponentRef Id="ThumbnailHandlerClsidComponent" />
       <ComponentRef Id="ThumbnailHandlerShellexComponent" />
+      <ComponentRef Id="PdfContextMenuRootComponent" />
+      <ComponentRef Id="PdfContextMenuOpenComponent" />
+      <ComponentRef Id="PdfContextMenuMergeComponent" />
+      <ComponentRef Id="PdfContextMenuCompressComponent" />
+      <ComponentRef Id="PdfContextMenuConvertComponent" />
     </ComponentGroup>
 
     <CustomAction

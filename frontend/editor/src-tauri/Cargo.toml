@@ -41,6 +41,12 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 url = "2.5"
 urlencoding = "2.1"
 
+[dev-dependencies]
+# Test-only additions on top of the runtime `tokio` features: a runtime and
+# macros for #[tokio::test], and test-util for the paused-clock timing tests
+# in launch_intent.rs.
+tokio = { version = "1.50", features = ["macros", "rt", "test-util", "time", "sync"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
 core-services = "1.0"

@@ -1,7 +1,18 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
+/**
+ * One batch of opened file paths plus the optional tool intent they arrived
+ * with (Explorer context-menu `--tool <action>` launches). Plain opens carry
+ * `tool: null`. Mirrors `OpenedFileBatch` in src-tauri/src/commands/files.rs.
+ */
+export interface OpenedFileBatch {
+  paths: string[];
+  tool: string | null;
+}
+
 export interface FileOpenService {
-  getOpenedFiles(): Promise<string[]>;
+  /** Atomically pop the queued opened-file batches (paths + tool intent). */
+  popOpenedFileBatches(): Promise<OpenedFileBatch[]>;
   readFileAsArrayBuffer(
     filePath: string,
   ): Promise<{ fileName: string; arrayBuffer: ArrayBuffer } | null>;
@@ -15,14 +26,14 @@ export interface FileOpenService {
 }
 
 class TauriFileOpenService implements FileOpenService {
-  async getOpenedFiles(): Promise<string[]> {
+  async popOpenedFileBatches(): Promise<OpenedFileBatch[]> {
     try {
-      console.log("🔍 Calling invoke(pop_opened_files)...");
-      const result = await invoke<string[]>("pop_opened_files");
-      console.log("🔍 invoke(pop_opened_files) returned:", result);
+      console.log("🔍 Calling invoke(pop_opened_batches)...");
+      const result = await invoke<OpenedFileBatch[]>("pop_opened_batches");
+      console.log("🔍 invoke(pop_opened_batches) returned:", result);
       return result;
     } catch (error) {
-      console.error("❌ Failed to get opened files:", error);
+      console.error("❌ Failed to get opened file batches:", error);
       return [];
     }
   }
@@ -158,7 +169,7 @@ class TauriFileOpenService implements FileOpenService {
 }
 
 class WebFileOpenService implements FileOpenService {
-  async getOpenedFiles(): Promise<string[]> {
+  async popOpenedFileBatches(): Promise<OpenedFileBatch[]> {
     // In web mode, there's no file association support
     return [];
   }

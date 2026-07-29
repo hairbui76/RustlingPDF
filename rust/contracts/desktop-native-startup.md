@@ -1,5 +1,9 @@
 # Native desktop processing startup
 
+Launch arguments: bare paths are opened as files; the Windows Explorer
+context-menu `--tool <action>` intent flag and its multi-select aggregation
+are specified in `desktop-explorer-context-menu.md`.
+
 The Tauri desktop launcher starts the Rust processing backend as its bundled
 sidecar by default. `task desktop:stage-sidecar` builds the release
 `rustling-processing` binary plus the pinned PDFium runtime and stages them

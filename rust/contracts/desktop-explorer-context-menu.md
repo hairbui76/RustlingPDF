@@ -1,0 +1,129 @@
+# Desktop: Windows Explorer context menu (cascade quick actions)
+
+Right-clicking one or more `.pdf` files in Windows Explorer shows a
+"RustlingPDF" cascade submenu with quick actions that launch/focus the app
+with the selected files preloaded into the chosen tool. Windows-only, MSI
+registered; Linux/macOS keep their existing file-association "Open With"
+behavior unchanged.
+
+## Registry surface (MSI-provisioned)
+
+`frontend/editor/src-tauri/windows/wix/provisioning.wxs` appends five
+registry components to `ProvisioningComponentGroup` (all `Guid="*"`, one
+`KeyPath="yes"` value each, `HKLM` — the MSI is perMachine):
+
+```
+HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF
+  MUIVerb     = "RustlingPDF"          (cascade title)
+  SubCommands = ""                     (empty ⇒ enumerate the shell subkey — Win7+ registry-only cascade)
+  Icon        = "<short path to RustlingPDF.exe>",0
+  shell\01_open\      MUIVerb="Open"      MultiSelectModel="Player"
+  shell\01_open\command      (Default) = "<exe>" --tool open "%1"
+  shell\02_merge\     MUIVerb="Merge"     MultiSelectModel="Player"
+  shell\02_merge\command     (Default) = "<exe>" --tool merge "%1"
+  shell\03_compress\  MUIVerb="Compress"  MultiSelectModel="Player"
+  shell\03_compress\command  (Default) = "<exe>" --tool compress "%1"
+  shell\04_convert\   MUIVerb="Convert"   MultiSelectModel="Player"
+  shell\04_convert\command   (Default) = "<exe>" --tool convert "%1"
+```
+
+- `<exe>` is `[!Path]` in the WXS — the runtime-formatted path of the main
+  executable's `File` entry in the bundler-generated `main.wxs`, the same
+  reference the bundler's own file-association and deep-link commands use.
+- The `NN_` prefixes order the submenu (enumeration is alphabetical).
+- `MultiSelectModel=Player` lifts Explorer's default 15-item multi-select cap
+  (`MultipleInvokePromptMinimum`); large selections still work.
+- Uninstall removes every key automatically (per-component registry rollback);
+  MSI upgrades are safe because the pinned UpgradeCode's
+  `afterInstallInitialize` major-upgrade removes the old product first and the
+  new components are additive with auto-derived GUIDs.
+
+## Action set — single source of truth
+
+The action names form a triple that MUST stay identical, enforced by tests
+and review:
+
+1. `frontend/editor/src-tauri/windows/wix/provisioning.wxs` — the
+   `--tool <action>` verb commands;
+2. `frontend/editor/src-tauri/src/launch_intent.rs` — `TOOL_INTENT_ACTIONS`
+   (`["open", "merge", "compress", "convert"]`, unit-tested);
+3. `frontend/editor/src/desktop/services/toolIntentService.ts` —
+   `TOOL_INTENT_ACTIONS` (vitest-pinned) plus the intent→tool-route map
+   (`open` → no navigation; `merge`/`compress`/`convert` → the same-named SPA
+   tool routes).
+
+## Launch intent grammar (Rust, `launch_intent.rs`)
+
+`parse_launch_args` extends the old existing-paths-only CLI parsing:
+
+- `--tool <name>` may appear anywhere between paths; the value is consumed
+  (never treated as a path); the last occurrence wins.
+- `<name>` outside the allowlist, or a trailing `--tool` with no value,
+  degrades the launch to a plain open (`tool: None`) — never an error.
+- Every other argument is kept iff it names an existing path, so bare-path
+  launches (double-click file association, CLI) parse byte-compatibly with
+  the previous behavior.
+- macOS `RunEvent::Opened` and in-window drag-drop bypass CLI parsing
+  entirely and stay on the intent-less path unchanged.
+
+## Multi-select aggregation
+
+Explorer invokes classic registry verbs once per selected file: N selected
+files = N process launches = 1 cold launch and/or N-1 single-instance
+callbacks. Intent-carrying launches are buffered per action name in a
+process-wide aggregator (`IntentAggregator`) and flushed as ONE batch:
+
+- sliding debounce: a batch flushes once no same-intent launch has arrived
+  for 500 ms (`INTENT_DEBOUNCE_WINDOW`);
+- hard cap: a batch never waits more than 3 s from its first launch
+  (`INTENT_MAX_AGGREGATION`; worst case it flushes within one debounce window
+  past the cap while launches keep trickling in);
+- distinct intents aggregate independently; generation tokens are monotonic
+  across batches so a stale sleeper can never flush a newer batch early;
+- worst-case degradation is the same files arriving in several batches —
+  never file loss (every launch has exactly one paired flush attempt).
+
+Timing is unit-tested with tokio's paused clock (deterministic).
+
+## Queue and event semantics
+
+The opened-files queue (`commands/files.rs`) now stores
+`OpenedFileBatch { paths, tool }` entries. The intent rides in the queue, not
+in an event payload, so a cold launch whose webview mounts seconds after the
+flush still sees it. Consecutive intent-less adds coalesce into one trailing
+batch; intent batches are separate units and are never appended to.
+
+- `pop_opened_batches` (new command) — atomic pop of the batches with
+  intents; what the desktop frontend consumes.
+- `pop_opened_files` / `get_opened_files` / `clear_opened_files` — kept
+  backwards-compatible (flattened paths view, intents dropped).
+- The existing `files-changed` event is emitted unchanged (unit payload,
+  window-targeted) as a nudge to re-pop the queue; plain opens are
+  emit-per-launch exactly as before.
+
+## Frontend routing (desktop layer)
+
+`useOpenedFile` pops batches; `useAppInitialization` loads each batch's files
+into `FileContext` (`selectFiles: true`, `localFilePath` attached), then
+`navigateToToolIntent(batch.tool)` routes a mapped intent to its tool by
+pushing the tool's URL and dispatching a synthetic `popstate` — the exact
+URL-driven selection path used by browser back/forward
+(`useNavigationUrlSync`), including its availability/premium checks. Batches
+process sequentially in launch order, so the last intent's navigation wins.
+`open`, unknown intents, and `tool: null` add files with no navigation.
+
+## Caveats
+
+- **Windows 11**: registry verbs under `SystemFileAssociations` appear in the
+  legacy context menu — the user must click "Show more options" (or
+  Shift+F10). Top-level Win11 placement requires a packaged (MSIX/sparse)
+  `IExplorerCommand` extension: documented follow-up, out of v1 scope.
+- **NSIS dev builds have no menu**: `task desktop:build:dev:windows` builds
+  NSIS, which does not consume `wix.fragmentPaths`. Only the MSI (the release
+  bundle target) registers the menu. Not a bug.
+- **WiX compile proof**: WiX cannot compile on Linux; the fragment is
+  XML-validated and Handlebars-render-checked locally, and the MSI build on
+  the `windows-latest` CI leg is the compile gate.
+- The fragment is Handlebars-rendered by the tauri bundler with the same data
+  map as `main.wxs` (`{{product_name}}` is used); a literal `{{` must never
+  be added to it.
