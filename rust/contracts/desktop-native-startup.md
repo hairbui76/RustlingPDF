@@ -2,7 +2,14 @@
 
 Launch arguments: bare paths are opened as files; the Windows Explorer
 context-menu `--tool <action>` intent flag and its multi-select aggregation
-are specified in `desktop-explorer-context-menu.md`.
+are specified in `desktop-explorer-context-menu.md`. How the Windows MSI puts
+this app on a machine, what re-running the installer offers, and exactly what
+uninstalling does and does not remove are specified in
+`desktop-windows-installer.md` — including the removal of the
+`stirling-provisioning.json` file read below, and the fact that
+`%APPDATA%\Stirling-PDF` (the desktop `RUSTLING_BASE_PATH`, holding
+`settings.yml`, `custom_settings.yml` and `logs/`) is deliberately left in
+place.
 
 The Tauri desktop launcher starts the Rust processing backend as its bundled
 sidecar by default. `task desktop:stage-sidecar` builds the release

@@ -13,8 +13,8 @@ registry components to `ProvisioningComponentGroup` (all `Guid="*"`, one
 `KeyPath="yes"` value each, `HKLM` — the MSI is perMachine):
 
 ```
-HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF
-  MUIVerb     = "RustlingPDF"          (cascade title)
+HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}
+  MUIVerb     = "{{product_name}}"     (cascade title)
   SubCommands = ""                     (empty ⇒ enumerate the shell subkey — Win7+ registry-only cascade)
   Icon        = "<short path to RustlingPDF.exe>",0
   shell\01_open\      MUIVerb="Open"      MultiSelectModel="Player"
@@ -30,11 +30,24 @@ HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF
 - `<exe>` is `[!Path]` in the WXS — the runtime-formatted path of the main
   executable's `File` entry in the bundler-generated `main.wxs`, the same
   reference the bundler's own file-association and deep-link commands use.
+- **The verb key is literally `{{product_name}}`**, not `RustlingPDF`.
+  tauri-bundler renders `main.wxs` through Handlebars but hands *fragment* files
+  to candle unrendered, and MSI's `Formatted` parser leaves a `{…}` run
+  containing no `[property]` substitution unchanged. So both the key name and
+  the user-visible `MUIVerb` cascade title carry the raw token — a defect in
+  this feature, tracked as divergence 1 in `desktop-windows-installer.md`, where
+  the evidence and the fix are recorded. Everything below is unaffected; the
+  submenu still works, it is only mislabelled.
 - The `NN_` prefixes order the submenu (enumeration is alphabetical).
 - `MultiSelectModel=Player` lifts Explorer's default 15-item multi-select cap
   (`MultipleInvokePromptMinimum`); large selections still work.
-- Uninstall removes every key automatically (per-component registry rollback);
-  MSI upgrades are safe because the pinned UpgradeCode's
+- Uninstall removes the whole tree. This is **not** automatic: MSI on its own
+  only removes the registry *values* a component wrote, so until
+  `ForceDeleteOnUninstall="yes"` was added to the cascade root and to each
+  `NN_*` verb key, every one of these keys survived uninstall as an empty
+  skeleton. See `desktop-windows-installer.md` for the deletion scopes and why
+  the shared `…\.pdf\shell` parent is deliberately left alone.
+- MSI upgrades are safe because the pinned UpgradeCode's
   `afterInstallInitialize` major-upgrade removes the old product first and the
   new components are additive with auto-derived GUIDs.
 
@@ -122,8 +135,12 @@ process sequentially in launch order, so the last intent's navigation wins.
   NSIS, which does not consume `wix.fragmentPaths`. Only the MSI (the release
   bundle target) registers the menu. Not a bug.
 - **WiX compile proof**: WiX cannot compile on Linux; the fragment is
-  XML-validated and Handlebars-render-checked locally, and the MSI build on
-  the `windows-latest` CI leg is the compile gate.
-- The fragment is Handlebars-rendered by the tauri bundler with the same data
-  map as `main.wxs` (`{{product_name}}` is used); a literal `{{` must never
-  be added to it.
+  XML-validated against the WiX 3.14.1 `wix.xsd` locally, the MSI build on the
+  `windows-latest` CI leg is the compile gate, and
+  `windows/scripts/verify-msi-lifecycle.ps1` on that same leg installs and
+  uninstalls the result and asserts these keys appear and then disappear.
+- **The fragment is NOT Handlebars-rendered.** An earlier revision of this
+  contract claimed it was; the bundler renders fragments only into a throwaway
+  string used to detect `xmlns` extensions and compiles the original file
+  (tauri-bundler 2.9.4, `bundle/windows/msi/mod.rs`). Anything spelled
+  `{{name}}` in this fragment reaches the registry verbatim.
