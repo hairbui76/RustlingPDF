@@ -148,7 +148,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # External tools, versus upstream Stirling-PDF's standard image (docker/base):
 #   included — LibreOffice (writer/calc/impress/draw, -nogui variants),
-#     Ghostscript, qpdf (trixie's 12.2 satisfies the >=12 minimum),
+#     qpdf (trixie's 12.2 satisfies the >=12 minimum),
 #     Tesseract + eng + osd, OCRmyPDF (+unpaper/pngquant helpers), WeasyPrint
 #     (trixie's 62.3 satisfies the >=58 minimum), poppler-utils (pdftohtml),
 #     7zip (general archive tooling; its RAR *decompression* capability is
@@ -164,6 +164,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
 #     route dependency-disabled instead of shipping a decompressor-less
 #     fallback), ffmpeg (PDF->video stays an explicit opt-in), veraPDF,
 #     xvfb (the -nogui LibreOffice builds convert headless without X).
+# Ghostscript is no longer requested: no code path in this service invokes `gs`
+# (it was removed for its AGPL-3.0-or-commercial licence). It nevertheless still
+# lands in the image, because `ocrmypdf` hard-Depends on it — measured on
+# trixie-slim, the package set is byte-for-byte identical with and without the
+# explicit entry (367 packages, ~1039 MiB installed). Dropping `ocrmypdf` too
+# would take Ghostscript out and save ~81 MiB (320 packages, ~958 MiB), at the
+# cost of the preferred OCR engine; that is a separate product decision.
 # This sits between upstream's "standard" and "ultra-lite" variants: every
 # common conversion tools, with graceful DEPENDENCY degradation for optional
 # tools omitted by the image.
@@ -171,7 +178,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl tini fontconfig \
       libreoffice-writer-nogui libreoffice-calc-nogui \
       libreoffice-impress-nogui libreoffice-draw-nogui \
-      ghostscript qpdf poppler-utils \
+      qpdf poppler-utils \
       tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd \
       ocrmypdf unpaper pngquant \
       weasyprint \

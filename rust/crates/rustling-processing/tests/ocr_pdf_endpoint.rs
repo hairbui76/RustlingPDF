@@ -95,6 +95,114 @@ async fn ocr_follows_available_tooling() -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
+/// `removeImagesAfter=true` used to shell out to Ghostscript `-dFILTERIMAGE`.
+/// It is now pure Rust, so it must work with no external image tool: the OCR'd
+/// PDF comes back with every image XObject and its bytes gone, while the page's
+/// text layer stays. The fixture carries real text next to the image, so the
+/// assertion does not depend on what OCR happens to recognise in a synthetic
+/// bitmap; `skip-text` keeps that text rather than replacing it.
+#[tokio::test]
+async fn remove_images_after_strips_images_without_an_external_tool()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_ocr(
+        &page_with_image_and_text()?,
+        &[
+            ("languages", "eng"),
+            ("ocrType", "skip-text"),
+            ("removeImagesAfter", "true"),
+        ],
+    )
+    .await?;
+    if !ocrmypdf_present() && !tesseract_present() {
+        assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    assert_eq!(response.headers()[header::CONTENT_TYPE], "application/pdf");
+    let bytes = response_bytes(response).await?;
+    assert!(bytes.starts_with(b"%PDF"));
+    let document = Document::load_mem(&bytes)?;
+    assert!(
+        !document.objects.values().any(|object| object
+            .as_stream()
+            .is_ok_and(|stream| stream
+                .dict
+                .get(b"Subtype")
+                .and_then(Object::as_name)
+                .is_ok_and(|subtype| subtype == b"Image"))),
+        "an image XObject survived removeImagesAfter=true"
+    );
+    // The text layer OCR added must still be there: at least one font resource
+    // and one text-showing operator.
+    let has_text = document.get_pages().into_values().any(|page_id| {
+        let content = document.get_page_content(page_id);
+        lopdf::content::Content::decode(&content).is_ok_and(|content| {
+            content
+                .operations
+                .iter()
+                .any(|operation| matches!(operation.operator.as_str(), "Tj" | "TJ"))
+        })
+    });
+    assert!(has_text, "the OCR text layer was removed along with the images");
+    Ok(())
+}
+
+/// A page carrying both a small raster image (to be stripped) and a real text
+/// object (to be preserved).
+fn page_with_image_and_text() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let page_tree_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    // 4x4 checkerboard, 8-bit gray, uncompressed.
+    let mut samples = Vec::with_capacity(16);
+    for row in 0..4 {
+        for column in 0..4 {
+            samples.push(if (row + column) % 2 == 0 { 0 } else { 255 });
+        }
+    }
+    let image_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Image",
+            "Width" => 4,
+            "Height" => 4,
+            "ColorSpace" => Object::Name(b"DeviceGray".to_vec()),
+            "BitsPerComponent" => 8,
+        },
+        samples,
+    ));
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"q 160 0 0 100 20 50 cm /Im0 Do Q\nBT /F1 14 Tf 20 20 Td (OCRTEXTLAYER) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => page_tree_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 160.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "XObject" => dictionary! { "Im0" => Object::Reference(image_id) },
+        },
+        "Contents" => content_id,
+    });
+    document.objects.insert(
+        page_tree_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![Object::Reference(page_id)],
+            "Count" => 1,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => page_tree_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
 fn tesseract_present() -> bool {
     if let Some(command) =
         rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_TESSERACT_COMMAND")

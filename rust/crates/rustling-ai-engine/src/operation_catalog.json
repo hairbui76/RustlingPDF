@@ -330,41 +330,6 @@
     "title": "PdfToMarkdownParams",
     "type": "object"
   },
-  "/api/v1/convert/pdf/pdfa": {
-    "additionalProperties": false,
-    "properties": {
-      "outputFormat": {
-        "description": "The output format type (PDF/A or PDF/X)",
-        "enum": [
-          "pdfa",
-          "pdfa-1",
-          "pdfa-2",
-          "pdfa-2b",
-          "pdfa-3",
-          "pdfa-3b",
-          "pdfx"
-        ],
-        "type": "string"
-      },
-      "strict": {
-        "anyOf": [
-          {
-            "description": "If true, the conversion will fail if the output is not perfectly compliant",
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "default": null
-      }
-    },
-    "required": [
-      "outputFormat"
-    ],
-    "title": "PdfToPdfaParams",
-    "type": "object"
-  },
   "/api/v1/convert/pdf/presentation": {
     "additionalProperties": false,
     "properties": {
@@ -400,33 +365,6 @@
       "outputFormat"
     ],
     "title": "PdfToTextParams",
-    "type": "object"
-  },
-  "/api/v1/convert/pdf/vector": {
-    "additionalProperties": false,
-    "properties": {
-      "outputFormat": {
-        "default": "eps",
-        "description": "Target vector format extension",
-        "enum": [
-          "eps",
-          "ps",
-          "pcl",
-          "xps"
-        ],
-        "type": "string"
-      },
-      "prepress": {
-        "default": false,
-        "description": "Apply Ghostscript prepress settings",
-        "enum": [
-          true,
-          false
-        ],
-        "type": "boolean"
-      }
-    },
-    "title": "PdfToVectorParams",
     "type": "object"
   },
   "/api/v1/convert/pdf/word": {
@@ -491,33 +429,6 @@
       "urlInput"
     ],
     "title": "UrlToPdfParams",
-    "type": "object"
-  },
-  "/api/v1/convert/vector/pdf": {
-    "additionalProperties": false,
-    "properties": {
-      "outputFormat": {
-        "default": "eps",
-        "description": "Target vector format extension",
-        "enum": [
-          "eps",
-          "ps",
-          "pcl",
-          "xps"
-        ],
-        "type": "string"
-      },
-      "prepress": {
-        "default": false,
-        "description": "Apply Ghostscript prepress settings",
-        "enum": [
-          true,
-          false
-        ],
-        "type": "boolean"
-      }
-    },
-    "title": "VectorToPdfParams",
     "type": "object"
   },
   "/api/v1/general/booklet-imposition": {

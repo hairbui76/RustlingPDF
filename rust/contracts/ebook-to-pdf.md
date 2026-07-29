@@ -24,14 +24,13 @@ It resolves the executable from `RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND` when
 set, otherwise `ebook-convert` / `ebook-convert.exe` on `PATH`. The result must be
 a non-empty PDF before it is returned.
 
-When `optimizeForEbook=true`, Rust attempts the Java-equivalent Ghostscript pass:
-
-```
-gs -sDEVICE=pdfwrite -dPDFSETTINGS=/ebook -dFastWebView=true -dNOPAUSE -dQUIET -dBATCH ...
-```
-
-An unavailable or failed optimization preserves Calibre's original PDF, matching the
-Java route's best-effort behavior.
+`optimizeForEbook` is still accepted for wire compatibility but no longer changes
+the output. Java ran a best-effort Ghostscript `-dPDFSETTINGS=/ebook` pass over
+Calibre's PDF; Ghostscript was removed from this product for its
+AGPL-3.0-or-commercial licence. The pass was already best-effort — an unavailable
+or failing Ghostscript returned Calibre's PDF unchanged — so the flag now always
+takes that path. Responses are byte-identical to the previous no-Ghostscript
+behavior.
 
 ## Availability and parity
 

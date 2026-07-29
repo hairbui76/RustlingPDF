@@ -50,7 +50,7 @@ task dev:all
 Smoke check: `curl http://127.0.0.1:8080/api/v1/info/status`
 
 Optional external tools (discovered at startup; missing ones simply disable
-their endpoints with reason `DEPENDENCY`): LibreOffice, Ghostscript, qpdf ≥ 12,
+their endpoints with reason `DEPENDENCY`): LibreOffice, qpdf ≥ 12,
 Tesseract/OCRmyPDF, WeasyPrint ≥ 58, Poppler `pdftohtml`, Calibre, unrar.
 Full operator guide, ports/binding, configuration and environment reference:
 [`rust/RUNNING_WITH_RUST.md`](rust/RUNNING_WITH_RUST.md).

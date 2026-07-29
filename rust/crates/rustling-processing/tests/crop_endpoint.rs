@@ -95,6 +95,98 @@ async fn auto_crop_detects_rendered_content_when_pdfium_is_available()
     Ok(())
 }
 
+/// `removeDataOutsideCrop=true` is a privacy promise: text outside the crop
+/// rectangle must be absent from the returned bytes, not merely clipped. With
+/// `false` the same text must still be there, so the flag is demonstrably load
+/// bearing rather than decorative.
+#[tokio::test]
+async fn remove_data_outside_crop_discards_out_of_crop_text()
+-> Result<(), Box<dyn std::error::Error>> {
+    let source = pdf_with_text_inside_and_outside()?;
+    let coordinates = [("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")];
+
+    let mut clipped_only = coordinates.to_vec();
+    clipped_only.push(("removeDataOutsideCrop", "false"));
+    let clipped = require_status(
+        post_crop("privacy.pdf", &source, &clipped_only).await?,
+        StatusCode::OK,
+    )
+    .await?;
+    let clipped = to_bytes(clipped.into_body(), usize::MAX).await?;
+    assert!(
+        find_bytes(&clipped, b"OUTSIDECROP").is_some(),
+        "clip-only mode must keep the original marks in the file"
+    );
+
+    let removed = post_crop("privacy.pdf", &source, &coordinates).await?;
+    if removed.status() == StatusCode::NOT_IMPLEMENTED {
+        let body = to_bytes(removed.into_body(), usize::MAX).await?;
+        assert!(String::from_utf8_lossy(&body).contains("PDFium"));
+        if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+            return Err(std::io::Error::other(
+                "configured PDFium runtime did not execute out-of-crop removal",
+            )
+            .into());
+        }
+        // Without PDFium the route refuses rather than silently returning a file
+        // that still contains the data the caller asked to remove.
+        return Ok(());
+    }
+    let removed = require_status(removed, StatusCode::OK).await?;
+    let removed = to_bytes(removed.into_body(), usize::MAX).await?;
+    assert!(
+        find_bytes(&removed, b"OUTSIDECROP").is_none(),
+        "out-of-crop text survived removeDataOutsideCrop=true"
+    );
+    let document = Document::load_mem(&removed)?;
+    let page_id = document
+        .get_pages()
+        .into_values()
+        .next()
+        .ok_or("missing page")?;
+    assert_box_close(page_box(&document, page_id)?, [0.0, 0.0, 200.0, 100.0]);
+    Ok(())
+}
+
+/// One page with a text run well inside the crop rectangle and another well
+/// outside it, both uncompressed so the assertions can look at raw bytes.
+fn pdf_with_text_inside_and_outside() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 12 Tf 20 40 Td (INSIDECROP) Tj ET\n\
+          BT /F1 12 Tf 20 250 Td (OUTSIDECROP) Tj ET"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+        "Contents" => content_id,
+    });
+    document.objects.insert(
+        root_pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![Object::Reference(page_id)],
+            "Count" => 1,
+        }),
+    );
+    let catalog_id = document.add_object(dictionary! {
+        "Type" => "Catalog",
+        "Pages" => root_pages_id,
+    });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
 fn page_box(
     document: &Document,
     page_id: lopdf::ObjectId,

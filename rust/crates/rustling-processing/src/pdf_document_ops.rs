@@ -486,3 +486,109 @@ fn clean_resources(
         Ok(Object::Dictionary(dictionary))
     }
 }
+
+#[cfg(test)]
+mod strip_images_tests {
+    use lopdf::{Document, Object, Stream, content::Content, dictionary};
+
+    use super::strip_images_to_file;
+
+    /// The OCR `removeImagesAfter` replacement must delete the image resource,
+    /// the `Do` that paints it, the inline image, and the image bytes, while
+    /// leaving the text-showing operators and their font resource untouched.
+    #[test]
+    fn strips_image_xobjects_inline_images_and_their_bytes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let input = directory.path().join("input.pdf");
+        let output = directory.path().join("output.pdf");
+
+        let mut document = Document::with_version("1.7");
+        let pages_id = document.new_object_id();
+        let font_id = document.add_object(dictionary! {
+            "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+        });
+        let image_id = document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "XObject",
+                "Subtype" => "Image",
+                "Width" => 2,
+                "Height" => 1,
+                "ColorSpace" => Object::Name(b"DeviceGray".to_vec()),
+                "BitsPerComponent" => 8,
+            },
+            b"IMAGEPIXELBYTES".to_vec(),
+        ));
+        let content_id = document.add_object(Stream::new(
+            dictionary! {},
+            b"BT /F1 12 Tf 10 10 Td (OCRTEXTLAYER) Tj ET\n\
+              q 40 0 0 40 5 5 cm /Im0 Do Q\n\
+              BI /W 1 /H 1 /CS /G /BPC 8 ID \x11 EI"
+                .to_vec(),
+        ));
+        let page_id = document.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "MediaBox" => vec![0.into(), 0.into(), 100.into(), 100.into()],
+            "Resources" => dictionary! {
+                "Font" => dictionary! { "F1" => font_id },
+                "XObject" => dictionary! { "Im0" => Object::Reference(image_id) },
+            },
+            "Contents" => content_id,
+        });
+        document.objects.insert(
+            pages_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Kids" => vec![Object::Reference(page_id)],
+                "Count" => 1,
+            }),
+        );
+        let catalog_id =
+            document.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
+        document.trailer.set("Root", catalog_id);
+        document.save(&input)?;
+
+        strip_images_to_file(&input, "input.pdf", &output)?;
+
+        let bytes = std::fs::read(&output)?;
+        assert!(
+            !bytes
+                .windows(b"IMAGEPIXELBYTES".len())
+                .any(|window| window == b"IMAGEPIXELBYTES"),
+            "the image stream survived stripping"
+        );
+
+        let stripped = Document::load(&output)?;
+        let page_id = stripped
+            .get_pages()
+            .into_values()
+            .next()
+            .ok_or("no page after stripping")?;
+        let content = Content::decode(&stripped.get_page_content(page_id))?;
+        let operators = content
+            .operations
+            .iter()
+            .map(|operation| operation.operator.as_str())
+            .collect::<Vec<_>>();
+        assert!(!operators.contains(&"Do"), "{operators:?}");
+        assert!(!operators.contains(&"BI"), "{operators:?}");
+        assert!(operators.contains(&"Tj"), "{operators:?}");
+        let (resources, _) = stripped.get_page_resources(page_id)?;
+        let resources = resources.ok_or("page lost its resources")?;
+        assert!(resources.get(b"Font").is_ok(), "the font resource was lost");
+        let xobjects = resources.get(b"XObject")?.as_dict()?;
+        assert!(xobjects.is_empty(), "an image XObject resource remained");
+        assert!(
+            !stripped.objects.values().any(|object| object
+                .as_stream()
+                .is_ok_and(|stream| stream
+                    .dict
+                    .get(b"Subtype")
+                    .and_then(Object::as_name)
+                    .is_ok_and(|subtype| subtype == b"Image"))),
+            "an image object remained in the document"
+        );
+        Ok(())
+    }
+}

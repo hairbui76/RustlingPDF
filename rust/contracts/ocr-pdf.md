@@ -29,8 +29,12 @@ ocrmypdf --verbose 2 --output-type pdf --pdf-renderer <hocr|sandwich> \
 The `ocrmypdf` binary is resolved from `RUSTLING_PROCESSING_OCRMYPDF_COMMAND` when
 set, otherwise platform defaults. The known restricted-kernel multiprocessing
 failure is retried once with `--jobs 1`. When `removeImagesAfter` is set the OCR'd
-PDF is post-processed with Ghostscript (`-sDEVICE=pdfwrite -dFILTERIMAGE`), matching
-the Java behavior.
+PDF is post-processed in Rust: every image `XObject` resource, the `Do` operators
+that paint them, and every inline `BI`/`ID`/`EI` image are removed with `lopdf`,
+and the orphaned image streams are then pruned so their bytes leave the file. The
+OCR text layer, fonts, and vector content are untouched. This replaces the Java
+behavior's Ghostscript `-dFILTERIMAGE` pass; no external tool is involved, so the
+flag can no longer fail for lack of one.
 
 When OCRmyPDF is disabled or cannot be found, Rust uses Java's Tesseract fallback.
 PDFium loads the source once, detects text for `skip-text`, retains every original
@@ -67,8 +71,8 @@ validation order as Java.
 Startup discovery probes OCRmyPDF and Tesseract independently, and the endpoint is
 advertised when either tool remains enabled. If neither executable is available,
 the endpoint returns `501 Not Implemented`. A process that starts but fails returns
-a server error. If `removeImagesAfter` is requested on the OCRmyPDF path but
-Ghostscript is unavailable, `501` is returned.
+a server error. `removeImagesAfter` has no external dependency; a malformed PDF
+whose content streams cannot be decoded or re-encoded returns a server error.
 
 ## Verification
 
