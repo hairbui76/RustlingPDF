@@ -358,10 +358,16 @@ pub(crate) fn install_xobject(
 /// `q q 0.5 0 0 0.5 300 400 cm` resets cleanly, because the innermost unmatched
 /// `q` saved the state from before the `cm` ran.
 ///
-/// What survives is state the stream changed at nesting depth zero, outside any
-/// `q`. A page whose content opens `0.5 0 0 0.5 0 0 cm` and only afterwards
-/// leaves a `q` unmatched still scales the appended content by 0.5, because the
-/// `Q` restores the state as of that `q` - which already carried the scale.
+/// What survives is whatever state was already in force when that most recent
+/// unmatched `q` ran, whatever nesting depth it sits at. A page whose content
+/// opens `0.5 0 0 0.5 0 0 cm` and only afterwards leaves a `q` unmatched still
+/// scales the appended content by 0.5, because the `Q` restores the state as of
+/// that `q` - which already carried the scale. Depth is not what decides it:
+/// `q 2 0 0 2 0 0 cm q 0.5 0 0 0.5 0 0 cm` leaves the depth-1 doubling in
+/// force, while `q 9 0 0 9 0 0 cm Q` followed by `0.5 0 0 0.5 0 0 cm` resets
+/// cleanly even though the scale was set at depth zero. A stream with excess
+/// `Q` is a third shape: the surplus `Q` consumes the prefix stream's own save,
+/// so the appended `Q` underflows and later state leaks.
 /// `PDFBox` behaves identically, writing the same single `q`/`Q` pair, so this
 /// is a shared residual limit rather than a divergence.
 pub(crate) fn append_page_content_with_reset(

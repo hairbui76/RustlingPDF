@@ -38,11 +38,13 @@ top-left corner.
   the page's own stream left unmatched, or from the page's initial state when
   that stream is balanced. The number of unmatched `q`s does not matter:
   `q q 0.5 0 0 0.5 300 400 cm` resets cleanly, because the innermost unmatched
-  `q` saved the state from before the `cm`. What survives is state the stream
-  changed at nesting depth zero, outside any `q` — a page that scales with
-  `0.5 0 0 0.5 0 0 cm` and only afterwards leaves a `q` unmatched still scales
-  the overlay. PDFBox writes the same single `q`/`Q` pair and behaves
-  identically, so this residual is shared with upstream rather than a
+  `q` saved the state from before the `cm`. What survives is whatever state was
+  already in force when that most recent unmatched `q` ran, whatever nesting
+  depth it sits at — a page that scales with `0.5 0 0 0.5 0 0 cm` and only
+  afterwards leaves a `q` unmatched still scales the overlay. A stream carrying
+  more `Q`s than `q`s is a further shape: the surplus `Q` consumes the reset's
+  own save, so later state leaks. PDFBox writes the same single `q`/`Q` pair and
+  behaves identically, so these residuals are shared with upstream rather than a
   divergence.
 - External SVG resources, XML document declarations/entities, and remote CSS
   imports are rejected before SVG parsing. Inline `data:` resources remain
