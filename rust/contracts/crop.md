@@ -84,23 +84,34 @@ holds the data the caller asked to delete is indistinguishable from a clean one,
 it is the one failure the caller cannot detect or recover from. Retrying without the
 flag costs nothing that is not recoverable.
 
-"Surviving content" currently means these streams, and the list is empirical
-rather than proven exhaustive:
+"Surviving content" is defined by one rule rather than a list: **every content
+stream that will still be in the output file**. Concretely the walk follows every
+declared resource that reaches a content stream — `/XObject` forms, `/Pattern`
+content, `/ExtGState` (its soft-mask group and its `/Font`), and `/Font` Type 3
+glyph procedures — from the page's own resources and, recursively, from every
+scope those reach, honouring resource inheritance (a Form XObject or Type 3 font
+without its own `/Resources` resolves against the enclosing scope, ISO 32000-1
+§8.10.1 and §9.6.5).
 
-- page content streams, including `/Contents` arrays;
-- Form XObjects reached by `Do`, recursively, honouring resource inheritance;
-- the content of patterns that survive;
-- Type 3 glyph procedures — both for a font selected by `Tf` and for one selected
-  through `/ExtGState`'s `/Font` entry (ISO 32000-1 Table 58); a Type 3 font
-  without its own `/Resources` resolves against the page (§9.6.5);
-- the transparency group a graphics state's soft mask paints.
+Declarations are followed, not merely the operators that invoke them, and that is
+load-bearing in both directions:
 
-`/ExtGState` and `/Font` entries are followed **as declared in a resource
-dictionary**, not only where an operator invokes them. PDFium regenerates a page's
-operators while keeping its resource declarations, so a graphics state that
-selected a Type 3 font survives with its glyph procedures intact after the `gs`
-that invoked it is gone; following only operators would prune the pattern those
-glyphs paint and leave the surviving procedure naming nothing.
+- **Necessary.** A stream survives when some surviving dictionary declares it and
+  nothing prunes that declaration — regardless of whether an operator executes it.
+  PDFium regenerates a page's operators while keeping its resource declarations,
+  so a graphics state that selected a Type 3 font outlives the `gs` that invoked
+  it. More generally, a form's or a pattern's *own* `/Resources` is never rewritten
+  by PDFium and is not touched by this pruning, so an `/XObject` declared there
+  always survives even if nothing does `Do` on it. Following operators alone prunes
+  what such a stream paints with and leaves it naming a resource no dictionary
+  declares — the counter-example that produced this rule was a form whose own
+  resources declared a second, never-invoked form painting a page-level pattern.
+- **Safe, not merely conservative.** The walk runs on the *post-PDFium* document,
+  so "declared" already means "survived PDFium's own resource rebuild". Following
+  declarations therefore follows exactly what is still in the file; it cannot
+  retain something PDFium already dropped. Fixtures where an out-of-crop-only
+  secret is reachable solely through a declared-but-uninvoked path confirm the
+  secret is still removed.
 
 A path that is *not* followed causes **corruption, not a leak**: the entry is
 pruned while a stream that names it survives, leaving a dangling resource name.

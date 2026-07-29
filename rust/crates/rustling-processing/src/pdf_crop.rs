@@ -463,19 +463,31 @@ impl<'a> ResourceWalk<'a> {
         Some(value)
     }
 
-    /// Queues content reachable from a scope's **declarations**, not just from the
-    /// operators that invoke them.
+    /// Queues every content stream a scope's **declarations** reach, not just the
+    /// ones its operators invoke.
     ///
-    /// `PDFium` regenerates a page's operators but keeps its `/ExtGState` and
-    /// `/Font` entries declared, so a graphics state that selected a Type 3 font
-    /// (ISO 32000-1 Table 58) survives in the resources with its glyph procedures
-    /// intact while the `gs` that invoked it is gone. An operator-driven walk never
-    /// sees it, prunes the pattern its glyphs paint, and leaves that surviving
-    /// procedure naming a resource no dictionary declares.
+    /// This is the general rule the walk is built on: *traverse every content
+    /// stream that will still be in the output file*. A resource entry has to stay
+    /// declared if any surviving stream names it, and a stream survives when some
+    /// surviving dictionary declares it and nothing prunes that declaration —
+    /// whether or not an operator ever executes it.
     ///
-    /// Following declarations keeps strictly more than following operators, which
-    /// is the safe direction here: the alternative is a dangling name in a stream
-    /// that is still in the file.
+    /// Two things make that both necessary and safe:
+    ///
+    /// * **Necessary.** `PDFium` regenerates a page's operators while keeping its
+    ///   resource declarations, so a graphics state that selected a Type 3 font
+    ///   (ISO 32000-1 Table 58) survives with its glyph procedures after the `gs`
+    ///   that invoked it is gone. A form's or a pattern's *own* `/Resources` is
+    ///   never rewritten by `PDFium` at all, and this pruning only filters
+    ///   `/Pattern` and `/Shading`, so an `/XObject` declared there always
+    ///   survives even when nothing does `Do` on it. Following operators alone
+    ///   prunes what such a stream paints with and leaves it naming a resource no
+    ///   dictionary declares.
+    /// * **Safe.** The walk runs on the *post-`PDFium`* document, so "declared"
+    ///   already means "survived `PDFium`'s own resource rebuild". Following
+    ///   declarations therefore follows exactly what is still in the file; it
+    ///   cannot retain something `PDFium` already dropped, which is why this is
+    ///   not merely a conservative over-approximation.
     fn enqueue_declared_content(
         &mut self,
         chain: &[ResourcesId],
@@ -490,6 +502,9 @@ impl<'a> ResourceWalk<'a> {
         }
         for font in declared_values(document, resources, b"Font") {
             self.enqueue_type3_font(chain, &font)?;
+        }
+        for xobject in declared_values(document, resources, b"XObject") {
+            self.enqueue(chain, &xobject, Some(b"Form"))?;
         }
         Ok(())
     }
