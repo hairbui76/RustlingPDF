@@ -70,20 +70,49 @@ an out-of-crop mark referenced re-opens the leak, and dropping one that survivin
 content still paints with leaves a dangling name and visibly corrupts the page.
 
 If the walk cannot establish what is live — an undecodable content stream, or
-nesting past its limits — the request **fails with `500` and no file is produced**,
-naming the cause and pointing at `removeDataOutsideCrop=false`. It never falls back
+nesting past its limits — the request **fails with `422 Unprocessable Content` and
+no file is produced**, naming the cause and pointing at
+`removeDataOutsideCrop=false`. The status is deliberate: this is an anticipated,
+designed refusal about a property of the payload, not an unexpected server fault,
+so RFC 9110 puts it outside 5xx; `400` would be wrong too, since deep nesting and
+large form counts are legal PDF, not malformed requests. The abort is logged at
+`WARN` with `event = "crop_resource_analysis_aborted"` so operators can watch how
+often it fires without 5xx noise. It never falls back
 to keeping everything, for the same reason this endpoint returns `501` rather than
 cropping without removal when PDFium is missing: a `200` carrying a file that still
 holds the data the caller asked to delete is indistinguishable from a clean one, so
 it is the one failure the caller cannot detect or recover from. Retrying without the
 flag costs nothing that is not recoverable.
 
-What counts as "surviving content" is every stream a mark can reach: page
-contents, Form XObjects (recursively, honouring inheritance), the content of
-patterns that survive, **Type 3 glyph procedures** (a Type 3 font without its own
-`/Resources` resolves against the page, ISO 32000-1 §9.6.5), and the transparency
-group a graphics state's soft mask paints. Missing any of them prunes something
-still painted.
+"Surviving content" currently means these streams, and the list is empirical
+rather than proven exhaustive:
+
+- page content streams, including `/Contents` arrays;
+- Form XObjects reached by `Do`, recursively, honouring resource inheritance;
+- the content of patterns that survive;
+- Type 3 glyph procedures — both for a font selected by `Tf` and for one selected
+  through `/ExtGState`'s `/Font` entry (ISO 32000-1 Table 58); a Type 3 font
+  without its own `/Resources` resolves against the page (§9.6.5);
+- the transparency group a graphics state's soft mask paints.
+
+`/ExtGState` and `/Font` entries are followed **as declared in a resource
+dictionary**, not only where an operator invokes them. PDFium regenerates a page's
+operators while keeping its resource declarations, so a graphics state that
+selected a Type 3 font survives with its glyph procedures intact after the `gs`
+that invoked it is gone; following only operators would prune the pattern those
+glyphs paint and leave the surviving procedure naming nothing.
+
+A path that is *not* followed causes **corruption, not a leak**: the entry is
+pruned while a stream that names it survives, leaving a dangling resource name.
+That is the direction the residual risk points, and it is why the walk errs
+towards keeping entries whenever it cannot decide.
+
+The following were enumerated and need no traversal: annotation appearance streams
+(the rebuild emits no `/Annots`, so they never survive — pinned by
+`rebuilt_pages_carry_no_annotations`); form `/Group`, image `/SMask` and `/Mask`,
+`/Function`, halftones, `/Properties` and `/OC` (none are content streams);
+ShadingType 4–7 meshes (data, not operators); and inline images (already inside the
+stream being scanned).
 
 The walk itself is linear in the size of the document — it visits each
 (stream, scope) pair once and carries scopes by identity rather than by value, and

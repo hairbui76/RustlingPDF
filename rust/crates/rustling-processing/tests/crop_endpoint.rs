@@ -475,6 +475,11 @@ async fn walks_deeply_nested_resource_scopes_instead_of_giving_up()
 /// that still holds the data the caller asked to delete; pruning anyway leaves a
 /// `scn` naming a resource no dictionary declares. Both are undetectable to the
 /// caller, so the request errors and no file is produced.
+///
+/// The status is `422`, not `500`: this is an anticipated, designed refusal about
+/// a property of the payload, not an unexpected server fault, and emitting 5xx for
+/// it would burn error budget and train operators to ignore 5xx from this
+/// service.
 #[tokio::test]
 async fn rejects_the_request_when_the_resource_walk_cannot_prove_what_is_live()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -487,7 +492,7 @@ async fn rejects_the_request_when_the_resource_walk_cannot_prove_what_is_live()
     if response.status() == StatusCode::NOT_IMPLEMENTED {
         return Ok(());
     }
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let body = to_bytes(response.into_body(), usize::MAX).await?;
     let body = String::from_utf8_lossy(&body);
     assert!(
@@ -503,32 +508,126 @@ async fn rejects_the_request_when_the_resource_walk_cannot_prove_what_is_live()
 
 /// Scaling guard for the resource walk.
 ///
-/// Carrying scopes by value made this quadratic in time and memory — 4000
-/// inheriting forms cost 15.9 s and 1.8 GB of resident memory on the reference
-/// host, versus 1.9 s and no measurable growth once scopes were carried by
-/// identity. The budget is deliberately loose so ordinary CI noise cannot trip it
-/// while a return of the quadratic behaviour still would.
+/// Carrying scopes by value made this quadratic — on the reference host 500
+/// inheriting forms cost 0.66 s and 4000 cost 15.9 s (24x for 8x the work), versus
+/// 0.35 s and 1.65 s once scopes were carried by identity.
+///
+/// The assertion is on the **ratio**, not on absolute wall clock, so it does not
+/// depend on how fast the host is: quadratic growth shows up as roughly 8x-24x
+/// between these two sizes, linear as roughly 4x-5x. The 8x threshold sits between
+/// the two, and the smaller size is measured first as its own baseline so a loaded
+/// machine scales both ends together. An absolute budget cannot do this job — the
+/// bound this replaces was 60 s at 4000 forms, which the 15.9 s regression it was
+/// named for would have passed.
 #[tokio::test]
 async fn resource_walk_stays_linear_in_the_number_of_inheriting_forms()
 -> Result<(), Box<dyn std::error::Error>> {
-    let source = pdf_with_inheriting_forms(4_000)?;
-    let started = std::time::Instant::now();
-    let response = post_crop(
-        "scaling.pdf",
-        &source,
-        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
-    )
-    .await?;
-    let elapsed = started.elapsed();
-    if response.status() == StatusCode::NOT_IMPLEMENTED {
+    let coordinates = [("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")];
+    let mut timings = Vec::new();
+    for forms in [500_u32, 4_000] {
+        let source = pdf_with_inheriting_forms(forms as usize)?;
+        let started = std::time::Instant::now();
+        let response = post_crop("scaling.pdf", &source, &coordinates).await?;
+        let elapsed = started.elapsed();
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            return Ok(());
+        }
+        require_status(response, StatusCode::OK).await?;
+        timings.push((forms, elapsed));
+    }
+    let (small_forms, small) = timings[0];
+    let (large_forms, large) = timings[1];
+    // Guard against a baseline so small that timer noise dominates the ratio.
+    if small < std::time::Duration::from_millis(20) {
         return Ok(());
     }
-    require_status(response, StatusCode::OK).await?;
+    let growth = large.as_secs_f64() / small.as_secs_f64();
+    let work = f64::from(large_forms) / f64::from(small_forms);
     assert!(
-        elapsed < std::time::Duration::from_secs(60),
-        "4000 inheriting forms took {elapsed:?}; the walk is no longer linear"
+        growth < work * 2.0,
+        "{small_forms} forms took {small:?} and {large_forms} took {large:?} — {growth:.1}x the \
+         time for {work:.0}x the work; the walk is no longer linear"
     );
     Ok(())
+}
+
+/// Pins the invariant that lets the resource walk ignore annotation appearance
+/// streams: the rebuild does not carry annotations over, so an `/AP` stream is
+/// never part of the surviving content and cannot be left naming a pruned
+/// resource. If annotation preservation is ever added, this test fails and the
+/// walk must start following `/AP` — see the note in `pdf_crop.rs`.
+#[tokio::test]
+async fn rebuilt_pages_carry_no_annotations() -> Result<(), Box<dyn std::error::Error>> {
+    let source = pdf_with_annotation_appearance()?;
+    for extra in [
+        Vec::new(),
+        vec![("removeDataOutsideCrop", "false")],
+        vec![("autoCrop", "true")],
+    ] {
+        let mut fields = if extra.iter().any(|(name, _)| *name == "autoCrop") {
+            Vec::new()
+        } else {
+            vec![("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")]
+        };
+        fields.extend(extra.iter().copied());
+        let response = post_crop("annots.pdf", &source, &fields).await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            continue;
+        }
+        let response = require_status(response, StatusCode::OK).await?;
+        let document = Document::load_mem(&to_bytes(response.into_body(), usize::MAX).await?)?;
+        for page_id in document.get_pages().into_values() {
+            assert!(
+                document.get_dictionary(page_id)?.get(b"Annots").is_err(),
+                "a rebuilt page carries /Annots; the resource walk must now follow \
+                 annotation appearance streams"
+            );
+        }
+    }
+    Ok(())
+}
+
+/// A page with an annotation whose appearance stream paints with a pattern of its
+/// own, plus ordinary in-crop content.
+fn pdf_with_annotation_appearance() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"ANNOTPAT"));
+    let appearance_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Form",
+            "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 60.into(), 30.into()],
+            "Resources" => dictionary! {
+                "Pattern" => dictionary! { "P0" => pattern_id },
+            },
+        },
+        b"q /Pattern cs /P0 scn 0 0 60 30 re f Q".to_vec(),
+    ));
+    let annotation_id = document.add_object(dictionary! {
+        "Type" => "Annot",
+        "Subtype" => "Square",
+        "Rect" => vec![20.into(), 20.into(), 80.into(), 50.into()],
+        "F" => 4,
+        "AP" => dictionary! { "N" => appearance_id },
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 10 Tf 20 60 Td (KEEPME) Tj ET\n0 0 1 rg 10 10 40 20 re f".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+        "Contents" => content_id,
+        "Annots" => vec![Object::Reference(annotation_id)],
+    });
+    finish_single_page(document, root_pages_id, page_id)
 }
 
 /// A Type 3 font's glyph procedures are content streams, and a Type 3 font
@@ -555,6 +654,96 @@ async fn follows_type3_glyph_procedures_when_deciding_what_is_live()
         "a pattern painted by a Type 3 glyph procedure was pruned"
     );
     Ok(())
+}
+
+/// `/ExtGState` can select a font directly (ISO 32000-1 Table 58), so a Type 3
+/// font chosen that way never trips the `Tf` arm.
+///
+/// It is also the case that makes operator-driven walking insufficient: `PDFium`
+/// regenerates the page's operators — dropping the `gs` that invoked the state —
+/// while keeping the state *declared* in the rebuilt resources, glyph procedures
+/// and all. Following only operators therefore pruned the pattern those glyphs
+/// paint and left a surviving procedure emitting `/P0 scn` with no `/Pattern`
+/// anywhere.
+#[tokio::test]
+async fn follows_fonts_selected_through_the_graphics_state()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "extgstate-font.pdf",
+        &pdf_with_type3_font_selected_by_graphics_state()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "100")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&bytes, b"EGFONTPAT")?,
+        "a pattern painted by a Type 3 glyph selected through /ExtGState was pruned"
+    );
+    assert!(
+        !document_contains(&bytes, b"EGOUTOFCROP")?,
+        "the out-of-crop text survived"
+    );
+    Ok(())
+}
+
+/// A page whose `/ExtGState` carries `/Font [<Type 3 font> size]`, with the glyph
+/// drawn inside the crop rectangle and painting the page's pattern.
+fn pdf_with_type3_font_selected_by_graphics_state() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"EGFONTPAT"));
+    let glyph_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"20 0 0 0 20 20 d1 q /Pattern cs /P0 scn 0 0 20 20 re f Q".to_vec(),
+    ));
+    let char_procs_id = document.add_object(dictionary! { "ga" => glyph_id });
+    let encoding_id = document.add_object(dictionary! {
+        "Type" => "Encoding",
+        "Differences" => vec![83.into(), Object::Name(b"ga".to_vec())],
+    });
+    let type3_id = document.add_object(dictionary! {
+        "Type" => "Font",
+        "Subtype" => "Type3",
+        "FontBBox" => vec![0.into(), 0.into(), 20.into(), 20.into()],
+        "FontMatrix" => vec![
+            Object::Real(0.05), 0.into(), 0.into(), Object::Real(0.05), 0.into(), 0.into(),
+        ],
+        "CharProcs" => char_procs_id,
+        "Encoding" => encoding_id,
+        "FirstChar" => 83,
+        "LastChar" => 83,
+        "Widths" => vec![20.into()],
+    });
+    let state_id = document.add_object(dictionary! {
+        "Type" => "ExtGState",
+        "Font" => vec![Object::Reference(type3_id), 12.into()],
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /F1 10 Tf 10 30 Td (KEEPME) Tj ET\n\
+          q /EG gs BT 5 5 Td (S) Tj ET Q\n\
+          BT /F1 8 Tf 20 250 Td (EGOUTOFCROP) Tj ET"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "ExtGState" => dictionary! { "EG" => state_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
 }
 
 /// A soft mask paints a form `XObject` to derive the mask, so that form's content

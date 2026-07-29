@@ -335,6 +335,13 @@ fn prune_unreferenced_pattern_and_shading(document: &mut Document) -> Result<(),
 }
 
 /// Reachability walk over the content that survived removal.
+///
+/// Annotation appearance (`/AP`) streams are deliberately **not** walked. That is
+/// safe only because [`add_cropped_page`] builds each page without an `/Annots`
+/// entry, so no appearance stream is part of the surviving content and none can be
+/// left naming a pruned resource. `rebuilt_pages_carry_no_annotations` in
+/// `tests/crop_endpoint.rs` pins that invariant: if annotations are ever
+/// preserved, that test fails and this walk must start following `/AP`.
 struct ResourceWalk<'a> {
     document: &'a Document,
     live: HashSet<LiveResource>,
@@ -387,7 +394,11 @@ impl<'a> ResourceWalk<'a> {
                      patterns or shadings"
                 ),
             })?;
-        self.dictionaries.extend(chain.iter().copied());
+        for resources_id in chain {
+            if self.dictionaries.insert(*resources_id) {
+                self.enqueue_declared_content(chain, *resources_id)?;
+            }
+        }
         let content = Content::decode(content).map_err(|source| CropError::ResourceAnalysis {
             details: format!("a content stream could not be decoded: {source}"),
         })?;
@@ -425,11 +436,13 @@ impl<'a> ResourceWalk<'a> {
                         self.enqueue_type3_glyph_procedures(chain, name)?;
                     }
                 }
-                // A soft mask names a form XObject whose content is painted to
-                // derive the mask, so it too can reference patterns and shadings.
+                // A graphics state can reach content two ways: `/SMask /G` names a
+                // form XObject painted to derive the mask, and `/Font` selects a
+                // font directly (ISO 32000-1 Table 58) — including a Type 3 font,
+                // whose glyph procedures `Tf` would never see.
                 "gs" => {
                     if let Some(name) = operand_name(operation.operands.first()) {
-                        self.enqueue_soft_mask_group(chain, name)?;
+                        self.enqueue_graphics_state_content(chain, name)?;
                     }
                 }
                 _ => {}
@@ -450,17 +463,57 @@ impl<'a> ResourceWalk<'a> {
         Some(value)
     }
 
+    /// Queues content reachable from a scope's **declarations**, not just from the
+    /// operators that invoke them.
+    ///
+    /// `PDFium` regenerates a page's operators but keeps its `/ExtGState` and
+    /// `/Font` entries declared, so a graphics state that selected a Type 3 font
+    /// (ISO 32000-1 Table 58) survives in the resources with its glyph procedures
+    /// intact while the `gs` that invoked it is gone. An operator-driven walk never
+    /// sees it, prunes the pattern its glyphs paint, and leaves that surviving
+    /// procedure naming a resource no dictionary declares.
+    ///
+    /// Following declarations keeps strictly more than following operators, which
+    /// is the safe direction here: the alternative is a dangling name in a stream
+    /// that is still in the file.
+    fn enqueue_declared_content(
+        &mut self,
+        chain: &[ResourcesId],
+        resources_id: ResourcesId,
+    ) -> Result<(), CropError> {
+        let document = self.document;
+        let Some(resources) = resources_dictionary(document, resources_id) else {
+            return Ok(());
+        };
+        for state in declared_values(document, resources, b"ExtGState") {
+            self.enqueue_graphics_state(chain, &state)?;
+        }
+        for font in declared_values(document, resources, b"Font") {
+            self.enqueue_type3_font(chain, &font)?;
+        }
+        Ok(())
+    }
+
     /// Queues every glyph procedure of `name` when it selects a Type 3 font.
     fn enqueue_type3_glyph_procedures(
         &mut self,
         chain: &[ResourcesId],
         name: &[u8],
     ) -> Result<(), CropError> {
-        let document = self.document;
-        let Some(font) = resolve_named(document, chain, b"Font", name) else {
+        let Some(font) = resolve_named(self.document, chain, b"Font", name) else {
             return Ok(());
         };
-        let Some((font_id, font)) = dereference_dictionary(document, &font) else {
+        self.enqueue_type3_font(chain, &font)
+    }
+
+    /// Queues every glyph procedure of a font object, if it is a Type 3 font.
+    fn enqueue_type3_font(
+        &mut self,
+        chain: &[ResourcesId],
+        font: &Object,
+    ) -> Result<(), CropError> {
+        let document = self.document;
+        let Some((font_id, font)) = dereference_dictionary(document, font) else {
             return Ok(());
         };
         if !font
@@ -497,31 +550,45 @@ impl<'a> ResourceWalk<'a> {
         Ok(())
     }
 
-    /// Queues the transparency group a graphics state's soft mask paints.
-    fn enqueue_soft_mask_group(
+    /// Queues the content a graphics state parameter dictionary reaches: the
+    /// transparency group its soft mask paints, and the font it selects.
+    fn enqueue_graphics_state_content(
         &mut self,
         chain: &[ResourcesId],
         name: &[u8],
     ) -> Result<(), CropError> {
+        let Some(state) = resolve_named(self.document, chain, b"ExtGState", name) else {
+            return Ok(());
+        };
+        self.enqueue_graphics_state(chain, &state)
+    }
+
+    fn enqueue_graphics_state(
+        &mut self,
+        chain: &[ResourcesId],
+        state: &Object,
+    ) -> Result<(), CropError> {
         let document = self.document;
-        let Some(state) = resolve_named(document, chain, b"ExtGState", name) else {
+        let Some((_, state)) = dereference_dictionary(document, state) else {
             return Ok(());
         };
-        let Some((_, state)) = dereference_dictionary(document, &state) else {
-            return Ok(());
-        };
-        let Some((_, mask)) = state
+        if let Some((_, mask)) = state
             .get(b"SMask")
             .ok()
             .and_then(|mask| dereference_dictionary(document, mask))
-        else {
-            return Ok(());
-        };
-        let Ok(group) = mask.get(b"G") else {
-            return Ok(());
-        };
-        let group = group.clone();
-        self.enqueue(chain, &group, Some(b"Form"))
+            && let Ok(group) = mask.get(b"G")
+        {
+            let group = group.clone();
+            self.enqueue(chain, &group, Some(b"Form"))?;
+        }
+        // `/Font` is `[font size]`: selecting a font without ever issuing `Tf`.
+        if let Ok(Object::Array(font)) = state.get(b"Font")
+            && let Some(font) = font.first()
+        {
+            let font = font.clone();
+            self.enqueue_type3_font(chain, &font)?;
+        }
+        Ok(())
     }
 
     /// The scope a nested stream resolves against: its own `/Resources` searched
@@ -592,6 +659,17 @@ impl<'a> ResourceWalk<'a> {
         self.queue.push_back((content, child));
         Ok(())
     }
+}
+
+/// The values a resource dictionary declares under `category`.
+fn declared_values(document: &Document, resources: &Dictionary, category: &[u8]) -> Vec<Object> {
+    resources
+        .get(category)
+        .ok()
+        .and_then(|entries| dereference_dictionary(document, entries))
+        .map_or_else(Vec::new, |(_, entries)| {
+            entries.iter().map(|(_, value)| value.clone()).collect()
+        })
 }
 
 fn operand_name(operand: Option<&Object>) -> Option<&[u8]> {
@@ -789,6 +867,12 @@ fn retain_live_entries(
     }
 }
 
+/// Builds the replacement page.
+///
+/// Note the absence of `/Annots`: annotations are not carried over, which is what
+/// makes it safe for [`ResourceWalk`] to ignore annotation appearance streams when
+/// deciding which patterns and shadings are still painted. Adding annotation
+/// preservation here means teaching the walk to follow `/AP` in the same change.
 fn add_cropped_page(
     document: &mut Document,
     parent_id: lopdf::ObjectId,
