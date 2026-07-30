@@ -7,7 +7,7 @@
   },
   "verbose": true,
   "model": "opus[1m]",
-  "showThinkingSummaries": true,
+  "showThinkingSummaries": false,
   "effortLevel": "max",
   "ultracode": true,
   "hooks": {
