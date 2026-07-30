@@ -544,20 +544,22 @@ async fn keeps_declarations_when_a_comment_truncates_the_content_parse()
         }
         let response = require_status(response, StatusCode::OK).await?;
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        // Nothing lies outside this crop rectangle, so PDFium regenerates no page
+        // and the original content stream — with these exact names — is what
+        // reaches the output. Round 7 returned it with both entries deleted.
         let document = Document::load_mem(&bytes)?;
-        for category in [b"Font".as_slice(), b"XObject".as_slice()] {
+        let declared = declared_resource_names(&document);
+        for (category, name) in [
+            (b"Font".as_slice(), b"F12".as_slice()),
+            (b"XObject".as_slice(), b"Obj5".as_slice()),
+        ] {
             assert!(
-                document.objects.values().any(|object| {
-                    let dictionary = match object {
-                        Object::Dictionary(dictionary) => dictionary,
-                        Object::Stream(stream) => &stream.dict,
-                        _ => return false,
-                    };
-                    dereference_dictionary(&document, dictionary.get(category).ok())
-                        .is_some_and(|entries| !entries.is_empty())
-                }),
-                "{label}: /{} was pruned from a page whose content stream still names it",
-                String::from_utf8_lossy(category)
+                declared
+                    .get(category)
+                    .is_some_and(|declared| declared.contains(name)),
+                "{label}: /{} /{} was pruned from a page whose content stream still names it",
+                String::from_utf8_lossy(category),
+                String::from_utf8_lossy(name)
             );
         }
         assert!(
@@ -1026,6 +1028,51 @@ async fn every_fixture_comes_back_without_a_dangling_resource_name()
     Ok(())
 }
 
+/// Pins the invariant checker itself.
+///
+/// Every assertion above is worth exactly what this test is worth: a
+/// [`dangling_resource_names`] that always returned nothing would make all of
+/// them pass vacuously, which is the failure mode of a checker nobody checks. The
+/// second case is the one that matters most — a document whose content parses
+/// only up to a `%` comment. That is precisely where `Content::decode` reports
+/// success with an empty operator list, so an oracle built on it would see no
+/// names at all and agree that nothing dangles. This one must still find `/Late`.
+#[test]
+fn the_dangling_name_checker_detects_a_name_no_dictionary_declares()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, content, expected) in [
+        (
+            "undeclared name in plainly parsable content",
+            b"q /Pattern cs /P0 scn 0 0 10 10 re f Q".to_vec(),
+            ("Pattern", "P0"),
+        ),
+        (
+            "undeclared name after a comment that ends the lenient parse",
+            b"% marker\n\nq 1 0 0 1 5 5 cm /Late Do Q".to_vec(),
+            ("XObject", "Late"),
+        ),
+    ] {
+        let mut document = Document::with_version("1.7");
+        let root_pages_id = document.new_object_id();
+        let content_id = document.add_object(Stream::new(dictionary! {}, content));
+        let page_id = document.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => root_pages_id,
+            "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+            "Resources" => dictionary! {},
+            "Contents" => content_id,
+        });
+        let corrupt = finish_single_page(document, root_pages_id, page_id)?;
+        let dangling = dangling_resource_names(&corrupt)?;
+        let expected = (expected.0.to_owned(), expected.1.to_owned());
+        assert!(
+            dangling.contains(&expected),
+            "{label}: the checker reported {dangling:?}, missing {expected:?}"
+        );
+    }
+    Ok(())
+}
+
 /// Sweeps a directory of real PDFs for the same invariant.
 ///
 /// Skipped unless `RUSTLING_CROP_CORPUS_DIR` names a directory, because the
@@ -1136,24 +1183,7 @@ fn dangling_resource_names(
     pdf: &[u8],
 ) -> Result<BTreeSet<(String, String)>, Box<dyn std::error::Error>> {
     let document = Document::load_mem(pdf)?;
-    let mut declared: HashMap<&[u8], HashSet<Vec<u8>>> = HashMap::new();
-    for object in document.objects.values() {
-        let dictionary = match object {
-            Object::Dictionary(dictionary) => dictionary,
-            Object::Stream(stream) => &stream.dict,
-            _ => continue,
-        };
-        for category in RESOURCE_CATEGORIES {
-            let Some(entries) = dereference_dictionary(&document, dictionary.get(category).ok())
-            else {
-                continue;
-            };
-            let declared = declared.entry(category).or_default();
-            for (name, _) in entries {
-                declared.insert(name.clone());
-            }
-        }
-    }
+    let declared = declared_resource_names(&document);
     let mut dangling = BTreeSet::new();
     for content in surviving_content_streams(&document) {
         for (category, name) in resource_names_used(&content) {
@@ -1169,6 +1199,37 @@ fn dangling_resource_names(
         }
     }
     Ok(dangling)
+}
+
+/// Every resource name the document declares, per category.
+///
+/// A resource dictionary is reached two ways, and both matter: an object can be
+/// one (a `/Resources` shared by indirect reference), or hold one under
+/// `/Resources` — which is how the crop rebuild writes the page's, inline in the
+/// page object where no scan of the top-level objects would see it.
+fn declared_resource_names(document: &Document) -> HashMap<&'static [u8], HashSet<Vec<u8>>> {
+    let mut declared: HashMap<&'static [u8], HashSet<Vec<u8>>> = HashMap::new();
+    for object in document.objects.values() {
+        let dictionary = match object {
+            Object::Dictionary(dictionary) => dictionary,
+            Object::Stream(stream) => &stream.dict,
+            _ => continue,
+        };
+        let held = dereference_dictionary(document, dictionary.get(b"Resources").ok());
+        for resources in [Some(dictionary), held].into_iter().flatten() {
+            for category in RESOURCE_CATEGORIES {
+                let Some(entries) = dereference_dictionary(document, resources.get(category).ok())
+                else {
+                    continue;
+                };
+                let declared = declared.entry(category).or_default();
+                for (name, _) in entries {
+                    declared.insert(name.clone());
+                }
+            }
+        }
+    }
+    declared
 }
 
 fn dereference_dictionary<'a>(
