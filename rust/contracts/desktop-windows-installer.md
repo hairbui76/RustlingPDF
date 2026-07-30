@@ -119,7 +119,8 @@ still naming a DLL that no longer existed):
 | --- | --- |
 | `HKLM\SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}` **and its whole subtree**, i.e. `InprocServer32` with it | `ForceDeleteOnUninstall="yes"` on the CLSID key |
 | `HKLM\SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}` | `ForceDeleteOnUninstall="yes"` on that node only |
-| `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\<verb key>` **and its whole subtree** (`shell\01_open…04_convert\command`) | `ForceDeleteOnUninstall="yes"` on the cascade root, and again on each `NN_*` verb key so no component depends on another's removal |
+| `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF` **and its whole subtree** (`shell\01_open…04_convert\command`) | `ForceDeleteOnUninstall="yes"` on the cascade root, and again on each `NN_*` verb key so no component depends on another's removal |
+| `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}` — the v3.1.0 cascade tree — **removed at install time**, not uninstall | `<RemoveRegistryKey Action="removeOnInstall">`; see [Upgrading from v3.1.0](#upgrading-from-v310) |
 | `HKCU\Software\RustlingPDF\RustlingPDF` (the bundler template's own key, which the template only ever empties) | `<RemoveRegistryKey Action="removeOnUninstall">` on `ProvisionerBinaryComponent` |
 | `%PROGRAMDATA%\Stirling-PDF\stirling-provisioning.json` (and the `%APPDATA%` path if the install scope ever becomes per-user) | deferred `RemoveProvisioningFile*` CustomActions |
 
@@ -220,28 +221,86 @@ harmless — MSI only removes empty directories — but it is the template's
 authoring, not ours, and it is worth knowing about when reading an uninstall
 log.
 
+## Upgrading from v3.1.0
+
+v3.1.0 spelled the Explorer cascade key and its `MUIVerb` title
+`{{product_name}}`, on the assumption that the bundler templated fragments. It
+does not, and MSI's `Formatted` parser leaves a `{…}` run containing no
+`[property]` substitution unchanged, so that release put the raw token in the
+registry **and in the submenu label every user reads**. Both are now spelled
+`RustlingPDF`.
+
+That rename is not free, and the failure mode it could produce is worse than the
+original bug — a machine showing a stale broken menu *next to* a correct one.
+Why it does not happen:
+
+- **Component GUIDs change, and that is safe here.** WiX derives a `Guid="*"`
+  component GUID from the component's key path, so the five cascade components
+  get new GUIDs. `<MajorUpgrade Schedule="afterInstallInitialize"/>` removes the
+  old product **before** the new one installs, so the old GUIDs and the new ones
+  never coexist in the installed state and no component rule is violated. (A
+  later `RemoveExistingProducts` schedule would have been a real problem.) The
+  other components are unaffected: `ProvisionerBinaryComponent` and
+  `ThumbnailHandlerDllComponent` key off files, and the two thumbnail registry
+  components key off unchanged key paths, so their GUIDs are stable.
+- **The old registry nodes would otherwise survive.** v3.1.0's package has no
+  `ForceDeleteOnUninstall` rows, so the upgrade's removal pass strips its
+  registry *values* and leaves the `{{product_name}}` key skeletons. The new
+  package therefore carries a `<RemoveRegistryKey Action="removeOnInstall">` for
+  that exact key: a `RemoveRegistry` row with `Name="-"`, which MSI documents as
+  "the key is to be deleted, **if present, with all of its values and
+  subkeys**, when the component is installed". It runs in
+  `RemoveRegistryValues` (sequence 2600) — after `RemoveExistingProducts` has
+  uninstalled v3.1.0 and long before `WriteRegistryValues` (5000) writes the new
+  keys. An upgraded machine ends up with exactly one cascade menu.
+- **The token is reproduced verbatim in that row**, and the cleanup does not
+  depend on knowing what the `Formatted` parser does with it: the
+  `RemoveRegistry` `Key` column is the same `RegPath`/Formatted type as the
+  `Registry` `Key` column v3.1.0 wrote through, fed the identical source string,
+  so it resolves to whatever v3.1.0 actually created.
+- **Not conditioned on `WIX_UPGRADE_DETECTED`**, because v3.1.0 could equally
+  have been *uninstalled* first — which, before this change, left the same
+  skeleton — and this version installed fresh. On a machine that never had
+  v3.1.0 the row is a documented no-op.
+- **Residual risk:** the row deletes one literal key path that only a
+  bundler-templating bug can produce. A different Tauri application shipping this
+  exact fragment bug would collide on the same key and lose its cascade menu.
+  Judged negligible — the fragment is bespoke to this repository — but it is a
+  judgement, not a proof.
+- Fresh installs, upgrades and the removal-at-install behaviour are all exercised
+  by `verify-msi-lifecycle.ps1`, which seeds a v3.1.0-shaped tree before
+  installing and asserts it is gone afterwards, so this does not rest on desk
+  analysis alone.
+
+Other keys did not need this treatment: the thumbnail CLSID, the `.pdf\shellex`
+node and the template's HKCU product key have unchanged paths, so the new
+package's own `ForceDeleteOnUninstall` / `RemoveRegistryKey` rows cover the
+skeletons v3.1.0 left, at the next uninstall.
+
 ## Known divergences
 
-1. **The Explorer cascade verb key is named with an unrendered Handlebars
-   token.** Because fragments are not templated (see above) and MSI's
-   `Formatted` parser leaves a `{…}` run containing no `[property]` substitution
-   unchanged, `{{product_name}}` reaches the registry literally: the installed
-   key is `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}`
-   and its `MUIVerb` — the submenu label the user sees — is the string
-   `{{product_name}}`. This is a defect in the shipped context-menu feature, not
-   in the uninstall path: the install and uninstall rows carry the identical
-   string, so the cleanup is self-consistent whatever it resolves to. Fixing it
-   means replacing both occurrences with the literal `RustlingPDF`, which
-   changes the install surface (and the auto-derived component GUIDs) and is
-   therefore tracked as its own work-item. `verify-msi-lifecycle.ps1` probes
-   both spellings and warns when it finds the unrendered one, so a Windows run
-   settles it empirically.
-2. **The per-user provisioning branch is unreachable.** `<Package
+1. **The per-user provisioning branch is unreachable.** `<Package
    InstallScope="perMachine">` makes WiX author `ALLUSERS=1`, so the
    `(NOT ALLUSERS OR ALLUSERS=0)` conditions on both the write and the remove
    CustomActions are always false and only `%PROGRAMDATA%` is ever used. The
    per-user branch is kept, and kept symmetric between write and remove, so a
    future scope change cannot silently leave a file behind.
+2. **`{{name}}` in a fragment is always dead.** Fragments are never templated,
+   so any Handlebars token added to `provisioning.wxs` reaches the registry
+   verbatim. The one deliberate occurrence is the legacy-cleanup row above; a
+   sweep of the live markup confirms every other substitution is genuine
+   installer syntax and must not be "corrected": `[!Path]` (`[!filekey]` short
+   path, valid only in the Registry/IniFile `Value` column, which is where it is
+   used), `[INSTALLDIR]` / `[AppDataFolder]` / `[CommonAppDataFolder]`
+   (Directory properties — the latter two are declared in this fragment's
+   `<DirectoryRef Id="TARGETDIR">` precisely so they resolve), `[STIRLING_*]`
+   (the `Secure="yes"` public properties), `[WriteProvisioningFile*]` /
+   `[RemoveProvisioningFile*]` (the deferred-CustomAction-data convention: a
+   property named identically to its action), `$(sys.SOURCEFILEDIR)` (candle
+   preprocessor, resolved at compile time against the fragment's own directory
+   — which is where `task desktop:provisioner` stages the binaries), and the two
+   braced GUIDs, which survive `Formatted` intact precisely because they contain
+   no `[…]`.
 
 ## Interaction with `port/bundle-desktop-tools`
 
@@ -264,13 +323,17 @@ against the WiX 3.14.1 `wix.xsd`, and review of the sequence/condition tables.
 runs the full lifecycle and is wired into the windows leg of
 `.github/workflows/desktop-build.yml` (after the artifact upload, so a failing
 bundle is still downloadable). It reads the ProductCode from the MSI's own
-Property table, installs silently with provisioning properties, seeds sentinel
-files standing in for user state, asserts the registry surface and the ARP flags
+Property table, seeds a v3.1.0-shaped cascade tree under the legacy
+`{{product_name}}` key, installs silently with provisioning properties, seeds
+sentinel files standing in for user state, asserts the registry surface, the
+`MUIVerb` label, the disappearance of the legacy tree, and the ARP flags
 (`NoRemove` unset, `NoModify`/`NoRepair` set), uninstalls, then asserts every key
 is gone **from both the 64-bit and 32-bit registry views**, the provisioning file
 is gone, the install directory is gone, and the sentinels survived. Shared
 parents are asserted still present, so over-deletion fails as loudly as
-under-deletion.
+under-deletion; the legacy-cleanup check is gated on the new cascade key
+actually existing so it cannot pass vacuously, and any registry state the script
+seeds is torn down even when an assertion throws part-way through.
 
 The provisioner's removal logic is unit-tested on every PR in the desktop gate
 (`.github/workflows/desktop.yml`).
@@ -284,12 +347,19 @@ candle's `-arch x64` — decides which view the keys land in.
 msiexec /i RustlingPDF_3.1.0_x64_en-US.msi /qn /l*v %TEMP%\rpdf-install.log ^
     STIRLING_SERVER_URL=https://example.invalid STIRLING_UPDATE_MODE=disabled
 
-:: 2. these must all EXIST now
+:: 2. these must all EXIST now. The cascade root's MUIVerb must read
+::    "RustlingPDF" -- a raw {{product_name}} token there is the v3.1.0 defect.
 reg query "HKLM\SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" /s /reg:64
 reg query "HKLM\SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}" /reg:64
-reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}" /s /reg:64
+reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF" /s /reg:64
 reg query "HKCU\Software\RustlingPDF\RustlingPDF"
 dir "%ProgramData%\Stirling-PDF\stirling-provisioning.json"
+
+:: 2a. and the v3.1.0 leftover must be GONE, removed at install time.
+::     To rehearse the upgrade on a machine that never had v3.1.0, create it
+::     before step 1 and re-run this query after:
+::       reg add "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}" /v MUIVerb /d "{{product_name}}" /reg:64
+reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}" /reg:64
 
 :: 3. prove the ARP entry offers Uninstall (NoRemove absent; NoModify/NoRepair = 1)
 reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s /f RustlingPDF
@@ -305,17 +375,20 @@ msiexec /x {PRODUCT-CODE-FROM-STEP-3} /qn /l*v %TEMP%\rpdf-uninstall.log
 reg query "HKLM\SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" /reg:64
 reg query "HKLM\SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" /reg:32
 reg query "HKLM\SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}" /reg:64
-reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}" /reg:64
+reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF" /reg:64
+reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF" /reg:32
 reg query "HKCU\Software\RustlingPDF\RustlingPDF"
 dir "%ProgramData%\Stirling-PDF\stirling-provisioning.json"
 dir "%ProgramFiles%\RustlingPDF"
 
-:: 7. these must still EXIST
+:: 7. these must still EXIST -- deleting any of these is over-deletion
 reg query "HKLM\SOFTWARE\Classes\.pdf" /reg:64
+reg query "HKLM\SOFTWARE\Classes\CLSID" /reg:64
+reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell" /reg:64
 dir "%ProgramData%\Stirling-PDF\sentinel.txt"
 dir "%AppData%\Stirling-PDF"
 ```
 
-If step 3 shows the cascade key under `RustlingPDF` rather than
-`{{product_name}}`, divergence 1 above has been fixed or was never real —
-update this contract and the context-menu contract together.
+If step 2 shows the cascade key under `{{product_name}}` rather than
+`RustlingPDF`, the rename has regressed — fix `provisioning.wxs` and update this
+contract and the context-menu contract together.

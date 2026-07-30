@@ -137,55 +137,84 @@
         `shell\NN_*\command` tree with it, and each verb component *also*
         force-deletes its own `NN_*` key so no component depends on another
         component's removal. Both live strictly inside
-        `…\SystemFileAssociations\.pdf\shell\<verb key>`, a node this product
+        `…\SystemFileAssociations\.pdf\shell\RustlingPDF`, a node this product
         creates; the shared `…\.pdf\shell` parent is never marked.
-      - The verb key name is whatever `{{product_name}}` resolves to at install
-        time — see the note in provisioning.wxs's cleanup policy above and
-        rust/contracts/desktop-windows-installer.md. Whatever it resolves to, the
-        install and the uninstall rows carry the identical string, so the
-        cleanup is self-consistent by construction.
+      - The verb key name and the MUIVerb title are the literal string
+        "RustlingPDF". They used to be spelled `{{product_name}}` on the
+        assumption that the bundler templated this file. It does not (see the
+        note in the cleanup policy above), and MSI's Formatted parser leaves a
+        `{…}` run containing no `[property]` substitution unchanged, so v3.1.0
+        shipped a cascade menu whose key AND whose user-visible label were the
+        raw token. The v3.1.0 leftovers are cleaned up below.
     -->
     <DirectoryRef Id="TARGETDIR">
       <Component Id="PdfContextMenuRootComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}" ForceDeleteOnUninstall="yes">
-          <RegistryValue Type="string" Name="MUIVerb" Value="{{product_name}}" KeyPath="yes" />
+        <!--
+          Remove the v3.1.0-and-earlier cascade tree, whose root key was named
+          with the unrendered Handlebars token. Action="removeOnInstall" emits a
+          RemoveRegistry row with Name="-": "the key is to be deleted, if
+          present, with all of its values and subkeys, when the component is
+          installed" (MSI RemoveRegistry table). It is processed by
+          RemoveRegistryValues (sequence 2600), i.e. after
+          RemoveExistingProducts has uninstalled the old package and well before
+          WriteRegistryValues (5000) writes the new keys — so an upgraded
+          machine ends up with exactly one cascade menu, not a stale one beside
+          a correct one. On a machine that never had v3.1.0 the row is a no-op.
+
+          Not conditioned on WIX_UPGRADE_DETECTED on purpose: v3.1.0 could also
+          have been *uninstalled* (which, before this change, left the same
+          skeleton behind) and then this version installed fresh. The scope is
+          one literal key path that only a bundler-templating bug can produce;
+          the residual risk is a different Tauri application shipping this exact
+          fragment bug and colliding on the same key, which is recorded in
+          rust/contracts/desktop-windows-installer.md.
+
+          The token is reproduced here verbatim on purpose, and this does not
+          depend on knowing what MSI's Formatted parser makes of it: the
+          RemoveRegistry Key column is the same RegPath/Formatted type as the
+          Registry Key column v3.1.0 wrote through, fed the identical source
+          string, so it resolves to whatever v3.1.0 actually created.
+        -->
+        <RemoveRegistryKey Id="RemoveLegacyUnrenderedCascadeKey" Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}" Action="removeOnInstall" />
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF" ForceDeleteOnUninstall="yes">
+          <RegistryValue Type="string" Name="MUIVerb" Value="RustlingPDF" KeyPath="yes" />
           <RegistryValue Type="string" Name="SubCommands" Value="" />
           <RegistryValue Type="string" Name="Icon" Value="&quot;[!Path]&quot;,0" />
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuOpenComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\01_open" ForceDeleteOnUninstall="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\01_open" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Open" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\01_open\command">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\01_open\command">
           <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool open &quot;%1&quot;" />
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuMergeComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\02_merge" ForceDeleteOnUninstall="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\02_merge" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Merge" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\02_merge\command">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\02_merge\command">
           <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool merge &quot;%1&quot;" />
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuCompressComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\03_compress" ForceDeleteOnUninstall="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\03_compress" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Compress" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\03_compress\command">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\03_compress\command">
           <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool compress &quot;%1&quot;" />
         </RegistryKey>
       </Component>
       <Component Id="PdfContextMenuConvertComponent" Guid="*">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\04_convert" ForceDeleteOnUninstall="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\04_convert" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Name="MUIVerb" Value="Convert" KeyPath="yes" />
           <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}\shell\04_convert\command">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF\shell\04_convert\command">
           <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool convert &quot;%1&quot;" />
         </RegistryKey>
       </Component>

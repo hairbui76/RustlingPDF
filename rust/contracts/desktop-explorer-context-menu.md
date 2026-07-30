@@ -13,8 +13,8 @@ registry components to `ProvisioningComponentGroup` (all `Guid="*"`, one
 `KeyPath="yes"` value each, `HKLM` — the MSI is perMachine):
 
 ```
-HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}
-  MUIVerb     = "{{product_name}}"     (cascade title)
+HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF
+  MUIVerb     = "RustlingPDF"          (cascade title)
   SubCommands = ""                     (empty ⇒ enumerate the shell subkey — Win7+ registry-only cascade)
   Icon        = "<short path to RustlingPDF.exe>",0
   shell\01_open\      MUIVerb="Open"      MultiSelectModel="Player"
@@ -30,14 +30,17 @@ HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}
 - `<exe>` is `[!Path]` in the WXS — the runtime-formatted path of the main
   executable's `File` entry in the bundler-generated `main.wxs`, the same
   reference the bundler's own file-association and deep-link commands use.
-- **The verb key is literally `{{product_name}}`**, not `RustlingPDF`.
-  tauri-bundler renders `main.wxs` through Handlebars but hands *fragment* files
-  to candle unrendered, and MSI's `Formatted` parser leaves a `{…}` run
-  containing no `[property]` substitution unchanged. So both the key name and
-  the user-visible `MUIVerb` cascade title carry the raw token — a defect in
-  this feature, tracked as divergence 1 in `desktop-windows-installer.md`, where
-  the evidence and the fix are recorded. Everything below is unaffected; the
-  submenu still works, it is only mislabelled.
+- **The verb key and `MUIVerb` are spelled literally in the WXS, not
+  `{{product_name}}`.** tauri-bundler renders `main.wxs` through Handlebars but
+  hands *fragment* files to candle unrendered, and MSI's `Formatted` parser
+  leaves a `{…}` run containing no `[property]` substitution unchanged — so
+  v3.1.0, which used the token, shipped a cascade whose key **and whose
+  user-visible submenu title** were the raw string `{{product_name}}`. Both are
+  now the literal `RustlingPDF`, and the package deletes the v3.1.0 tree at
+  install time so an upgraded machine does not end up with a stale mislabelled
+  menu beside the correct one. The rename, the component-GUID consequences and
+  the upgrade proof are in `desktop-windows-installer.md`. If the product name
+  ever changes, this fragment must change with it — nothing substitutes it.
 - The `NN_` prefixes order the submenu (enumeration is alphabetical).
 - `MultiSelectModel=Player` lifts Explorer's default 15-item multi-select cap
   (`MultipleInvokePromptMinimum`); large selections still work.

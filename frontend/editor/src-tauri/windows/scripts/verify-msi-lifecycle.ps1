@@ -10,6 +10,9 @@
     The check:
 
       1. reads the MSI's ProductCode straight out of its Property table;
+      1a. seeds the Explorer cascade tree v3.1.0 left behind (keys named with
+         the unrendered "{{product_name}}" token), so the install-time cleanup
+         of that leftover is proven without needing an actual v3.1.0 MSI;
       2. installs it silently *with* provisioning properties, so the
          CustomAction-written stirling-provisioning.json actually exists;
       3. drops sentinel files next to that provisioning file, standing in for
@@ -142,6 +145,39 @@ function Assert-RegistryKeyAbsent {
     )
 }
 
+# The whole script mutates the machine by design (it installs and uninstalls an
+# MSI), so -WhatIf support on these internal helpers alone would be misleading
+# rather than useful; the ShouldProcess rule is suppressed deliberately.
+function New-RegistryTree {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal helper of an inherently state-changing verification script.')]
+    param(
+        [Microsoft.Win32.RegistryHive] $Hive,
+        [Microsoft.Win32.RegistryView] $View,
+        [string] $SubKey,
+        [hashtable] $Values
+    )
+    $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey($Hive, $View)
+    $key = $base.CreateSubKey($SubKey)
+    if ($null -ne $Values) {
+        foreach ($name in $Values.Keys) { $key.SetValue($name, $Values[$name], [Microsoft.Win32.RegistryValueKind]::String) }
+    }
+    $key.Dispose()
+}
+
+function Remove-RegistryTree {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal helper of an inherently state-changing verification script.')]
+    param([Microsoft.Win32.RegistryHive] $Hive, [Microsoft.Win32.RegistryView] $View, [string] $SubKey)
+    try {
+        $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey($Hive, $View)
+        $base.DeleteSubKeyTree($SubKey, $false)
+    }
+    catch {
+        # Already gone (DeleteSubKeyTree throws when the key is absent) -- which
+        # is the outcome this script usually wants anyway.
+        Write-Verbose ("Remove-RegistryTree: {0}\{1} ({2}) not present: {3}" -f $Hive, $SubKey, $View, $_.Exception.Message)
+    }
+}
+
 # ---------------------------------------------------------------------------
 # MSI helpers
 # ---------------------------------------------------------------------------
@@ -211,14 +247,44 @@ function Get-ArpEntry {
 $ThumbnailClsid = '{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}'
 $ThumbnailProviderIid = '{E357FCCD-A995-4576-B01F-234630154E96}'
 
-# The Explorer cascade verb key is named from the WXS string "{{product_name}}".
-# tauri-bundler renders main.wxs through Handlebars but hands *fragments* to
-# candle unrendered, and MSI's Formatted parser leaves a {...} run that contains
-# no [property] substitution unchanged -- so the installed key is expected to be
-# the literal "{{product_name}}". Both candidates are probed so this check stays
-# correct (and never silently passes against a key that never existed) whichever
-# way it resolves.
-$VerbKeyCandidates = @('{{product_name}}', 'RustlingPDF')
+# The Explorer cascade verb key. tauri-bundler renders main.wxs through
+# Handlebars but hands *fragments* to candle unrendered, so provisioning.wxs
+# spells this literally; up to and including v3.1.0 it was spelled
+# "{{product_name}}" and MSI's Formatted parser (which leaves a {...} run
+# containing no [property] substitution unchanged) put that raw token in the
+# registry AND in the user-visible MUIVerb label.
+#
+# Both spellings are still probed. The correct one must appear; the legacy one
+# must NOT, either after a fresh install or after the upgrade-cleanup rehearsal
+# below -- so a regression back to the unrendered token fails loudly instead of
+# passing against whichever key happens to exist.
+$VerbKey = 'RustlingPDF'
+$LegacyVerbKey = '{{product_name}}'
+$CascadeRoot = 'SOFTWARE\Classes\SystemFileAssociations\.pdf\shell'
+
+# provisioning.wxs's components are 64-bit (candle runs with -arch x64, which
+# makes WiX default Component/@Win64 to yes), so the legacy tree is rehearsed in
+# the 64-bit view. If that assumption is ever wrong, the "present" check below
+# reports which view the real keys landed in and the mismatch is visible rather
+# than silent.
+$SeedView = [Microsoft.Win32.RegistryView]::Registry64
+$script:SeededLegacyKey = $false
+
+function Remove-SeededLegacyKey {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal helper of an inherently state-changing verification script.')]
+    param()
+    if ($script:SeededLegacyKey) {
+        Remove-RegistryTree -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey "$CascadeRoot\$LegacyVerbKey"
+        $script:SeededLegacyKey = $false
+    }
+}
+
+# Registry state seeded by this script must not outlive it, including when an
+# assertion or msiexec call throws part-way through.
+trap {
+    Remove-SeededLegacyKey
+    break
+}
 
 $SystemProvisioningDir = Join-Path $env:ProgramData 'Stirling-PDF'
 $UserProvisioningDir = Join-Path $env:APPDATA 'Stirling-PDF'
@@ -260,6 +326,28 @@ Add-Result -Phase 'identity' -Name 'UpgradeCode matches the pinned tauri.conf.js
 if ($null -ne (Get-ArpEntry -ProductCode $productCode)) {
     throw "ProductCode $productCode is already installed on this machine. Uninstall it first; this script refuses to clobber an existing install."
 }
+
+Write-Phase 'Rehearse a v3.1.0 leftover (upgrade-cleanup proof)'
+# Recreate what v3.1.0 left on a machine: the cascade tree under the unrendered
+# token. On an upgrade, the old package's uninstall strips its registry *values*
+# but leaves these key skeletons, so the new package must delete the tree at
+# install time (RemoveRegistry row, RemoveRegistryValues sequence 2600) or the
+# machine ends up with a stale mislabelled menu beside the correct one. Seeding
+# it here proves that row fires without needing an actual v3.1.0 MSI.
+if ((Test-RegistryKeyInAnyView -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -SubKey "$CascadeRoot\$LegacyVerbKey").Count -gt 0) {
+    Write-Info "A legacy cascade key is already present on this machine; using it as-is rather than seeding."
+}
+else {
+    New-RegistryTree -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey "$CascadeRoot\$LegacyVerbKey" `
+        -Values @{ 'MUIVerb' = $LegacyVerbKey; 'SubCommands' = '' }
+    New-RegistryTree -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey "$CascadeRoot\$LegacyVerbKey\shell\01_open\command" `
+        -Values @{ '' = '"C:\legacy\RustlingPDF.exe" --tool open "%1"' }
+    $script:SeededLegacyKey = $true
+    Write-Info ("seeded legacy tree: HKLM\{0}\{1} ({2} view)" -f $CascadeRoot, $LegacyVerbKey, $SeedView)
+}
+Add-Result -Phase 'seed' -Name 'legacy cascade tree present before install' `
+    -Ok ((Test-RegistryKeyInAnyView -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -SubKey "$CascadeRoot\$LegacyVerbKey").Count -gt 0) `
+    -Detail 'the upgrade-cleanup rehearsal cannot prove anything if the key was never created'
 
 Write-Phase 'Install (silent, with provisioning properties)'
 Invoke-MsiExec -Label 'install' -Arguments @(
@@ -314,26 +402,43 @@ Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]
 Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
     -SubKey "SOFTWARE\Classes\.pdf\shellex\$ThumbnailProviderIid" -Label '.pdf IThumbnailProvider registration' | Out-Null
 
-$verbKey = $null
-foreach ($candidate in $VerbKeyCandidates) {
-    $sub = "SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\$candidate"
-    if ((Test-RegistryKeyInAnyView -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -SubKey $sub).Count -gt 0) {
-        $verbKey = $candidate
-        break
-    }
+$cascadeViews = Test-RegistryKeyInAnyView -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -SubKey "$CascadeRoot\$VerbKey"
+Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+    -SubKey "$CascadeRoot\$VerbKey" -Label "Explorer cascade root '$VerbKey'" | Out-Null
+foreach ($verb in @('01_open', '02_merge', '03_compress', '04_convert')) {
+    Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+        -SubKey "$CascadeRoot\$VerbKey\shell\$verb\command" -Label "cascade verb $verb command" | Out-Null
 }
-Add-Result -Phase 'install' -Name 'Explorer cascade root key exists' -Ok ($null -ne $verbKey) `
-    -Detail ("probed: {0}" -f ($VerbKeyCandidates -join ' | '))
-if ($null -ne $verbKey) {
-    Write-Info ("cascade verb key name: '{0}'" -f $verbKey)
-    if ($verbKey -like '*{{*') {
-        Write-Warning "The Explorer cascade key is named with the UNRENDERED handlebars token '$verbKey'. tauri-bundler does not template wix fragments; the submenu label is wrong for users. Tracked in rust/contracts/desktop-windows-installer.md."
-    }
-    foreach ($verb in @('01_open', '02_merge', '03_compress', '04_convert')) {
-        Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
-            -SubKey "SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\$verbKey\shell\$verb\command" -Label "cascade verb $verb command" | Out-Null
-    }
+
+# The submenu title the user actually reads. A raw Handlebars token here is the
+# v3.1.0 defect; it must never come back.
+$cascadeKey = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey "$CascadeRoot\$VerbKey"
+if ($null -ne $cascadeKey) {
+    $muiVerb = [string]$cascadeKey.GetValue('MUIVerb')
+    $cascadeKey.Dispose()
+    Add-Result -Phase 'install' -Name 'cascade MUIVerb is the product name, not a template token' `
+        -Ok ($muiVerb -ceq $VerbKey) -Detail "MUIVerb='$muiVerb' (expected '$VerbKey')"
 }
+
+# The upgrade-cleanup row: the seeded v3.1.0 tree must be gone from every view
+# the new cascade key landed in.
+#
+# Scoped to those views rather than to both unconditionally, because the seed is
+# planted in the 64-bit view on the assumption that the components are 64-bit;
+# scoping keeps a wrong assumption from producing a confusing failure here
+# (the "present" check above already reports which view MSI really used). The
+# check is also gated on the new cascade key actually existing, so it can never
+# pass vacuously against an install that registered nothing at all.
+$legacyViews = Test-RegistryKeyInAnyView -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -SubKey "$CascadeRoot\$LegacyVerbKey"
+$legacyLeftInCascadeViews = @($legacyViews | Where-Object { $cascadeViews -contains $_ })
+Add-Result -Phase 'install' -Name 'legacy cascade tree removed at install (no stale menu beside the correct one)' `
+    -Ok ($cascadeViews.Count -gt 0 -and $legacyLeftInCascadeViews.Count -eq 0) `
+    -Detail "new cascade key in: [$($cascadeViews -join ', ')]; legacy key survived in: [$($legacyLeftInCascadeViews -join ', ')]"
+$legacyElsewhere = @($legacyViews | Where-Object { $cascadeViews -notcontains $_ })
+if ($legacyElsewhere.Count -gt 0) {
+    Write-Info ("legacy cascade key still present in a view the new keys did NOT use ({0}) -- check the component bitness assumption" -f ($legacyElsewhere -join ', '))
+}
+if ($legacyViews.Count -eq 0) { $script:SeededLegacyKey = $false }
 
 Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::CurrentUser) `
     -SubKey 'Software\RustlingPDF\RustlingPDF' -Label 'bundler template HKCU product key' | Out-Null
@@ -377,10 +482,10 @@ Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive
     -SubKey "SOFTWARE\Classes\CLSID\$ThumbnailClsid" -Label 'thumbnail handler CLSID (and InprocServer32 subtree)'
 Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
     -SubKey "SOFTWARE\Classes\.pdf\shellex\$ThumbnailProviderIid" -Label '.pdf IThumbnailProvider registration'
-if ($null -ne $verbKey) {
-    Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
-        -SubKey "SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\$verbKey" -Label 'Explorer cascade tree'
-}
+Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+    -SubKey "$CascadeRoot\$VerbKey" -Label "Explorer cascade tree '$VerbKey'"
+Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+    -SubKey "$CascadeRoot\$LegacyVerbKey" -Label "legacy cascade tree '$LegacyVerbKey'"
 Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::CurrentUser) `
     -SubKey 'Software\RustlingPDF\RustlingPDF' -Label 'bundler template HKCU product key'
 
@@ -425,8 +530,9 @@ if ($null -ne $webview2) {
     $webview2.Dispose()
 }
 
-# Sentinel cleanup -- only files this script created.
+# Cleanup -- only state this script created.
 foreach ($sentinel in $sentinels) { Remove-Item -LiteralPath $sentinel -Force -ErrorAction SilentlyContinue }
+Remove-SeededLegacyKey
 
 Write-Phase 'Summary'
 $script:Checks | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
