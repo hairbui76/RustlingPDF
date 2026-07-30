@@ -571,6 +571,96 @@ async fn keeps_declarations_when_a_comment_truncates_the_content_parse()
     Ok(())
 }
 
+/// Preserving a scope is not enough when its category sub-dictionary is a shared
+/// object: the *other* holder must not filter it either.
+///
+/// Two pages hold the same `/Pattern` object. One page's content cannot be
+/// parsed, so nothing it names can be proven dead; the other's parses and names
+/// no pattern at all. Skipping only the unreadable page's own scope still leaves
+/// the readable page filtering the very object both point at — which deletes the
+/// entry the unreadable page still names, producing exactly the corruption the
+/// fail-safe exists to prevent, by a route that looks safe. Protection has to
+/// travel with the category object rather than with the holder.
+#[tokio::test]
+async fn preserves_a_category_dictionary_a_readable_scope_shares_with_an_unreadable_one()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "shared-category.pdf",
+        &pdf_with_a_shared_pattern_dictionary_and_one_unreadable_page()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&bytes, b"SHAREDCATPAT")?,
+        "the readable page filtered the /Pattern object it shares with a page whose \
+         content could not be parsed"
+    );
+    let document = Document::load_mem(&bytes)?;
+    assert!(
+        declared_resource_names(&document)
+            .get(b"Pattern".as_slice())
+            .is_some_and(|declared| declared.contains(b"Pkeep".as_slice())),
+        "/Pattern /Pkeep is no longer declared, so the unreadable page's `scn` dangles"
+    );
+    assert_no_dangling_resource_names(&bytes)?;
+    Ok(())
+}
+
+/// Two pages whose inline `/Resources` both point at one shared `/Pattern`
+/// dictionary object. Page 1's content is comment-truncated and paints `/Pkeep`;
+/// page 2's parses cleanly and paints no pattern. Everything is inside the crop
+/// rectangle, so `PDFium` regenerates neither page and page 1 reaches the output
+/// still naming `/Pkeep`.
+fn pdf_with_a_shared_pattern_dictionary_and_one_unreadable_page()
+-> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let tile_id = document.add_object(tiling_pattern(font_id, b"SHAREDCATPAT"));
+    // The one object both pages' `/Pattern` entries resolve to.
+    let shared_category_id = document.add_object(dictionary! { "Pkeep" => tile_id });
+    let mut pages = Vec::new();
+    for content in [
+        b"% c\n\nq /Pattern cs /Pkeep scn 10 10 50 50 re f Q\n\
+           BT /F1 10 Tf 10 120 Td (P1TEXT) Tj ET"
+            .to_vec(),
+        b"BT /F1 10 Tf 10 30 Td (P2TEXT) Tj ET".to_vec(),
+    ] {
+        let content_id = document.add_object(Stream::new(dictionary! {}, content));
+        pages.push(Object::Reference(document.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => root_pages_id,
+            "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+            "Resources" => dictionary! {
+                "Font" => dictionary! { "F1" => font_id },
+                "Pattern" => Object::Reference(shared_category_id),
+            },
+            "Contents" => content_id,
+        })));
+    }
+    document.objects.insert(
+        root_pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => pages,
+            "Count" => 2,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => root_pages_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
 /// A page whose single content stream opens with a comment and a blank line, so
 /// `lopdf`'s lenient decoder returns zero operators for it.
 fn pdf_with_truncating_comment() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -938,6 +1028,10 @@ fn every_fixture() -> Result<Vec<Fixture>, Box<dyn std::error::Error>> {
             "comment_only_first_content_stream",
             pdf_with_comment_only_first_content_stream()?,
         ),
+        (
+            "shared_pattern_dictionary_and_one_unreadable_page",
+            pdf_with_a_shared_pattern_dictionary_and_one_unreadable_page()?,
+        ),
         ("annotation_appearance", pdf_with_annotation_appearance()?),
         (
             "form_declaring_an_uninvoked_form",
@@ -995,34 +1089,56 @@ fn every_fixture() -> Result<Vec<Fixture>, Box<dyn std::error::Error>> {
 /// has shipped were each found by one test that happened to look — six times the
 /// reasoning was sound and the code was not. A property checked everywhere does
 /// not depend on someone thinking to check it here.
+///
+/// Several rectangles, not one, and the full-page rectangle is load-bearing. What
+/// the crop removes decides whether `PDFium` regenerates a page, and regeneration
+/// *hides* pruning defects: it rewrites the page's operators, so a name the
+/// original stream used may simply be absent from the output that gets checked. A
+/// rectangle that removes nothing regenerates nothing, and the original streams
+/// reach the output verbatim, still naming everything they named. A single
+/// removing rectangle misses that entire class — verified, not assumed: the shared
+/// category-dictionary defect this file also covers directly is invisible at
+/// `200x100` and caught at `200x300`.
 #[tokio::test]
 async fn every_fixture_comes_back_without_a_dangling_resource_name()
 -> Result<(), Box<dyn std::error::Error>> {
     for (label, source) in every_fixture()? {
-        for remove in ["true", "false"] {
-            let response = post_crop(
-                "fixture.pdf",
-                &source,
-                &[
-                    ("x", "0"),
-                    ("y", "0"),
-                    ("width", "200"),
-                    ("height", "100"),
-                    ("removeDataOutsideCrop", remove),
-                ],
-            )
-            .await?;
-            if response.status() == StatusCode::NOT_IMPLEMENTED {
-                continue;
+        for rectangle in [
+            // Contains every fixture page whole: nothing removed, nothing
+            // regenerated, original content streams preserved byte for byte.
+            ("0", "0", "200", "300"),
+            // Bottom strip, middle window, and a tiny corner: each removes a
+            // different set of marks, so a different set of pages is regenerated.
+            ("0", "0", "200", "100"),
+            ("50", "150", "100", "100"),
+            ("0", "0", "50", "50"),
+        ] {
+            for remove in ["true", "false"] {
+                let (x, y, width, height) = rectangle;
+                let response = post_crop(
+                    "fixture.pdf",
+                    &source,
+                    &[
+                        ("x", x),
+                        ("y", y),
+                        ("width", width),
+                        ("height", height),
+                        ("removeDataOutsideCrop", remove),
+                    ],
+                )
+                .await?;
+                if response.status() == StatusCode::NOT_IMPLEMENTED {
+                    continue;
+                }
+                let response = require_status(response, StatusCode::OK).await?;
+                let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+                let dangling = dangling_resource_names(&bytes)?;
+                assert!(
+                    dangling.is_empty(),
+                    "{label} cropped to {rectangle:?} with removeDataOutsideCrop={remove} \
+                     names resources that no dictionary declares: {dangling:?}"
+                );
             }
-            let response = require_status(response, StatusCode::OK).await?;
-            let bytes = to_bytes(response.into_body(), usize::MAX).await?;
-            let dangling = dangling_resource_names(&bytes)?;
-            assert!(
-                dangling.is_empty(),
-                "{label} with removeDataOutsideCrop={remove} names resources that no \
-                 dictionary declares: {dangling:?}"
-            );
         }
     }
     Ok(())
