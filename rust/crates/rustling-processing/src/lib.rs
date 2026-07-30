@@ -1226,20 +1226,6 @@ impl ApiError {
         }
     }
 
-    /// A request the service understood and deliberately declined to complete,
-    /// because of a property of the payload rather than a fault in the server.
-    ///
-    /// RFC 9110 reserves `500` for an *unexpected* condition; an anticipated,
-    /// designed refusal is not that, and emitting one trains operators to ignore
-    /// 5xx from this service — which is where real faults would then hide.
-    fn unprocessable_at(path: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::UNPROCESSABLE_ENTITY,
-            message: message.into(),
-            path,
-        }
-    }
-
     fn payload_too_large_at(path: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::PAYLOAD_TOO_LARGE,
@@ -11860,21 +11846,6 @@ fn map_crop_error(error: &CropError) -> ApiError {
             explicitly_configured: true,
             ..
         } => ApiError::internal_at(CROP_PATH, error.to_string()),
-        // Anticipated and designed: the walk declined to guess, and the reason is
-        // a property of this document, not a server fault. Logged at WARN so
-        // operators can see how often it fires while the analysis is young — the
-        // service has no counter registry, so this structured event is the signal
-        // a metrics pipeline scrapes.
-        CropError::ResourceAnalysis { details } => {
-            tracing::warn!(
-                target: "rustling_processing::crop",
-                event = "crop_resource_analysis_aborted",
-                details = %details,
-                "declined to remove out-of-crop data because the resource walk could not \
-                 establish what is still painted"
-            );
-            ApiError::unprocessable_at(CROP_PATH, error.to_string())
-        }
     }
 }
 

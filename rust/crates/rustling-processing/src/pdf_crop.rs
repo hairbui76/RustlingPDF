@@ -64,12 +64,6 @@ pub enum CropError {
     },
     #[error(transparent)]
     CropContent(#[from] PdfiumCropContentError),
-    #[error(
-        "could not establish which patterns and shadings the cropped content still uses, so \
-         out-of-crop data cannot be removed safely ({details}); retry with \
-         removeDataOutsideCrop=false to crop without the removal guarantee"
-    )]
-    ResourceAnalysis { details: String },
 }
 
 /// Crops every page using explicit coordinates or PDFium-rendered content bounds.
@@ -178,7 +172,7 @@ fn rebuild_cropped_pdf(
 ) -> Result<(), CropError> {
     let mut document = load_document(input_path, filename)?;
     if prune_unreferenced_resources {
-        prune_dead_resource_declarations(&mut document)?;
+        prune_dead_resource_declarations(&mut document);
     }
     let page_ids = document.get_pages().into_values().collect::<Vec<_>>();
     if page_ids.is_empty() {
@@ -222,8 +216,8 @@ fn rebuild_cropped_pdf(
 /// shape correctly.
 ///
 /// Both bounds exist to stop pathological shapes, not to ration ordinary work.
-/// Exceeding either is reported as an error and no file is produced — see
-/// [`prune_dead_resource_declarations`] for why the walk never fails open.
+/// Exceeding either stops the walk short; what it did not read it does not prune
+/// — see [`prune_dead_resource_declarations`] for why that is the safe direction.
 const MAX_RESOURCE_SCOPE_DEPTH: usize = 256;
 const MAX_SCANNED_CONTENT_BYTES: u64 = 256 * 1024 * 1024;
 
@@ -334,30 +328,80 @@ enum LiveResource {
 /// an entry any page still uses survives, and each dictionary — including one
 /// shared between a page and a form — is filtered exactly once, in place.
 ///
-/// # Errors
+/// # Removal is best effort, and errs towards keeping
 ///
-/// Returns [`CropError::ResourceAnalysis`] when the walk cannot establish what is
-/// live: an undecodable content stream, or a document past the bounds above. The
-/// walk never falls back to keeping everything, for the same reason this endpoint
-/// returns `501` instead of silently cropping without removal when `PDFium` is
-/// missing — answering a request to delete data with a file that still contains
-/// it, under a `200` that looks identical to a clean one, is the one outcome the
-/// caller cannot detect or recover from. A caller that would rather have the file
-/// than the guarantee can retry with `removeDataOutsideCrop=false`.
-fn prune_dead_resource_declarations(document: &mut Document) -> Result<(), CropError> {
+/// Deciding liveness means parsing content streams, and a content stream can be
+/// unreadable: `lopdf`'s content parser stops at constructs it does not accept,
+/// and a stream's filters can fail to decode. The walk therefore uses
+/// [`Content::decode_strict`], which reports a partial parse instead of returning
+/// the prefix it managed to read, and where a stream cannot be read in full it
+/// **preserves** every resource scope that stream could have resolved a name in.
+/// Removal happens where the content can be read and the entry proven
+/// unreferenced; everywhere else the declarations are left exactly as they were.
+///
+/// The direction is deliberate, and it is the opposite of what an earlier
+/// revision chose. Over-deletion destroys the caller's document silently: judging
+/// the resources of an unread stream dead, while the stream itself is copied to
+/// the output verbatim and still names them, stripped `/Font` and `/XObject` from
+/// every page of a real 1.1 MB file — 77% of the page's ink — under a `200` that
+/// looks exactly like a clean one. Under-deletion leaves data outside the crop
+/// box recoverable, which is bounded (`PDFium` has already deleted the marks
+/// themselves; what survives is the resource declarations behind them),
+/// inspectable in the returned file, and documented in `contracts/crop.md`.
+/// Refusing such documents with `422` was tried and is worse still: a document
+/// every viewer renders must still crop.
+fn prune_dead_resource_declarations(document: &mut Document) {
     let mut walk = ResourceWalk::new(document);
     for page_id in document.get_pages().into_values() {
-        walk.walk_page(page_id)?;
+        if walk.abandoned {
+            break;
+        }
+        walk.walk_page(page_id);
     }
     let ResourceWalk {
-        live, dictionaries, ..
+        live,
+        dictionaries,
+        preserved,
+        mut protected,
+        abandoned,
+        ..
     } = walk;
-    for resources_id in dictionaries {
+    if abandoned {
+        tracing::warn!(
+            target: "rustling_processing::crop",
+            event = "crop_resource_pruning_skipped",
+            "kept every resource declaration: the reachability walk exceeded its work bound, so \
+             what it did not read could not be proven unreferenced"
+        );
+        return;
+    }
+    // A preserved scope's category dictionaries must survive whole. Skipping the
+    // scope is not enough on its own: a `/Pattern` or `/Font` sub-dictionary is
+    // routinely an indirect object that a second, fully readable scope also points
+    // at, and filtering it *there* would strip entries the unreadable stream still
+    // names. Protection therefore travels with the object, not with the holder.
+    for resources_id in &preserved {
         for category in ResourceCategory::ALL {
-            retain_live_entries(document, resources_id, category, &live);
+            if let Some((category_id, _)) = category_dictionary(document, *resources_id, category) {
+                protected.insert(category_id);
+            }
         }
     }
-    Ok(())
+    if !protected.is_empty() {
+        tracing::warn!(
+            target: "rustling_processing::crop",
+            event = "crop_resource_pruning_partial",
+            preserved_scopes = preserved.len(),
+            protected_dictionaries = protected.len(),
+            "kept some resource declarations: content the parser could not read in full may \
+             still name them, so removal was skipped for those scopes"
+        );
+    }
+    for resources_id in dictionaries {
+        for category in ResourceCategory::ALL {
+            retain_live_entries(document, resources_id, category, &live, &protected);
+        }
+    }
 }
 
 /// Reachability walk over the content that survived removal.
@@ -373,6 +417,16 @@ struct ResourceWalk<'a> {
     live: HashSet<LiveResource>,
     /// Every `/Resources` dictionary reached, and therefore eligible for filtering.
     dictionaries: BTreeSet<ResourcesId>,
+    /// Scopes some stream that could not be read in full might have resolved a
+    /// name in. Nothing they declare is removed.
+    preserved: BTreeSet<ResourcesId>,
+    /// Category dictionaries protected by object, which is what makes preservation
+    /// survive sharing: a protected scope's `/Pattern` sub-dictionary can be the
+    /// same object a readable scope declares, and filtering it there would strip
+    /// the protected scope's entries out from under it. Also carries the one scope
+    /// shape that has no [`ResourcesId`] at all — a `/Resources` dictionary written
+    /// inline inside a directly embedded object, which has no id to key on.
+    protected: HashSet<CategoryId>,
     /// Streams already walked, keyed by scope chain as well as identity: the same
     /// form reached under a different chain can resolve its names to different
     /// entries, so identity alone would miss references.
@@ -384,6 +438,9 @@ struct ResourceWalk<'a> {
     /// aborted the process.
     queue: VecDeque<(Vec<u8>, Vec<ResourcesId>)>,
     budget: u64,
+    /// The walk ran out of work budget, so what it never reached is unknown and
+    /// nothing may be pruned anywhere.
+    abandoned: bool,
 }
 
 impl<'a> ResourceWalk<'a> {
@@ -392,42 +449,60 @@ impl<'a> ResourceWalk<'a> {
             document,
             live: HashSet::new(),
             dictionaries: BTreeSet::new(),
+            preserved: BTreeSet::new(),
+            protected: HashSet::new(),
             visited: HashSet::new(),
             queue: VecDeque::new(),
             budget: MAX_SCANNED_CONTENT_BYTES,
+            abandoned: false,
         }
     }
 
-    fn walk_page(&mut self, page_id: ObjectId) -> Result<(), CropError> {
+    fn walk_page(&mut self, page_id: ObjectId) {
         let Some(resources_id) = page_resources_id(self.document, page_id) else {
-            return Ok(());
+            return;
         };
         let content = self.document.get_page_content(page_id);
         self.queue.push_back((content, vec![resources_id]));
         while let Some((content, chain)) = self.queue.pop_front() {
-            self.scan(&content, &chain)?;
+            self.scan(&content, &chain);
+            if self.abandoned {
+                self.queue.clear();
+                return;
+            }
         }
-        Ok(())
     }
 
-    fn scan(&mut self, content: &[u8], chain: &[ResourcesId]) -> Result<(), CropError> {
+    /// Records that a stream resolving names against `chain` could not be read in
+    /// full, so no scope it could have named into may be filtered.
+    fn preserve(&mut self, chain: &[ResourcesId]) {
+        self.preserved.extend(chain.iter().copied());
+    }
+
+    fn scan(&mut self, content: &[u8], chain: &[ResourcesId]) {
         // Charged in bytes: the same stream reached under two scope chains is
         // scanned twice, so cost tracks decoded bytes, not stream count.
         let charge = u64::try_from(content.len()).unwrap_or(u64::MAX);
-        self.budget =
-            self.budget
-                .checked_sub(charge)
-                .ok_or_else(|| CropError::ResourceAnalysis {
-                    details: format!(
-                        "resolving which resources the cropped content still uses would need to \
-                     scan more than {MAX_SCANNED_CONTENT_BYTES} bytes of content streams"
-                    ),
-                })?;
+        let Some(budget) = self.budget.checked_sub(charge) else {
+            self.abandoned = true;
+            return;
+        };
+        self.budget = budget;
         self.dictionaries.extend(chain.iter().copied());
-        let content = Content::decode(content).map_err(|source| CropError::ResourceAnalysis {
-            details: format!("a content stream could not be decoded: {source}"),
-        })?;
-        for operation in &content.operations {
+        // Strict, because the lenient decoder returns whatever prefix it managed to
+        // parse and silently discards the rest (`parser::content` throws away the
+        // unconsumed remainder). A `%` comment followed by a blank line ends the
+        // parse — and `get_page_content` inserts exactly such a blank line between
+        // the members of a `/Contents` array — so every operator after it becomes
+        // invisible. Judging their resources dead while the stream is copied to the
+        // output verbatim, still naming them, is how a real page lost 77% of its
+        // ink. Strict decoding turns that class of silent truncation, not just this
+        // one construct, into something this walk can see and decline to act on.
+        let Ok(decoded) = Content::decode_strict(content) else {
+            self.preserve(chain);
+            return;
+        };
+        for operation in &decoded.operations {
             match operation.operator.as_str() {
                 "sh" => {
                     if let Some(name) = operand_name(operation.operands.first()) {
@@ -442,7 +517,7 @@ impl<'a> ResourceWalk<'a> {
                     {
                         // A surviving pattern's own content can paint with further
                         // patterns and shadings; follow it.
-                        self.enqueue(chain, &value, None)?;
+                        self.enqueue(chain, &value, None);
                     }
                 }
                 // The entry is marked live whatever its subtype — an image `Do`
@@ -452,7 +527,7 @@ impl<'a> ResourceWalk<'a> {
                     if let Some(name) = operand_name(operation.operands.first())
                         && let Some(value) = self.record(chain, ResourceCategory::XObject, name)
                     {
-                        self.enqueue(chain, &value, Some(b"Form"))?;
+                        self.enqueue(chain, &value, Some(b"Form"));
                     }
                 }
                 // A Type 3 font's glyph procedures are content streams too, and a
@@ -463,7 +538,7 @@ impl<'a> ResourceWalk<'a> {
                     if let Some(name) = operand_name(operation.operands.first())
                         && let Some(value) = self.record(chain, ResourceCategory::Font, name)
                     {
-                        self.enqueue_type3_font(chain, &value)?;
+                        self.enqueue_type3_font(chain, &value);
                     }
                 }
                 // A graphics state can reach content two ways: `/SMask /G` names a
@@ -474,13 +549,12 @@ impl<'a> ResourceWalk<'a> {
                     if let Some(name) = operand_name(operation.operands.first())
                         && let Some(value) = self.record(chain, ResourceCategory::ExtGState, name)
                     {
-                        self.enqueue_graphics_state(chain, &value)?;
+                        self.enqueue_graphics_state(chain, &value);
                     }
                 }
                 _ => {}
             }
         }
-        Ok(())
     }
 
     /// Resolves `name` through the scope chain and marks what it lands on live.
@@ -496,59 +570,39 @@ impl<'a> ResourceWalk<'a> {
     }
 
     /// Queues every glyph procedure of a font object, if it is a Type 3 font.
-    fn enqueue_type3_font(
-        &mut self,
-        chain: &[ResourcesId],
-        font: &Object,
-    ) -> Result<(), CropError> {
+    fn enqueue_type3_font(&mut self, chain: &[ResourcesId], font: &Object) {
         let document = self.document;
         let Some((font_id, font)) = dereference_dictionary(document, font) else {
-            return Ok(());
+            return;
         };
         if !font
             .get(b"Subtype")
             .and_then(Object::as_name)
             .is_ok_and(|subtype| subtype == b"Type3")
         {
-            return Ok(());
+            return;
         }
-        let child = match (font_id, font.get(b"Resources").ok()) {
-            // Inherits the enclosing scope, so its identity does not matter.
-            (_, None) => chain.to_vec(),
-            (Some(font_id), resources) => Self::child_chain(chain, font_id, resources)?,
-            // A directly embedded font declaring its own resources has no identity
-            // to key that scope on. Guessing either way risks pruning something the
-            // glyphs still paint with, so the walk reports that it cannot decide.
-            (None, Some(_)) => {
-                return Err(CropError::ResourceAnalysis {
-                    details: "a directly embedded Type 3 font declares its own resources"
-                        .to_owned(),
-                });
-            }
+        let Some(child) = self.child_chain(chain, font_id, font.get(b"Resources").ok()) else {
+            return;
         };
         let Some((_, procedures)) = font
             .get(b"CharProcs")
             .ok()
             .and_then(|procedures| dereference_dictionary(document, procedures))
         else {
-            return Ok(());
+            return;
         };
         for (_, procedure) in procedures {
-            self.enqueue(&child, procedure, None)?;
+            self.enqueue(&child, procedure, None);
         }
-        Ok(())
     }
 
     /// Queues the content a graphics state parameter dictionary reaches: the
     /// transparency group its soft mask paints, and the font it selects.
-    fn enqueue_graphics_state(
-        &mut self,
-        chain: &[ResourcesId],
-        state: &Object,
-    ) -> Result<(), CropError> {
+    fn enqueue_graphics_state(&mut self, chain: &[ResourcesId], state: &Object) {
         let document = self.document;
         let Some((_, state)) = dereference_dictionary(document, state) else {
-            return Ok(());
+            return;
         };
         if let Some((_, mask)) = state
             .get(b"SMask")
@@ -557,60 +611,87 @@ impl<'a> ResourceWalk<'a> {
             && let Ok(group) = mask.get(b"G")
         {
             let group = group.clone();
-            self.enqueue(chain, &group, Some(b"Form"))?;
+            self.enqueue(chain, &group, Some(b"Form"));
         }
         // `/Font` is `[font size]`: selecting a font without ever issuing `Tf`.
         if let Ok(Object::Array(font)) = state.get(b"Font")
             && let Some(font) = font.first()
         {
             let font = font.clone();
-            self.enqueue_type3_font(chain, &font)?;
+            self.enqueue_type3_font(chain, &font);
         }
-        Ok(())
     }
 
     /// The scope a nested stream resolves against: its own `/Resources` searched
     /// first, with the enclosing scope behind, or the enclosing scope unchanged
     /// when it declares none.
+    ///
+    /// Returns `None` when that scope cannot be established, having first
+    /// preserved everything the stream behind it could have named.
     fn child_chain(
+        &mut self,
         chain: &[ResourcesId],
-        owner: ObjectId,
+        owner: Option<ObjectId>,
         resources: Option<&Object>,
-    ) -> Result<Vec<ResourcesId>, CropError> {
+    ) -> Option<Vec<ResourcesId>> {
         let Some(resources) = resources else {
-            return Ok(chain.to_vec());
+            // Inherits the enclosing scope, so its identity does not matter.
+            return Some(chain.to_vec());
+        };
+        let Some(id) = scope_id(owner, resources) else {
+            // A `/Resources` dictionary written inline inside a directly embedded
+            // object — a Type 3 font stored in an `/ExtGState`'s `/Font` array
+            // rather than as an indirect object — has no id, so there is no
+            // identity to key a scope on and no dictionary this walk could filter.
+            // Preserve what it reaches instead of guessing.
+            self.preserve(chain);
+            self.protect_shared_categories(resources);
+            return None;
         };
         if chain.len() >= MAX_RESOURCE_SCOPE_DEPTH {
-            return Err(CropError::ResourceAnalysis {
-                details: format!("resource scopes nest more than {MAX_RESOURCE_SCOPE_DEPTH} deep"),
-            });
+            // Descending no further means this stream goes unread, so its own
+            // scope is preserved alongside the chain behind it — otherwise a
+            // shallower, readable holder of the same `/Resources` object would
+            // filter out entries this stream still names.
+            self.preserve(chain);
+            self.preserved.insert(id);
+            return None;
         }
         let mut child = Vec::with_capacity(chain.len().saturating_add(1));
-        child.push(resources_id(owner, resources));
+        child.push(id);
         child.extend_from_slice(chain);
-        Ok(child)
+        Some(child)
+    }
+
+    /// Protects every category dictionary a scope reaches by indirect reference.
+    ///
+    /// Used for the scope shape that has no [`ResourcesId`]. The inline dictionary
+    /// itself is unshared and never filtered, but a `/Pattern` or `/Font` entry
+    /// inside it can be an indirect object that a filterable scope also declares,
+    /// and filtering it there would strip entries this scope's content still names.
+    fn protect_shared_categories(&mut self, resources: &Object) {
+        let Ok(resources) = resources.as_dict() else {
+            return;
+        };
+        for category in ResourceCategory::ALL {
+            if let Ok(Object::Reference(object_id)) = resources.get(category.key()) {
+                self.protected.insert(CategoryId::Shared(*object_id));
+            }
+        }
     }
 
     /// Queues a referenced stream under the scope its own `/Resources` establish —
     /// or, when it has none, under the enclosing scope it inherits (ISO 32000-1
     /// §8.10.1).
-    fn enqueue(
-        &mut self,
-        chain: &[ResourcesId],
-        value: &Object,
-        required_subtype: Option<&[u8]>,
-    ) -> Result<(), CropError> {
+    fn enqueue(&mut self, chain: &[ResourcesId], value: &Object, required_subtype: Option<&[u8]>) {
         // A pattern or form is an indirect stream object; anything else has no
         // content to follow.
         let Object::Reference(object_id) = value else {
-            return Ok(());
+            return;
         };
-        let Ok(stream) = self
-            .document
-            .get_object(*object_id)
-            .and_then(Object::as_stream)
-        else {
-            return Ok(());
+        let document = self.document;
+        let Ok(stream) = document.get_object(*object_id).and_then(Object::as_stream) else {
+            return;
         };
         if let Some(subtype) = required_subtype
             && !stream
@@ -619,23 +700,25 @@ impl<'a> ResourceWalk<'a> {
                 .and_then(Object::as_name)
                 .is_ok_and(|actual| actual == subtype)
         {
-            return Ok(());
+            return;
         }
         // No `/Resources` of its own: inherit the enclosing scope rather than
         // resolving against nothing, which would lose both its own `Do` targets
         // and the patterns its content paints with.
-        let child = Self::child_chain(chain, *object_id, stream.dict.get(b"Resources").ok())?;
+        let Some(child) =
+            self.child_chain(chain, Some(*object_id), stream.dict.get(b"Resources").ok())
+        else {
+            return;
+        };
         if !self.visited.insert((*object_id, child.clone())) {
-            return Ok(());
+            return;
         }
-        let content =
-            stream
-                .decompressed_content()
-                .map_err(|source| CropError::ResourceAnalysis {
-                    details: format!("a content stream could not be decompressed: {source}"),
-                })?;
+        // Its bytes are unreachable, so what it paints with is unknowable.
+        let Ok(content) = stream.decompressed_content() else {
+            self.preserve(&child);
+            return;
+        };
         self.queue.push_back((content, child));
-        Ok(())
     }
 }
 
@@ -643,10 +726,15 @@ fn operand_name(operand: Option<&Object>) -> Option<&[u8]> {
     operand.and_then(|operand| operand.as_name().ok())
 }
 
-fn resources_id(owner: ObjectId, resources: &Object) -> ResourcesId {
+/// The identity of a `/Resources` value, when it has one.
+///
+/// A `/Resources` dictionary written inline inside a **directly embedded** object
+/// has neither an id of its own nor an owner to borrow one from, so it has no
+/// identity at all — callers must handle that rather than invent one.
+fn scope_id(owner: Option<ObjectId>, resources: &Object) -> Option<ResourcesId> {
     match resources {
-        Object::Reference(object_id) => ResourcesId::Shared(*object_id),
-        _ => ResourcesId::InlineIn(owner),
+        Object::Reference(object_id) => Some(ResourcesId::Shared(*object_id)),
+        _ => owner.map(ResourcesId::InlineIn),
     }
 }
 
@@ -661,7 +749,7 @@ fn page_resources_id(document: &Document, page_id: ObjectId) -> Option<Resources
         }
         let dictionary = document.get_dictionary(object_id).ok()?;
         if let Ok(resources) = dictionary.get(b"Resources") {
-            return Some(resources_id(object_id, resources));
+            return scope_id(Some(object_id), resources);
         }
         object_id = dictionary.get(b"Parent").ok()?.as_reference().ok()?;
     }
@@ -757,16 +845,22 @@ fn dereference_dictionary<'a>(
 ///
 /// Filtering the dictionary the holders actually point at — rather than writing a
 /// filtered copy onto one of them — is what makes a `/Resources` dictionary shared
-/// between a page and a form come out consistent.
+/// between a page and a form come out consistent. It is also why `protected` is
+/// keyed by the category object rather than by the holder: sharing means one
+/// holder's filtering is every holder's.
 fn retain_live_entries(
     document: &mut Document,
     resources_id: ResourcesId,
     category: ResourceCategory,
     live: &HashSet<LiveResource>,
+    protected: &HashSet<CategoryId>,
 ) {
     let Some((category_id, entries)) = category_dictionary(document, resources_id, category) else {
         return;
     };
+    if protected.contains(&category_id) {
+        return;
+    }
     let mut retained = Dictionary::new();
     for (name, value) in entries {
         let key = match value {

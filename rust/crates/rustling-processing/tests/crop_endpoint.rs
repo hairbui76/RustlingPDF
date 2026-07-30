@@ -1,11 +1,14 @@
-use std::fmt::Write as _;
+use std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    fmt::Write as _,
+};
 
 use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode, header},
     response::Response,
 };
-use lopdf::{Document, Object, Stream, content::Content, dictionary};
+use lopdf::{Document, Object, Stream, dictionary};
 use rustling_processing::app;
 use tower::ServiceExt;
 
@@ -470,18 +473,17 @@ async fn walks_deeply_nested_resource_scopes_instead_of_giving_up()
     Ok(())
 }
 
-/// When the walk cannot establish what is live it must fail loudly rather than
-/// guess in either direction. Keeping everything hands back a `200` and a file
-/// that still holds the data the caller asked to delete; pruning anyway leaves a
-/// `scn` naming a resource no dictionary declares. Both are undetectable to the
-/// caller, so the request errors and no file is produced.
+/// When the walk cannot read a stream in full it must keep what that stream
+/// might still name, and still return the cropped file.
 ///
-/// The status is `422`, not `500`: this is an anticipated, designed refusal about
-/// a property of the payload, not an unexpected server fault, and emitting 5xx for
-/// it would burn error budget and train operators to ignore 5xx from this
-/// service.
+/// Two earlier answers were both wrong. Pruning anyway leaves a `scn` naming a
+/// resource no dictionary declares — silent destruction of the caller's document,
+/// under a `200`, with no way to tell it from a clean one. Refusing with `422`
+/// fails a document every viewer renders perfectly well, for a construct 3.6% of
+/// real PDFs contain. Keeping the declarations leaves data outside the crop box
+/// recoverable, which is the one outcome that is bounded and documented.
 #[tokio::test]
-async fn rejects_the_request_when_the_resource_walk_cannot_prove_what_is_live()
+async fn keeps_declarations_a_stream_it_cannot_parse_might_still_name()
 -> Result<(), Box<dyn std::error::Error>> {
     let response = post_crop(
         "undecodable.pdf",
@@ -492,18 +494,132 @@ async fn rejects_the_request_when_the_resource_walk_cannot_prove_what_is_live()
     if response.status() == StatusCode::NOT_IMPLEMENTED {
         return Ok(());
     }
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    let body = to_bytes(response.into_body(), usize::MAX).await?;
-    let body = String::from_utf8_lossy(&body);
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
     assert!(
-        body.contains("removeDataOutsideCrop=false"),
-        "the error must tell the caller how to proceed: {body}"
+        document_contains(&bytes, b"UNDECODABLEPAT")?,
+        "the pattern the unparsable form may still paint with was pruned"
     );
     assert!(
-        !body.starts_with("%PDF"),
-        "a file must not be produced when the guarantee cannot be met"
+        document_contains(&bytes, b"KEEPME")?,
+        "the in-crop text was removed"
     );
+    assert_no_dangling_resource_names(&bytes)?;
     Ok(())
+}
+
+/// `lopdf`'s lenient content decoder stops at a `%` comment followed by a blank
+/// line and reports success with everything after it missing. Round 7 read that
+/// empty operator list as proof that the page painted with nothing, and deleted
+/// `/Font` and `/XObject` from a page whose content stream — copied to the output
+/// byte for byte — still named them. On a real 1.1 MB Canon scan that destroyed
+/// 77% of the page's ink under a clean `200`.
+///
+/// Two shapes reach the same construct, and both are here because only one of
+/// them is visible in the file: the comment and the blank line written into a
+/// single stream, and a `/Contents` **array** whose first member ends in a
+/// comment — where the blank line is inserted by `get_page_content` joining the
+/// members, so no amount of reading the PDF shows it.
+#[tokio::test]
+async fn keeps_declarations_when_a_comment_truncates_the_content_parse()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, source) in [
+        (
+            "comment and blank line in one stream",
+            pdf_with_truncating_comment()?,
+        ),
+        (
+            "contents array joined into a blank line",
+            pdf_with_comment_only_first_content_stream()?,
+        ),
+    ] {
+        let response = post_crop(
+            "truncating.pdf",
+            &source,
+            &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+        )
+        .await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            return Ok(());
+        }
+        let response = require_status(response, StatusCode::OK).await?;
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        let document = Document::load_mem(&bytes)?;
+        for category in [b"Font".as_slice(), b"XObject".as_slice()] {
+            assert!(
+                document.objects.values().any(|object| {
+                    let dictionary = match object {
+                        Object::Dictionary(dictionary) => dictionary,
+                        Object::Stream(stream) => &stream.dict,
+                        _ => return false,
+                    };
+                    dereference_dictionary(&document, dictionary.get(category).ok())
+                        .is_some_and(|entries| !entries.is_empty())
+                }),
+                "{label}: /{} was pruned from a page whose content stream still names it",
+                String::from_utf8_lossy(category)
+            );
+        }
+        assert!(
+            document_contains(&bytes, b"VISIBLETEXT")?,
+            "{label}: the in-crop text was removed"
+        );
+        assert_no_dangling_resource_names(&bytes)?;
+    }
+    Ok(())
+}
+
+/// A page whose single content stream opens with a comment and a blank line, so
+/// `lopdf`'s lenient decoder returns zero operators for it.
+fn pdf_with_truncating_comment() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pdf_with_comment_truncated_content(&[b"% marker\n\nq 1 0 0 1 20 20 cm /Obj5 Do Q\n\
+       BT /F12 14 Tf 20 120 Td (VISIBLETEXT) Tj ET"])
+}
+
+/// A page whose `/Contents` is an array whose first member is nothing but a
+/// comment. `Document::get_page_content` appends a newline after each member, so
+/// the blank line that ends the parse exists only in the joined bytes — this is
+/// the shape the real Canon file has.
+fn pdf_with_comment_only_first_content_stream() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pdf_with_comment_truncated_content(&[
+        b"% CANON_PFINF_TYPE0_TEXTON\n",
+        b"q 1 0 0 1 20 20 cm /Obj5 Do Q\n\
+          BT /F12 14 Tf 20 120 Td (VISIBLETEXT) Tj ET",
+    ])
+}
+
+fn pdf_with_comment_truncated_content(
+    streams: &[&[u8]],
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let form_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 60.into(), 30.into()],
+        },
+        b"0 0 1 rg 0 0 60 30 re f".to_vec(),
+    ));
+    let contents = streams
+        .iter()
+        .map(|content| {
+            Object::Reference(document.add_object(Stream::new(dictionary! {}, content.to_vec())))
+        })
+        .collect::<Vec<_>>();
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F12" => font_id },
+            "XObject" => dictionary! { "Obj5" => form_id },
+        },
+        "Contents" => contents,
+    });
+    finish_single_page(document, root_pages_id, page_id)
 }
 
 /// Scaling guard for the resource walk.
@@ -705,7 +821,7 @@ async fn prunes_form_xobjects_declared_but_never_invoked() -> Result<(), Box<dyn
         document_contains(&bytes, b"KEEPME")?,
         "the in-crop text was removed"
     );
-    assert_no_dangling_pattern_names(&bytes)?;
+    assert_no_dangling_resource_names(&bytes)?;
     Ok(())
 }
 
@@ -792,63 +908,540 @@ async fn prunes_graphics_states_and_fonts_no_executed_path_names()
         document_contains(&bytes, b"KEEPME")?,
         "the in-crop text was removed"
     );
-    assert_no_dangling_pattern_names(&bytes)?;
+    assert_no_dangling_resource_names(&bytes)?;
     Ok(())
 }
 
-/// Fails if any surviving content stream names a `/Pattern` that no reachable
-/// resource dictionary declares — the corruption direction of this pruning.
-fn assert_no_dangling_pattern_names(pdf: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-    let document = Document::load_mem(pdf)?;
-    let mut declared = std::collections::HashSet::new();
-    for object in document.objects.values() {
-        let dictionary = match object {
-            Object::Dictionary(dictionary) => Some(dictionary),
-            Object::Stream(stream) => Some(&stream.dict),
-            _ => None,
-        };
-        let Some(patterns) = dictionary
-            .and_then(|dictionary| dictionary.get(b"Pattern").ok())
-            .and_then(|patterns| match patterns {
-                Object::Reference(id) => document.get_dictionary(*id).ok(),
-                Object::Dictionary(entries) => Some(entries),
-                _ => None,
-            })
-        else {
-            continue;
-        };
-        for (name, _) in patterns {
-            declared.insert(name.clone());
-        }
-    }
-    for object in document.objects.values() {
-        let Ok(stream) = object.as_stream() else {
-            continue;
-        };
-        let Ok(decompressed) = stream.decompressed_content() else {
-            continue;
-        };
-        let Ok(content) = Content::decode(&decompressed) else {
-            continue;
-        };
-        for operation in &content.operations {
-            if !matches!(operation.operator.as_str(), "scn" | "SCN") {
+/// A fixture PDF and the label a failure names it by.
+type Fixture = (&'static str, Vec<u8>);
+
+/// Every PDF this file builds, so the dangling-name invariant can be asserted
+/// across all of them from one place rather than per test.
+///
+/// Every `pdf_with_*` builder in this file appears here. A new fixture that does
+/// not is a fixture the invariant is not checked against.
+fn every_fixture() -> Result<Vec<Fixture>, Box<dyn std::error::Error>> {
+    Ok(vec![
+        ("content", pdf_with_content(&["BASE0", "BASE1"])?),
+        (
+            "colliding_pattern_names",
+            pdf_with_colliding_pattern_names()?,
+        ),
+        (
+            "inherited_form_resources",
+            pdf_with_inherited_form_resources()?,
+        ),
+        ("truncating_comment", pdf_with_truncating_comment()?),
+        (
+            "comment_only_first_content_stream",
+            pdf_with_comment_only_first_content_stream()?,
+        ),
+        ("annotation_appearance", pdf_with_annotation_appearance()?),
+        (
+            "form_declaring_an_uninvoked_form",
+            pdf_with_form_declaring_an_uninvoked_form()?,
+        ),
+        (
+            "type3_font_selected_by_graphics_state",
+            pdf_with_type3_font_selected_by_graphics_state()?,
+        ),
+        (
+            "type3_glyph_painting_a_pattern",
+            pdf_with_type3_glyph_painting_a_pattern()?,
+        ),
+        (
+            "soft_mask_group_painting_a_pattern",
+            pdf_with_soft_mask_group_painting_a_pattern()?,
+        ),
+        ("inheriting_form_chain", pdf_with_inheriting_form_chain(40)?),
+        (
+            "shared_indirect_resources",
+            pdf_with_shared_indirect_resources()?,
+        ),
+        ("nested_form_scopes", pdf_with_nested_form_scopes(40)?),
+        (
+            "undecodable_form_content",
+            pdf_with_undecodable_form_content()?,
+        ),
+        ("inheriting_forms", pdf_with_inheriting_forms(50)?),
+        ("in_crop_pattern", pdf_with_in_crop_pattern()?),
+        (
+            "out_of_crop_pattern_text",
+            pdf_with_out_of_crop_pattern(PatternPayload::Text)?,
+        ),
+        (
+            "out_of_crop_pattern_image",
+            pdf_with_out_of_crop_pattern(PatternPayload::Image)?,
+        ),
+        ("out_of_crop_shading", pdf_with_out_of_crop_shading()?),
+        (
+            "type3_text_outside_the_crop",
+            pdf_with_type3_text_outside_the_crop()?,
+        ),
+        (
+            "text_inside_and_outside",
+            pdf_with_text_inside_and_outside()?,
+        ),
+    ])
+}
+
+/// The invariant that separates this revision from the six before it: whatever
+/// the pruning decides, the file it hands back must not contain a content stream
+/// naming a resource nothing declares.
+///
+/// Asserted over every fixture and both modes, because the defects this pruning
+/// has shipped were each found by one test that happened to look — six times the
+/// reasoning was sound and the code was not. A property checked everywhere does
+/// not depend on someone thinking to check it here.
+#[tokio::test]
+async fn every_fixture_comes_back_without_a_dangling_resource_name()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, source) in every_fixture()? {
+        for remove in ["true", "false"] {
+            let response = post_crop(
+                "fixture.pdf",
+                &source,
+                &[
+                    ("x", "0"),
+                    ("y", "0"),
+                    ("width", "200"),
+                    ("height", "100"),
+                    ("removeDataOutsideCrop", remove),
+                ],
+            )
+            .await?;
+            if response.status() == StatusCode::NOT_IMPLEMENTED {
                 continue;
             }
-            if let Some(name) = operation
-                .operands
-                .last()
-                .and_then(|operand| operand.as_name().ok())
-            {
-                assert!(
-                    declared.contains(name),
-                    "a surviving stream paints with /{} but no dictionary declares it",
-                    String::from_utf8_lossy(name)
-                );
-            }
+            let response = require_status(response, StatusCode::OK).await?;
+            let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+            let dangling = dangling_resource_names(&bytes)?;
+            assert!(
+                dangling.is_empty(),
+                "{label} with removeDataOutsideCrop={remove} names resources that no \
+                 dictionary declares: {dangling:?}"
+            );
         }
     }
     Ok(())
+}
+
+/// Sweeps a directory of real PDFs for the same invariant.
+///
+/// Skipped unless `RUSTLING_CROP_CORPUS_DIR` names a directory, because the
+/// corpus is not something this repository can ship. Synthetic fixtures encode
+/// what their author already thought of; the defect this revision fixes was found
+/// in a file nobody wrote for the purpose.
+///
+/// The control is the same document cropped with `removeDataOutsideCrop=false`,
+/// which prunes nothing. Only names that dangle in the removal output *and not*
+/// in the control are attributable to the pruning; anything dangling in both is
+/// pre-existing in the source or an artefact of this tokeniser.
+#[tokio::test]
+async fn sweeps_a_pdf_corpus_for_dangling_resource_names() -> Result<(), Box<dyn std::error::Error>>
+{
+    let Some(directory) = rustling_processing::env_compat::var_os("RUSTLING_CROP_CORPUS_DIR")
+    else {
+        return Ok(());
+    };
+    let mut swept = 0_usize;
+    let mut cropped = 0_usize;
+    let mut failures = Vec::new();
+    for entry in std::fs::read_dir(directory)? {
+        let path = entry?.path();
+        if path.extension().is_none_or(|extension| extension != "pdf") {
+            continue;
+        }
+        swept += 1;
+        let Ok(source) = std::fs::read(&path) else {
+            continue;
+        };
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        let mut sets = Vec::new();
+        for remove in ["true", "false"] {
+            let response = post_crop(
+                &name,
+                &source,
+                &[
+                    ("x", "0"),
+                    ("y", "0"),
+                    ("width", "400"),
+                    ("height", "400"),
+                    ("removeDataOutsideCrop", remove),
+                ],
+            )
+            .await?;
+            if response.status() != StatusCode::OK {
+                break;
+            }
+            let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+            let Ok(dangling) = dangling_resource_names(&bytes) else {
+                break;
+            };
+            sets.push(dangling);
+        }
+        let [removed, control] = sets.as_slice() else {
+            continue;
+        };
+        cropped += 1;
+        let introduced = removed.difference(control).cloned().collect::<Vec<_>>();
+        if !introduced.is_empty() {
+            failures.push(format!("{name}: {introduced:?}"));
+        }
+    }
+    eprintln!("crop corpus sweep: {swept} files seen, {cropped} cropped in both modes");
+    assert!(
+        failures.is_empty(),
+        "pruning introduced dangling resource names in {} of {cropped} documents:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+    Ok(())
+}
+
+/// The five resource categories the crop rebuild prunes.
+const RESOURCE_CATEGORIES: [&[u8]; 5] = [b"XObject", b"Font", b"ExtGState", b"Pattern", b"Shading"];
+
+/// Fails if any surviving content stream names a resource that no reachable
+/// dictionary declares — the corruption direction of the pruning.
+///
+/// This is the property the pruning has to satisfy stated as an assertion over
+/// the bytes the caller receives, rather than argued from the walk's structure,
+/// and it covers all five categories: the walk prunes all five, and a defect in
+/// any one of them corrupts the page identically.
+///
+/// The scan deliberately does **not** go through `Content::decode`. That decoder
+/// returns whatever prefix it managed to parse and silently discards the
+/// remainder, which is exactly the blind spot that let an earlier revision judge
+/// the resources of every operator after a `%` comment dead while copying the
+/// stream that names them to the output verbatim — a checker built on it would
+/// have agreed with the bug and reported nothing. [`resource_names_used`]
+/// tokenises the raw bytes instead.
+fn assert_no_dangling_resource_names(pdf: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    let dangling = dangling_resource_names(pdf)?;
+    assert!(
+        dangling.is_empty(),
+        "surviving content names resources that no dictionary declares: {dangling:?}"
+    );
+    Ok(())
+}
+
+/// Every `(category, name)` a surviving content stream uses that no dictionary in
+/// the document declares.
+fn dangling_resource_names(
+    pdf: &[u8],
+) -> Result<BTreeSet<(String, String)>, Box<dyn std::error::Error>> {
+    let document = Document::load_mem(pdf)?;
+    let mut declared: HashMap<&[u8], HashSet<Vec<u8>>> = HashMap::new();
+    for object in document.objects.values() {
+        let dictionary = match object {
+            Object::Dictionary(dictionary) => dictionary,
+            Object::Stream(stream) => &stream.dict,
+            _ => continue,
+        };
+        for category in RESOURCE_CATEGORIES {
+            let Some(entries) = dereference_dictionary(&document, dictionary.get(category).ok())
+            else {
+                continue;
+            };
+            let declared = declared.entry(category).or_default();
+            for (name, _) in entries {
+                declared.insert(name.clone());
+            }
+        }
+    }
+    let mut dangling = BTreeSet::new();
+    for content in surviving_content_streams(&document) {
+        for (category, name) in resource_names_used(&content) {
+            if !declared
+                .get(category)
+                .is_some_and(|declared| declared.contains(&name))
+            {
+                dangling.insert((
+                    String::from_utf8_lossy(category).into_owned(),
+                    String::from_utf8_lossy(&name).into_owned(),
+                ));
+            }
+        }
+    }
+    Ok(dangling)
+}
+
+fn dereference_dictionary<'a>(
+    document: &'a Document,
+    object: Option<&'a Object>,
+) -> Option<&'a lopdf::Dictionary> {
+    match object? {
+        Object::Reference(id) => document.get_dictionary(*id).ok(),
+        Object::Dictionary(entries) => Some(entries),
+        _ => None,
+    }
+}
+
+/// The decompressed body of every stream a viewer executes as page content.
+///
+/// Restricted to page contents, Form `XObjects`, tiling patterns and Type 3 glyph
+/// procedures. Running the tokeniser over font programs and image samples would
+/// invent operators and names out of binary data.
+fn surviving_content_streams(document: &Document) -> Vec<Vec<u8>> {
+    let mut ids = BTreeSet::new();
+    for page_id in document.get_pages().into_values() {
+        ids.extend(document.get_page_contents(page_id));
+    }
+    for (id, object) in &document.objects {
+        let dictionary = match object {
+            Object::Dictionary(dictionary) => dictionary,
+            Object::Stream(stream) => {
+                let is_form = stream
+                    .dict
+                    .get(b"Subtype")
+                    .and_then(Object::as_name)
+                    .is_ok_and(|subtype| subtype == b"Form");
+                let is_tiling = stream
+                    .dict
+                    .get(b"PatternType")
+                    .and_then(Object::as_i64)
+                    .is_ok_and(|pattern_type| pattern_type == 1);
+                if is_form || is_tiling {
+                    ids.insert(*id);
+                }
+                &stream.dict
+            }
+            _ => continue,
+        };
+        let Some(procedures) = dereference_dictionary(document, dictionary.get(b"CharProcs").ok())
+        else {
+            continue;
+        };
+        for (_, procedure) in procedures {
+            if let Ok(id) = procedure.as_reference() {
+                ids.insert(id);
+            }
+        }
+    }
+    ids.into_iter()
+        .filter_map(|id| {
+            document
+                .get_object(id)
+                .and_then(Object::as_stream)
+                .ok()?
+                .decompressed_content()
+                .ok()
+        })
+        .collect()
+}
+
+/// The resource names a content stream's operators consume, tokenised straight
+/// from the raw bytes.
+///
+/// Independent of `lopdf`'s content parser on purpose — see
+/// [`assert_no_dangling_resource_names`]. Comments, literal and hex strings,
+/// dictionaries, arrays and inline-image payloads are skipped, so their bytes
+/// cannot be mistaken for names or operators, and unlike the lenient decoder this
+/// keeps going to the end of the stream instead of stopping at the first
+/// construct it does not like.
+///
+/// For every operator here the name is the **last** name-valued operand, which
+/// holds for `scn`/`SCN` (where colour components can precede it) and equally for
+/// the single-operand forms — and does not depend on this tokeniser recognising
+/// every operator that may have preceded it.
+fn resource_names_used(content: &[u8]) -> Vec<(&'static [u8], Vec<u8>)> {
+    let mut used = Vec::new();
+    let mut operands: Vec<Option<Vec<u8>>> = Vec::new();
+    let mut index = 0;
+    while index < content.len() {
+        match content[index] {
+            byte if is_content_space(byte) => index += 1,
+            b'%' => {
+                while index < content.len() && !matches!(content[index], b'\r' | b'\n') {
+                    index += 1;
+                }
+            }
+            b'(' => {
+                index = skip_literal_string(content, index);
+                operands.push(None);
+            }
+            b'<' | b'[' | b'{' => {
+                index = skip_bracketed(content, index);
+                operands.push(None);
+            }
+            // Unbalanced closers: step over them rather than looping forever.
+            b')' | b'>' | b']' | b'}' => index += 1,
+            b'/' => {
+                let mut end = index + 1;
+                while end < content.len() && is_regular(content[end]) {
+                    end += 1;
+                }
+                operands.push(Some(content[index + 1..end].to_vec()));
+                index = end;
+            }
+            _ => {
+                let start = index;
+                while index < content.len() && is_regular(content[index]) {
+                    index += 1;
+                }
+                if index == start {
+                    index += 1;
+                    continue;
+                }
+                let token = &content[start..index];
+                let Some(category) = operator_category(token) else {
+                    if is_operator(token) {
+                        // `ID` hands the rest of the line to the image sampler,
+                        // whose bytes are not operators.
+                        if token == b"ID" {
+                            index = skip_inline_image_data(content, index);
+                        }
+                        operands.clear();
+                    } else {
+                        operands.push(None);
+                    }
+                    continue;
+                };
+                if let Some(name) = operands.iter().rev().flatten().next() {
+                    used.push((category, name.clone()));
+                }
+                operands.clear();
+            }
+        }
+    }
+    used
+}
+
+/// The resource category an operator resolves its name operand in.
+fn operator_category(token: &[u8]) -> Option<&'static [u8]> {
+    match token {
+        b"Do" => Some(b"XObject"),
+        b"Tf" => Some(b"Font"),
+        b"gs" => Some(b"ExtGState"),
+        b"sh" => Some(b"Shading"),
+        b"scn" | b"SCN" => Some(b"Pattern"),
+        _ => None,
+    }
+}
+
+/// Whether a token ends an operand run.
+///
+/// `d0`/`d1` are named explicitly: they are the only operators carrying a digit,
+/// and treating them as operands would leave a Type 3 glyph's metrics in the run.
+/// `true`/`false`/`null` look like operators but are operands.
+fn is_operator(token: &[u8]) -> bool {
+    if matches!(token, b"d0" | b"d1") {
+        return true;
+    }
+    if matches!(token, b"true" | b"false" | b"null") {
+        return false;
+    }
+    token
+        .iter()
+        .all(|byte| byte.is_ascii_alphabetic() || matches!(byte, b'*' | b'\'' | b'"'))
+}
+
+fn is_content_space(byte: u8) -> bool {
+    matches!(byte, b' ' | b'\t' | b'\r' | b'\n' | b'\0' | b'\x0c')
+}
+
+fn is_regular(byte: u8) -> bool {
+    !is_content_space(byte) && !b"()<>[]{}/%".contains(&byte)
+}
+
+fn skip_literal_string(content: &[u8], start: usize) -> usize {
+    let mut depth = 0usize;
+    let mut index = start;
+    while index < content.len() {
+        match content[index] {
+            b'\\' => index += 2,
+            b'(' => {
+                depth += 1;
+                index += 1;
+            }
+            b')' => {
+                index += 1;
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return index;
+                }
+            }
+            _ => index += 1,
+        }
+    }
+    content.len()
+}
+
+/// Skips one bracketed operand — dictionary, hex string, array, or PostScript
+/// procedure — and everything nested inside it.
+fn skip_bracketed(content: &[u8], start: usize) -> usize {
+    let mut depth = 0usize;
+    let mut index = start;
+    while index < content.len() {
+        match content[index] {
+            b'(' => index = skip_literal_string(content, index),
+            b'%' => {
+                while index < content.len() && !matches!(content[index], b'\r' | b'\n') {
+                    index += 1;
+                }
+            }
+            b'<' if content.get(index + 1) == Some(&b'<') => {
+                depth += 1;
+                index += 2;
+            }
+            b'>' if content.get(index + 1) == Some(&b'>') => {
+                index += 2;
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return index;
+                }
+            }
+            b'<' => {
+                index += 1;
+                while index < content.len() && content[index] != b'>' {
+                    index += 1;
+                }
+                index = content.len().min(index + 1);
+                if depth == 0 {
+                    return index;
+                }
+            }
+            b'[' | b'{' => {
+                depth += 1;
+                index += 1;
+            }
+            b']' | b'}' => {
+                index += 1;
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return index;
+                }
+            }
+            _ => index += 1,
+        }
+    }
+    content.len()
+}
+
+/// Skips an inline image's samples, which start one whitespace byte after `ID`
+/// and end at a whitespace-delimited `EI`.
+fn skip_inline_image_data(content: &[u8], start: usize) -> usize {
+    let mut index = start.saturating_add(1);
+    while index + 1 < content.len() {
+        if content[index] == b'E'
+            && content[index + 1] == b'I'
+            && content
+                .get(index.wrapping_sub(1))
+                .is_some_and(|byte| is_content_space(*byte))
+            && content
+                .get(index + 2)
+                .is_none_or(|byte| is_content_space(*byte))
+        {
+            return index + 2;
+        }
+        index += 1;
+    }
+    content.len()
 }
 
 /// A page whose `/ExtGState` carries `/Font [<Type 3 font> size]`, with the glyph
