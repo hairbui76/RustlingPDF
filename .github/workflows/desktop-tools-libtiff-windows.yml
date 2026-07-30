@@ -1,0 +1,279 @@
+name: Desktop tools — build Windows libtiff (JBIG-free)
+
+# Produces a JBIG-free `libtiff-6.dll` for the Windows x86_64 desktop bundle,
+# from the checksum-pinned official libtiff 4.7.2 source, built in MSYS2/MinGW-w64
+# with a build-provenance attestation.
+#
+# WHY THIS EXISTS
+# ---------------
+# The Windows bundle keeps the official upstream Tesseract installer, whose
+# `libtiff-6.dll` is the MSYS2 `mingw-w64-x86_64-libtiff` 4.7.2 build. That build
+# is configured `--enable-jbig`, so its PE import table hard-imports
+# `libjbig-0.dll` (JBIG-KIT, GPL-2.0-or-later) as a NORMAL import — not a
+# delay-load — which is why the DLL cannot simply be deleted: doing so breaks
+# libtiff and therefore Tesseract. JBIG-KIT is the only GPL-2.0 component in any
+# RustlingPDF bundle, and a signed installer that links it raises a GPL
+# combined-work question. Replacing the installer's `libtiff-6.dll` with a
+# byte-for-byte-equivalent build that is identical EXCEPT that JBIG is disabled
+# removes `libjbig-0.dll` from the import graph, so the PE import-closure walk in
+# `rust/scripts/install-desktop-tools.ps1` never reaches it and it drops out of
+# the staged bundle automatically.
+#
+# HOW IT MATCHES THE INSTALLER'S ABI
+# ----------------------------------
+# The build mirrors the MSYS2 `mingw-w64-libtiff` PKGBUILD exactly, with a single
+# change: `--enable-jbig` becomes `--disable-jbig`. Same source tarball, same
+# codec set (zlib, libdeflate, libjpeg-turbo, LZMA/xz, zstd, libwebp, LERC), same
+# MinGW-w64 toolchain and same C runtime (msvcrt). libtiff-6.dll is a C library —
+# it imports msvcrt.dll and KERNEL32.dll, not libstdc++/libgcc — so it exposes
+# the stable libtiff C ABI that the installer's `libleptonica`/`libtesseract`
+# link against. The codec DLLs it imports are referenced BY NAME
+# (libdeflate.dll, libjpeg-8.dll, libLerc.dll, liblzma-5.dll, libwebp-7.dll,
+# zlib1.dll, libzstd.dll); at run time the installer's own copies of those DLLs
+# satisfy them, because only `libtiff-6.dll` is swapped. The one residual risk —
+# that a self-built libtiff is not ABI-compatible with the installer's
+# `libleptonica`/`libtesseract` — can only be settled by a Windows load-test of
+# the staged bundle (the ps1 stages it and runs `tesseract --version`).
+#
+# WHEN IT RUNS
+# ------------
+# Manually, once per libtiff version — NOT on every release. The published
+# artefact is fetched by `rust/scripts/install-desktop-tools.ps1` by pinned
+# SHA-256, exactly like every other pinned input. Bump procedure is in
+# RELEASING.md under "Bumping the bundled Tesseract" (the Windows libtiff pin
+# tracks whatever libtiff version the pinned Tesseract installer ships).
+
+on:
+  workflow_dispatch:
+    inputs:
+      libtiff_version:
+        description: "libtiff version to build (must equal the version the pinned Tesseract installer ships)"
+        type: string
+        default: "4.7.2"
+      libtiff_sha256:
+        description: "SHA-256 of tiff-<version>.tar.gz from download.osgeo.org (identical to the MSYS2 PKGBUILD's pin)"
+        type: string
+        # libtiff 4.7.2: byte-verified against the MSYS2 mingw-w64-libtiff
+        # PKGBUILD sha256sums entry and a direct download.osgeo.org fetch.
+        default: "672bd7d10aee4606171afb864f3570b83340f6a33e2c186dc0512f7145ffdf6a"
+      publish:
+        description: "Publish the artefact to a desktop-tools GitHub Release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build JBIG-free libtiff (windows-x86_64, MinGW)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      # `contents: write` only matters on the publish path; `id-token` and
+      # `attestations` are what actions/attest-build-provenance needs to sign
+      # the provenance statement with the workflow's OIDC identity.
+      contents: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        # Every build/verify step runs in the MSYS2 MINGW64 login shell so the
+        # toolchain, autotools and the codec dev packages are on PATH.
+        shell: msys2 {0}
+    steps:
+      - name: Checkout repository
+        # `defaults.run.shell` applies only to `run:` steps, so this JavaScript
+        # action runs in the runner's own shell regardless of the msys2 default.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up MSYS2 / MinGW-w64
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2.32.0
+        with:
+          msystem: MINGW64
+          update: true
+          # The exact dependency set of the MSYS2 mingw-w64-libtiff PKGBUILD,
+          # MINUS mingw-w64-x86_64-jbigkit. Omitting jbigkit means the JBIG codec
+          # cannot be compiled in even by accident; --disable-jbig below makes
+          # that explicit and deterministic.
+          install: >-
+            base-devel
+            mingw-w64-x86_64-cc
+            mingw-w64-x86_64-autotools
+            mingw-w64-x86_64-lerc
+            mingw-w64-x86_64-libjpeg-turbo
+            mingw-w64-x86_64-libdeflate
+            mingw-w64-x86_64-libwebp
+            mingw-w64-x86_64-xz
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-zstd
+
+      - name: Fetch and verify the pinned libtiff source
+        env:
+          VER: ${{ inputs.libtiff_version }}
+          SHA256: ${{ inputs.libtiff_sha256 }}
+        run: |
+          set -euo pipefail
+          # download.osgeo.org is the source URL the MSYS2 PKGBUILD itself pins;
+          # the SHA-256 is verified before a single byte is extracted.
+          curl --fail --location --retry 3 \
+            --proto '=https' --proto-redir '=https' --max-redirs 5 \
+            --output "tiff-${VER}.tar.gz" \
+            "https://download.osgeo.org/libtiff/tiff-${VER}.tar.gz"
+          echo "${SHA256}  tiff-${VER}.tar.gz" | sha256sum --check --strict
+          tar -xzf "tiff-${VER}.tar.gz"
+
+      - name: Build libtiff with JBIG disabled
+        env:
+          VER: ${{ inputs.libtiff_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "build-shared"
+          cd "build-shared"
+          # Mirrors the MSYS2 mingw-w64-libtiff PKGBUILD's shared-build configure
+          # line, with --enable-jbig replaced by --disable-jbig. The remaining
+          # codec flags are made explicit (rather than left to autodetect) so a
+          # missing dev package fails the build loudly instead of silently
+          # dropping a codec and changing the DLL's import table.
+          "../tiff-${VER}/configure" \
+            --build=x86_64-w64-mingw32 \
+            --host=x86_64-w64-mingw32 \
+            --disable-static \
+            --enable-shared \
+            --enable-cxx \
+            --disable-jbig \
+            --enable-zlib \
+            --enable-libdeflate \
+            --enable-jpeg \
+            --enable-zstd \
+            --enable-lzma \
+            --enable-webp \
+            --enable-lerc
+          make -j"$(nproc)"
+
+      - name: Verify the built DLL — version, JBIG-free, load
+        env:
+          VER: ${{ inputs.libtiff_version }}
+        run: |
+          set -euo pipefail
+          cd "build-shared"
+          dll="$(find . -name 'libtiff-6.dll' | head -n 1)"
+          if [ -z "${dll}" ]; then
+            echo "::error::configure/make did not produce libtiff-6.dll"
+            find . -name 'libtiff*.dll' -print
+            exit 1
+          fi
+          echo "Built: ${dll}"
+
+          # 1. Import table must not reference JBIG. objdump lists the normal
+          #    import table; the installer's libtiff imports libjbig-0.dll there
+          #    (a normal, not delay, import), so this is exactly where a leak
+          #    would show. The ps1 does the full pefile import+delay-import walk
+          #    over the whole staged bundle as the authoritative gate.
+          echo "== import table =="
+          objdump -p "${dll}" | grep -i 'DLL Name'
+          if objdump -p "${dll}" | grep -qi 'jbig'; then
+            echo "::error::built libtiff-6.dll still imports a JBIG DLL"
+            exit 1
+          fi
+
+          # 2. The expected codec DLLs must still be imported by name, so the
+          #    swapped DLL resolves against the installer's own codec DLLs.
+          for need in libdeflate.dll libjpeg-8.dll libLerc.dll liblzma-5.dll libwebp-7.dll zlib1.dll libzstd.dll; do
+            if ! objdump -p "${dll}" | grep -qi "DLL Name: ${need}"; then
+              echo "::error::built libtiff-6.dll is missing expected import ${need} — codec set diverged from the installer"
+              exit 1
+            fi
+          done
+
+          # 3. Version banner must be exactly the requested libtiff version.
+          if ! strings "${dll}" | grep -q "LIBTIFF, Version ${VER}"; then
+            echo "::error::built libtiff-6.dll does not report LIBTIFF, Version ${VER}"
+            strings "${dll}" | grep -i 'LIBTIFF, Version' || true
+            exit 1
+          fi
+
+          # 4. Load test: compile a tiny client against the import library and
+          #    call TIFFGetVersion. This proves the DLL loads and its C ABI is
+          #    callable — the closest local proxy for the Windows load-test the
+          #    staged bundle needs. (It does not prove ABI-compat with the
+          #    installer's libleptonica/libtesseract; only staging can.)
+          implib="$(find . -name 'libtiff.dll.a' | head -n 1)"
+          printf '%s\n' \
+            '#include <stdio.h>' \
+            'extern const char *TIFFGetVersion(void);' \
+            'int main(void){ printf("%s\n", TIFFGetVersion()); return 0; }' \
+            > ver.c
+          gcc ver.c "${implib}" -o ver.exe
+          dlldir="$(dirname "${dll}")"
+          out="$(PATH="${dlldir}:${PATH}" ./ver.exe)"
+          echo "TIFFGetVersion(): ${out}"
+          echo "${out}" | grep -q "Version ${VER}"
+
+      - name: Record the artefact checksum and build manifest
+        id: manifest
+        env:
+          VER: ${{ inputs.libtiff_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifact
+          dll="$(find build-shared -name 'libtiff-6.dll' | head -n 1)"
+          asset="libtiff-${VER}-windows-x86_64-mingw-nojbig.dll"
+          cp "${dll}" "artifact/${asset}"
+          checksum="$(sha256sum "artifact/${asset}" | awk '{print $1}')"
+          echo "${checksum}  ${asset}" > "artifact/${asset}.sha256"
+
+          {
+            echo "version=${VER}"
+            echo "checksum=${checksum}"
+            echo "asset=${asset}"
+            echo "tag=desktop-tools/libtiff-${VER}-nojbig"
+          } >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "### Windows libtiff (JBIG-free) build"
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| version | \`${VER}\` |"
+            echo "| asset | \`${asset}\` |"
+            echo "| sha256 | \`${checksum}\` |"
+            echo "| source | \`download.osgeo.org/libtiff/tiff-${VER}.tar.gz\` |"
+            echo "| workflow run | \`${GITHUB_RUN_ID}\` |"
+            echo
+            echo "Pin this in \`rust/scripts/install-desktop-tools.ps1\` as"
+            echo "\`\$LibtiffNoJbigSha256\`."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: artifact/${{ steps.manifest.outputs.asset }}
+
+      - name: Upload the artefact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: desktop-tools-libtiff-windows-x86_64
+          path: artifact/
+          if-no-files-found: error
+
+      - name: Publish to a desktop-tools release
+        if: inputs.publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.manifest.outputs.tag }}
+          ASSET: ${{ steps.manifest.outputs.asset }}
+          VER: ${{ inputs.libtiff_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # A dedicated, non-latest release per libtiff version, kept out of the
+          # desktop updater's "latest release" lookup.
+          gh release view "$env:TAG" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "$env:TAG" `
+              --title "Desktop tools: libtiff $env:VER (windows-x86_64, MinGW, JBIG-free)" `
+              --notes "JBIG-free libtiff-6.dll built by ``.github/workflows/desktop-tools-libtiff-windows.yml`` from the checksum-pinned official libtiff source, to replace the installer's JBIG-linked libtiff. Verify with ``gh attestation verify <asset> --repo $env:GITHUB_REPOSITORY``." `
+              --latest=false
+          }
+          gh release upload "$env:TAG" "artifact/$env:ASSET" "artifact/$env:ASSET.sha256" --clobber
