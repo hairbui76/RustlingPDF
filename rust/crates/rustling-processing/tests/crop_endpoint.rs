@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet, VecDeque},
     fmt::Write as _,
 };
 
@@ -571,6 +571,252 @@ async fn keeps_declarations_when_a_comment_truncates_the_content_parse()
     Ok(())
 }
 
+/// A PDF value may always be written indirectly, and four places in the walk read
+/// one as if it could not be. These are the four, as fixtures.
+///
+/// Each was found by an independent tester, and each is the same mistake: raw
+/// `Dictionary::get` where the surrounding code used `Document::get_dictionary`,
+/// which *does* follow reference chains. The walk contradicted itself about
+/// indirection, and — because the checker read values the same way — the suite
+/// stayed green through all of it.
+#[tokio::test]
+async fn follows_resources_written_as_indirect_references() -> Result<(), Box<dyn std::error::Error>>
+{
+    for (label, source, marker) in [
+        // `/ExtGState` `/Font` is `[<type3> size]` behind a reference, so matching
+        // on `Object::Array` without resolving never fired and the Type 3 glyph
+        // procedures — and the pattern one of them paints — were never walked.
+        (
+            "ExtGState /Font as an indirect array",
+            pdf_with_extgstate_font_indirect_array(false)?,
+            b"EGFONTPAT".as_slice(),
+        ),
+        // The same document plus an unexecuted form declaring its own `/P0`. The
+        // decoy changes nothing about the walk; it exists because the *previous*
+        // checker keyed on "some dictionary somewhere declares this name", so the
+        // decoy alone hid the over-deletion from it.
+        (
+            "the same, with a decoy declaration of the same name",
+            pdf_with_extgstate_font_indirect_array(true)?,
+            b"EGFONTPAT".as_slice(),
+        ),
+        // `/Subtype` behind a reference never equalled `Form`, so the form was
+        // neither walked nor preserved: over-deletion by omission.
+        (
+            "Form XObject with an indirect /Subtype",
+            pdf_with_form_with_indirect_subtype()?,
+            b"INDIRECTSUBTYPEPAT".as_slice(),
+        ),
+        // `/Pattern` reached through reference -> reference. `category_dictionary`
+        // resolved the chain and reported the alias id, `retain_live_entries` wrote
+        // through that alias, and the protection keyed on it missed the object it
+        // was supposed to protect.
+        (
+            "shared /Pattern behind a reference chain",
+            pdf_with_alias_chain_to_shared_category()?,
+            b"ALIASCATPAT".as_slice(),
+        ),
+    ] {
+        let response = post_crop(
+            "indirect.pdf",
+            &source,
+            &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+        )
+        .await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            return Ok(());
+        }
+        let response = require_status(response, StatusCode::OK).await?;
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        let report = audit_resource_names(&bytes)?;
+        assert!(
+            document_contains(&bytes, marker)?,
+            "{label}: the resource the surviving content still paints with was deleted; \
+             the checker said {report:?}"
+        );
+        assert!(report.is_clean(), "{label}: {report:?}");
+    }
+    Ok(())
+}
+
+/// `/ExtGState` `/Font` written as an indirect reference to the `[<type3> size]`
+/// array. With `decoy`, an unexecuted Form XObject also declares the name `/P0`.
+fn pdf_with_extgstate_font_indirect_array(
+    decoy: bool,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"EGFONTPAT"));
+    let glyph_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"20 0 0 0 20 20 d1 q /Pattern cs /P0 scn 0 0 20 20 re f Q".to_vec(),
+    ));
+    let char_procs_id = document.add_object(dictionary! { "ga" => glyph_id });
+    let encoding_id = document.add_object(dictionary! {
+        "Type" => "Encoding",
+        "Differences" => vec![83.into(), Object::Name(b"ga".to_vec())],
+    });
+    let type3_id = document.add_object(dictionary! {
+        "Type" => "Font",
+        "Subtype" => "Type3",
+        "FontBBox" => vec![0.into(), 0.into(), 20.into(), 20.into()],
+        "FontMatrix" => vec![
+            Object::Real(0.05), 0.into(), 0.into(), Object::Real(0.05), 0.into(), 0.into(),
+        ],
+        "CharProcs" => char_procs_id,
+        "Encoding" => encoding_id,
+        "FirstChar" => 83,
+        "LastChar" => 83,
+        "Widths" => vec![20.into()],
+    });
+    let font_array_id =
+        document.add_object(Object::Array(vec![Object::Reference(type3_id), 12.into()]));
+    let state_id = document.add_object(dictionary! {
+        "Type" => "ExtGState",
+        "Font" => Object::Reference(font_array_id),
+    });
+    let mut page_resources = dictionary! {
+        "Font" => dictionary! { "F1" => font_id },
+        "ExtGState" => dictionary! { "EG" => state_id },
+        "Pattern" => dictionary! { "P0" => pattern_id },
+    };
+    let mut content = b"BT /F1 10 Tf 10 30 Td (KEEPME) Tj ET\n\
+          q /EG gs BT 5 5 Td (S) Tj ET Q\n\
+          BT /F1 8 Tf 20 250 Td (EGOUTOFCROP) Tj ET"
+        .to_vec();
+    if decoy {
+        let decoy_pattern_id = document.add_object(tiling_pattern(font_id, b"DECOYPAT"));
+        let decoy_form_id = document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+                "BBox" => vec![0.into(), 0.into(), 10.into(), 10.into()],
+                "Resources" => dictionary! {
+                    "Pattern" => dictionary! { "P0" => decoy_pattern_id },
+                },
+            },
+            b"q /Pattern cs /P0 scn 0 0 10 10 re f Q".to_vec(),
+        ));
+        page_resources.set(
+            "XObject",
+            Object::Dictionary(dictionary! { "Decoy" => decoy_form_id }),
+        );
+        content.extend_from_slice(b"\nq 1 0 0 1 1 1 cm /Decoy Do Q");
+    }
+    let content_id = document.add_object(Stream::new(dictionary! {}, content));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => page_resources,
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// A Form XObject whose `/Subtype` is an indirect reference to `/Form`.
+fn pdf_with_form_with_indirect_subtype() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let pattern_id = document.add_object(tiling_pattern(font_id, b"INDIRECTSUBTYPEPAT"));
+    let subtype_id = document.add_object(Object::Name(b"Form".to_vec()));
+    let form_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => Object::Reference(subtype_id),
+            "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 60.into(), 30.into()],
+        },
+        b"q /Pattern cs /P0 scn 0 0 60 30 re f Q".to_vec(),
+    ));
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"q 1 0 0 1 10 10 cm /Fm1 Do Q\nBT /F1 10 Tf 20 60 Td (KEEPME) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Pattern" => dictionary! { "P0" => pattern_id },
+            "XObject" => dictionary! { "Fm1" => form_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// The shared-category fixture again, with one page reaching the `/Pattern`
+/// dictionary through an intermediate object whose value is a reference to it.
+fn pdf_with_alias_chain_to_shared_category() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let tile_id = document.add_object(tiling_pattern(font_id, b"ALIASCATPAT"));
+    let shared_category_id = document.add_object(dictionary! { "Pkeep" => tile_id });
+    let alias_id = document.add_object(Object::Reference(shared_category_id));
+    let mut pages = Vec::new();
+    for (content, pattern_ref) in [
+        (
+            b"% c\n\nq /Pattern cs /Pkeep scn 10 10 50 50 re f Q\n\
+               BT /F1 10 Tf 10 120 Td (P1TEXT) Tj ET"
+                .to_vec(),
+            alias_id,
+        ),
+        (
+            b"BT /F1 10 Tf 10 30 Td (P2TEXT) Tj ET".to_vec(),
+            shared_category_id,
+        ),
+    ] {
+        let content_id = document.add_object(Stream::new(dictionary! {}, content));
+        pages.push(Object::Reference(document.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => root_pages_id,
+            "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+            "Resources" => dictionary! {
+                "Font" => dictionary! { "F1" => font_id },
+                "Pattern" => Object::Reference(pattern_ref),
+            },
+            "Contents" => content_id,
+        })));
+    }
+    document.objects.insert(
+        root_pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages", "Kids" => pages, "Count" => 2,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => root_pages_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
+/// One unbalanced `(` used to consume the rest of the stream, hiding every
+/// resource name after it from the oracle — a checker reporting clean because it
+/// stopped looking.
+#[test]
+fn an_unbalanced_delimiter_does_not_blind_the_checker() {
+    let blinded = b"BT (unterminated Tj ET q /Pattern cs /P0 scn 0 0 10 10 re f Q";
+    let names = resource_names_used(blinded);
+    assert!(
+        names
+            .iter()
+            .any(|(category, name)| *category == b"Pattern" && name == b"P0"),
+        "an unbalanced '(' hid every later resource name: {names:?}"
+    );
+}
+
 /// `d0` and `d1` are the only content operators carrying a digit, and every Type 3
 /// glyph procedure must open with one (ISO 32000-1 §9.6.5). `lopdf`'s `operator`
 /// parser matches `[A-Za-z*'"]+`, so it cannot represent them: `d1` tokenises as
@@ -1123,6 +1369,22 @@ fn every_fixture() -> Result<Vec<Fixture>, Box<dyn std::error::Error>> {
             pdf_with_comment_only_first_content_stream()?,
         ),
         (
+            "extgstate_font_indirect_array",
+            pdf_with_extgstate_font_indirect_array(false)?,
+        ),
+        (
+            "extgstate_font_indirect_array_with_decoy",
+            pdf_with_extgstate_font_indirect_array(true)?,
+        ),
+        (
+            "form_with_indirect_subtype",
+            pdf_with_form_with_indirect_subtype()?,
+        ),
+        (
+            "alias_chain_to_shared_category",
+            pdf_with_alias_chain_to_shared_category()?,
+        ),
+        (
             "form_invoked_straight_after_a_type3_metrics_operator",
             pdf_with_a_form_invoked_straight_after_a_type3_metrics_operator()?,
         ),
@@ -1230,11 +1492,11 @@ async fn every_fixture_comes_back_without_a_dangling_resource_name()
                 }
                 let response = require_status(response, StatusCode::OK).await?;
                 let bytes = to_bytes(response.into_body(), usize::MAX).await?;
-                let dangling = dangling_resource_names(&bytes)?;
+                let report = audit_resource_names(&bytes)?;
                 assert!(
-                    dangling.is_empty(),
+                    report.is_clean(),
                     "{label} cropped to {rectangle:?} with removeDataOutsideCrop={remove} \
-                     names resources that no dictionary declares: {dangling:?}"
+                     does not resolve against its own scope: {report:?}"
                 );
             }
         }
@@ -1245,7 +1507,7 @@ async fn every_fixture_comes_back_without_a_dangling_resource_name()
 /// Pins the invariant checker itself.
 ///
 /// Every assertion above is worth exactly what this test is worth: a
-/// [`dangling_resource_names`] that always returned nothing would make all of
+/// [`audit_resource_names`] that always returned nothing would make all of
 /// them pass vacuously, which is the failure mode of a checker nobody checks. The
 /// second case is the one that matters most — a document whose content parses
 /// only up to a `%` comment. That is precisely where `Content::decode` reports
@@ -1277,11 +1539,11 @@ fn the_dangling_name_checker_detects_a_name_no_dictionary_declares()
             "Contents" => content_id,
         });
         let corrupt = finish_single_page(document, root_pages_id, page_id)?;
-        let dangling = dangling_resource_names(&corrupt)?;
+        let report = audit_resource_names(&corrupt)?;
         let expected = (expected.0.to_owned(), expected.1.to_owned());
         assert!(
-            dangling.contains(&expected),
-            "{label}: the checker reported {dangling:?}, missing {expected:?}"
+            report.dangling.contains(&expected),
+            "{label}: the checker reported {report:?}, missing {expected:?}"
         );
     }
     Ok(())
@@ -1340,10 +1602,10 @@ async fn sweeps_a_pdf_corpus_for_dangling_resource_names() -> Result<(), Box<dyn
                 break;
             }
             let bytes = to_bytes(response.into_body(), usize::MAX).await?;
-            let Ok(dangling) = dangling_resource_names(&bytes) else {
+            let Ok(report) = audit_resource_names(&bytes) else {
                 break;
             };
-            sets.push(dangling);
+            sets.push(report.dangling);
         }
         let [removed, control] = sets.as_slice() else {
             continue;
@@ -1367,60 +1629,359 @@ async fn sweeps_a_pdf_corpus_for_dangling_resource_names() -> Result<(), Box<dyn
 /// The five resource categories the crop rebuild prunes.
 const RESOURCE_CATEGORIES: [&[u8]; 5] = [b"XObject", b"Font", b"ExtGState", b"Pattern", b"Shading"];
 
-/// Fails if any surviving content stream names a resource that no reachable
-/// dictionary declares — the corruption direction of the pruning.
+/// Fails if any surviving content stream names a resource that is not declared
+/// **in that stream's own resource scope** — the corruption direction of the
+/// pruning.
 ///
-/// This is the property the pruning has to satisfy stated as an assertion over
-/// the bytes the caller receives, rather than argued from the walk's structure,
-/// and it covers all five categories: the walk prunes all five, and a defect in
-/// any one of them corrupts the page identically.
+/// Two properties make this worth more than the version it replaces.
 ///
-/// The scan deliberately does **not** go through `Content::decode`. That decoder
-/// returns whatever prefix it managed to parse and silently discards the
-/// remainder, which is exactly the blind spot that let an earlier revision judge
-/// the resources of every operator after a `%` comment dead while copying the
-/// stream that names them to the output verbatim — a checker built on it would
-/// have agreed with the bug and reported nothing. [`resource_names_used`]
-/// tokenises the raw bytes instead.
+/// It is **scope-keyed**. The earlier checker unioned every declared name in the
+/// document into one set per category and accepted a used name if *any*
+/// dictionary anywhere declared it. That accepts exactly the bug it exists to
+/// catch: prune `/P0` from the page `/Resources`, leave an unexecuted form that
+/// declares its own unrelated `/P0`, and a surviving glyph procedure resolving
+/// through the page scope finds nothing while the checker reports clean.
+/// Resolution here walks the scope chain a viewer would walk (ISO 32000-1
+/// §8.10.1): the stream's own `/Resources` first, then the scopes it inherits.
+///
+/// It is **deref-aware**. Every value a PDF can write indirectly is read through
+/// `Document::dereference`, because the walk under test had four separate places
+/// where a raw `Dictionary::get` met a value written as `12 0 R` — and a checker
+/// that reads the same way is blind in the same places.
+///
+/// It also does not go through `Content::decode`, which returns whatever prefix
+/// it parsed and discards the rest; [`resource_names_used`] tokenises raw bytes.
 fn assert_no_dangling_resource_names(pdf: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-    let dangling = dangling_resource_names(pdf)?;
+    let report = audit_resource_names(pdf)?;
     assert!(
-        dangling.is_empty(),
-        "surviving content names resources that no dictionary declares: {dangling:?}"
+        report.is_clean(),
+        "surviving content does not resolve against its own scope: {report:?}"
     );
     Ok(())
 }
 
-/// Every `(category, name)` a surviving content stream uses that no dictionary in
-/// the document declares.
-fn dangling_resource_names(
-    pdf: &[u8],
-) -> Result<BTreeSet<(String, String)>, Box<dyn std::error::Error>> {
+/// What the oracle found, including the ways it could fail to look.
+///
+/// `unreadable_streams` and `truncated` are reported rather than swallowed: a
+/// checker that silently skips what it cannot read reports "clean" for a document
+/// it never examined, which is indistinguishable from a real pass.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct ResourceAudit {
+    dangling: BTreeSet<(String, String)>,
+    unreadable_streams: usize,
+    truncated: bool,
+}
+
+impl ResourceAudit {
+    fn is_clean(&self) -> bool {
+        self.dangling.is_empty() && self.unreadable_streams == 0 && !self.truncated
+    }
+}
+
+/// One resource scope, identified the way a viewer would have to identify it.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Scope {
+    /// `/Resources` is an indirect object; the id is the end of the chain.
+    Shared(lopdf::ObjectId),
+    /// `/Resources` is written inline inside this object.
+    InlineIn(lopdf::ObjectId),
+}
+
+/// Where a queued content stream comes from.
+#[derive(Clone, Copy, Debug)]
+enum StreamSource {
+    Page(lopdf::ObjectId),
+    Object(lopdf::ObjectId),
+}
+
+/// Keeps a pathological document from turning the oracle into the thing it is
+/// checking. Reaching either bound sets `truncated`, which fails the assertion
+/// rather than passing quietly.
+const AUDIT_MAX_PAIRS: usize = 200_000;
+const AUDIT_MAX_DEPTH: usize = 64;
+
+/// Resolves every resource name every reachable content stream uses, against the
+/// scope chain that stream actually executes under.
+fn audit_resource_names(pdf: &[u8]) -> Result<ResourceAudit, Box<dyn std::error::Error>> {
     let document = Document::load_mem(pdf)?;
-    let declared = declared_resource_names(&document);
-    let mut dangling = BTreeSet::new();
-    for content in surviving_content_streams(&document) {
+    let mut audit = ResourceAudit::default();
+    let mut visited: HashSet<(lopdf::ObjectId, Vec<Scope>)> = HashSet::new();
+    let mut queue: VecDeque<(StreamSource, Vec<Scope>)> = VecDeque::new();
+    for page_id in document.get_pages().into_values() {
+        let Some(scope) = page_scope(&document, page_id) else {
+            continue;
+        };
+        queue.push_back((StreamSource::Page(page_id), vec![scope]));
+    }
+    while let Some((source, chain)) = queue.pop_front() {
+        if visited.len() >= AUDIT_MAX_PAIRS {
+            audit.truncated = true;
+            break;
+        }
+        let content = match source {
+            StreamSource::Page(page_id) => document.get_page_content(page_id),
+            StreamSource::Object(object_id) => {
+                match document
+                    .get_object(object_id)
+                    .and_then(Object::as_stream)
+                    .and_then(Stream::decompressed_content)
+                {
+                    Ok(content) => content,
+                    Err(_) => {
+                        audit.unreadable_streams += 1;
+                        continue;
+                    }
+                }
+            }
+        };
         for (category, name) in resource_names_used(&content) {
-            if !declared
-                .get(category)
-                .is_some_and(|declared| declared.contains(&name))
-            {
-                dangling.insert((
+            let Some(value) = resolve_in_scope(&document, &chain, category, &name) else {
+                audit.dangling.insert((
                     String::from_utf8_lossy(category).into_owned(),
                     String::from_utf8_lossy(&name).into_owned(),
                 ));
-            }
+                continue;
+            };
+            follow_resource(
+                &document,
+                category,
+                &value,
+                &chain,
+                &mut visited,
+                &mut queue,
+                &mut audit,
+            );
         }
     }
-    Ok(dangling)
+    Ok(audit)
+}
+
+/// The scope a page executes in, following `/Parent` to whichever node carries
+/// `/Resources`.
+fn page_scope(document: &Document, page_id: lopdf::ObjectId) -> Option<Scope> {
+    let mut object_id = page_id;
+    let mut seen = HashSet::new();
+    loop {
+        if !seen.insert(object_id) {
+            return None;
+        }
+        let (owner, object) = document
+            .dereference(document.objects.get(&object_id)?)
+            .ok()?;
+        let dictionary = object.as_dict().ok()?;
+        let owner = owner.unwrap_or(object_id);
+        if let Ok(resources) = dictionary.get(b"Resources") {
+            return scope_of(document, owner, resources);
+        }
+        object_id = dictionary.get(b"Parent").ok()?.as_reference().ok()?;
+    }
+}
+
+fn scope_of(document: &Document, owner: lopdf::ObjectId, resources: &Object) -> Option<Scope> {
+    match document.dereference(resources).ok()? {
+        (Some(object_id), _) => Some(Scope::Shared(object_id)),
+        (None, _) => Some(Scope::InlineIn(owner)),
+    }
+}
+
+fn scope_dictionary(document: &Document, scope: Scope) -> Option<&lopdf::Dictionary> {
+    match scope {
+        Scope::Shared(object_id) => document.get_dictionary(object_id).ok(),
+        Scope::InlineIn(owner) => {
+            let resources = match document.get_object(owner).ok()? {
+                Object::Dictionary(dictionary) => dictionary.get(b"Resources").ok()?,
+                Object::Stream(stream) => stream.dict.get(b"Resources").ok()?,
+                _ => return None,
+            };
+            dereference_dictionary(document, Some(resources))
+        }
+    }
+}
+
+/// Looks `name` up the scope chain, innermost first, exactly as a viewer would.
+fn resolve_in_scope(
+    document: &Document,
+    chain: &[Scope],
+    category: &[u8],
+    name: &[u8],
+) -> Option<Object> {
+    for scope in chain {
+        let Some(resources) = scope_dictionary(document, *scope) else {
+            continue;
+        };
+        let Some(entries) = dereference_dictionary(document, resources.get(category).ok()) else {
+            continue;
+        };
+        if let Ok(value) = entries.get(name) {
+            return Some(value.clone());
+        }
+    }
+    None
+}
+
+/// The scope chain a nested stream executes under: its own `/Resources` first,
+/// otherwise the enclosing chain unchanged.
+fn child_scope(
+    document: &Document,
+    chain: &[Scope],
+    owner: lopdf::ObjectId,
+    resources: Option<&Object>,
+) -> Option<Vec<Scope>> {
+    let Some(resources) = resources else {
+        return Some(chain.to_vec());
+    };
+    if chain.len() >= AUDIT_MAX_DEPTH {
+        return None;
+    }
+    let scope = scope_of(document, owner, resources)?;
+    let mut child = Vec::with_capacity(chain.len() + 1);
+    child.push(scope);
+    child.extend_from_slice(chain);
+    Some(child)
+}
+
+/// Queues whatever content a resolved resource reaches, mirroring the five
+/// operators a viewer executes.
+fn follow_resource(
+    document: &Document,
+    category: &[u8],
+    value: &Object,
+    chain: &[Scope],
+    visited: &mut HashSet<(lopdf::ObjectId, Vec<Scope>)>,
+    queue: &mut VecDeque<(StreamSource, Vec<Scope>)>,
+    audit: &mut ResourceAudit,
+) {
+    let mut enqueue_stream = |object_id: lopdf::ObjectId, chain: Vec<Scope>| {
+        if visited.insert((object_id, chain.clone())) {
+            queue.push_back((StreamSource::Object(object_id), chain));
+        }
+    };
+    match category {
+        b"XObject" | b"Pattern" => {
+            let Ok((Some(object_id), object)) = document.dereference(value) else {
+                return;
+            };
+            let Ok(stream) = object.as_stream() else {
+                return;
+            };
+            // An image XObject has no operators; a shading pattern is a
+            // dictionary, not a stream, and reaches no content stream either.
+            if category == b"XObject"
+                && audit_name(document, stream.dict.get(b"Subtype").ok()) != Some(b"Form".to_vec())
+            {
+                return;
+            }
+            let Some(child) = child_scope(
+                document,
+                chain,
+                object_id,
+                stream.dict.get(b"Resources").ok(),
+            ) else {
+                audit.truncated = true;
+                return;
+            };
+            enqueue_stream(object_id, child);
+        }
+        b"Font" => follow_type3_font(document, value, chain, &mut enqueue_stream, audit),
+        b"ExtGState" => {
+            let Some(state) = dereference_dictionary(document, Some(value)) else {
+                return;
+            };
+            if let Some(mask) = dereference_dictionary(document, state.get(b"SMask").ok())
+                && let Ok(group) = mask.get(b"G")
+                && let Ok((Some(object_id), object)) = document.dereference(group)
+                && let Ok(stream) = object.as_stream()
+            {
+                if let Some(child) = child_scope(
+                    document,
+                    chain,
+                    object_id,
+                    stream.dict.get(b"Resources").ok(),
+                ) {
+                    enqueue_stream(object_id, child);
+                } else {
+                    audit.truncated = true;
+                }
+            }
+            if let Ok((_, Object::Array(font))) =
+                document.dereference(state.get(b"Font").unwrap_or(&Object::Null))
+                && let Some(font) = font.first().cloned()
+            {
+                follow_type3_font(document, &font, chain, &mut enqueue_stream, audit);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn follow_type3_font(
+    document: &Document,
+    value: &Object,
+    chain: &[Scope],
+    enqueue_stream: &mut impl FnMut(lopdf::ObjectId, Vec<Scope>),
+    audit: &mut ResourceAudit,
+) {
+    let Ok((font_id, object)) = document.dereference(value) else {
+        return;
+    };
+    let Ok(font) = object.as_dict() else {
+        return;
+    };
+    if audit_name(document, font.get(b"Subtype").ok()) != Some(b"Type3".to_vec()) {
+        return;
+    }
+    let child = match (font_id, font.get(b"Resources").ok()) {
+        (_, None) => chain.to_vec(),
+        (Some(font_id), resources) => match child_scope(document, chain, font_id, resources) {
+            Some(child) => child,
+            None => {
+                audit.truncated = true;
+                return;
+            }
+        },
+        // A directly embedded font declaring its own resources has no id to key a
+        // scope on, so the oracle cannot resolve its glyphs and says so.
+        (None, Some(_)) => {
+            audit.truncated = true;
+            return;
+        }
+    };
+    let Some(procedures) = dereference_dictionary(document, font.get(b"CharProcs").ok()) else {
+        return;
+    };
+    for (_, procedure) in procedures {
+        if let Ok((Some(object_id), object)) = document.dereference(procedure)
+            && object.as_stream().is_ok()
+        {
+            enqueue_stream(object_id, child.clone());
+        }
+    }
+}
+
+fn audit_name(document: &Document, object: Option<&Object>) -> Option<Vec<u8>> {
+    Some(
+        document
+            .dereference(object?)
+            .ok()?
+            .1
+            .as_name()
+            .ok()?
+            .to_vec(),
+    )
+}
+
+fn dereference_dictionary<'a>(
+    document: &'a Document,
+    object: Option<&'a Object>,
+) -> Option<&'a lopdf::Dictionary> {
+    document.dereference(object?).ok()?.1.as_dict().ok()
 }
 
 /// Every resource name the document declares, per category.
 ///
-/// A resource dictionary is reached two ways, and both matter: an object can be
-/// one (a `/Resources` shared by indirect reference), or hold one under
-/// `/Resources` — which is how the crop rebuild writes the page's, inline in the
-/// page object where no scan of the top-level objects would see it.
+/// Deliberately document-scoped, and used only where a test wants to assert that
+/// a specific declaration still exists somewhere — never as the dangling-name
+/// check, which needs the scope-aware [`audit_resource_names`].
 fn declared_resource_names(document: &Document) -> HashMap<&'static [u8], HashSet<Vec<u8>>> {
     let mut declared: HashMap<&'static [u8], HashSet<Vec<u8>>> = HashMap::new();
     for object in document.objects.values() {
@@ -1444,70 +2005,6 @@ fn declared_resource_names(document: &Document) -> HashMap<&'static [u8], HashSe
         }
     }
     declared
-}
-
-fn dereference_dictionary<'a>(
-    document: &'a Document,
-    object: Option<&'a Object>,
-) -> Option<&'a lopdf::Dictionary> {
-    match object? {
-        Object::Reference(id) => document.get_dictionary(*id).ok(),
-        Object::Dictionary(entries) => Some(entries),
-        _ => None,
-    }
-}
-
-/// The decompressed body of every stream a viewer executes as page content.
-///
-/// Restricted to page contents, Form `XObjects`, tiling patterns and Type 3 glyph
-/// procedures. Running the tokeniser over font programs and image samples would
-/// invent operators and names out of binary data.
-fn surviving_content_streams(document: &Document) -> Vec<Vec<u8>> {
-    let mut ids = BTreeSet::new();
-    for page_id in document.get_pages().into_values() {
-        ids.extend(document.get_page_contents(page_id));
-    }
-    for (id, object) in &document.objects {
-        let dictionary = match object {
-            Object::Dictionary(dictionary) => dictionary,
-            Object::Stream(stream) => {
-                let is_form = stream
-                    .dict
-                    .get(b"Subtype")
-                    .and_then(Object::as_name)
-                    .is_ok_and(|subtype| subtype == b"Form");
-                let is_tiling = stream
-                    .dict
-                    .get(b"PatternType")
-                    .and_then(Object::as_i64)
-                    .is_ok_and(|pattern_type| pattern_type == 1);
-                if is_form || is_tiling {
-                    ids.insert(*id);
-                }
-                &stream.dict
-            }
-            _ => continue,
-        };
-        let Some(procedures) = dereference_dictionary(document, dictionary.get(b"CharProcs").ok())
-        else {
-            continue;
-        };
-        for (_, procedure) in procedures {
-            if let Ok(id) = procedure.as_reference() {
-                ids.insert(id);
-            }
-        }
-    }
-    ids.into_iter()
-        .filter_map(|id| {
-            document
-                .get_object(id)
-                .and_then(Object::as_stream)
-                .ok()?
-                .decompressed_content()
-                .ok()
-        })
-        .collect()
 }
 
 /// The resource names a content stream's operators consume, tokenised straight
@@ -1624,6 +2121,12 @@ fn is_regular(byte: u8) -> bool {
     !is_content_space(byte) && !b"()<>[]{}/%".contains(&byte)
 }
 
+/// Skips one literal string.
+///
+/// An **unbalanced** `(` steps over that one byte instead of consuming the rest of
+/// the stream. Running to the end would hide every resource name after it, which
+/// is a checker that reports clean because it stopped looking — and one stray
+/// parenthesis is all it took.
 fn skip_literal_string(content: &[u8], start: usize) -> usize {
     let mut depth = 0usize;
     let mut index = start;
@@ -1644,7 +2147,7 @@ fn skip_literal_string(content: &[u8], start: usize) -> usize {
             _ => index += 1,
         }
     }
-    content.len()
+    start + 1
 }
 
 /// Skips one bracketed operand — dictionary, hex string, array, or PostScript
@@ -1695,7 +2198,8 @@ fn skip_bracketed(content: &[u8], start: usize) -> usize {
             _ => index += 1,
         }
     }
-    content.len()
+    // Unbalanced: step over the opener rather than swallowing the stream.
+    start + 1
 }
 
 /// Skips an inline image's samples, which start one whitespace byte after `ID`

@@ -221,6 +221,24 @@ fn rebuild_cropped_pdf(
 const MAX_RESOURCE_SCOPE_DEPTH: usize = 256;
 const MAX_SCANNED_CONTENT_BYTES: u64 = 256 * 1024 * 1024;
 
+/// Caps on the (stream, scope-chain) pairs the walk will track.
+///
+/// The byte budget prices *scanning*; it does not price *remembering*. `visited`
+/// and the queue grow one entry per pair, and a pair's memory cost is its chain
+/// depth, so a handful of cross-declaring forms generates chains combinatorially
+/// while charging almost no bytes. Measured on an unauthenticated endpoint: a
+/// **1,982-byte** upload with six cross-declaring forms took the server down in
+/// 26 s, and left unbounded it reached 84 GB resident. Bytes cannot see that
+/// shape — only a cap on the pairs themselves can.
+///
+/// Both bounds are needed. The pair count alone would still allow
+/// `MAX_SCOPED_STREAMS * MAX_RESOURCE_SCOPE_DEPTH` links; the link budget prices
+/// depth, which is what the memory is actually spent on. Real documents sit far
+/// below both — the deepest scope nesting measured across a 1,000-document corpus
+/// is single digits.
+const MAX_SCOPED_STREAMS: usize = 100_000;
+const MAX_SCOPE_LINKS: usize = 2_000_000;
+
 /// Pins the property that makes the resource walk cheap: a scope is carried by
 /// **identity**, never by value.
 ///
@@ -404,6 +422,18 @@ fn prune_dead_resource_declarations(document: &mut Document) {
     }
 }
 
+/// One queued unit of pending work.
+///
+/// A page's joined content has no object of its own, so it is carried by value —
+/// but only one page is in flight at a time. Everything else is carried as an
+/// identity and decompressed when it is popped, which is what keeps the queue's
+/// size proportional to the pair caps rather than to the decompressed size of
+/// everything reachable.
+enum Pending {
+    PageContent(Vec<u8>),
+    Stream(ObjectId),
+}
+
 /// Reachability walk over the content that survived removal.
 ///
 /// Annotation appearance (`/AP`) streams are deliberately **not** walked. That is
@@ -436,8 +466,15 @@ struct ResourceWalk<'a> {
     /// per link would be bounded only by how many forms the file contains — a
     /// 6000-link chain in a ~500 KB upload overflowed the thread stack and
     /// aborted the process.
-    queue: VecDeque<(Vec<u8>, Vec<ResourcesId>)>,
+    ///
+    /// It queues **identities**, not bodies: an earlier revision pushed a fully
+    /// decompressed copy of every reachable stream and only charged the byte
+    /// budget when it was popped again, so the queue itself was the amplifier.
+    /// Decompressing at pop keeps the queue's cost proportional to the pair caps.
+    queue: VecDeque<(Pending, Vec<ResourcesId>)>,
     budget: u64,
+    /// Scope links held across `visited`, which is what the pair caps price.
+    links: usize,
     /// The walk ran out of work budget, so what it never reached is unknown and
     /// nothing may be pruned anywhere.
     abandoned: bool,
@@ -454,6 +491,7 @@ impl<'a> ResourceWalk<'a> {
             visited: HashSet::new(),
             queue: VecDeque::new(),
             budget: MAX_SCANNED_CONTENT_BYTES,
+            links: 0,
             abandoned: false,
         }
     }
@@ -463,14 +501,50 @@ impl<'a> ResourceWalk<'a> {
             return;
         };
         let content = self.document.get_page_content(page_id);
-        self.queue.push_back((content, vec![resources_id]));
-        while let Some((content, chain)) = self.queue.pop_front() {
-            self.scan(&content, &chain);
+        self.queue
+            .push_back((Pending::PageContent(content), vec![resources_id]));
+        while let Some((pending, chain)) = self.queue.pop_front() {
+            match pending {
+                Pending::PageContent(content) => self.scan(&content, &chain),
+                Pending::Stream(object_id) => {
+                    // Decompressing here rather than at enqueue time is what keeps
+                    // the queue cheap. Its bytes are unreachable if this fails, so
+                    // what the stream paints with is unknowable.
+                    let content = self
+                        .document
+                        .get_object(object_id)
+                        .and_then(Object::as_stream)
+                        .and_then(Stream::decompressed_content);
+                    match content {
+                        Ok(content) => self.scan(&content, &chain),
+                        Err(_) => self.preserve(&chain),
+                    }
+                }
+            }
             if self.abandoned {
                 self.queue.clear();
                 return;
             }
         }
+    }
+
+    /// Registers one (stream, scope-chain) pair, or reports that the walk has hit
+    /// its bounds.
+    ///
+    /// Returns `false` when the pair was already seen, so the caller does no work
+    /// twice. Sets `abandoned` — which discards the whole document's pruning —
+    /// when either cap is exceeded, because past that point what the walk has not
+    /// reached is unknown and nothing may be judged dead.
+    fn admit(&mut self, object_id: ObjectId, chain: &[ResourcesId]) -> bool {
+        if self.visited.len() >= MAX_SCOPED_STREAMS || self.links >= MAX_SCOPE_LINKS {
+            self.abandoned = true;
+            return false;
+        }
+        if !self.visited.insert((object_id, chain.to_vec())) {
+            return false;
+        }
+        self.links = self.links.saturating_add(chain.len());
+        true
     }
 
     /// Records that a stream resolving names against `chain` could not be read in
@@ -575,11 +649,7 @@ impl<'a> ResourceWalk<'a> {
         let Some((font_id, font)) = dereference_dictionary(document, font) else {
             return;
         };
-        if !font
-            .get(b"Subtype")
-            .and_then(Object::as_name)
-            .is_ok_and(|subtype| subtype == b"Type3")
-        {
+        if resolved_name(document, font.get(b"Subtype").ok()) != Some(b"Type3".as_slice()) {
             return;
         }
         let Some(child) = self.child_chain(chain, font_id, font.get(b"Resources").ok()) else {
@@ -614,7 +684,9 @@ impl<'a> ResourceWalk<'a> {
             self.enqueue(chain, &group, Some(b"Form"));
         }
         // `/Font` is `[font size]`: selecting a font without ever issuing `Tf`.
-        if let Ok(Object::Array(font)) = state.get(b"Font")
+        // The array itself is routinely an indirect object, so it has to be
+        // resolved rather than matched on.
+        if let Some(font) = resolved_array(document, state.get(b"Font").ok())
             && let Some(font) = font.first()
         {
             let font = font.clone();
@@ -638,7 +710,7 @@ impl<'a> ResourceWalk<'a> {
             // Inherits the enclosing scope, so its identity does not matter.
             return Some(chain.to_vec());
         };
-        let Some(id) = scope_id(owner, resources) else {
+        let Some(id) = scope_id(self.document, owner, resources) else {
             // A `/Resources` dictionary written inline inside a directly embedded
             // object — a Type 3 font stored in an `/ExtGState`'s `/Font` array
             // rather than as an indirect object — has no id, so there is no
@@ -693,12 +765,18 @@ impl<'a> ResourceWalk<'a> {
         let Ok(stream) = document.get_object(*object_id).and_then(Object::as_stream) else {
             return;
         };
-        if let Some(subtype) = required_subtype
-            && !stream
-                .dict
-                .get(b"Subtype")
-                .and_then(Object::as_name)
-                .is_ok_and(|actual| actual == subtype)
+        // Three outcomes, not two. A `/Subtype` that resolves to something else is
+        // genuinely not a form and has no content to follow. A `/Subtype` that is
+        // *present but unresolvable* — a reference to a missing object — leaves the
+        // walk unable to tell, and skipping it would mean the stream is neither
+        // walked nor preserved: over-deletion by omission. Absent entirely is not a
+        // form, since ISO 32000-1 §8.10 requires the key on every Form XObject.
+        let declared_subtype = stream.dict.get(b"Subtype").ok();
+        let subtype_unreadable =
+            declared_subtype.is_some() && resolved_name(self.document, declared_subtype).is_none();
+        if let Some(required) = required_subtype
+            && !subtype_unreadable
+            && resolved_name(self.document, declared_subtype) != Some(required)
         {
             return;
         }
@@ -710,15 +788,14 @@ impl<'a> ResourceWalk<'a> {
         else {
             return;
         };
-        if !self.visited.insert((*object_id, child.clone())) {
-            return;
-        }
-        // Its bytes are unreachable, so what it paints with is unknowable.
-        let Ok(content) = stream.decompressed_content() else {
+        if subtype_unreadable {
             self.preserve(&child);
             return;
-        };
-        self.queue.push_back((content, child));
+        }
+        if !self.admit(*object_id, &child) {
+            return;
+        }
+        self.queue.push_back((Pending::Stream(*object_id), child));
     }
 }
 
@@ -748,15 +825,72 @@ fn operand_name(operands: &[Object]) -> Option<&[u8]> {
         .find_map(|operand| operand.as_name().ok())
 }
 
+/// The name a value ultimately denotes, following any chain of references.
+///
+/// Every read in this walk goes through one of these helpers. Mixing raw
+/// `Dictionary::get` with `Document::get_dictionary` — which *does* follow
+/// reference chains — is a single mistake that showed up in four places: a
+/// `/Subtype` written as `12 0 R` matched nothing while the dictionary holding it
+/// resolved fine, an `/ExtGState` `/Font` written indirectly never matched
+/// `Object::Array`, and two aliases of one `/Pattern` dictionary were treated as
+/// two scopes and filtered inconsistently. A PDF value may always be indirect;
+/// code that reads one without saying so is guessing.
+fn resolved_name<'a>(document: &'a Document, object: Option<&'a Object>) -> Option<&'a [u8]> {
+    document.dereference(object?).ok()?.1.as_name().ok()
+}
+
+/// The array a value ultimately denotes, following any chain of references.
+fn resolved_array<'a>(document: &'a Document, object: Option<&'a Object>) -> Option<&'a [Object]> {
+    match document.dereference(object?).ok()?.1 {
+        Object::Array(items) => Some(items),
+        _ => None,
+    }
+}
+
 /// The identity of a `/Resources` value, when it has one.
+///
+/// The id reported is the one at the **end** of any reference chain, so two
+/// aliases of the same dictionary are one scope. Keying on the alias instead let
+/// [`category_dictionary`] resolve a dictionary through the chain while
+/// [`retain_live_entries`] wrote back through the alias, which silently dropped
+/// the protection that keeps a preserved scope's entries alive.
 ///
 /// A `/Resources` dictionary written inline inside a **directly embedded** object
 /// has neither an id of its own nor an owner to borrow one from, so it has no
 /// identity at all — callers must handle that rather than invent one.
-fn scope_id(owner: Option<ObjectId>, resources: &Object) -> Option<ResourcesId> {
-    match resources {
-        Object::Reference(object_id) => Some(ResourcesId::Shared(*object_id)),
-        _ => owner.map(ResourcesId::InlineIn),
+fn scope_id(
+    document: &Document,
+    owner: Option<ObjectId>,
+    resources: &Object,
+) -> Option<ResourcesId> {
+    match document.dereference(resources).ok()? {
+        (Some(object_id), _) => Some(ResourcesId::Shared(object_id)),
+        (None, _) => owner.map(ResourcesId::InlineIn),
+    }
+}
+
+/// The keep-set key for one resource entry, resolved so that two aliases of the
+/// same object are one key.
+///
+/// Shared by [`resolve_resource`] and [`retain_live_entries`] so the two can never
+/// disagree about what an entry is. Falls back to the written reference when the
+/// target is missing: the entry then reaches nothing, but content may still name
+/// it, and removing the declaration would leave that name dangling.
+fn entry_key(
+    document: &Document,
+    category_id: CategoryId,
+    name: &[u8],
+    value: &Object,
+) -> LiveResource {
+    match value {
+        Object::Reference(object_id) => LiveResource::Object(
+            document
+                .dereference(value)
+                .ok()
+                .and_then(|(id, _)| id)
+                .unwrap_or(*object_id),
+        ),
+        _ => LiveResource::Inline(category_id, name.to_vec()),
     }
 }
 
@@ -769,9 +903,15 @@ fn page_resources_id(document: &Document, page_id: ObjectId) -> Option<Resources
         if !visited.insert(object_id) {
             return None;
         }
-        let dictionary = document.get_dictionary(object_id).ok()?;
+        // The node itself may be reached through a reference chain; the owner id a
+        // scope is keyed on has to be the object the chain ends at.
+        let (owner, object) = document
+            .dereference(document.objects.get(&object_id)?)
+            .ok()?;
+        let dictionary = object.as_dict().ok()?;
+        let owner = owner.unwrap_or(object_id);
         if let Ok(resources) = dictionary.get(b"Resources") {
-            return scope_id(Some(object_id), resources);
+            return scope_id(document, Some(owner), resources);
         }
         object_id = dictionary.get(b"Parent").ok()?.as_reference().ok()?;
     }
@@ -809,12 +949,12 @@ fn category_dictionary(
     category: ResourceCategory,
 ) -> Option<(CategoryId, &Dictionary)> {
     let resources = resources_dictionary(document, resources_id)?;
-    match resources.get(category.key()).ok()? {
-        Object::Reference(object_id) => Some((
-            CategoryId::Shared(*object_id),
-            document.get_dictionary(*object_id).ok()?,
-        )),
-        Object::Dictionary(entries) => {
+    let value = resources.get(category.key()).ok()?;
+    match document.dereference(value).ok()? {
+        (Some(object_id), Object::Dictionary(entries)) => {
+            Some((CategoryId::Shared(object_id), entries))
+        }
+        (None, Object::Dictionary(entries)) => {
             Some((CategoryId::InlineIn(resources_id, category), entries))
         }
         _ => None,
@@ -837,11 +977,7 @@ fn resolve_resource(
         let Ok(value) = entries.get(name) else {
             continue;
         };
-        let live = match value {
-            Object::Reference(object_id) => LiveResource::Object(*object_id),
-            _ => LiveResource::Inline(category_id, name.to_vec()),
-        };
-        return Some((live, value.clone()));
+        return Some((entry_key(document, category_id, name, value), value.clone()));
     }
     None
 }
@@ -854,13 +990,8 @@ fn dereference_dictionary<'a>(
     document: &'a Document,
     object: &'a Object,
 ) -> Option<(Option<ObjectId>, &'a Dictionary)> {
-    match object {
-        Object::Reference(object_id) => {
-            Some((Some(*object_id), document.get_dictionary(*object_id).ok()?))
-        }
-        Object::Dictionary(dictionary) => Some((None, dictionary)),
-        _ => None,
-    }
+    let (object_id, object) = document.dereference(object).ok()?;
+    Some((object_id, object.as_dict().ok()?))
 }
 
 /// Filters one category dictionary in place, keeping only live entries.
@@ -885,10 +1016,7 @@ fn retain_live_entries(
     }
     let mut retained = Dictionary::new();
     for (name, value) in entries {
-        let key = match value {
-            Object::Reference(object_id) => LiveResource::Object(*object_id),
-            _ => LiveResource::Inline(category_id, name.clone()),
-        };
+        let key = entry_key(document, category_id, name, value);
         if live.contains(&key) {
             retained.set(name.clone(), value.clone());
         }
