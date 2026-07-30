@@ -84,9 +84,9 @@ pub enum CropError {
 /// service down and every concurrent caller with it. That is why this is not left
 /// to the ambient stack.
 ///
-/// Neither PDFium nor the resource walk is involved: PDFium completes this file on
+/// Neither `PDFium` nor the resource walk is involved: `PDFium` completes this file on
 /// its own, the walk is iterative by construction, and the rebuild's traversal of
-/// PDFium's output is what recurses.
+/// `PDFium`'s output is what recurses.
 ///
 /// This is **containment, not a proof**. A document nested deeper still overflows,
 /// just further out; only an iterative traversal in `lopdf` would make it
@@ -94,7 +94,7 @@ pub enum CropError {
 /// in a thousand-document corpus.
 const CROP_STACK_BYTES: usize = 32 * 1024 * 1024;
 
-/// Crops every page using explicit coordinates or PDFium-rendered content bounds.
+/// Crops every page using explicit coordinates or `PDFium`-rendered content bounds.
 ///
 /// With `remove_data_outside_crop` the out-of-crop content is physically discarded
 /// before the pages are rebuilt; without it the pages are only clipped, so the
@@ -262,18 +262,18 @@ fn rebuild_cropped_pdf(
 /// `PDFium` expands every form invocation when it regenerates a page, and it
 /// bounds neither the recursion nor the fan out. ISO 32000-1 §8.10.1 forbids a
 /// form from invoking itself directly or indirectly, so a cycle is already an
-/// invalid document — but PDFium follows one anyway, and an acyclic graph can be
+/// invalid document — but `PDFium` follows one anyway, and an acyclic graph can be
 /// just as expensive: measured on this unauthenticated endpoint, a **1,982-byte**
 /// upload whose six forms each invoke all six reached 45 GB resident and never
 /// returned, and a 557 KB document fanning 60 ways across 8 levels reached 84 GB.
 ///
 /// This is *not* something the resource walk's bounds can reach. The cost is
-/// spent inside PDFium, before the walk runs at all — verified by disabling the
+/// spent inside `PDFium`, before the walk runs at all — verified by disabling the
 /// walk entirely and watching the same 45 GB. The only place to stop it is on the
 /// way in.
 ///
-/// The graph follows **executed** `Do` operators, because that is what PDFium
-/// expands. Declarations alone are far too coarse: a Form XObject sharing its
+/// The graph follows **executed** `Do` operators, because that is what `PDFium`
+/// expands. Declarations alone are far too coarse: a Form `XObject` sharing its
 /// page's `/Resources` dictionary — spec-legal, and something real generators
 /// emit — declares *itself*, so every such document would look like a cycle and
 /// be refused.
@@ -284,7 +284,7 @@ fn rebuild_cropped_pdf(
 /// stops at, because failing to parse is exactly what triggers the conservative
 /// reading.
 ///
-/// `removeDataOutsideCrop=false` never invokes PDFium and stays available — it
+/// `removeDataOutsideCrop=false` never invokes `PDFium` and stays available — it
 /// answers both of the documents above in under a fifth of a second.
 const MAX_FORM_EXPANSION: u64 = 1_000_000;
 

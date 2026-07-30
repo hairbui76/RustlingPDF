@@ -78,14 +78,77 @@ an out-of-crop mark referenced re-opens the leak, and dropping one that survivin
 content still paints with leaves a dangling name and visibly corrupts the page.
 
 The corruption direction is pinned as a **property of the output**, not as a set of
-cases someone thought to write down: no surviving content stream may name a
-resource that no reachable dictionary declares, across all five categories. It is
-asserted on every fixture in `tests/crop_endpoint.rs` in both modes, and
-`RUSTLING_CROP_CORPUS_DIR` runs the same check over a directory of real PDFs using
-the `removeDataOutsideCrop=false` output as the control. The checker tokenises raw
-content bytes rather than reusing `lopdf`'s content decoder, because a checker
-sharing that decoder's truncation blind spot would have confirmed the very defect
-described below.
+cases someone thought to write down: every reachable content stream is walked from
+its page, and each `/XObject`, `/Font`, `/ExtGState`, `/Pattern` and `/Shading`
+name it uses must resolve **in that stream's own scope chain** — the chain a viewer
+walks (ISO 32000-1 §8.10.1), not "somewhere in the document". It is asserted on
+every fixture in `tests/crop_endpoint.rs`, at four crop rectangles, in both modes,
+and `RUSTLING_CROP_CORPUS_DIR` runs it over a directory of real PDFs against the
+`removeDataOutsideCrop=false` output as the control.
+
+Two earlier versions of this check were weaker than this paragraph claimed, and
+both weaknesses were found by an independent tester rather than by the suite:
+
+- It unioned every declared name in the document into one set per category and
+  accepted a used name if *any* dictionary declared it. That passes the exact bug
+  it exists to catch — prune `/P0` from a page while an unexecuted form declares
+  its own unrelated `/P0`, and a glyph procedure resolving through the page scope
+  finds nothing while the check reports clean.
+- It read `/Subtype` and category dictionaries with raw lookups, so it was blind to
+  values written indirectly in precisely the places the walk was.
+
+What it still does **not** verify: that a resource resolves to the *same object* a
+viewer would pick. It checks that the name resolves to something in scope, not that
+the something is right. A checker strong enough for that would have to reimplement
+the resolution the walk performs, and would then share its assumptions — which is
+the failure mode both bullets above are examples of.
+
+### When removal is refused
+
+`removeDataOutsideCrop=true` returns **`422 Unprocessable Content`** for one shape:
+a document whose Form XObject graph expands without bound. Removal works by having
+PDFium regenerate each page, PDFium expands every `Do` while doing so, and it
+bounds neither recursion nor fan out. ISO 32000-1 §8.10.1 already forbids a form
+from invoking itself directly or indirectly; PDFium follows such a graph anyway,
+and an acyclic one can be just as expensive.
+
+This is not a theoretical bound. Measured against this endpoint before the check
+existed: a **1,982-byte** upload whose six forms each invoke all six reached 45 GB
+resident and never returned, and a 557 KB document fanning 60 ways across 8 levels
+reached 84 GB. Both took the process down, so every concurrent caller lost their
+request too. The check runs before PDFium — after it, there is nothing left to
+refuse with — and answers both in about 30 ms.
+
+The graph follows the `Do` operators a page and its forms actually execute. Where
+those cannot be read, the declared `/XObject` entries are used instead, so a file
+cannot evade the bound by hiding its recursion behind a construct the content
+parser stops at. Declarations alone would be wrong as the primary source: a form
+sharing its page's `/Resources` dictionary declares *itself*, which is spec-legal
+and common.
+
+Measured false-refusal rate: **zero** across 123 unique real-world PDFs, and the
+amplification fixtures this port's earlier rounds were tuned against still return
+`200` in 0.13 s and 0.76 s. `removeDataOutsideCrop=false` never invokes PDFium and
+answers the refused documents in under a fifth of a second.
+
+### A crash that was not what it looked like
+
+Some documents used to abort the **process** on the removal branch — a stack
+overflow, which cannot be caught, so an unauthenticated request killed the service.
+These were recorded for a while as "pre-existing lopdf crashers". That was wrong
+twice: `removeDataOutsideCrop=false` loads the same files through the same lopdf
+and returns `200`, and the crash is not at load. PDFium completes them on its own
+and the resource walk is iterative; what recurses is the rebuild's traversal of
+PDFium's output, whose depth is a property of the uploaded file.
+
+Sweeping the stack size on one such document — a 932 KB file with 1,353 forms — is
+unambiguous: 1 MiB and 2 MiB abort, 4 MiB and above succeed, and `tokio` gives its
+blocking threads 2 MiB. The crop now runs on a scoped 32 MiB thread, and all 19
+reproducible crashers return `200`.
+
+That is containment, not a proof. A document nested deeper still overflows, just
+further out. The bound that would make it impossible is an iterative traversal in
+`lopdf`.
 
 ### What limits the promise
 
@@ -102,9 +165,13 @@ So the promise splits in two, and only the first half is unconditional:
 | Out-of-crop **marks** deleted from the page and its content stream regenerated without them | **Yes**, whenever the endpoint returns `200` |
 | **Resources** reachable only from a deleted mark removed from the file | Only where the content naming them parsed in full |
 
-How often the second row falls short, measured: of 181 real-world PDFs collected
-from this machine, 3 (1.7%) preserved at least one scope. Both known causes are
-below.
+How often the second row falls short, measured on a run that completed: of **123
+unique real-world PDFs** collected from this machine — de-duplicated by content,
+and excluding this repository's own fixtures, staging copies and packaging assets —
+**one** preserved a scope, and it is the Type 3 case below. An earlier figure of
+"3 of 181 (1.7%)" quoted here came from a run that processed half its list before
+timing out, over a set whose "real-world" bucket included 47 repo fixtures and 12
+staging copies of synthetic ones; it should not have been cited.
 
 Erring towards keeping is deliberate, and it is a reversal. An earlier revision
 pruned whatever the parser did not report, on the theory that keeping data the
@@ -225,11 +292,18 @@ stream being scanned).
 The walk itself is linear in the size of the document — it visits each
 (stream, scope) pair once and carries scopes by identity rather than by value, and
 it is iterative rather than recursive so a long chain of inheriting forms cannot
-exhaust the stack. Its limits — 256 nested scopes, and 256 MB of **decoded content
-bytes** rather than a stream count, since the same stream reached under two scope
-chains is scanned twice — exist to stop pathological nesting, not to ration
-ordinary work; measured documents sit orders of magnitude below them. Reaching
-either limit keeps declarations rather than refusing the request, as
+exhaust the stack. Its limits are 256 nested scopes, 256 MB of **decoded content
+bytes** (rather than a stream count, since the same stream reached under two scope
+chains is scanned twice), and a hard cap on the (stream, scope) pairs it will
+track: 50,000 pairs and 500,000 scope links. The pair caps are not redundant with
+the byte budget — a pair's cost is its chain depth, so a few cross-declaring forms
+generate chains combinatorially while charging almost no bytes. Every path that
+touches a chain is charged, including the give-up paths that admit no pair and
+decode no byte; those were the last unpriced work.
+
+Measured documents sit orders of magnitude below all of these — the deepest scope
+nesting across a thousand-document corpus is single digits. Reaching any of them
+keeps declarations rather than refusing the request, as
 [What limits the promise](#what-limits-the-promise) describes.
 
 Verified end to end against plain text, images, Form and nested-Form text, inline
@@ -306,6 +380,10 @@ variable and ignored.
 ## Response
 
 - Success: `200 OK`, `Content-Type: application/pdf`
+- `422 Unprocessable Content` when `removeDataOutsideCrop=true` and the document's
+  form graph expands without bound (see
+  [When removal is refused](#when-removal-is-refused)); logged at `WARN` with
+  `event = "crop_form_expansion_refused"`
 - Download name: `<base>_cropped.pdf`
 - Rebuilt pages have media boxes `[x, y, x + width, y + height]`, clip source
   content to the same rectangle, and remove stale AcroForm/outlines associated

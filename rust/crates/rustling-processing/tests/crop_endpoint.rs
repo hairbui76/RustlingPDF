@@ -647,7 +647,7 @@ async fn follows_resources_written_as_indirect_references() -> Result<(), Box<dy
 }
 
 /// `/ExtGState` `/Font` written as an indirect reference to the `[<type3> size]`
-/// array. With `decoy`, an unexecuted Form XObject also declares the name `/P0`.
+/// array. With `decoy`, an unexecuted Form `XObject` also declares the name `/P0`.
 fn pdf_with_extgstate_font_indirect_array(
     decoy: bool,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -723,7 +723,7 @@ fn pdf_with_extgstate_font_indirect_array(
     finish_single_page(document, root_pages_id, page_id)
 }
 
-/// A Form XObject whose `/Subtype` is an indirect reference to `/Form`.
+/// A Form `XObject` whose `/Subtype` is an indirect reference to `/Form`.
 fn pdf_with_form_with_indirect_subtype() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut document = Document::with_version("1.7");
     let root_pages_id = document.new_object_id();
@@ -1728,17 +1728,15 @@ fn audit_resource_names(pdf: &[u8]) -> Result<ResourceAudit, Box<dyn std::error:
         let content = match source {
             StreamSource::Page(page_id) => document.get_page_content(page_id),
             StreamSource::Object(object_id) => {
-                match document
+                let Ok(content) = document
                     .get_object(object_id)
                     .and_then(Object::as_stream)
                     .and_then(Stream::decompressed_content)
-                {
-                    Ok(content) => content,
-                    Err(_) => {
-                        audit.unreadable_streams += 1;
-                        continue;
-                    }
-                }
+                else {
+                    audit.unreadable_streams += 1;
+                    continue;
+                };
+                content
             }
         };
         for (category, name) in resource_names_used(&content) {
@@ -1939,13 +1937,13 @@ fn follow_type3_font(
     }
     let child = match (font_id, font.get(b"Resources").ok()) {
         (_, None) => chain.to_vec(),
-        (Some(font_id), resources) => match child_scope(document, chain, font_id, resources) {
-            Some(child) => child,
-            None => {
+        (Some(font_id), resources) => {
+            let Some(child) = child_scope(document, chain, font_id, resources) else {
                 audit.truncated = true;
                 return;
-            }
-        },
+            };
+            child
+        }
         // A directly embedded font declaring its own resources has no id to key a
         // scope on, so the oracle cannot resolve its glyphs and says so.
         (None, Some(_)) => {
