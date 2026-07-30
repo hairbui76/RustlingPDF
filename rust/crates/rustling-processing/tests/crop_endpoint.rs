@@ -646,6 +646,250 @@ async fn follows_resources_written_as_indirect_references() -> Result<(), Box<dy
     Ok(())
 }
 
+/// A Form `XObject` may be **declared in a resource scope it shares with its page**
+/// (ISO 32000-1 §8.10.1), which real generators emit. Such a form appears in its
+/// own scope's declarations, so a form-expansion graph built from *declarations*
+/// makes it its own child and refuses an acyclic document as "invokes itself".
+///
+/// Round 9 shipped exactly that: the graph fell back to declarations whenever a
+/// form's content would not fully parse, which is common — a `Do` naming nothing,
+/// trailing NUL padding, a comment-plus-blank-line, or a Type 3 `d0`/`d1` stray
+/// digit each defeats the strict decode. It refused 4 of 1,117 real corpus files
+/// under the default `removeDataOutsideCrop=true`. The graph now follows only
+/// executed `Do` operators, and contributes no edges when it cannot read them.
+#[tokio::test]
+async fn a_form_declared_in_a_scope_it_shares_is_not_refused_as_a_cycle()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut failures = Vec::new();
+    for (label, form_content) in [
+        ("clean", b"0 0 1 rg 20 20 120 120 re f".as_slice()),
+        (
+            "a Do naming an undeclared resource",
+            b"0 0 1 rg 20 20 120 120 re f\nq /NotThere Do Q".as_slice(),
+        ),
+        (
+            "trailing NUL padding",
+            b"0 0 1 rg 20 20 120 120 re f\x00\x00\x00\x00".as_slice(),
+        ),
+        (
+            "a comment then a blank line",
+            b"% GENERATOR MARKER\n\n0 0 1 rg 20 20 120 120 re f".as_slice(),
+        ),
+        (
+            "a Type 3 metrics operator's stray digit",
+            b"0 0 1 rg 20 20 120 120 re f\n10 0 d0".as_slice(),
+        ),
+    ] {
+        let source = pdf_with_form_sharing_its_page_resources(form_content)?;
+        // The control prunes nothing; a `/NotThere Do` in the fixture dangles in
+        // both modes, so it is the *difference* that measures the pruning.
+        let control = post_crop(
+            "shared.pdf",
+            &source,
+            &[
+                ("x", "0"),
+                ("y", "0"),
+                ("width", "200"),
+                ("height", "300"),
+                ("removeDataOutsideCrop", "false"),
+            ],
+        )
+        .await?;
+        if control.status() == StatusCode::NOT_IMPLEMENTED {
+            return Ok(());
+        }
+        let control = audit_resource_names(
+            &to_bytes(
+                require_status(control, StatusCode::OK).await?.into_body(),
+                usize::MAX,
+            )
+            .await?,
+        )?;
+        let response = post_crop(
+            "shared.pdf",
+            &source,
+            &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+        )
+        .await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            return Ok(());
+        }
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        if status != StatusCode::OK {
+            failures.push(format!(
+                "{label}: expected 200 (a shared-scope form is not a self-cycle), got {status}: {}",
+                String::from_utf8_lossy(&bytes)
+            ));
+            continue;
+        }
+        let removed = audit_resource_names(&bytes)?;
+        let introduced = removed
+            .dangling
+            .difference(&control.dangling)
+            .cloned()
+            .collect::<Vec<_>>();
+        if !introduced.is_empty() {
+            failures.push(format!("{label}: pruning introduced {introduced:?}"));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    Ok(())
+}
+
+/// The expansion bound must still refuse what it exists to refuse, so the
+/// Defect-1 fix did not disarm it. A form that genuinely invokes itself is a cycle
+/// (`PDFium` follows it and never returns); an acyclic graph that expands past a
+/// million invocations is the other shape. Both are `422`, and the message points
+/// the caller at `removeDataOutsideCrop=false`.
+#[tokio::test]
+async fn the_form_expansion_bound_still_refuses_genuine_blowups()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, source) in [
+        (
+            "a form that actually invokes itself",
+            pdf_with_form_sharing_its_page_resources(b"q /Fm1 Do Q")?,
+        ),
+        (
+            "an acyclic graph past a million invocations",
+            pdf_with_a_doubling_form_dag(20)?,
+        ),
+    ] {
+        let response = post_crop(
+            "blowup.pdf",
+            &source,
+            &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+        )
+        .await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            return Ok(());
+        }
+        assert_eq!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{label}"
+        );
+        let body = to_bytes(response.into_body(), usize::MAX).await?;
+        assert!(
+            String::from_utf8_lossy(&body).contains("removeDataOutsideCrop=false"),
+            "{label}: {}",
+            String::from_utf8_lossy(&body)
+        );
+    }
+    Ok(())
+}
+
+/// A soft mask's `/G` transparency group whose `/Subtype /Form` is omitted is
+/// still a form every renderer executes (ISO 32000-1 §11.6.5.2). A walk that gated
+/// on `/Subtype == Form` neither walked nor preserved it, so a pattern named only
+/// from inside the group was deleted while the group stream survived painting with
+/// it — poppler then reported "Unknown pattern 'P0'" on the removal output.
+#[tokio::test]
+async fn follows_a_soft_mask_group_that_omits_its_subtype() -> Result<(), Box<dyn std::error::Error>>
+{
+    let response = post_crop(
+        "smask-no-subtype.pdf",
+        &pdf_with_soft_mask_group_without_subtype()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&bytes, b"SMASKLIVEPAT")?,
+        "the pattern the surviving soft-mask group still paints with was deleted"
+    );
+    let report = audit_resource_names(&bytes)?;
+    assert!(report.is_clean(), "{report:?}");
+    Ok(())
+}
+
+/// A page and a Form `XObject` that share one indirect `/Resources` dictionary. The
+/// dictionary therefore declares the form (`/Fm1`), so a declaration-based
+/// expansion graph would call it its own child. The form's content is a parameter,
+/// to exercise the shapes on which `invoked_form_ids` returns `None`.
+fn pdf_with_form_sharing_its_page_resources(
+    form_content: &[u8],
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let resources_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let form_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 200.into(), 200.into()],
+            "Resources" => Object::Reference(resources_id),
+        },
+        form_content.to_vec(),
+    ));
+    document.objects.insert(
+        resources_id,
+        Object::Dictionary(dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "XObject" => dictionary! { "Fm1" => form_id },
+        }),
+    );
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"q 1 0 0 1 10 10 cm /Fm1 Do Q\nBT /F1 14 Tf 20 250 Td (INSIDE) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 300.into(), 400.into()],
+        "Resources" => Object::Reference(resources_id),
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// `levels` Form `XObjects`, each invoking the level below it **twice** by executed
+/// `Do`. Acyclic (a DAG, every edge points strictly downward), but the top form
+/// expands to `2^(levels+1) - 1` invocations, so 20 levels exceeds the million
+/// bound. This is the fan-out shape the bound exists to refuse, without a cycle.
+fn pdf_with_a_doubling_form_dag(levels: usize) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let mut child = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 10.into(), 10.into()],
+        },
+        b"0 0 1 rg 0 0 10 10 re f".to_vec(),
+    ));
+    for _ in 0..levels {
+        let resources_id = document.add_object(dictionary! {
+            "XObject" => dictionary! { "C" => child },
+        });
+        child = document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+                "BBox" => vec![0.into(), 0.into(), 10.into(), 10.into()],
+                "Resources" => Object::Reference(resources_id),
+            },
+            b"q /C Do Q q /C Do Q".to_vec(),
+        ));
+    }
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"q 1 0 0 1 10 10 cm /Top Do Q".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 300.into(), 400.into()],
+        "Resources" => dictionary! { "XObject" => dictionary! { "Top" => child } },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
 /// `/ExtGState` `/Font` written as an indirect reference to the `[<type3> size]`
 /// array. With `decoy`, an unexecuted Form `XObject` also declares the name `/P0`.
 fn pdf_with_extgstate_font_indirect_array(
@@ -1416,6 +1660,10 @@ fn every_fixture() -> Result<Vec<Fixture>, Box<dyn std::error::Error>> {
             "soft_mask_group_painting_a_pattern",
             pdf_with_soft_mask_group_painting_a_pattern()?,
         ),
+        (
+            "soft_mask_group_without_subtype",
+            pdf_with_soft_mask_group_without_subtype()?,
+        ),
         ("inheriting_form_chain", pdf_with_inheriting_form_chain(40)?),
         (
             "shared_indirect_resources",
@@ -1576,6 +1824,7 @@ async fn sweeps_a_pdf_corpus_for_dangling_resource_names() -> Result<(), Box<dyn
     };
     let mut swept = 0_usize;
     let mut cropped = 0_usize;
+    let mut removal_incomplete = 0_usize;
     let mut failures = Vec::new();
     for entry in std::fs::read_dir(directory)? {
         let path = entry?.path();
@@ -1612,21 +1861,48 @@ async fn sweeps_a_pdf_corpus_for_dangling_resource_names() -> Result<(), Box<dyn
             let Ok(report) = audit_resource_names(&bytes) else {
                 break;
             };
-            sets.push(report.dangling);
+            sets.push(report);
         }
         let [removed, control] = sets.as_slice() else {
             continue;
         };
         cropped += 1;
-        let introduced = removed.difference(control).cloned().collect::<Vec<_>>();
+        let introduced = removed
+            .dangling
+            .difference(&control.dangling)
+            .cloned()
+            .collect::<Vec<_>>();
         if !introduced.is_empty() {
-            failures.push(format!("{name}: {introduced:?}"));
+            failures.push(format!("{name}: dangling {introduced:?}"));
+        }
+        // A clean dangling diff only means "clean" if the oracle actually looked.
+        // When the removal output makes the audit give up — `truncated`, or a
+        // stream it could not decompress — a missed corruption would show as an
+        // empty diff, i.e. a false pass. Count those, and treat incompleteness the
+        // *control did not have* as a failure: it is incompleteness the removal
+        // introduced, which is exactly where a hidden defect would sit.
+        let removal_gave_up = removed.truncated || removed.unreadable_streams > 0;
+        let control_gave_up = control.truncated || control.unreadable_streams > 0;
+        if removal_gave_up {
+            removal_incomplete += 1;
+        }
+        if removal_gave_up && !control_gave_up {
+            failures.push(format!(
+                "{name}: removal output could not be fully audited (truncated={}, \
+                 unreadable_streams={}) while the control could — a dangling name here \
+                 would be invisible",
+                removed.truncated, removed.unreadable_streams
+            ));
         }
     }
-    eprintln!("crop corpus sweep: {swept} files seen, {cropped} cropped in both modes");
+    eprintln!(
+        "crop corpus sweep: {swept} files seen, {cropped} cropped in both modes, \
+         {removal_incomplete} with an incompletely auditable removal output"
+    );
     assert!(
         failures.is_empty(),
-        "pruning introduced dangling resource names in {} of {cropped} documents:\n{}",
+        "pruning introduced dangling resource names, or an unauditable removal output, in {} of \
+         {cropped} documents:\n{}",
         failures.len(),
         failures.join("\n")
     );
@@ -2358,20 +2634,39 @@ fn pdf_with_type3_glyph_painting_a_pattern() -> Result<Vec<u8>, Box<dyn std::err
 
 /// An `/ExtGState` soft mask whose group form paints the page's pattern.
 fn pdf_with_soft_mask_group_painting_a_pattern() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pdf_with_soft_mask_group(true)
+}
+
+/// The same, but the group's `/Subtype /Form` is **omitted**.
+///
+/// `/G` is a transparency group, which ISO 32000-1 §11.6.5.2 defines to be a Form
+/// `XObject` and which renderers execute without consulting `/Subtype`. A walk that
+/// gated on `/Subtype == Form` neither walked nor preserved this group, so `/P0` —
+/// named only from inside it — was judged dead and deleted while the group stream
+/// survived still painting with it. poppler then reported "Unknown pattern 'P0'"
+/// on the removal output and nothing on the control.
+fn pdf_with_soft_mask_group_without_subtype() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pdf_with_soft_mask_group(false)
+}
+
+fn pdf_with_soft_mask_group(include_subtype: bool) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut document = Document::with_version("1.7");
     let root_pages_id = document.new_object_id();
     let font_id = document.add_object(dictionary! {
         "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
     });
     let pattern_id = document.add_object(tiling_pattern(font_id, b"SMASKLIVEPAT"));
+    let mut group_dict = dictionary! {
+        "Type" => "XObject",
+        "FormType" => 1,
+        "BBox" => vec![0.into(), 0.into(), 60.into(), 30.into()],
+        "Group" => dictionary! { "S" => "Transparency", "CS" => "DeviceGray" },
+    };
+    if include_subtype {
+        group_dict.set("Subtype", "Form");
+    }
     let group_id = document.add_object(Stream::new(
-        dictionary! {
-            "Type" => "XObject",
-            "Subtype" => "Form",
-            "FormType" => 1,
-            "BBox" => vec![0.into(), 0.into(), 60.into(), 30.into()],
-            "Group" => dictionary! { "S" => "Transparency", "CS" => "DeviceGray" },
-        },
+        group_dict,
         b"q /Pattern cs /P0 scn 0 0 60 30 re f Q".to_vec(),
     ));
     let state_id = document.add_object(dictionary! {

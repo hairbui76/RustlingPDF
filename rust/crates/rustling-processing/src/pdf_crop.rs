@@ -272,17 +272,22 @@ fn rebuild_cropped_pdf(
 /// walk entirely and watching the same 45 GB. The only place to stop it is on the
 /// way in.
 ///
-/// The graph follows **executed** `Do` operators, because that is what `PDFium`
-/// expands. Declarations alone are far too coarse: a Form `XObject` sharing its
-/// page's `/Resources` dictionary — spec-legal, and something real generators
-/// emit — declares *itself*, so every such document would look like a cycle and
-/// be refused.
+/// The graph follows **executed** `Do` operators, and *only* those. Declarations
+/// are far too coarse: a Form `XObject` sharing its page's `/Resources` dictionary
+/// — spec-legal, and something real generators emit — is declared in a scope that
+/// therefore names it, so a declaration-based graph makes it its own child and
+/// reports an acyclic document as a cycle. That refused 4 of 1,117 real corpus
+/// files (0.36%) with a `422` under the default `removeDataOutsideCrop=true`,
+/// which is why the graph is built from what executes, never from what is
+/// declared.
 ///
-/// Where the operators cannot be read, the form's declared children are used
-/// instead. That is the safe direction and it closes the obvious evasion: a
-/// crafted file cannot hide its recursion behind a construct the content parser
-/// stops at, because failing to parse is exactly what triggers the conservative
-/// reading.
+/// When a stream will not decode, the form contributes **no** edges (see
+/// [`form_children`]). That under-counts, which for a refuse-if-too-big bound
+/// means it errs towards *allowing* — the correct direction, since wrongly
+/// refusing a renderable document is the failure that reached real users, and the
+/// worst an under-count permits is the slow removal the desktop target already
+/// accepts as out of scope. The genuine fan-out fixtures decode cleanly, so the
+/// bound still refuses them.
 ///
 /// `removeDataOutsideCrop=false` never invokes `PDFium` and stays available — it
 /// answers both of the documents above in under a fifth of a second.
@@ -306,12 +311,15 @@ fn form_expansion_within_bounds(document: &Document) -> Result<(), CropError> {
     let mut cost: std::collections::HashMap<ObjectId, u64> = std::collections::HashMap::new();
     let mut on_path: HashSet<ObjectId> = HashSet::new();
     for page_id in document.get_pages().into_values() {
-        let scope = page_resources_id(document, page_id);
-        let roots = scope
+        // Roots come from the page's executed `Do` operators, for the same reason
+        // form children do: a declaration-based graph refuses acyclic documents.
+        // A page whose content will not decode contributes no roots — fail-safe
+        // towards allowing, never towards refusing.
+        let roots = page_resources_id(document, page_id)
             .and_then(|scope| {
                 invoked_form_ids(document, &document.get_page_content(page_id), scope)
             })
-            .unwrap_or_else(|| declared_form_ids(document, scope));
+            .unwrap_or_default();
         let mut stack: Vec<Step> = roots.iter().rev().map(|id| Step::Enter(*id)).collect();
         while let Some(step) = stack.pop() {
             match step {
@@ -356,51 +364,50 @@ fn form_expansion_within_bounds(document: &Document) -> Result<(), CropError> {
     Ok(())
 }
 
-/// The Form `XObject` object ids a resource scope declares.
-fn declared_form_ids(document: &Document, resources_id: Option<ResourcesId>) -> Vec<ObjectId> {
-    let Some(resources_id) = resources_id else {
-        return Vec::new();
-    };
-    let Some((_, entries)) = category_dictionary(document, resources_id, ResourceCategory::XObject)
-    else {
-        return Vec::new();
-    };
-    entries
-        .iter()
-        .filter_map(|(_, value)| form_object_id(document, value))
-        .collect()
-}
-
-/// The forms a form actually invokes, falling back to what it declares when its
-/// operators cannot be read.
+/// The forms a form's content actually invokes.
+///
+/// Built from **executed `Do` operators only**, never from declarations — that is
+/// the whole correctness point. `PDFium` expands what a page executes, and a form
+/// may legitimately be declared in a resource scope it shares with its page
+/// (ISO 32000-1 §8.10.1 blesses this, and real generators emit it). A graph built
+/// from declarations makes such a form its own child and reports an acyclic
+/// document as "invokes itself" — a `422` that hit 0.36% of a real corpus.
+///
+/// When the content cannot be read in full the form contributes **no** edges
+/// rather than falling back to its declarations. Under-counting the expansion is
+/// the fail-safe direction: it can only fail to refuse, never wrongly refuse a
+/// renderable document, and the `DoS` bound this feeds is out of scope for the
+/// desktop target anyway. Manufacturing a self-edge from a declaration is the one
+/// thing it must not do.
 fn form_children(document: &Document, form_id: ObjectId) -> Vec<ObjectId> {
     let Ok(Object::Stream(stream)) = document.get_object(form_id) else {
         return Vec::new();
     };
-    let scope = stream
+    // A form without its own `/Resources` inherits the enclosing scope, which is
+    // not knowable here; treating it as a leaf can only miss edges, never invent
+    // one, so it is safe for a bound that errs towards allowing.
+    let Some(scope) = stream
         .dict
         .get(b"Resources")
         .ok()
-        .and_then(|resources| scope_id(document, Some(form_id), resources));
-    let declared = declared_form_ids(document, scope);
-    if declared.is_empty() {
+        .and_then(|resources| scope_id(document, Some(form_id), resources))
+    else {
         return Vec::new();
-    }
-    let Some(scope) = scope else {
-        return declared;
     };
     let Ok(content) = stream.decompressed_content() else {
-        return declared;
+        return Vec::new();
     };
-    invoked_form_ids(document, &content, scope).unwrap_or(declared)
+    invoked_form_ids(document, &content, scope).unwrap_or_default()
 }
 
 /// The forms a content stream's `Do` operators name, resolved in `scope`.
 ///
-/// `None` means the stream could not be read closely enough to be sure — an
-/// operator stream that does not parse in full, or a name that resolves through a
-/// scope inherited from whoever invoked this stream, which is not knowable from
-/// here. Callers fall back to the declared set.
+/// `None` means the stream itself could not be decoded — the caller treats that
+/// as no provable edges. A single `Do` that names nothing, or names a non-form,
+/// is **skipped**, not a reason to give up on the whole stream: an unresolved
+/// invocation reaches no form, which is exactly no edge. An earlier version
+/// aborted the analysis on the first such `Do`, and the declared-set fallback it
+/// then took is what manufactured the false self-cycles.
 fn invoked_form_ids(
     document: &Document,
     content: &[u8],
@@ -412,8 +419,14 @@ fn invoked_form_ids(
         if operation.operator != "Do" {
             continue;
         }
-        let name = operand_name(&operation.operands)?;
-        let (_, value) = resolve_resource(document, &[scope], ResourceCategory::XObject, name)?;
+        let Some(name) = operand_name(&operation.operands) else {
+            continue;
+        };
+        let Some((_, value)) =
+            resolve_resource(document, &[scope], ResourceCategory::XObject, name)
+        else {
+            continue;
+        };
         if let Some(object_id) = form_object_id(document, &value) {
             invoked.push(object_id);
         }
@@ -832,7 +845,7 @@ impl<'a> ResourceWalk<'a> {
                     {
                         // A surviving pattern's own content can paint with further
                         // patterns and shadings; follow it.
-                        self.enqueue(chain, &value, None);
+                        self.enqueue(chain, &value, FollowAs::PatternContent);
                     }
                 }
                 // The entry is marked live whatever its subtype — an image `Do`
@@ -842,7 +855,7 @@ impl<'a> ResourceWalk<'a> {
                     if let Some(name) = operand_name(&operation.operands)
                         && let Some(value) = self.record(chain, ResourceCategory::XObject, name)
                     {
-                        self.enqueue(chain, &value, Some(b"Form"));
+                        self.enqueue(chain, &value, FollowAs::FormXObject);
                     }
                 }
                 // A Type 3 font's glyph procedures are content streams too, and a
@@ -904,7 +917,7 @@ impl<'a> ResourceWalk<'a> {
             return;
         };
         for (_, procedure) in procedures {
-            self.enqueue(&child, procedure, None);
+            self.enqueue(&child, procedure, FollowAs::PatternContent);
         }
     }
 
@@ -922,7 +935,14 @@ impl<'a> ResourceWalk<'a> {
             && let Ok(group) = mask.get(b"G")
         {
             let group = group.clone();
-            self.enqueue(chain, &group, Some(b"Form"));
+            // A soft mask's `/G` is a transparency group, which ISO 32000-1
+            // §11.6.5.2 defines to *be* a Form XObject; renderers execute it
+            // without consulting `/Subtype`. Following it as a form regardless of
+            // whether `/Subtype /Form` is written is what keeps a pattern named
+            // only from inside the mask alive — an absent `/Subtype` there is a
+            // real, renderable shape, and gating on it deleted the pattern while
+            // the mask stream survived still painting with it.
+            self.enqueue(chain, &group, FollowAs::SoftMaskGroup);
         }
         // `/Font` is `[font size]`: selecting a font without ever issuing `Tf`.
         // The array itself is routinely an indirect object, so it has to be
@@ -996,7 +1016,7 @@ impl<'a> ResourceWalk<'a> {
     /// Queues a referenced stream under the scope its own `/Resources` establish —
     /// or, when it has none, under the enclosing scope it inherits (ISO 32000-1
     /// §8.10.1).
-    fn enqueue(&mut self, chain: &[ResourcesId], value: &Object, required_subtype: Option<&[u8]>) {
+    fn enqueue(&mut self, chain: &[ResourcesId], value: &Object, follow_as: FollowAs) {
         // A pattern or form is an indirect stream object; anything else has no
         // content to follow.
         let Object::Reference(object_id) = value else {
@@ -1006,37 +1026,83 @@ impl<'a> ResourceWalk<'a> {
         let Ok(stream) = document.get_object(*object_id).and_then(Object::as_stream) else {
             return;
         };
-        // Three outcomes, not two. A `/Subtype` that resolves to something else is
-        // genuinely not a form and has no content to follow. A `/Subtype` that is
-        // *present but unresolvable* — a reference to a missing object — leaves the
-        // walk unable to tell, and skipping it would mean the stream is neither
-        // walked nor preserved: over-deletion by omission. Absent entirely is not a
-        // form, since ISO 32000-1 §8.10 requires the key on every Form XObject.
-        let declared_subtype = stream.dict.get(b"Subtype").ok();
-        let subtype_unreadable =
-            declared_subtype.is_some() && resolved_name(self.document, declared_subtype).is_none();
-        if let Some(required) = required_subtype
-            && !subtype_unreadable
-            && resolved_name(self.document, declared_subtype) != Some(required)
-        {
-            return;
+        match subtype_verdict(document, stream, follow_as) {
+            // Genuinely not a form and with no content to follow — an image `Do`.
+            SubtypeVerdict::Skip => {}
+            SubtypeVerdict::Follow => {
+                // No `/Resources` of its own: inherit the enclosing scope rather
+                // than resolving against nothing, which would lose both its own
+                // `Do` targets and the patterns its content paints with.
+                let Some(child) =
+                    self.child_chain(chain, Some(*object_id), stream.dict.get(b"Resources").ok())
+                else {
+                    return;
+                };
+                if self.admit(*object_id, &child) {
+                    self.queue.push_back((Pending::Stream(*object_id), child));
+                }
+            }
+            // Present but unresolvable: the walk cannot tell what it is, and
+            // skipping would neither walk it nor protect what it names. Preserve
+            // its scope. A genuinely unreadable body is preserved the same way at
+            // scan time, so a `Follow` on something that turns out to be
+            // unparseable degrades to this too.
+            SubtypeVerdict::Preserve => {
+                if let Some(child) =
+                    self.child_chain(chain, Some(*object_id), stream.dict.get(b"Resources").ok())
+                {
+                    self.preserve(&child);
+                }
+            }
         }
-        // No `/Resources` of its own: inherit the enclosing scope rather than
-        // resolving against nothing, which would lose both its own `Do` targets
-        // and the patterns its content paints with.
-        let Some(child) =
-            self.child_chain(chain, Some(*object_id), stream.dict.get(b"Resources").ok())
-        else {
-            return;
-        };
-        if subtype_unreadable {
-            self.preserve(&child);
-            return;
-        }
-        if !self.admit(*object_id, &child) {
-            return;
-        }
-        self.queue.push_back((Pending::Stream(*object_id), child));
+    }
+}
+
+/// How a referenced stream should be followed, by why it was reached.
+#[derive(Clone, Copy)]
+enum FollowAs {
+    /// Reached by `Do`. Followed only if it is a Form `XObject`; a resolved
+    /// non-form (an image) has no content and is skipped.
+    FormXObject,
+    /// Reached as a soft mask's `/G`, which ISO 32000-1 §11.6.5.2 defines to be a
+    /// Form `XObject` and which renderers execute without consulting `/Subtype`.
+    /// Always followed; an absent or unreadable `/Subtype` is never a reason to
+    /// skip it.
+    SoftMaskGroup,
+    /// A tiling pattern's own content stream, or a Type 3 glyph procedure. It is a
+    /// content stream by construction, with no subtype to consult.
+    PatternContent,
+}
+
+/// One of three outcomes for a referenced stream.
+enum SubtypeVerdict {
+    /// Walk it.
+    Follow,
+    /// Not form content; nothing to follow.
+    Skip,
+    /// Cannot tell what it is; keep everything its scope declares.
+    Preserve,
+}
+
+/// Decides how to treat a referenced stream given why it was reached.
+fn subtype_verdict(document: &Document, stream: &Stream, follow_as: FollowAs) -> SubtypeVerdict {
+    match follow_as {
+        // Content by construction, or a form by definition — walk it. If the body
+        // turns out not to decode, the scan stage preserves its scope.
+        FollowAs::PatternContent | FollowAs::SoftMaskGroup => SubtypeVerdict::Follow,
+        FollowAs::FormXObject => match stream.dict.get(b"Subtype").ok() {
+            // ISO 32000-1 §8.10 requires `/Subtype` on every XObject, so an object
+            // reached by `Do` without one is not a form with content to follow.
+            None => SubtypeVerdict::Skip,
+            Some(subtype) => match resolved_name(document, Some(subtype)) {
+                Some(name) if name == b"Form" => SubtypeVerdict::Follow,
+                // Resolves to a real, different subtype — an image, say.
+                Some(_) => SubtypeVerdict::Skip,
+                // Present but unresolvable (a reference to a missing object): the
+                // walk cannot tell, so it must not delete what the stream names.
+                None => SubtypeVerdict::Preserve,
+            },
+        },
     }
 }
 
