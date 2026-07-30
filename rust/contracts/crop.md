@@ -119,17 +119,31 @@ reached 84 GB. Both took the process down, so every concurrent caller lost their
 request too. The check runs before PDFium — after it, there is nothing left to
 refuse with — and answers both in about 30 ms.
 
-The graph follows the `Do` operators a page and its forms actually execute. Where
-those cannot be read, the declared `/XObject` entries are used instead, so a file
-cannot evade the bound by hiding its recursion behind a construct the content
-parser stops at. Declarations alone would be wrong as the primary source: a form
-sharing its page's `/Resources` dictionary declares *itself*, which is spec-legal
-and common.
+The graph is built **only** from the `Do` operators a page and its forms actually
+execute, never from declarations. A form may be declared in a resource scope it
+shares with its page (ISO 32000-1 §8.10.1) — spec-legal and common — so that scope
+names the form; a graph built from declarations makes such a form its own child and
+refuses an acyclic document as a cycle. An earlier revision fell back to the
+declared entries whenever a form's content would not fully parse (a `Do` naming
+nothing, trailing NUL padding, a comment then a blank line, a Type 3 `d0`/`d1`
+stray digit), and that fallback manufactured exactly this false cycle. It is gone:
+a stream that cannot be read contributes no edges, which can only fail to refuse,
+never refuse wrongly. That gives up the "cannot hide recursion behind a parse
+failure" property, which is acceptable because unbounded expansion is a
+performance concern the desktop target treats as out of scope, while a false `422`
+on a renderable document reached real users under the default
+`removeDataOutsideCrop=true`.
 
-Measured false-refusal rate: **zero** across 123 unique real-world PDFs, and the
-amplification fixtures this port's earlier rounds were tuned against still return
-`200` in 0.13 s and 0.76 s. `removeDataOutsideCrop=false` never invokes PDFium and
-answers the refused documents in under a fifth of a second.
+What is refused is genuine: a form whose executed content invokes itself directly
+or indirectly, or an acyclic graph that still expands past a million invocations.
+Both are documents no renderer completes — verified independently, poppler and
+Ghostscript each hang on them with memory unbounded. Measured false-refusal rate on
+real documents: **zero**. The only files in the local corpus that refuse are the
+amplification fixtures written to be refused, every one of which has forms that
+invoke themselves by executed `Do` (checked with an independent parser). The
+fixtures earlier rounds were tuned against still return `200` in 0.13 s and 0.76 s,
+and `removeDataOutsideCrop=false` never invokes PDFium and answers the refused
+documents in under a fifth of a second.
 
 ### A crash that was not what it looked like
 
@@ -252,6 +266,14 @@ only what the operators actually execute — `Do` into Form XObjects (recursivel
 honouring resource inheritance), `scn`/`SCN` into tiling-pattern content, `sh`,
 `Tf` into Type 3 glyph procedures, and `gs` into a graphics state's soft-mask
 group and its `/Font` (ISO 32000-1 Table 58, §8.10.1, §9.6.5).
+
+A soft mask's `/G` is followed as a form **whatever its `/Subtype`**, including
+when the key is absent: `/G` is a transparency group, which §11.6.5.2 defines to
+be a Form XObject and which renderers paint without consulting `/Subtype`. The
+subtype check that stays on the `Do` path — where an object without `/Subtype
+/Form` is an image with no content to follow — does not apply here, because a
+group named only from inside the mask would otherwise have its resources judged
+dead while the mask stream survived painting with them.
 
 Anything a resource dictionary declares that no executed path names is **removed
 from that dictionary** — `/Pattern`, `/Shading`, `/XObject`, `/ExtGState`, and
