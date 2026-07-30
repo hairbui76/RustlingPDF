@@ -217,13 +217,8 @@ mod tests {
         let output = directory.path().join("output.pdf");
         fs::write(&input, damaged_pdf()?)?;
 
-        // No Ghostscript: exactly the desktop-bundle configuration, where qpdf is
-        // the only external repair tool that ships.
-        RepairRuntime::new(None, Some(qpdf.clone()), settings()).repair(
-            &input,
-            "input.pdf",
-            &output,
-        )?;
+        // qpdf is the only external repair tool that ships (no Ghostscript).
+        RepairRuntime::new(Some(qpdf.clone()), settings()).repair(&input, "input.pdf", &output)?;
 
         let repaired = fs::read(&output)?;
         assert!(
