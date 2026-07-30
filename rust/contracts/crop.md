@@ -26,6 +26,13 @@ sets the field) **physically discards** page content that falls outside the crop
 rectangle. It is a privacy promise, not a file-size optimisation, and the port is
 explicit about exactly how much it promises.
 
+> **It is best effort, not a guarantee.** The marks themselves are always deleted.
+> The *resources* behind them — a pattern's tile, a font, a form — are deleted only
+> where the port can fully parse the content that would name them. Where it cannot,
+> those declarations are kept, and the data they reach stays recoverable from the
+> output. [What limits the promise](#what-limits-the-promise) says when that
+> happens, how to tell, and what to do if you need a hard guarantee.
+
 ### What is removed
 
 Every page object whose bounding box lies entirely outside the crop rectangle —
@@ -70,22 +77,92 @@ Both directions are load-bearing and are pinned by tests: retaining an entry onl
 an out-of-crop mark referenced re-opens the leak, and dropping one that surviving
 content still paints with leaves a dangling name and visibly corrupts the page.
 
-If the walk cannot establish what is live — an undecodable content stream, or
-nesting past its limits — the request **fails with `422 Unprocessable Content` and
-no file is produced**, naming the cause and pointing at
-`removeDataOutsideCrop=false`. The status is deliberate: this is an anticipated,
-designed refusal about a property of the payload, not an unexpected server fault,
-so RFC 9110 puts it outside 5xx; `400` would be wrong too, since deep nesting and
-large form counts are legal PDF, not malformed requests. The abort is logged at
-`WARN` with `event = "crop_resource_analysis_aborted"` so operators can watch how
-often it fires without 5xx noise.
+The corruption direction is pinned as a **property of the output**, not as a set of
+cases someone thought to write down: no surviving content stream may name a
+resource that no reachable dictionary declares, across all five categories. It is
+asserted on every fixture in `tests/crop_endpoint.rs` in both modes, and
+`RUSTLING_CROP_CORPUS_DIR` runs the same check over a directory of real PDFs using
+the `removeDataOutsideCrop=false` output as the control. The checker tokenises raw
+content bytes rather than reusing `lopdf`'s content decoder, because a checker
+sharing that decoder's truncation blind spot would have confirmed the very defect
+described below.
 
-It never falls back to keeping everything, for the same reason this endpoint
-returns `501` rather than cropping without removal when PDFium is missing: a `200`
-carrying a file that still holds the data the caller asked to delete is
-indistinguishable from a clean one, so it is the one failure the caller cannot
-detect or recover from. Retrying without the flag costs nothing that is not
-recoverable.
+### What limits the promise
+
+Deciding which declarations are dead means **parsing content streams**, and that
+can fail. The parser stops at constructs it does not accept; a stream's filters can
+fail to decompress; a scope can nest past the walk's bound; the walk can exhaust
+its work budget. In every one of those cases the port **keeps the declarations in
+the scopes that stream could have named into** and still returns the cropped file.
+
+So the promise splits in two, and only the first half is unconditional:
+
+| | Guaranteed? |
+|---|---|
+| Out-of-crop **marks** deleted from the page and its content stream regenerated without them | **Yes**, whenever the endpoint returns `200` |
+| **Resources** reachable only from a deleted mark removed from the file | Only where the content naming them parsed in full |
+
+Erring towards keeping is deliberate, and it is a reversal. An earlier revision
+pruned whatever the parser did not report, on the theory that keeping data the
+caller asked to delete is the worse failure. It is not, because the parser used
+here — `lopdf`'s lenient content decoder — returns whatever prefix it managed to
+read and silently discards the rest. A `%` comment followed by a blank line ends
+that parse, and joining the members of a `/Contents` array inserts exactly such a
+blank line, so a page whose first content stream is a comment decoded to *zero*
+operators. Everything it painted with was judged dead and deleted, while the
+content stream naming it was copied to the output byte for byte. On a real 1.1 MB
+scanner output that removed `/Font` and `/XObject` from every page — 77% of the
+page's ink — under a `200` indistinguishable from a clean one, with the source
+already replaced. 3.6% of the real-world PDFs on hand carry the construct.
+
+Refusing those documents with `422` was also tried, and is also wrong: the files
+render perfectly in every viewer, and a document that renders must crop.
+
+Under-deletion is the failure to prefer because it is **bounded** and
+**inspectable**. Bounded: the marks are already gone: what survives is the
+resource declarations behind them, so what leaks is a pattern tile, a font
+program, or a form body — not the page as the reader saw it. Inspectable: the
+returned file is right there, and `qpdf --qdf` shows exactly which declarations
+survived. Over-deletion offers neither.
+
+It is also narrower than it first looks, because regeneration repairs much of it.
+PDFium rewrites the content stream of every page it removed something from, and on
+the pinned runtime that output has parsed in every case measured — so an unparsable
+**page** stream and an actual removal on that page rarely coincide: where there was
+something to delete, the stream that decides liveness is PDFium's, not the
+original's. What remains is the case where the unreadable stream is one PDFium never
+rewrites — a Form XObject's, a tiling pattern's, or a Type 3 glyph procedure's — and
+it resolves names against a scope that also declares an out-of-crop mark's
+resources. Then the page is regenerated, the mark is gone, and the declaration
+behind it is kept anyway. Measured: of the ten secret-bearing fixtures covering the
+known leak shapes, zero leak under this behaviour; a fixture purpose-built for the
+shape above does.
+
+Both give-up paths log a structured `WARN` — `event =
+"crop_resource_pruning_partial"` with the scope and dictionary counts, or `event =
+"crop_resource_pruning_skipped"` when the work budget ran out and nothing was
+pruned at all. That is a server-side signal only: **the response carries no
+indication that removal was partial**, and callers should not infer one from
+response size.
+
+#### If you need a hard guarantee
+
+Do not rely on this endpoint for it. It cannot promise more than its parser can
+read, and no setting changes that. Instead:
+
+- **Crop, then flatten.** Post the cropped output to `/api/v1/misc/flatten` with
+  `flattenOnlyForms` absent. That renders every page to a single RGB image, so no
+  resource dictionary survives to leak through and the guarantee no longer depends
+  on parsing anything. It costs selectable text, vector fidelity, and file size —
+  the honest price, and the same one `/api/v1/security/redact` already pays.
+- **Redact instead of cropping** if the goal is removing specific content rather
+  than reshaping the page. This port's `/api/v1/security/redact` always emits an
+  image-only PDF and never copies source text, annotations, or page objects
+  forward, so it does not infer what became unreachable — it does not carry it.
+- **Verify, do not assume.** For a given document the only proof is the output:
+  extract its text and embedded images and confirm the sensitive material is
+  absent. The `WARN` events above tell an operator when to expect a preserved
+  scope; they do not tell a caller whether this file is clean.
 
 "Surviving content" is defined by one rule: **every content stream that will
 still be in the output file**. The walk starts at each page's content and follows
@@ -133,9 +210,12 @@ stream being scanned).
 The walk itself is linear in the size of the document — it visits each
 (stream, scope) pair once and carries scopes by identity rather than by value, and
 it is iterative rather than recursive so a long chain of inheriting forms cannot
-exhaust the stack. Its limits (256 nested scopes, 100 000 scoped streams) exist to
-stop pathological nesting, not to ration ordinary work; measured documents sit
-orders of magnitude below them.
+exhaust the stack. Its limits — 256 nested scopes, and 256 MB of **decoded content
+bytes** rather than a stream count, since the same stream reached under two scope
+chains is scanned twice — exist to stop pathological nesting, not to ration
+ordinary work; measured documents sit orders of magnitude below them. Reaching
+either limit keeps declarations rather than refusing the request, as
+[What limits the promise](#what-limits-the-promise) describes.
 
 Verified end to end against plain text, images, Form and nested-Form text, inline
 images, invisible (`3 Tr`) text, optional-content (OCG) marks, `/Contents` arrays,
@@ -169,6 +249,9 @@ inside the crop rectangle and continues past its edge keeps all of its glyphs,
 including the ones outside; the same holds for a path or an image that overlaps the
 edge, and for the interior of a Form XObject whose own bounding box overlaps the
 edge. Such content is clipped at render time but remains in the file.
+
+Nor are the resources behind a removed mark, wherever the content that could name
+them did not parse — see [What limits the promise](#what-limits-the-promise).
 
 This straddling rule is not a regression against the Ghostscript branch this
 replaces: it is the same rule Ghostscript applied. `pdfwrite -dUseCropBox` culled
@@ -225,3 +308,23 @@ is `false`; a tiling pattern painting text, a tiling pattern painting an image, 
 a shading with a Type 0 sampled function all lose their payloads when only an
 out-of-crop mark referenced them; and a Type 3 font text run outside the crop is
 removed without crashing the process.
+
+The corruption direction is covered as a property rather than a case list.
+`every_fixture_comes_back_without_a_dangling_resource_name` crops every fixture in
+the file in both modes and requires that no surviving content stream names a
+resource nothing declares, over all five categories.
+`the_dangling_name_checker_detects_a_name_no_dictionary_declares` pins the checker
+itself against documents that *are* corrupt, so the assertions above cannot pass
+vacuously; its second case places the undeclared name after a `%` comment, where
+`lopdf`'s lenient decoder reports success with zero operators, which pins the
+checker's independence from that decoder.
+`keeps_declarations_when_a_comment_truncates_the_content_parse` covers both shapes
+of the truncation — written into one stream, and produced by joining the members of
+a `/Contents` array — and requires the exact names the surviving stream still uses
+to still be declared.
+`keeps_declarations_a_stream_it_cannot_parse_might_still_name` covers a form whose
+content genuinely cannot be parsed at all. Setting `RUSTLING_CROP_CORPUS_DIR` runs
+the same invariant over a directory of real PDFs, comparing each removal output
+against its own `removeDataOutsideCrop=false` control so only names the pruning
+introduced are reported; 1017 unique local PDFs were swept this way with none
+introduced.
