@@ -1,5 +1,23 @@
 # Rust Port Status
 
+> **Landed 2026-07-30 — crop data-loss fix + Ghostscript removed.**
+> `general/crop`'s `removeDataOutsideCrop` (default `true`) silently destroyed
+> in-crop content — a real Canon document lost 77% of a page's ink at HTTP 200 —
+> because the resource-liveness walk deleted declarations that surviving content
+> still named. Rewritten to decide liveness by *executed* operators with a
+> scope-keyed, deref-aware oracle; it took **ten dev/tester rounds** and the
+> final design was validated against two independent renderers (poppler +
+> Ghostscript), 1,117 real documents, 0 renderer-visible dangling names. In the
+> same change **Ghostscript is removed** from the service: the three
+> Ghostscript-only conversions — `convert/pdf/pdfa`, `convert/pdf/vector`,
+> `convert/vector/pdf` (PDF/A, PostScript/EPS, EPS→PDF) — are **withdrawn** by
+> maintainer decision (desktop/trusted-network product, one fewer heavy native
+> dependency); the places Ghostscript only *assisted* (`compress-pdf`, crop's own
+> removal, `ocr-pdf` image stripping, CMYK conversion) are pure Rust. Repair now
+> runs qpdf as its primary external tool with `--replace-input` dropped (qpdf
+> rejects it alongside an output path; upstream Java hid the failure by ignoring
+> the exit code).
+
 > **Repository note (RustlingPDF).** This repository is **RustlingPDF** — the
 > standalone Rust product. It contains no Java, Gradle, or Python engine code.
 > This ledger is kept as the historical *and* living record of the Java → Rust
