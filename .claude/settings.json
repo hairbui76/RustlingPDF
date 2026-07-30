@@ -5,11 +5,10 @@
       "mcp__codegraph__*"
     ]
   },
-  "verbose": true,
+  "verbose": false,
   "model": "opus[1m]",
   "showThinkingSummaries": false,
-  "effortLevel": "max",
-  "ultracode": true,
+  "effortLevel": "high",
   "hooks": {
     "UserPromptSubmit": [
       {
