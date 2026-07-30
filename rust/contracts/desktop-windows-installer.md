@@ -148,12 +148,30 @@ the highest node **this product itself writes**, and no higher:
   manufacturer key one level up, `HKCU\Software\RustlingPDF`, is a shared
   namespace by convention and is left alone.
 
-The price of that restraint is one possible leftover: if RustlingPDF was the
-first application ever to register a `.pdf` shell extension on the machine, the
-now-empty `HKLM\SOFTWARE\Classes\.pdf\shellex` key survives. MSI has no
-"delete only if empty" primitive, and an empty key is strictly less harmful than
-deleting another vendor's registrations. Same reasoning for the manufacturer
-key.
+That restraint costs nothing in leftovers, because MSI reclaims emptied parents
+by itself: *"the installer removes a registry key after removing the last value
+or subkey under the key"* (Registry table remarks). So:
+
+- on a machine where another PDF application is registered, `.pdf`,
+  `.pdf\shellex` and `…\.pdf\shell` still hold that application's data after our
+  subtree goes, are therefore not empty, and MSI leaves them untouched;
+- on a machine where RustlingPDF was the only registrant, they become empty and
+  MSI removes them — which is the correct outcome, restoring the machine to its
+  prior state rather than leaving skeletons.
+
+**An earlier revision of this contract claimed the opposite** — that a
+"now-empty `HKLM\SOFTWARE\Classes\.pdf\shellex` key survives". It does not, and
+the first real CI run exposed the error: two `shared key preserved` assertions
+failed on a clean runner precisely because MSI had reclaimed `.pdf` and
+`…\.pdf\shell` once they were empty. The verification script now seeds foreign
+content into those keys before installing, so the assertion tests the case that
+actually matters (another application's data must survive) instead of the case
+MSI is entitled to clean up.
+
+The documented way to *prevent* that reclamation is to author a dummy value with
+`+` in the Name column. RustlingPDF deliberately does not: it would create real
+litter to stop MSI from removing litter. The same reasoning covers the
+manufacturer key `HKCU\Software\RustlingPDF`.
 
 ### Per-user data must live in its own component (ICE57)
 
@@ -284,7 +302,7 @@ Supporting details:
 | The app's WebView2 profile/cache under the user's local app data | Browser profile — user data. |
 | WebView2 Runtime | Shared, machine-wide, refcounted, has its own ARP entry. Removing it would break every other WebView2 app. |
 | `%TEMP%\MicrosoftEdgeWebview2Setup.exe` | Downloaded by the bundler template's bootstrapper CustomAction into TEMP; not MSI-tracked. Windows/Storage Sense reclaims it. |
-| `HKLM\SOFTWARE\Classes\.pdf\shellex` when it becomes empty, and `HKCU\Software\RustlingPDF` | Shared nodes — see the scope reasoning above. |
+| `HKLM\SOFTWARE\Classes\.pdf`, `.pdf\shellex`, `…\.pdf\shell` and `HKCU\Software\RustlingPDF` **when they still hold anything** | Shared nodes we write into but do not own. If our node was the last thing in them, MSI reclaims the emptied key itself — see the scope reasoning above. |
 | `HKCU\…\Explorer\FileExts\.pdf\OpenWithList` / `UserChoice` | Written by Windows when the *user* picks a default app. No installer owns or removes these. |
 
 The bundler template also emits `<RemoveFolder Id="DesktopFolder"
@@ -399,16 +417,35 @@ runs the full lifecycle and is wired into the windows leg of
 `.github/workflows/desktop-build.yml` (after the artifact upload, so a failing
 bundle is still downloadable). It reads the ProductCode from the MSI's own
 Property table, seeds a v3.1.0-shaped cascade tree under the legacy
-`{{product_name}}` key, installs silently with provisioning properties, seeds
-sentinel files standing in for user state, asserts the registry surface, the
-`MUIVerb` label, the disappearance of the legacy tree, and the ARP flags
-(`NoRemove` unset, `NoModify`/`NoRepair` set), uninstalls, then asserts every key
-is gone **from both the 64-bit and 32-bit registry views**, the provisioning file
-is gone, the install directory is gone, and the sentinels survived. Shared
-parents are asserted still present, so over-deletion fails as loudly as
-under-deletion; the legacy-cleanup check is gated on the new cascade key
-actually existing so it cannot pass vacuously, and any registry state the script
-seeds is torn down even when an assertion throws part-way through.
+`{{product_name}}` key, seeds a foreign sentinel value into every shared registry
+key the product writes into but does not own, installs silently with provisioning
+properties, seeds sentinel files standing in for user state, asserts the registry
+surface, the `MUIVerb` label, the disappearance of the legacy tree, and the ARP
+flags (`NoRemove` unset, `NoModify`/`NoRepair` set), uninstalls, then asserts
+every key is gone **from both the 64-bit and 32-bit registry views**, the
+provisioning file is gone, the install directory is gone, and both the user-state
+sentinels and the foreign registry sentinels survived byte-identical — so
+over-deletion fails as loudly as under-deletion.
+
+Every assertion is designed so it cannot pass vacuously, which took two rounds to
+get right:
+
+- checks that depend on a lookup succeeding (the ARP flag block, the `MUIVerb`
+  read, the install directory) record an explicit **failure** when the lookup
+  fails, instead of disappearing from the summary along with their `if` block;
+- checks that iterate over seeded state are preceded by an assertion that the
+  seeding actually happened, so an empty loop cannot read as success;
+- the legacy-cleanup check is gated on the new cascade key actually existing.
+
+Result detail is split: `-Detail` carries observed evidence and prints on pass or
+fail, `-FailureDetail` carries "what went wrong" and prints only on failure. The
+first real run printed failure text beside passing rows ("PASS … ARP entry
+survived"), which is a reporting bug rather than a cosmetic one — it makes a
+reader stop trusting the details and skim past a genuine failure.
+
+Any registry or filesystem state the script seeds is torn down on the way out,
+including when an assertion or msiexec call throws part-way through, and it only
+ever removes a shared key it created itself — otherwise just the value it added.
 
 The provisioner's removal logic is unit-tested on every PR in the desktop gate
 (`.github/workflows/desktop.yml`).
@@ -456,13 +493,30 @@ reg query "HKCU\Software\RustlingPDF\RustlingPDF"
 dir "%ProgramData%\Stirling-PDF\stirling-provisioning.json"
 dir "%ProgramFiles%\RustlingPDF"
 
-:: 7. these must still EXIST -- deleting any of these is over-deletion
-reg query "HKLM\SOFTWARE\Classes\.pdf" /reg:64
+:: 7. these must still EXIST -- deleting any of these is over-deletion.
+::     The /v query is the point: a bare "does the key exist" check proves
+::     nothing, because MSI is entitled to reclaim these keys once they are
+::     empty. What must survive is another application's DATA. Seed it before
+::     step 1:
+::       reg add "HKLM\SOFTWARE\Classes\.pdf" /v ForeignSentinel /d keepme /reg:64
+::       reg add "HKLM\SOFTWARE\Classes\.pdf\shellex" /v ForeignSentinel /d keepme /reg:64
+::       reg add "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell" /v ForeignSentinel /d keepme /reg:64
+reg query "HKLM\SOFTWARE\Classes\.pdf" /v ForeignSentinel /reg:64
+reg query "HKLM\SOFTWARE\Classes\.pdf\shellex" /v ForeignSentinel /reg:64
+reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell" /v ForeignSentinel /reg:64
 reg query "HKLM\SOFTWARE\Classes\CLSID" /reg:64
-reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell" /reg:64
 dir "%ProgramData%\Stirling-PDF\sentinel.txt"
 dir "%AppData%\Stirling-PDF"
+
+:: 8. tidy up the seeds from step 7
+reg delete "HKLM\SOFTWARE\Classes\.pdf" /v ForeignSentinel /f /reg:64
+reg delete "HKLM\SOFTWARE\Classes\.pdf\shellex" /v ForeignSentinel /f /reg:64
+reg delete "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell" /v ForeignSentinel /f /reg:64
 ```
+
+On a machine with **no** other PDF application, expect `.pdf`, `.pdf\shellex` and
+`…\.pdf\shell` to be gone entirely after step 5 unless you seeded them — that is
+MSI reclaiming keys it emptied, not a defect.
 
 If step 2 shows the cascade key under `{{product_name}}` rather than
 `RustlingPDF`, the rename has regressed — fix `provisioning.wxs` and update this
