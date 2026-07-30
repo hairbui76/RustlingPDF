@@ -1,0 +1,227 @@
+name: Desktop tools — build Linux Tesseract
+
+# Produces the Linux x86_64 `tesseract` command that the desktop bundle ships,
+# from checksum-pinned official tesseract-ocr/tesseract sources, statically
+# linked against musl, with a build-provenance attestation.
+#
+# WHY THIS EXISTS
+# ---------------
+# tesseract-ocr/tesseract publishes no Linux (or macOS) binary — the project's
+# only release asset is the Windows installer. The bundle previously shipped a
+# third-party static build whose asset was uploaded from a personal account on
+# 2025-02-09, eight months before that repository committed its first CI
+# workflow, with no signature, sigstore bundle or SLSA provenance. Nobody can
+# rebuild it, so a code-signed RustlingPDF must not vouch for it. Building it
+# here is the only first-party option.
+#
+# WHEN IT RUNS
+# ------------
+# Manually, once per Tesseract version — NOT on every release. The published
+# artefact is fetched by rust/scripts/install-desktop-tools.sh by pinned
+# SHA-256, exactly like every other pinned input, so day-to-day desktop
+# release builds stay as fast as they are today. See "Bumping the bundled
+# Tesseract" in RELEASING.md for the full procedure.
+#
+# WHY THE BUILD RUNS IN A CONTAINER BUT THE CHECKS RUN ON THE HOST
+# ----------------------------------------------------------------
+# The compile needs Alpine (musl). JavaScript actions — checkout, attest,
+# upload-artifact — need the runner's own glibc Node, so running the whole job
+# *inside* an Alpine container is fragile. Instead the job runs on the plain
+# ubuntu-latest host and shells into `docker run alpine:...` for the compile
+# only. The verification steps then run the freshly built binary directly on
+# the glibc host: a fully static musl binary must run there with no musl
+# installed, so that is simultaneously the functional test and the proof that
+# the static link actually worked.
+
+on:
+  workflow_dispatch:
+    inputs:
+      alpine_image:
+        description: "Alpine image (digest-pinned) used for the musl build"
+        type: string
+        # Pinned by immutable sha256 digest, not the mutable `alpine:3.22` tag,
+        # so the musl build is reproducible: `docker run` verifies the digest on
+        # pull and a moved tag can no longer silently change the base image.
+        # This is the multi-arch index digest for `alpine:3.22` (musl 1.2.5).
+        # To bump: `docker buildx imagetools inspect alpine:3.22` (or the Docker
+        # Hub registry manifest) and paste the new index digest here; keep the
+        # `:3.22` tag prefix for readability — the digest is what binds.
+        default: "alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce"
+      publish:
+        description: "Publish the artefact to a desktop-tools GitHub Release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build static musl Tesseract (linux-x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      # `contents: write` only matters on the publish path; `id-token` and
+      # `attestations` are what actions/attest-build-provenance needs to sign
+      # the provenance statement with the workflow's OIDC identity.
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build tesseract in an Alpine (musl) container
+        env:
+          ALPINE_IMAGE: ${{ inputs.alpine_image }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifact
+
+          # `--network` stays default: the build script fetches its pinned
+          # sources itself and verifies every byte by SHA-256 before use.
+          # Everything else is confined to the two mounted directories.
+          docker run --rm \
+            --volume "${PWD}/rust/scripts/desktop-tools:/scripts:ro" \
+            --volume "${PWD}/artifact:/artifact" \
+            --env HOME=/tmp \
+            "${ALPINE_IMAGE}" \
+            sh -euc '
+              apk add --no-cache \
+                build-base cmake ninja pkgconf curl tar xz file binutils
+              sh /scripts/build-tesseract-musl.sh /artifact
+            '
+
+      # A static musl binary must run unchanged on this glibc host. If it does
+      # not, the static link silently failed and every later check would be
+      # testing the wrong thing.
+      - name: Prove the binary is static and self-contained
+        run: |
+          set -euo pipefail
+          file artifact/tesseract
+          if readelf -l artifact/tesseract | grep -qi 'program interpreter'; then
+            echo "::error::The built tesseract has an ELF INTERP segment; it is not static."
+            exit 1
+          fi
+          # No PATH, no library search path, no environment at all.
+          env -i PATH=/nonexistent ./artifact/tesseract --version
+
+      - name: OCR smoke test against the pinned English traineddata
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --disable-pip-version-check pillow
+
+          # tessdata_fast eng 4.1.0 — the same pin install-desktop-tools.sh
+          # stages into the bundle.
+          eng_sha256=7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2
+          mkdir -p smoke/tessdata
+          curl --fail --location --retry 3 \
+            --proto '=https' --proto-redir '=https' --max-redirs 5 \
+            --output smoke/tessdata/eng.traineddata \
+            "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/eng.traineddata"
+          echo "${eng_sha256}  smoke/tessdata/eng.traineddata" | sha256sum --check --strict
+
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+
+          text = "RustlingPDF bundled Tesseract smoke test 0123456789"
+          font = ImageFont.truetype(
+              "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 48
+          )
+          image = Image.new("L", (1600, 200), color=255)
+          ImageDraw.Draw(image).text((30, 60), text, fill=0, font=font)
+          image.save("smoke/sample.png")
+          PY
+
+          # Clean environment: only TESSDATA_PREFIX, no PATH. This is exactly
+          # how the desktop launcher invokes the bundled command.
+          env -i TESSDATA_PREFIX="${PWD}/smoke/tessdata" \
+            ./artifact/tesseract smoke/sample.png smoke/out --psm 6
+          cat smoke/out.txt
+
+          python3 - <<'PY'
+          import sys
+
+          expected = (
+              "RustlingPDF bundled Tesseract smoke test 0123456789".split()
+          )
+          recovered = open("smoke/out.txt", encoding="utf-8").read().split()
+          missing = [word for word in expected if word not in recovered]
+          if missing:
+              print(f"::error::OCR did not recover: {missing}")
+              print(f"recovered: {recovered}")
+              sys.exit(1)
+          print(f"OCR recovered {len(expected)}/{len(expected)} expected words")
+          PY
+
+      - name: Record the artefact checksum and build manifest
+        id: manifest
+        run: |
+          set -euo pipefail
+          version=$(env -i ./artifact/tesseract --version | head -n 1 | awk '{print $2}')
+          checksum=$(sha256sum artifact/tesseract | awk '{print $1}')
+          asset="tesseract-${version}-linux-x86_64-musl"
+          mv artifact/tesseract "artifact/${asset}"
+          echo "${checksum}  ${asset}" > "artifact/${asset}.sha256"
+
+          {
+            echo "version=${version}"
+            echo "checksum=${checksum}"
+            echo "asset=${asset}"
+            echo "tag=desktop-tools/tesseract-${version}"
+          } >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "### Linux Tesseract build"
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| version | \`${version}\` |"
+            echo "| asset | \`${asset}\` |"
+            echo "| sha256 | \`${checksum}\` |"
+            echo "| image | \`${{ inputs.alpine_image }}\` |"
+            echo "| workflow run | \`${GITHUB_RUN_ID}\` |"
+            echo
+            echo "Pin this in \`rust/scripts/install-desktop-tools.sh\` as"
+            echo "\`tesseract_linux_sha256\`."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      # The attestation is the whole point: it binds this artefact to this
+      # workflow file, this commit and this run, and is verifiable with
+      # `gh attestation verify <file> --repo <owner>/<repo>`.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: artifact/${{ steps.manifest.outputs.asset }}
+
+      - name: Upload the artefact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: desktop-tools-tesseract-linux-x86_64
+          path: artifact/
+          if-no-files-found: error
+
+      - name: Publish to a desktop-tools release
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.manifest.outputs.tag }}
+          ASSET: ${{ steps.manifest.outputs.asset }}
+        run: |
+          set -euo pipefail
+          # A dedicated, non-latest release per Tesseract version. `--latest=false`
+          # keeps it out of the desktop updater's "latest release" lookup, which
+          # resolves app releases only.
+          if ! gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release create "${TAG}" \
+              --title "Desktop tools: Tesseract ${{ steps.manifest.outputs.version }} (linux-x86_64, musl)" \
+              --notes "Statically linked Tesseract built by \`.github/workflows/desktop-tools-tesseract-linux.yml\` from checksum-pinned official sources. Verify with \`gh attestation verify <asset> --repo ${GITHUB_REPOSITORY}\`." \
+              --latest=false
+          fi
+          gh release upload "${TAG}" \
+            "artifact/${ASSET}" "artifact/${ASSET}.sha256" --clobber

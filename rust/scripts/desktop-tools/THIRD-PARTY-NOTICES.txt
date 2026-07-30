@@ -1,0 +1,381 @@
+RustlingPDF desktop native-tool notices
+=======================================
+
+The desktop bundle contains exactly two external command-line tools: qpdf and
+Tesseract OCR. Everything else listed below is linked into those commands or
+shipped solely as one of their runtime libraries; none of it is a separately
+exposed desktop tool.
+
+Every license text referred to here is shipped next to this file, under
+`licenses/` inside the installed bundle (`resources/tools/licenses/` inside
+the application package). Where a section names a file such as
+`LGPL-2.1.txt`, that file is present in the same directory as this notice.
+
+
+CONTENTS
+--------
+  1. qpdf
+  2. Tesseract OCR and English trained data
+  3. Linux x86_64 — qpdf runtime libraries (includes LGPL obligations)
+  4. Linux x86_64 — libraries linked into the Tesseract command
+  5. Linux x86_64 — libraries resolved from the host
+  6. macOS arm64
+  7. Windows x86_64
+  8. LGPL relinking notice
+  9. Source availability
+
+
+1. qpdf 12.3.2
+--------------
+Source: https://github.com/qpdf/qpdf/releases/tag/v12.3.2
+License: Apache License 2.0 — full text in `APACHE-2.0.txt`
+Copyright (c) 2005-2021 Jay Berkenbilt
+Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
+
+The pinned qpdf binary archives carry no license or notice file of their own.
+Apache-2.0 section 4(d) requires qpdf's NOTICE to travel with the
+redistribution, so qpdf's own `LICENSE.txt` and `NOTICE.md` are shipped
+byte-for-byte as `licenses/qpdf/LICENSE.txt` and `licenses/qpdf/NOTICE.md`
+(taken from tag v12.3.2). They are reproduced verbatim rather than paraphrased
+or reflowed here — read those two files for qpdf's authoritative notice,
+including its Artistic-License option for pre-7 versions and the public-domain
+Rijndael and sphlib SHA-2 attributions.
+
+
+2. Tesseract OCR and English trained data
+-----------------------------------------
+Tesseract OCR 5.5.3
+  Source: https://github.com/tesseract-ocr/tesseract/releases/tag/5.5.3
+  License: Apache License 2.0 — full text in `APACHE-2.0.txt`
+  Copyright (c) 2006 Google, Inc.
+
+English fast traineddata 4.1.0
+  Source: https://github.com/tesseract-ocr/tessdata_fast/tree/4.1.0
+  License: Apache License 2.0 — full text in `APACHE-2.0.txt`
+
+`tessdata/pdf.ttf` and `tessdata/configs/pdf` come from the Tesseract 5.5.3
+source archive and are covered by the same Apache-2.0 grant.
+
+
+3. Linux x86_64 — qpdf runtime libraries
+-----------------------------------------
+The official qpdf Linux archive ships private copies of nine shared libraries
+alongside `libqpdf` in `qpdf/lib/`, and this bundle redistributes all ten
+verbatim. They are stripped copies of the Ubuntu 22.04 (jammy) system
+libraries the qpdf release was built against; `libqpdf.so.30.3.2` itself
+records `GCC: (Ubuntu 11.4.0-1ubuntu1~22.04.2)`.
+
+Versions below were established from each shipped file directly — from a
+version string inside the binary, or by byte-comparing its `.text` section
+against the corresponding Ubuntu 22.04 package. They are not inferred.
+
+  libqpdf.so.30 -> libqpdf.so.30.3.2 (symlink)
+      qpdf 12.3.2
+      Apache License 2.0 — `APACHE-2.0.txt`, `licenses/qpdf/NOTICE.md`
+
+  libgnutls.so.30
+      GnuTLS 3.7.3
+      LGPL-2.1-or-later — `LGPL-2.1.txt`
+      The GnuTLS library proper is LGPL-2.1-or-later. Because it links Nettle,
+      Hogweed and libunistring (below), which are LGPL-3.0-or-later or
+      GPL-2.0-or-later, binaries of this library must additionally satisfy
+      LGPL-3.0-or-later (our election) — see `LGPL-3.0.txt` and `GPL-3.0.txt`.
+
+  libnettle.so.8
+      Nettle 3.7.3
+      Dual GPL-2.0-or-later OR LGPL-3.0-or-later. RustlingPDF distributes it
+      under LGPL-3.0-or-later — `LGPL-3.0.txt` plus `GPL-3.0.txt`, which
+      LGPL-3.0 incorporates by reference.
+
+  libhogweed.so.6
+      Nettle 3.7.3 (Hogweed, Nettle's public-key half)
+      Same dual license and same election as libnettle above.
+
+  libtasn1.so.6
+      libtasn1 4.18.0
+      The library is LGPL-2.1-or-later — `LGPL-2.1.txt`. (libtasn1's
+      command-line tools are GPL-3.0-or-later; none are shipped.)
+
+  libidn2.so.0
+      libidn2 2.3.2
+      The C library is dual GPL-2.0-or-later OR LGPL-3.0-or-later.
+      RustlingPDF distributes it under LGPL-3.0-or-later — `LGPL-3.0.txt`
+      plus `GPL-3.0.txt`. (libidn2's `idn2` command is GPL-3.0-or-later; it is
+      not shipped.)
+
+  libunistring.so.2
+      libunistring 1.0
+      Dual GPL-2.0-or-later OR LGPL-3.0-or-later, distributed here under
+      LGPL-3.0-or-later — `LGPL-3.0.txt` plus `GPL-3.0.txt`.
+
+  libp11-kit.so.0
+      p11-kit 0.24.0
+      BSD-3-Clause — `BSD-3-CLAUSE-p11-kit.txt`
+
+  libffi.so.8
+      libffi 3.4.2
+      MIT-style libffi license — `LIBFFI.txt`
+
+  libjpeg.so.8
+      libjpeg-turbo 2.1.2 (build 20220221) — the binary's own version banner.
+      An earlier revision of this notice claimed 3.1.0; that was wrong. 3.1.0
+      is the version compiled into the Tesseract command (section 4), not the
+      one qpdf ships.
+      BSD-3-Clause, IJG and zlib licenses — `LIBJPEG-TURBO-2.1.2.txt` and
+      `LIBJPEG-TURBO-2.1.2-README.ijg.txt` (the licence text matching the 2.1.2
+      version qpdf actually ships; 3.1.0 and 3.2.0 texts ship for the other
+      libjpeg-turbo builds in sections 4, 6 and 7)
+
+See section 8 for the LGPL relinking notice covering libgnutls, libnettle,
+libhogweed, libtasn1, libidn2 and libunistring.
+
+
+4. Linux x86_64 — libraries linked into the Tesseract command
+--------------------------------------------------------------
+The Linux `tesseract` command is built by RustlingPDF's own CI workflow
+(`.github/workflows/desktop-tools-tesseract-linux.yml`) from checksum-pinned
+official sources, statically linked against musl. It contains, per the version
+banner the command itself prints:
+
+  - Tesseract 5.5.3 — Apache License 2.0 — `APACHE-2.0.txt`
+  - Leptonica 1.85.0 — BSD-2-Clause — `LEPTONICA.txt`
+  - libjpeg-turbo 3.1.0 — BSD-3-Clause, IJG, zlib — `LIBJPEG-TURBO-3.1.0.txt`,
+    `LIBJPEG-TURBO-3.1.0-README.ijg.txt`
+  - libpng 1.6.46 — libpng License — `LIBPNG.txt`
+  - libtiff 4.7.0 — libtiff license — `LIBTIFF.txt`
+  - zlib 1.3.1 — zlib License — `ZLIB.txt`
+  - musl libc 1.2.5 — MIT — `MUSL-COPYRIGHT.txt`
+  - GCC runtime support (libgcc, libstdc++) — GPL-3.0-or-later **with the GCC
+    Runtime Library Exception 3.1** — `GPL-3.0.txt` and
+    `GCC-RUNTIME-EXCEPTION-3.1.txt`
+
+`tesseract` is a C++ program, so the compiler's own runtime support code —
+libgcc's unwinder and libstdc++ (confirmed present in the binary: it exports
+`__gxx_personality_v0`, `_Unwind_*` and `__cxa_*`) — is statically linked into
+this command. That code is GPL-3.0-or-later, but carries the **GCC Runtime
+Library Exception 3.1**, whose entire purpose is to permit its inclusion in
+binaries that are not themselves GPL-3.0. Its full text is shipped in
+`GCC-RUNTIME-EXCEPTION-3.1.txt` (with the GPL-3.0 text it modifies in
+`GPL-3.0.txt`).
+
+No *other* copyleft library is linked into this command. It is built with
+`DISABLE_CURL`, `DISABLE_ARCHIVE`, `GRAPHICS_DISABLED` and without the training
+tools, so curl, libarchive, giflib, libwebp, OpenSSL and the ICU/pango/cairo
+training stack are not present at all. libtiff is built without JBIG, LZMA,
+Zstd, WebP and LERC — JBIG-KIT in particular is GPL-2.0-or-later and is
+deliberately kept out of the commands we build ourselves.
+
+
+5. Linux x86_64 — libraries resolved from the host
+---------------------------------------------------
+Four shared libraries are NOT shipped and are resolved from the user's system
+at run time: `libgmp.so.10` (pulled in by the bundled Nettle and Hogweed),
+`libstdc++.so.6`, `libgcc_s.so.1` and `libz.so.1`. They are not redistributed
+by RustlingPDF, so no notice obligation attaches to them here. The Linux
+support floor this implies is stated in
+`rust/contracts/desktop-native-startup.md`.
+
+
+6. macOS arm64
+--------------
+The macOS commands are built from checksum-pinned official sources and linked
+statically; `otool -L` is asserted to show no non-system dynamic dependency.
+The full set is:
+
+  - qpdf 12.3.2 — Apache License 2.0 — `APACHE-2.0.txt`,
+    `licenses/qpdf/NOTICE.md`
+  - Tesseract 5.5.3 — Apache License 2.0 — `APACHE-2.0.txt`
+  - Leptonica 1.85.0 — BSD-2-Clause — `LEPTONICA.txt`
+  - zlib 1.3.1 — zlib License — `ZLIB.txt`
+  - libpng 1.6.46 — libpng License — `LIBPNG.txt`
+  - libtiff 4.7.0 — libtiff license — `LIBTIFF.txt`
+  - libjpeg-turbo 3.1.0 — BSD-3-Clause, IJG, zlib — `LIBJPEG-TURBO-3.1.0.txt`,
+    `LIBJPEG-TURBO-3.1.0-README.ijg.txt`
+
+No copyleft library is present in the macOS bundle. (Unlike the Linux static
+build in section 4, the macOS `tesseract` is compiled with Apple's toolchain
+and its C++ runtime is the system `libc++`/`libc++abi`, resolved from
+`/usr/lib` — asserted by the `otool -L` system-only check — not a statically
+linked GCC runtime.)
+
+
+7. Windows x86_64
+-----------------
+The Windows bundle ships `qpdf.exe` and `tesseract.exe` together with exactly
+their transitive PE import closure — not, as an earlier revision of this
+notice said, "every DLL adjacent to them". The closure is computed by
+`rust/scripts/install-desktop-tools.ps1` by walking the import and delay-import
+tables; DLLs the closure does not reach (the ICU, pango, cairo, glib,
+HarfBuzz, FreeType and fontconfig stack, which only Tesseract's *training*
+tools import, plus five unreferenced MSVC runtime DLLs) are not shipped.
+
+qpdf side — 4 files besides `qpdf.exe`:
+
+  - qpdf30.dll — qpdf 12.3.2 — Apache License 2.0 — `APACHE-2.0.txt`,
+    `licenses/qpdf/NOTICE.md`
+  - msvcp140.dll, vcruntime140.dll, vcruntime140_1.dll — Microsoft Visual C++
+    runtime, redistributed under the Microsoft Visual Studio redistributable
+    terms that permit redistribution with an application.
+
+Tesseract side — 32 files besides `tesseract.exe`. These are MSYS2/MinGW-w64
+builds taken from the official upstream Windows installer, with one exception:
+`libtiff-6.dll` is RustlingPDF's own JBIG-free rebuild of the same libtiff
+version (see the note below the table and §9). Versions are given only where the
+shipped DLL itself records one; where it does not, the field is left blank
+rather than guessed. Each named text is under `licenses/windows/`.
+
+  DLL                    project           version   license          text
+  libtesseract-5.dll     Tesseract         5.5.3     Apache-2.0       ../APACHE-2.0.txt
+  libleptonica-6.dll     Leptonica                   BSD-2-Clause     ../LEPTONICA.txt
+  libarchive-13.dll      libarchive        3.8.8     BSD-2-Clause     libarchive.txt
+  libb2-1.dll            libb2 (BLAKE2)              CC0-1.0          libb2.txt
+  libbrotlicommon.dll    Brotli            1.1.0     MIT              brotli.txt
+  libbrotlidec.dll       Brotli            1.1.0     MIT              brotli.txt
+  libbz2-1.dll           bzip2                       bzip2 license    bzip2.txt
+  libcurl-4.dll          curl              8.21.0    curl license     curl.txt
+  libdeflate.dll         libdeflate                  MIT              libdeflate.txt
+  libexpat-1.dll         Expat             2.8.2     MIT              expat.txt
+  libgcc_s_seh-1.dll     GCC runtime                 GPL-3.0+ w/ ex.  ../GPL-3.0.txt +
+                                                                      ../GCC-RUNTIME-EXCEPTION-3.1.txt
+  libgif-7.dll           giflib                      MIT              giflib.txt
+  libiconv-2.dll         GNU libiconv                LGPL-2.1+        ../LGPL-2.1.txt
+  libidn2-0.dll          libidn2           2.3.8     LGPL-3.0+ (elec) ../LGPL-3.0.txt + ../GPL-3.0.txt
+  libintl-8.dll          GNU gettext rt.             LGPL-2.1+        ../LGPL-2.1.txt
+  libjpeg-8.dll          libjpeg-turbo     3.2.0     BSD-3/IJG/zlib   ../LIBJPEG-TURBO-3.2.0.txt (+ ../LIBJPEG-TURBO-3.2.0-README.ijg.txt)
+  libLerc.dll            LERC (Esri)                 Apache-2.0       lerc.txt
+  liblz4.dll             LZ4               1.10.0    BSD-2-Clause     lz4.txt
+  liblzma-5.dll          XZ Utils liblzma  5.8.3     0BSD             xz.txt
+  libopenjp2-7.dll       OpenJPEG          2.5.4     BSD-2-Clause     openjpeg.txt
+  libpng16-16.dll        libpng            1.6.58    libpng License   ../LIBPNG.txt
+  libpsl-5.dll           libpsl            0.21.5    MIT              libpsl.txt
+  libsharpyuv-0.dll      libwebp                     BSD-3-Clause     libwebp.txt
+  libssh2-1.dll          libssh2           1.11.1    BSD-3-Clause     libssh2.txt
+  libstdc++-6.dll        GCC libstdc++               GPL-3.0+ w/ ex.  ../GPL-3.0.txt +
+                                                                      ../GCC-RUNTIME-EXCEPTION-3.1.txt
+  libtiff-6.dll          libtiff           4.7.2     libtiff license  ../LIBTIFF.txt  (RustlingPDF JBIG-free rebuild)
+  libunistring-5.dll     libunistring      1.4.2     LGPL-3.0+ (elec) ../LGPL-3.0.txt + ../GPL-3.0.txt
+  libwebp-7.dll          libwebp                     BSD-3-Clause     libwebp.txt
+  libwebpmux-3.dll       libwebp                     BSD-3-Clause     libwebp.txt
+  libwinpthread-1.dll    mingw-w64 winpthreads       MIT              winpthreads.txt
+  libzstd.dll            Zstandard         1.5.7     BSD-3-Clause     zstd.txt
+  zlib1.dll              zlib              1.3.2     zlib License     ../ZLIB.txt
+
+`libgcc_s_seh-1.dll` and `libstdc++-6.dll` are GPL-3.0-or-later *with the GCC
+Runtime Library Exception 3.1*, which is what permits shipping them alongside
+software that is not GPL-3.0. Both texts are shipped.
+
+No GPL-2.0 component is shipped. The upstream installer's `libtiff-6.dll` is the
+MSYS2 build compiled `--enable-jbig`, which imports `libjbig-0.dll` (JBIG-KIT,
+GPL-2.0-or-later) — the only GPL-2.0 component that ever entered any bundle.
+`rust/scripts/install-desktop-tools.ps1` replaces that DLL with RustlingPDF's own
+JBIG-free rebuild of the identical libtiff version before it computes the PE
+import closure, so `libjbig-0.dll` is never reached and is not staged. The
+staging step then walks the import and delay-import tables of every shipped file
+and fails the build if any JBIG reference survives. The JBIG-free libtiff is
+built and attested by `.github/workflows/desktop-tools-libtiff-windows.yml` and
+pinned by SHA-256; its provenance is recorded in
+`rust/scripts/desktop-tools/SOURCES.md`.
+
+
+8. LGPL relinking notice
+------------------------
+This section is the notice LGPL-2.1 section 6 and LGPL-3.0 section 4 require
+for the copyleft libraries listed in section 3.
+
+The libraries below are shipped in the RustlingPDF desktop bundle **as
+separate, unmodified, dynamically linked shared objects**. RustlingPDF has not
+modified them; it links against them at run time through the normal ELF
+dynamic loader.
+
+  Location in the bundle: `resources/tools/qpdf/lib/`
+  (inside the installed application directory; the same layout appears as
+  `rust/.desktop-tools/current/qpdf/lib/` in a source build)
+
+  - libgnutls.so.30      (GnuTLS 3.7.3, LGPL-2.1-or-later)
+  - libnettle.so.8       (Nettle 3.7.3, LGPL-3.0-or-later as elected)
+  - libhogweed.so.6      (Nettle 3.7.3, LGPL-3.0-or-later as elected)
+  - libtasn1.so.6        (libtasn1 4.18.0, LGPL-2.1-or-later)
+  - libidn2.so.0         (libidn2 2.3.2, LGPL-3.0-or-later as elected)
+  - libunistring.so.2    (libunistring 1.0, LGPL-3.0-or-later as elected)
+
+You may modify any of these libraries and use your modified version with
+RustlingPDF. To do so, build a replacement with the same SONAME as the file it
+replaces (for example `libgnutls.so.30`) and overwrite that file in the
+directory above. The qpdf executable and `libqpdf.so.30.3.2` locate these
+libraries through their ELF RUNPATH entries `$ORIGIN/../lib` and `$ORIGIN`, so
+a replacement placed in that directory is picked up with no relinking of
+RustlingPDF itself and no other change. This is what satisfies LGPL-2.1
+section 6 and LGPL-3.0 section 4 for dynamic linking.
+
+The same applies on Windows to `libiconv-2.dll`, `libintl-8.dll`,
+`libidn2-0.dll` and `libunistring-5.dll`, which live next to `tesseract.exe`
+in `resources/tools/tesseract/bin/` and are located by Windows' normal
+application-directory DLL search; replace the file in place to use your own
+build.
+
+
+9. Source availability
+----------------------
+RustlingPDF applies no patches to any component below; each is redistributed as
+built by its upstream. Where the corresponding source is obtained depends on how
+the component enters the bundle:
+
+  * Components RustlingPDF builds itself from source — the Linux/musl and macOS
+    `tesseract` and the macOS `qpdf`, and everything statically linked into them
+    (Leptonica, libjpeg-turbo, libpng, libtiff, zlib; on Linux also musl and the
+    GCC runtime), plus the Windows `libtiff-6.dll` (RustlingPDF's JBIG-free
+    rebuild) — are built from the source archives that `SOURCES.md` pins by
+    exact URL and SHA-256. That pinned source IS the corresponding source. The
+    statically linked GCC runtime (libgcc/libstdc++) is GPL-3.0-or-later with the
+    GCC Runtime Library Exception 3.1; its corresponding source is the GCC used
+    by the pinned Alpine musl builder (`gcc-mirror/gcc`, and Alpine's own
+    packaging), also covered by the written offer below.
+
+  * The Linux qpdf runtime libraries in section 3 (the LGPL GnuTLS, Nettle,
+    Hogweed, libtasn1, libidn2 and libunistring) are redistributed from the qpdf
+    Linux release archive, which `SOURCES.md` pins by URL and SHA-256. They are
+    stripped Ubuntu 22.04 (jammy) builds; their complete corresponding source is
+    the Ubuntu jammy source packages of the exact versions listed in section 3,
+    available from Ubuntu and from each project upstream, and is covered by the
+    written offer below.
+
+  * The Windows MinGW DLLs in section 7 (except `libtiff-6.dll`, above) are NOT
+    separately source-pinned. The pinned input for the whole Windows tool set is
+    the official Tesseract Windows installer, whose URL and SHA-256 `SOURCES.md`
+    records; these DLLs are MSYS2 / MinGW-w64 builds extracted from it. The
+    complete corresponding source
+    for each is the MSYS2 source package (upstream sources plus MSYS2's PKGBUILD
+    and patches) of the exact version the shipped DLL reports — see the
+    "Windows x86_64 — GPL/LGPL corresponding source" section of `SOURCES.md`. An
+    earlier revision of this notice claimed `SOURCES.md` records "the exact URL
+    and SHA-256 of every input"; that was not true of the individual Windows
+    DLLs, which are contents of the pinned installer rather than separately
+    pinned inputs. This revision corrects that.
+
+WRITTEN OFFER OF SOURCE
+-----------------------
+For the components distributed under the GNU GPL (the GCC runtime
+libgcc/libstdc++, GPL-3.0-or-later with the GCC Runtime Library Exception 3.1)
+and the GNU LGPL (GnuTLS, Nettle/Hogweed, libtasn1, libidn2, libunistring, GNU
+libiconv, and the GNU gettext runtime libintl), RustlingPDF hereby makes the
+following offer, which accompanies every copy of this software:
+
+  For a period of at least three (3) years from the date you received this
+  software, RustlingPDF will provide to any third party, on request, the
+  complete corresponding machine-readable source code for the exact versions of
+  the GPL- and LGPL-licensed components listed above, under the terms of the
+  licence that governs each component. The source will be made available for no
+  more than the cost of physically performing the distribution, or, at
+  RustlingPDF's option, by pointing you to a network location where you can copy
+  it at no charge.
+
+  To exercise this offer, open an issue at
+  https://github.com/hairbui76/RustlingPDF/issues requesting "GPL/LGPL
+  corresponding source", stating the RustlingPDF version, platform and the
+  component(s) you want, or contact the maintainer identified in that
+  repository. This offer is valid to anyone who possesses this notice.
+
+This written offer satisfies GPL-3.0 section 6(b) and the corresponding
+source-availability requirements of LGPL-2.1 and LGPL-3.0, independently of the
+per-component pointers above. The pointers are provided so the source can also
+be obtained directly without invoking this offer.
