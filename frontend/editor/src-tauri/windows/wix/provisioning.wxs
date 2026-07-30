@@ -27,8 +27,8 @@
         ForceDeleteOnUninstall="yes", which emits a Registry-table row with
         Name="-" — "delete this key and all its subkeys when the component is
         removed".
-      - ForceDeleteOnUninstall is applied ONLY to nodes this product creates and
-        owns outright. Shared parents (SOFTWARE\Classes\CLSID,
+      - ForceDeleteOnUninstall is applied ONLY to leaf nodes this product itself
+        writes. Shared parents (SOFTWARE\Classes\CLSID,
         SOFTWARE\Classes\.pdf, SOFTWARE\Classes\.pdf\shellex,
         SOFTWARE\Classes\SystemFileAssociations\.pdf\shell) are never marked:
         force-deleting a key takes its whole subtree with it, and those subtrees
@@ -37,6 +37,10 @@
         first shell-extension handler ever registered for .pdf — MSI has no
         "delete only if empty" primitive, and leaking an empty key is strictly
         better than deleting another PDF viewer's thumbnail/preview handlers.
+      - "Writes" is not the same as "owns outright", and exactly one of these
+        nodes is not exclusively ours: `.pdf\shellex\{E357FCCD-…}` is a
+        *rendezvous slot* — see the note on ThumbnailHandlerShellexComponent
+        below for who can end up owning it and what our uninstall then does.
       - Major upgrades are safe: the bundler's main.wxs schedules
         <MajorUpgrade Schedule="afterInstallInitialize"/>, so the old product is
         fully removed (running these deletions) *before* the new product writes
@@ -99,12 +103,27 @@
       </Component>
       <Component Id="ThumbnailHandlerShellexComponent" Guid="*">
         <!--
-          {E357FCCD-…} is IThumbnailProvider's interface id — the per-extension
-          slot naming whichever handler serves .pdf thumbnails. We created this
-          exact node and force-delete exactly it; the enclosing
-          SOFTWARE\Classes\.pdf\shellex is shared with every other .pdf shell
+          {E357FCCD-…} is IThumbnailProvider's interface id: a *rendezvous slot*,
+          not a node this product owns. There is exactly one such key per file
+          extension, and its default value names whichever handler currently
+          serves .pdf thumbnails — so ownership is by succession, last writer
+          wins. Installing RustlingPDF overwrites whatever was there; another PDF
+          application installing later overwrites us.
+
+          The consequence, stated plainly: if another application claims the slot
+          after we install, our uninstall force-deletes the key and takes *that
+          application's* registration with it, leaving .pdf thumbnails dead until
+          it is repaired or reinstalled.
+
+          This is accepted rather than fixed. MSI's plain value-removal is no
+          safer — it deletes the key's default value whether or not someone else
+          overwrote it — so the alternative buys nothing but a leftover empty
+          key, and last-writer-wins is how every shell-extension handler on
+          Windows behaves. MSI cannot express "delete only if the value is still
+          mine". Force-deletion is scoped to this single GUID node; the enclosing
+          SOFTWARE\Classes\.pdf\shellex, shared with every other .pdf shell
           extension (preview handlers, property handlers, other viewers'
-          thumbnail providers) and is never touched.
+          thumbnail providers), is never touched.
         -->
         <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Value="{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" KeyPath="yes" />

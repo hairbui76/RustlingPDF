@@ -186,6 +186,8 @@ function Get-MsiProperty {
     param([string] $Path, [string] $Property)
     $installer = New-Object -ComObject WindowsInstaller.Installer
     $database = $null
+    $view = $null
+    $record = $null
     try {
         $database = $installer.GetType().InvokeMember('OpenDatabase', 'InvokeMethod', $null, $installer, @($Path, 0))
         $query = "SELECT Value FROM Property WHERE Property = '$Property'"
@@ -196,8 +198,14 @@ function Get-MsiProperty {
         return $record.GetType().InvokeMember('StringData', 'GetProperty', $null, $record, @(1))
     }
     finally {
-        if ($null -ne $database) { [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($database) | Out-Null }
-        [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($installer) | Out-Null
+        # The view holds the .msi open; close and release it so the file is not
+        # still locked when msiexec is handed the same path.
+        if ($null -ne $view) {
+            $view.GetType().InvokeMember('Close', 'InvokeMethod', $null, $view, $null) | Out-Null
+        }
+        foreach ($comObject in @($record, $view, $database, $installer)) {
+            if ($null -ne $comObject) { [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($comObject) | Out-Null }
+        }
     }
 }
 
@@ -412,12 +420,25 @@ foreach ($verb in @('01_open', '02_merge', '03_compress', '04_convert')) {
 
 # The submenu title the user actually reads. A raw Handlebars token here is the
 # v3.1.0 defect; it must never come back.
-$cascadeKey = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey "$CascadeRoot\$VerbKey"
-if ($null -ne $cascadeKey) {
+#
+# Read from whichever view(s) the cascade key actually landed in rather than
+# assuming the 64-bit one, and record a failing result when it cannot be read at
+# all -- otherwise an unreadable key would make this check disappear from the
+# summary instead of failing it.
+$muiVerbChecked = $false
+foreach ($viewName in $cascadeViews) {
+    $cascadeKey = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+        -View ([Microsoft.Win32.RegistryView]$viewName) -SubKey "$CascadeRoot\$VerbKey"
+    if ($null -eq $cascadeKey) { continue }
     $muiVerb = [string]$cascadeKey.GetValue('MUIVerb')
     $cascadeKey.Dispose()
-    Add-Result -Phase 'install' -Name 'cascade MUIVerb is the product name, not a template token' `
+    Add-Result -Phase 'install' -Name "cascade MUIVerb is the product name, not a template token ($viewName)" `
         -Ok ($muiVerb -ceq $VerbKey) -Detail "MUIVerb='$muiVerb' (expected '$VerbKey')"
+    $muiVerbChecked = $true
+}
+if (-not $muiVerbChecked) {
+    Add-Result -Phase 'install' -Name 'cascade MUIVerb is the product name, not a template token' -Ok $false `
+        -Detail "HKLM\$CascadeRoot\$VerbKey could not be opened in any registry view, so the label was never verified"
 }
 
 # The upgrade-cleanup row: the seeded v3.1.0 tree must be gone from every view

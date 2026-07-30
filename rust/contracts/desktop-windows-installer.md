@@ -132,15 +132,15 @@ time.
 ### Why those deletion scopes and no wider
 
 Force-deleting a key takes its entire subtree. The scope is therefore drawn at
-the highest node this product **creates and owns outright**, and no higher:
+the highest node **this product itself writes**, and no higher:
 
 - `{2D2FBE3A-…}` is this product's own COM class id. Nothing else can live under
   it. The shared `SOFTWARE\Classes\CLSID` parent is never marked.
 - `{E357FCCD-…}` under `.pdf\shellex` is the per-extension `IThumbnailProvider`
-  slot; we created exactly that node. Its parent `.pdf\shellex` holds every
-  other PDF shell extension on the machine (preview handlers, property handlers,
-  other viewers' thumbnail providers) and `.pdf` itself is a system-wide file
-  association — neither is touched.
+  slot. **This one is written, not owned** — see below. Its parent
+  `.pdf\shellex` holds every other PDF shell extension on the machine (preview
+  handlers, property handlers, other viewers' thumbnail providers) and `.pdf`
+  itself is a system-wide file association — neither is touched.
 - The cascade root under `SystemFileAssociations\.pdf\shell` is named for this
   product; its parent `…\.pdf\shell` is shared with every other application that
   adds a PDF verb.
@@ -154,6 +154,28 @@ now-empty `HKLM\SOFTWARE\Classes\.pdf\shellex` key survives. MSI has no
 "delete only if empty" primitive, and an empty key is strictly less harmful than
 deleting another vendor's registrations. Same reasoning for the manufacturer
 key.
+
+### The thumbnail-provider slot is held by succession, not ownership
+
+`HKLM\SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}` is
+the single rendezvous slot Windows consults for `.pdf` thumbnails. There is one
+per file extension, and its default value names whichever handler currently
+serves them, so the slot is held **last-writer-wins**: installing RustlingPDF
+overwrites whatever was there, and another PDF application installing afterwards
+overwrites us.
+
+**The consequence, stated plainly:** if another application claims the slot after
+RustlingPDF is installed, uninstalling RustlingPDF force-deletes the key and
+takes *that application's* registration with it, leaving `.pdf` thumbnails dead
+on that machine until the other application is repaired or reinstalled.
+
+This is accepted, not overlooked. Plain MSI value-removal is no safer — it
+deletes the key's default value whether or not someone else overwrote it — so the
+alternative buys nothing but a leftover empty key, and last-writer-wins is how
+every shell-extension handler on Windows behaves. MSI cannot express "delete only
+if the value is still mine". The equivalent risk in the other direction is
+already reality: another PDF viewer installing after RustlingPDF silently kills
+RustlingPDF's thumbnails.
 
 ### Why the provisioning file is removed, but only the file
 
