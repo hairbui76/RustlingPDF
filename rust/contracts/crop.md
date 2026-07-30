@@ -118,6 +118,17 @@ already replaced. 3.6% of the real-world PDFs on hand carry the construct.
 Refusing those documents with `422` was also tried, and is also wrong: the files
 render perfectly in every viewer, and a document that renders must crop.
 
+The other known trigger is **Type 3 fonts**, and it is a parser limitation rather
+than anything in the document: `lopdf`'s operator parser matches `[A-Za-z*'"]+`, so
+it cannot represent `d0` or `d1`, the only content operators carrying a digit and
+required to open every Type 3 glyph procedure (ISO 32000-1 §9.6.5). A metrics-only
+glyph — what subset Type 3 fonts emit for blank glyphs — therefore leaves an
+unconsumed digit and its scope is preserved. Since a glyph procedure without its
+own `/Resources` inherits the page's scope, one such glyph preserves the whole
+page's declarations. Documents from `dvips`-style toolchains and some scanners use
+Type 3 fonts throughout, so for them removal is effectively marks-only. Fixing this
+means fixing the operator parser, not the walk.
+
 Under-deletion is the failure to prefer because it is **bounded** and
 **inspectable**. Bounded: the marks are already gone: what survives is the
 resource declarations behind them, so what leaks is a pattern tile, a font
