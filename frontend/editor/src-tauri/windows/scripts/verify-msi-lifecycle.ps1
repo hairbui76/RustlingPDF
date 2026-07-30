@@ -380,6 +380,29 @@ function Remove-SeededForeignSentinel {
     $script:SeededForeign.Clear()
 }
 
+function Get-ForeignSentinelStatus {
+    param([string] $SubKey)
+    $key = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey $SubKey
+    if ($null -eq $key) {
+        return [pscustomobject]@{ Intact = $false; Detail = 'the key itself is gone' }
+    }
+    $observed = $key.GetValue($ForeignSentinelName)
+    $subKeyCount = $key.SubKeyCount
+    $valueCount = $key.ValueCount
+    $key.Dispose()
+    if ($null -eq $observed) {
+        return [pscustomobject]@{
+            Intact = $false
+            Detail = "key present ($valueCount values, $subKeyCount subkeys) but the foreign value was deleted"
+        }
+    }
+    $intact = ([string]$observed) -ceq $ForeignSentinelValue
+    return [pscustomobject]@{
+        Intact = $intact
+        Detail = $(if ($intact) { "foreign value intact ($valueCount values, $subKeyCount subkeys)" } else { "foreign value altered to '$observed'" })
+    }
+}
+
 function Remove-SeededLegacyKey {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal helper of an inherently state-changing verification script.')]
     param()
@@ -457,6 +480,15 @@ else {
     Write-Info ("seeded legacy tree: HKLM\{0}\{1} ({2} view)" -f $CascadeRoot, $LegacyVerbKey, $SeedView)
 }
 foreach ($shared in $SharedKeys) { Add-ForeignSentinel -SubKey $shared }
+# Read every seed back immediately. Without this a silent write failure would be
+# indistinguishable from the install or the uninstall destroying the key, which
+# is precisely the ambiguity the third dry-run left open.
+foreach ($seed in $script:SeededForeign) {
+    $status = Get-ForeignSentinelStatus -SubKey $seed.SubKey
+    Add-Result -Phase 'seed' -Name ("seed readable immediately after writing: HKLM\{0}" -f $seed.SubKey) `
+        -Ok $status.Intact -Detail $status.Detail `
+        -FailureDetail 'the seed was never written, so every later assertion about this key is meaningless'
+}
 Add-Result -Phase 'seed' -Name 'legacy cascade tree present before install' `
     -Ok ((Test-RegistryKeyInAnyView -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -SubKey "$CascadeRoot\$LegacyVerbKey").Count -gt 0) `
     -FailureDetail 'the upgrade-cleanup rehearsal cannot prove anything if the key was never created'
@@ -610,6 +642,21 @@ Add-Result -Phase 'install' -Name 'at least one user-state sentinel was seeded' 
     -Detail "$($sentinels.Count) seeded" `
     -FailureDetail "neither $SystemProvisioningDir nor $UserProvisioningDir exists, so the user-state preservation checks would prove nothing"
 
+Write-Phase 'Pre-uninstall seed integrity (localises any destruction to a phase)'
+# The third dry-run destroyed HKLM\SOFTWARE\Classes\.pdf and .pdf\shellex even
+# though both had been seeded with foreign content, while the other two seeded
+# keys survived. From the logs alone that is ambiguous between "uninstall really
+# does over-delete those keys" and "the seed for those two never survived to
+# uninstall time". Checkpointing the seeds here settles it: whichever transition
+# destroys them -- seed->install or install->uninstall -- is named explicitly in
+# the next run's output instead of being inferred.
+foreach ($seed in $script:SeededForeign) {
+    $status = Get-ForeignSentinelStatus -SubKey $seed.SubKey
+    Add-Result -Phase 'pre-uninstall' -Name ("seed still intact after install: HKLM\{0}" -f $seed.SubKey) `
+        -Ok $status.Intact -Detail $status.Detail `
+        -FailureDetail 'the INSTALL destroyed it, so the post-uninstall result for this key proves nothing about the uninstall'
+}
+
 Write-Phase 'Uninstall (silent)'
 Invoke-MsiExec -Label 'uninstall' -Arguments @(
     '/x', "`"$productCode`"",
@@ -643,17 +690,9 @@ Add-Result -Phase 'uninstall' -Name 'foreign sentinels were seeded into every sh
     -Detail "$($script:SeededForeign.Count) of $($SharedKeys.Count) seeded" `
     -FailureDetail 'the over-deletion checks below can only prove something for keys that were actually seeded'
 foreach ($seed in $script:SeededForeign) {
-    $key = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey $seed.SubKey
-    $keyPresent = $null -ne $key
-    $observed = $null
-    if ($keyPresent) {
-        $observed = $key.GetValue($ForeignSentinelName)
-        $key.Dispose()
-    }
-    $intact = $keyPresent -and ($null -ne $observed) -and ([string]$observed -ceq $ForeignSentinelValue)
-    $detail = if (-not $keyPresent) { 'the key itself is gone' }
-    elseif ($null -eq $observed) { 'key survived but the foreign value was deleted' }
-    else { "foreign value intact" }
+    $status = Get-ForeignSentinelStatus -SubKey $seed.SubKey
+    $intact = $status.Intact
+    $detail = $status.Detail
     Add-Result -Phase 'uninstall' -Name ("shared key preserved with foreign content: HKLM\{0}" -f $seed.SubKey) `
         -Ok $intact -Detail $detail `
         -FailureDetail 'OVER-DELETION: uninstall destroyed registry state belonging to another application'
@@ -672,6 +711,27 @@ if ($null -ne $installDir) {
     if (Test-Path -LiteralPath $installDir) {
         Get-ChildItem -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue |
             ForEach-Object { Write-Info ("leftover in install dir: {0}" -f $_.FullName) }
+    }
+}
+
+Write-Phase 'Advertised .pdf file association (suspected over-deletion mechanism)'
+# bundle.fileAssociations in tauri.conf.json makes the bundler template author an
+# advertised ProgId/Extension/Verb for .pdf, which MSI registers with
+# RegExtensionInfoRegister64 and unregisters with RegExtensionInfoUnregister64 --
+# operations that act on HKCR\.pdf, i.e. HKLM\SOFTWARE\Classes\.pdf for this
+# perMachine package. That is the only thing in the whole build that has any
+# business touching the .pdf key itself; nothing in provisioning.wxs goes higher
+# than .pdf\shellex\{E357FCCD-...}. Dump the surrounding state so the next run
+# shows exactly what the unregistration left.
+foreach ($probe in @('SOFTWARE\Classes\.pdf', 'SOFTWARE\Classes\.pdf\shellex', 'SOFTWARE\Classes\RustlingPDF.pdf')) {
+    $key = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey $probe
+    if ($null -eq $key) {
+        Write-Info ("HKLM\{0}: ABSENT" -f $probe)
+    }
+    else {
+        $names = @($key.GetValueNames() | ForEach-Object { if ([string]::IsNullOrEmpty($_)) { '(default)' } else { $_ } })
+        Write-Info ("HKLM\{0}: present -- values [{1}] subkeys [{2}]" -f $probe, ($names -join ', '), (@($key.GetSubKeyNames()) -join ', '))
+        $key.Dispose()
     }
 }
 

@@ -33,18 +33,23 @@
         SOFTWARE\Classes\SystemFileAssociations\.pdf\shell) are never marked:
         force-deleting a key takes its whole subtree with it, and those subtrees
         hold other applications' registrations.
-      - This restraint costs nothing in leftovers, and an earlier version of this
-        comment was wrong to claim it left "a possibly-empty `.pdf\shellex` key"
-        behind. MSI reclaims empty parents on its own: "the installer removes a
-        registry key after removing the last value or subkey under the key"
-        (Registry table remarks). So on a machine where RustlingPDF was the first
-        `.pdf` shell-extension handler, `shellex` — and `.pdf` itself, if we were
-        the only thing in it — go away with our node, which is the correct
-        outcome. On a machine where another PDF application is registered they
-        are not empty and MSI leaves them alone. The documented way to *stop*
-        that reclamation is a dummy value with `+` in the Name column; we
-        deliberately do not do that, because it would create real litter to
-        prevent MSI from cleaning up litter.
+      - MSI reclaims parents that it empties: "the installer removes a registry
+        key after removing the last value or subkey under the key" (Registry
+        table remarks). So where RustlingPDF was the only registrant, `shellex`
+        goes away with our node — the correct outcome, not litter. The documented
+        way to stop that is a dummy value with `+` in the Name column; we decline,
+        because it would create real litter to prevent MSI from removing litter.
+      - OPEN ISSUE, and nothing below should be read as a promise about it: the
+        third CI dry-run destroyed `SOFTWARE\Classes\.pdf` and
+        `SOFTWARE\Classes\.pdf\shellex` even though both had been seeded with
+        another application's value, so the empty-key rule cannot be the cause.
+        Nothing in THIS file reaches above `.pdf\shellex\{E357FCCD-…}`; the
+        evidence points at the advertised `.pdf` file association the bundler
+        template authors from bundle.fileAssociations
+        (RegExtensionInfoUnregister64 acts on HKCR\.pdf). See the OPEN section in
+        rust/contracts/desktop-windows-installer.md — the verification script now
+        checkpoints the seeds before and after each phase so the next run names
+        the culprit.
       - "Writes" is not the same as "owns outright", and exactly one of these
         nodes is not exclusively ours: `.pdf\shellex\{E357FCCD-…}` is a
         *rendezvous slot* — see the note on ThumbnailHandlerShellexComponent

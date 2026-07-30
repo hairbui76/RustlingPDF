@@ -148,30 +148,56 @@ the highest node **this product itself writes**, and no higher:
   manufacturer key one level up, `HKCU\Software\RustlingPDF`, is a shared
   namespace by convention and is left alone.
 
-That restraint costs nothing in leftovers, because MSI reclaims emptied parents
-by itself: *"the installer removes a registry key after removing the last value
-or subkey under the key"* (Registry table remarks). So:
+Part of what happens to those parents is settled: MSI reclaims a parent it
+empties, *"the installer removes a registry key after removing the last value or
+subkey under the key"* (Registry table remarks). The documented way to prevent
+that is a dummy value with `+` in the Name column, which RustlingPDF declines —
+it would create real litter to stop MSI from removing litter. That rule alone
+explained the second dry-run, where every unseeded shared key vanished.
 
-- on a machine where another PDF application is registered, `.pdf`,
-  `.pdf\shellex` and `…\.pdf\shell` still hold that application's data after our
-  subtree goes, are therefore not empty, and MSI leaves them untouched;
-- on a machine where RustlingPDF was the only registrant, they become empty and
-  MSI removes them — which is the correct outcome, restoring the machine to its
-  prior state rather than leaving skeletons.
+> ### ⚠ OPEN — `HKLM\SOFTWARE\Classes\.pdf` may be over-deleted
+>
+> **The empty-key rule does not explain the third dry-run, and this is not
+> resolved.** With a foreign sentinel value seeded into all four shared keys
+> before install, two survived intact (`Classes\CLSID`,
+> `SystemFileAssociations\.pdf\shell`) and **two were destroyed anyway**
+> (`Classes\.pdf`, `Classes\.pdf\shellex`) — reported as "the key itself is
+> gone". A seeded key is not empty, so reclamation cannot be the cause.
+>
+> The evidence points at the **advertised `.pdf` file association**, which comes
+> from `bundle.fileAssociations` in `tauri.conf.json` and is authored by the
+> bundler template, not by `provisioning.wxs`:
+>
+> - the shipped MSI's `Extension` table contains
+>   `'pdf' | 'Path' | 'RustlingPDF.pdf' | '' | 'ShortcutsFeature'`, with matching
+>   `ProgId` and `Verb` rows;
+> - the install log shows
+>   `RegExtensionInfoRegister64(… Extension=pdf, ProgId=RustlingPDF.pdf …)` and
+>   the uninstall log the matching `RegExtensionInfoUnregister64`. Those act on
+>   `HKCR\.pdf`, i.e. `HKLM\SOFTWARE\Classes\.pdf` for a perMachine package;
+> - **nothing in `provisioning.wxs` reaches above
+>   `.pdf\shellex\{E357FCCD-…}`** — all 11 `ForceDeleteOnUninstall` attributes
+>   and the one `RemoveRegistryKey` were enumerated, and no operation in either
+>   log names `.pdf` or `.pdf\shellex` as its target;
+> - the two keys that survived are exactly the two not covered by an
+>   `Extension`-table row.
+>
+> **What is still unproven:** that the seeds survived until uninstall time. If
+> the install destroyed them, the post-uninstall failures say nothing about the
+> uninstall. `verify-msi-lifecycle.ps1` now checkpoints every seed at three
+> points — immediately after writing, immediately before uninstall, and after
+> uninstall — so the next run names the destroying transition instead of leaving
+> it to inference, and dumps the values and subkeys of `.pdf`, `.pdf\shellex` and
+> the `RustlingPDF.pdf` ProgId afterwards.
+>
+> **If confirmed, this is critical and blocks release:**
+> `HKLM\SOFTWARE\Classes\.pdf` carries the system-wide PDF association, and
+> destroying it on uninstall would break other PDF applications on the machine.
+> Mitigation would be a product decision about `bundle.fileAssociations`, not a
+> `provisioning.wxs` change — the fragment is not the cause either way.
 
-**An earlier revision of this contract claimed the opposite** — that a
-"now-empty `HKLM\SOFTWARE\Classes\.pdf\shellex` key survives". It does not, and
-the first real CI run exposed the error: two `shared key preserved` assertions
-failed on a clean runner precisely because MSI had reclaimed `.pdf` and
-`…\.pdf\shell` once they were empty. The verification script now seeds foreign
-content into those keys before installing, so the assertion tests the case that
-actually matters (another application's data must survive) instead of the case
-MSI is entitled to clean up.
-
-The documented way to *prevent* that reclamation is to author a dummy value with
-`+` in the Name column. RustlingPDF deliberately does not: it would create real
-litter to stop MSI from removing litter. The same reasoning covers the
-manufacturer key `HKCU\Software\RustlingPDF`.
+The manufacturer key `HKCU\Software\RustlingPDF` is left alone for the same
+reason as the shared parents above, and is not affected by any of this.
 
 ### Per-user data must live in its own component (ICE57)
 
@@ -302,7 +328,8 @@ Supporting details:
 | The app's WebView2 profile/cache under the user's local app data | Browser profile — user data. |
 | WebView2 Runtime | Shared, machine-wide, refcounted, has its own ARP entry. Removing it would break every other WebView2 app. |
 | `%TEMP%\MicrosoftEdgeWebview2Setup.exe` | Downloaded by the bundler template's bootstrapper CustomAction into TEMP; not MSI-tracked. Windows/Storage Sense reclaims it. |
-| `HKLM\SOFTWARE\Classes\.pdf`, `.pdf\shellex`, `…\.pdf\shell` and `HKCU\Software\RustlingPDF` **when they still hold anything** | Shared nodes we write into but do not own. If our node was the last thing in them, MSI reclaims the emptied key itself — see the scope reasoning above. |
+| `…\SystemFileAssociations\.pdf\shell`, `HKLM\SOFTWARE\Classes\CLSID` and `HKCU\Software\RustlingPDF` **when they still hold anything** | Shared nodes we write into but do not own; verified to survive with foreign content intact. If our node was the last thing in them, MSI reclaims the emptied key itself. |
+| `HKLM\SOFTWARE\Classes\.pdf` and `.pdf\shellex` | **Not currently guaranteed** — the third dry-run destroyed both despite foreign content. See the OPEN warning above; this row is a promise this contract cannot yet make. |
 | `HKCU\…\Explorer\FileExts\.pdf\OpenWithList` / `UserChoice` | Written by Windows when the *user* picks a default app. No installer owns or removes these. |
 
 The bundler template also emits `<RemoveFolder Id="DesktopFolder"
