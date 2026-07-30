@@ -55,11 +55,16 @@
         before RegExtensionInfoUnregister64 and absent after.
 
         Nothing in THIS file reaches above `.pdf\shellex\{E357FCCD-…}`, so no
-        edit here can fix it. See the CONFIRMED DEFECT section of
-        rust/contracts/desktop-windows-installer.md for the options and their
-        costs. Do NOT try the Registry-table `+` dummy-value trick: it is
-        sequenced before UnregisterExtensionInfo and is provably ineffective
-        against it.
+        edit here could fix it. The fix is
+        frontend/editor/src-tauri/tauri.windows.conf.json, which overrides
+        bundle.fileAssociations to [] for the Windows target only — macOS takes
+        its PDF document type from the same setting and would have regressed if
+        it had been removed globally. That file has no comments because it is
+        plain JSON: do not delete it, and read the CONFIRMED DEFECT section of
+        rust/contracts/desktop-windows-installer.md before touching it.
+
+        Do NOT try the Registry-table `+` dummy-value trick: it is sequenced
+        before UnregisterExtensionInfo and is provably ineffective against it.
       - "Writes" is not the same as "owns outright", and exactly one of these
         nodes is not exclusively ours: `.pdf\shellex\{E357FCCD-…}` is a
         *rendezvous slot* — see the note on ThumbnailHandlerShellexComponent

@@ -155,9 +155,11 @@ that is a dummy value with `+` in the Name column, which RustlingPDF declines �
 it would create real litter to stop MSI from removing litter. That rule alone
 explained the second dry-run, where every unseeded shared key vanished.
 
-> ### ⚠ CONFIRMED DEFECT — uninstalling destroys `HKLM\SOFTWARE\Classes\.pdf`
+> ### ⚠ CONFIRMED DEFECT — uninstalling destroyed `HKLM\SOFTWARE\Classes\.pdf`
 >
-> **Status: measured, reproducible, release-blocking. Not yet fixed.**
+> **Status: measured and reproducible. Step A of the fix is authored below and
+> awaiting its dry-run; the record of the mechanism is kept because it dictates
+> what may and may not be changed here in future.**
 >
 > Uninstalling RustlingPDF removes the `HKLM\SOFTWARE\Classes\.pdf` key and
 > everything under it, **including registry data belonging to other
@@ -212,12 +214,64 @@ explained the second dry-run, where every unseeded shared key vanished.
 > | **C. Non-advertised, value-scoped association** | Drop `bundle.fileAssociations`, then author the association in `provisioning.wxs`: our own `HKLM\SOFTWARE\Classes\RustlingPDF.pdf` ProgId key (ours outright, safe to force-delete) plus a **value** named `RustlingPDF.pdf` under the shared `.pdf\OpenWithProgIds`. Uninstall then removes one value from a shared key under ordinary Registry-table semantics and never the `.pdf` key | Does not claim the *default* handler — but on Windows 8+ an installer cannot do that anyway (`UserChoice` requires user consent), so the practical loss is close to zero. More authoring we own and must maintain | needs a dry-run |
 > | **D. Fix upstream in tauri-bundler** | Correct for everyone | Lead time measured in releases; does not unblock v3.1.2. Worth filing regardless | n/a |
 >
-> **Recommendation: test A first, then land C.** A is one line, provably removes
-> the cause, and gives a clean baseline measurement that `.pdf` survives an
-> uninstall. C then restores the user-visible capability on top of that baseline,
-> and can be measured against it. Shipping A alone is acceptable if v3.1.2 cannot
-> wait — losing the "Open with" entry is a visible regression, but far smaller
-> than damaging another application's registry.
+> **Decision: A now, C next, each measured separately.** Changing two things at
+> once and not knowing which moved the needle is how this defect stayed hidden
+> for a full day of dry-runs.
+>
+> #### Step A as authored — scoped to Windows, not global
+>
+> `bundle.fileAssociations` is **cross-platform** in Tauri, so deleting it from
+> `tauri.conf.json` would have fixed Windows by silently regressing macOS. It is
+> therefore overridden only for the Windows target, in
+> `frontend/editor/src-tauri/tauri.windows.conf.json`:
+>
+> ```json
+> { "bundle": { "fileAssociations": [] } }
+> ```
+>
+> Platform config files (`tauri.<platform>.conf.json`) are merged into the base
+> config with RFC 7386 merge-patch semantics, under which a non-object patch
+> value replaces the target wholesale — so `[]` replaces the one-element array
+> for the Windows bundle only. With no rows, the template emits no
+> `Extension`/`ProgId`/`Verb` tables and `UnregisterExtensionInfo` has nothing to
+> unregister.
+>
+> Why per-platform rather than global:
+>
+> - **macOS would have regressed.** The committed `Info.plist` contains only
+>   `NSLocalNetworkUsageDescription` — no `CFBundleDocumentTypes` — so the macOS
+>   PDF document-type association comes *solely* from `bundle.fileAssociations`.
+> - **Linux is unaffected either way.** `rustlingpdf.desktop` declares
+>   `MimeType=application/pdf;` itself, and that committed template is what the
+>   deb/rpm bundles use.
+> - The defect is Windows-only, so the fix is Windows-only.
+>
+> #### Two consequences that must not be discovered later
+>
+> 1. **"Set as default PDF app" stops working on Windows between A and C.**
+>    `commands/default_app.rs` resolves the effective `.pdf` handler and matches
+>    the ProgId against `rustling`/`stirling`. With no ProgId registered, that
+>    check can never succeed and RustlingPDF will not appear in the Windows
+>    Settings default-apps list. **Step C restores it** — registering our own
+>    `HKLM\SOFTWARE\Classes\RustlingPDF.pdf` with a `shell\open\command` and
+>    listing it under `.pdf\OpenWithProgIds` is exactly what makes an application
+>    selectable as a default handler. C is therefore not optional polish; it is
+>    what makes a shipped feature work again.
+> 2. **Anyone already running an affected build takes the damage once, and this
+>    fix cannot prevent it.** `MajorUpgrade` is scheduled `afterInstallInitialize`,
+>    so upgrading from 3.1.0/3.1.1 runs the *old* cached package's uninstall
+>    first — including its own `UnregisterExtensionInfo`, which destroys `.pdf`
+>    before the new package installs. The same applies to uninstalling an
+>    affected build. The damage is done by the old package, which the new one
+>    cannot amend. Only fresh installs of a fixed build, and uninstalls of them,
+>    are clean.
+>
+> #### What the dry-run for A must show
+>
+> `.pdf` and `.pdf\shellex` **survive with their foreign sentinels intact**, and
+> everything that passed in dry-run 4 still passes. The four-key seed assertions
+> in `verify-msi-lifecycle.ps1` are deliberately unchanged — they are now the
+> regression test for this fix and must start failing again if it is reverted.
 
 The manufacturer key `HKCU\Software\RustlingPDF` is left alone for the same
 reason as the shared parents above, and is not affected by any of this.
