@@ -155,46 +155,69 @@ that is a dummy value with `+` in the Name column, which RustlingPDF declines �
 it would create real litter to stop MSI from removing litter. That rule alone
 explained the second dry-run, where every unseeded shared key vanished.
 
-> ### ⚠ OPEN — `HKLM\SOFTWARE\Classes\.pdf` may be over-deleted
+> ### ⚠ CONFIRMED DEFECT — uninstalling destroys `HKLM\SOFTWARE\Classes\.pdf`
 >
-> **The empty-key rule does not explain the third dry-run, and this is not
-> resolved.** With a foreign sentinel value seeded into all four shared keys
-> before install, two survived intact (`Classes\CLSID`,
-> `SystemFileAssociations\.pdf\shell`) and **two were destroyed anyway**
-> (`Classes\.pdf`, `Classes\.pdf\shellex`) — reported as "the key itself is
-> gone". A seeded key is not empty, so reclamation cannot be the cause.
+> **Status: measured, reproducible, release-blocking. Not yet fixed.**
 >
-> The evidence points at the **advertised `.pdf` file association**, which comes
-> from `bundle.fileAssociations` in `tauri.conf.json` and is authored by the
-> bundler template, not by `provisioning.wxs`:
+> Uninstalling RustlingPDF removes the `HKLM\SOFTWARE\Classes\.pdf` key and
+> everything under it, **including registry data belonging to other
+> applications**. On a machine where another PDF application stores its
+> registration there, uninstalling RustlingPDF breaks it.
 >
-> - the shipped MSI's `Extension` table contains
->   `'pdf' | 'Path' | 'RustlingPDF.pdf' | '' | 'ShortcutsFeature'`, with matching
->   `ProgId` and `Verb` rows;
-> - the install log shows
->   `RegExtensionInfoRegister64(… Extension=pdf, ProgId=RustlingPDF.pdf …)` and
->   the uninstall log the matching `RegExtensionInfoUnregister64`. Those act on
->   `HKCR\.pdf`, i.e. `HKLM\SOFTWARE\Classes\.pdf` for a perMachine package;
-> - **nothing in `provisioning.wxs` reaches above
->   `.pdf\shellex\{E357FCCD-…}`** — all 11 `ForceDeleteOnUninstall` attributes
->   and the one `RemoveRegistryKey` were enumerated, and no operation in either
->   log names `.pdf` or `.pdf\shellex` as its target;
-> - the two keys that survived are exactly the two not covered by an
->   `Extension`-table row.
+> **The measurement** (dry-run 4, commit `a046be9`). The verification script
+> checkpoints each seeded foreign value at three points; the transition is
+> unambiguous:
 >
-> **What is still unproven:** that the seeds survived until uninstall time. If
-> the install destroyed them, the post-uninstall failures say nothing about the
-> uninstall. `verify-msi-lifecycle.ps1` now checkpoints every seed at three
-> points — immediately after writing, immediately before uninstall, and after
-> uninstall — so the next run names the destroying transition instead of leaving
-> it to inference, and dumps the values and subkeys of `.pdf`, `.pdf\shellex` and
-> the `RustlingPDF.pdf` ProgId afterwards.
+> | Checkpoint | `HKLM\SOFTWARE\Classes\.pdf` |
+> | --- | --- |
+> | key state before seeding | already existed on the runner (`key pre-existed: True`) |
+> | seed written | intact — 2 values, 3 subkeys |
+> | after install | intact — 3 values, 4 subkeys (the install *added* to a populated foreign key) |
+> | after uninstall | **the key itself is gone** |
 >
-> **If confirmed, this is critical and blocks release:**
-> `HKLM\SOFTWARE\Classes\.pdf` carries the system-wide PDF association, and
-> destroying it on uninstall would break other PDF applications on the machine.
-> Mitigation would be a product decision about `bundle.fileAssociations`, not a
-> `provisioning.wxs` change — the fragment is not the cause either way.
+> `.pdf\shellex` follows the same pattern and disappears as a subkey of `.pdf`.
+> This kills both earlier theories: the key was not created by MSI as an
+> intermediate, and it was not empty when it was removed, so MSI's empty-key
+> reclamation cannot be the cause.
+>
+> **The mechanism.** `bundle.fileAssociations` in `tauri.conf.json` makes the
+> bundler template author an **advertised** file association. The Extension table
+> in the shipped MSI carries
+> `'pdf' | 'Path' | 'RustlingPDF.pdf' | '' | 'ShortcutsFeature'`, and the docs are
+> explicit that such a row *"generates a set of registry keys and values"* as part
+> of product advertisement (Extension table), which `UnregisterExtensionInfo`
+> then *"removes … from the registry"* (UnregisterExtensionInfo action). MSI owns
+> `HKCR\.pdf` as a generated artifact and reclaims it **as a key**, not
+> value-by-value.
+>
+> The uninstall log isolates it. Within `RemoveRegistryValues` every operation
+> names a key this product authored — the deepest being
+> `.pdf\shellex\{E357FCCD-…}` — and **nothing targets `.pdf` or `.pdf\shellex`**.
+> The only later operations naming the extension are
+> `RegExtensionInfoUnregister64(… Extension=pdf, ProgId=RustlingPDF.pdf …)` and
+> `RegProgIdInfoUnregister64(…)`. The key is present before them and gone after.
+>
+> **`provisioning.wxs` is not the cause.** Nothing in this repository's fragment
+> reaches above `.pdf\shellex\{E357FCCD-…}`. The fix is a product decision about
+> the file association, not a fragment change. Corroboration:
+> `SystemFileAssociations\.pdf\shell` — the one shared key with no Extension-table
+> row — survives with its foreign content intact.
+>
+> **Options, with costs.** The owner picks; none is shipped yet.
+>
+> | Option | Effect | Cost | Verified? |
+> | --- | --- | --- | --- |
+> | **A. Drop `bundle.fileAssociations`** | No Extension/ProgId/Verb rows, so the destructive operation does not exist | RustlingPDF disappears from Windows' "Open with" list for PDFs and can no longer be chosen as the default PDF app. The Explorer cascade menu is unaffected — it is a separate `SystemFileAssociations` registration in `provisioning.wxs` | one-line config change; needs a dry-run |
+> | **B. `+` dummy-value trick** | — | **Provably cannot work. Do not attempt.** `+` is a Registry-table mechanism processed by `RemoveRegistryValues`, which the docs require to run *before* `UnregisterExtensionInfo`; the destructive operation happens afterwards and is driven by a different table. The measurement settles it independently: the seeded foreign value is registry-identical to a `+` dummy value, and it did not prevent the deletion | ruled out |
+> | **C. Non-advertised, value-scoped association** | Drop `bundle.fileAssociations`, then author the association in `provisioning.wxs`: our own `HKLM\SOFTWARE\Classes\RustlingPDF.pdf` ProgId key (ours outright, safe to force-delete) plus a **value** named `RustlingPDF.pdf` under the shared `.pdf\OpenWithProgIds`. Uninstall then removes one value from a shared key under ordinary Registry-table semantics and never the `.pdf` key | Does not claim the *default* handler — but on Windows 8+ an installer cannot do that anyway (`UserChoice` requires user consent), so the practical loss is close to zero. More authoring we own and must maintain | needs a dry-run |
+> | **D. Fix upstream in tauri-bundler** | Correct for everyone | Lead time measured in releases; does not unblock v3.1.2. Worth filing regardless | n/a |
+>
+> **Recommendation: test A first, then land C.** A is one line, provably removes
+> the cause, and gives a clean baseline measurement that `.pdf` survives an
+> uninstall. C then restores the user-visible capability on top of that baseline,
+> and can be measured against it. Shipping A alone is acceptable if v3.1.2 cannot
+> wait — losing the "Open with" entry is a visible regression, but far smaller
+> than damaging another application's registry.
 
 The manufacturer key `HKCU\Software\RustlingPDF` is left alone for the same
 reason as the shared parents above, and is not affected by any of this.
@@ -329,7 +352,7 @@ Supporting details:
 | WebView2 Runtime | Shared, machine-wide, refcounted, has its own ARP entry. Removing it would break every other WebView2 app. |
 | `%TEMP%\MicrosoftEdgeWebview2Setup.exe` | Downloaded by the bundler template's bootstrapper CustomAction into TEMP; not MSI-tracked. Windows/Storage Sense reclaims it. |
 | `…\SystemFileAssociations\.pdf\shell`, `HKLM\SOFTWARE\Classes\CLSID` and `HKCU\Software\RustlingPDF` **when they still hold anything** | Shared nodes we write into but do not own; verified to survive with foreign content intact. If our node was the last thing in them, MSI reclaims the emptied key itself. |
-| `HKLM\SOFTWARE\Classes\.pdf` and `.pdf\shellex` | **Not currently guaranteed** — the third dry-run destroyed both despite foreign content. See the OPEN warning above; this row is a promise this contract cannot yet make. |
+| `HKLM\SOFTWARE\Classes\.pdf` and `.pdf\shellex` | **DESTROYED — confirmed defect, see the warning above.** Uninstalling removes these keys and any other application's data inside them. This contract cannot promise otherwise until the file-association mechanism is changed. |
 | `HKCU\…\Explorer\FileExts\.pdf\OpenWithList` / `UserChoice` | Written by Windows when the *user* picks a default app. No installer owns or removes these. |
 
 The bundler template also emits `<RemoveFolder Id="DesktopFolder"

@@ -39,17 +39,27 @@
         goes away with our node — the correct outcome, not litter. The documented
         way to stop that is a dummy value with `+` in the Name column; we decline,
         because it would create real litter to prevent MSI from removing litter.
-      - OPEN ISSUE, and nothing below should be read as a promise about it: the
-        third CI dry-run destroyed `SOFTWARE\Classes\.pdf` and
-        `SOFTWARE\Classes\.pdf\shellex` even though both had been seeded with
-        another application's value, so the empty-key rule cannot be the cause.
-        Nothing in THIS file reaches above `.pdf\shellex\{E357FCCD-…}`; the
-        evidence points at the advertised `.pdf` file association the bundler
-        template authors from bundle.fileAssociations
-        (RegExtensionInfoUnregister64 acts on HKCR\.pdf). See the OPEN section in
-        rust/contracts/desktop-windows-installer.md — the verification script now
-        checkpoints the seeds before and after each phase so the next run names
-        the culprit.
+      - CONFIRMED DEFECT, release-blocking, NOT caused by this file and NOT
+        fixable in it: uninstalling destroys `SOFTWARE\Classes\.pdf` and
+        `.pdf\shellex` outright, taking any other application's data in them with
+        it. Dry-run 4 measured the transition — a foreign value seeded into
+        `.pdf` was intact after the install (3 values, 4 subkeys) and the key was
+        gone after the uninstall — so neither empty-key reclamation nor
+        MSI-created-intermediate explains it.
+
+        The actor is the ADVERTISED file association the bundler template
+        authors from bundle.fileAssociations: an Extension-table row
+        "generates a set of registry keys and values", and
+        UnregisterExtensionInfo removes them as keys. The uninstall log shows
+        nothing in RemoveRegistryValues touching `.pdf`, and the key present
+        before RegExtensionInfoUnregister64 and absent after.
+
+        Nothing in THIS file reaches above `.pdf\shellex\{E357FCCD-…}`, so no
+        edit here can fix it. See the CONFIRMED DEFECT section of
+        rust/contracts/desktop-windows-installer.md for the options and their
+        costs. Do NOT try the Registry-table `+` dummy-value trick: it is
+        sequenced before UnregisterExtensionInfo and is provably ineffective
+        against it.
       - "Writes" is not the same as "owns outright", and exactly one of these
         nodes is not exclusively ours: `.pdf\shellex\{E357FCCD-…}` is a
         *rendezvous slot* — see the note on ThumbnailHandlerShellexComponent
