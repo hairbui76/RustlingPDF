@@ -24,10 +24,20 @@ use crate::runtime_dependencies::discover_dependencies;
 
 // Retained functional groups and real Rust dependency groups. Values are whitespace-separated
 // endpoint keys to keep the compatibility table readable.
+//
+// Keys must match what `endpoint_key_for_uri` derives from the registered route, not the tool's
+// display name. Upstream registers the overlay tool as `overlay-pdf`
+// (EndpointConfiguration.java:348 and :427) while its controller serves `/overlay-pdfs`
+// (PdfOverlayController.java:45), and its `normalizeEndpoint` only strips a leading slash — so
+// upstream silently cannot disable that endpoint through the PageOps or Advance group, and its own
+// allEndpointsRemovedSettings.yml works around it by naming `overlay-pdfs` outright. We spell the
+// derived key instead: an administrator who disables a group expects every endpoint in it to stop
+// answering. A key here that no route yields is inert, which is why the entries mirroring
+// upstream-only tools are harmless to keep.
 const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     (
         "PageOps",
-        "remove-pages merge-pdfs split-pages rearrange-pages rotate-pdf multi-page-layout booklet-imposition scale-pages crop pdf-to-single-page auto-split-pdf split-by-size-or-count overlay-pdf split-pdf-by-sections split-pdf-by-chapters add-page-numbers extract-pages",
+        "remove-pages merge-pdfs split-pages rearrange-pages rotate-pdf multi-page-layout booklet-imposition scale-pages crop pdf-to-single-page auto-split-pdf split-by-size-or-count overlay-pdfs split-pdf-by-sections split-pdf-by-chapters add-page-numbers extract-pages",
     ),
     (
         "Convert",
@@ -43,7 +53,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ),
     (
         "Advance",
-        "compress-pdf extract-image-scans repair auto-rename scanner-effect overlay-pdf adjust-contrast",
+        "compress-pdf extract-image-scans repair auto-rename scanner-effect overlay-pdfs adjust-contrast",
     ),
     ("Automation", "handleData automate pipeline"),
     ("DeveloperTools", "show-javascript"),
@@ -2011,8 +2021,12 @@ fn is_loopback_host(host: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, fs};
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        fs,
+    };
 
+    use regex::Regex;
     use serde_json::json;
     use tempfile::tempdir;
 
@@ -2489,6 +2503,32 @@ mod tests {
     }
 
     #[test]
+    fn disabling_pageops_or_advance_disables_the_registered_overlay_pdfs_route()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Regression test for the overlay-pdf/overlay-pdfs key mismatch: the route is
+        // `/api/v1/general/overlay-pdfs` (OVERLAY_PDFS_PATH in lib.rs), so
+        // `endpoint_key_for_uri` derives "overlay-pdfs". Before the fix, ENDPOINT_GROUPS listed
+        // "overlay-pdf" (singular) under both PageOps and Advance, so an administrator who
+        // disabled either group believed overlay was off while the endpoint kept answering.
+        // Assert directly on the URI, the same input the axum middleware sees.
+        const OVERLAY_URI: &str = "/api/v1/general/overlay-pdfs";
+        for group in ["PageOps", "Advance"] {
+            let directory = tempdir()?;
+            let settings = directory.path().join("settings.yml");
+            fs::write(
+                &settings,
+                format!("endpoints:\n  groupsToRemove: [{group}]\n"),
+            )?;
+            let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+            assert!(
+                !config.is_endpoint_enabled_for_uri(OVERLAY_URI),
+                "disabling {group} must disable {OVERLAY_URI}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn endpoint_keys_follow_the_java_uri_mapping() {
         assert_eq!(
             endpoint_key_for_uri("/api/v1/general/remove-pages"),
@@ -2499,6 +2539,68 @@ mod tests {
             Some("pdf-to-img".to_owned())
         );
         assert_eq!(endpoint_key_for_uri("/api/v1/general"), None);
+    }
+
+    #[test]
+    fn no_group_key_is_a_trailing_s_near_miss_of_a_route_declared_in_lib_rs()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Parse every `const <NAME>_PATH: &str = "/api/v1/...";` straight out of lib.rs's own
+        // source (single-line and line-wrapped alike) rather than a hand-maintained duplicate
+        // list, so this test tracks routes exactly as they are registered.
+        let lib_source = include_str!("lib.rs");
+        let path_const =
+            Regex::new(r#"const\s+[A-Za-z0-9_]+_PATH\s*:\s*&str\s*=\s*"([^"]*)"\s*;"#)?;
+        let route_keys: BTreeSet<String> = path_const
+            .captures_iter(lib_source)
+            .filter_map(|capture| endpoint_key_for_uri(&capture[1]))
+            .collect();
+        assert!(
+            route_keys.len() > 100,
+            "found only {} route keys; the const-scanning regex likely stopped matching \
+             lib.rs's current formatting",
+            route_keys.len()
+        );
+
+        // Pin the specific regression directly: the overlay route's derived key must match what
+        // `endpoint_key_for_uri` computes for its registered path, and that key must be present
+        // in the table, so this stays caught even if the general near-miss rule below is ever
+        // loosened.
+        assert_eq!(
+            endpoint_key_for_uri("/api/v1/general/overlay-pdfs"),
+            Some("overlay-pdfs".to_owned())
+        );
+        assert!(route_keys.contains("overlay-pdfs"));
+        let group_keys: BTreeSet<&str> = ENDPOINT_GROUPS
+            .iter()
+            .flat_map(|(_, endpoints)| endpoints.split_whitespace())
+            .collect();
+        assert!(group_keys.contains("overlay-pdfs"));
+
+        // A group key that matches no route is normally inert: it mirrors an upstream-only tool
+        // that was never ported (`compare`, `view-pdf`, `multi-tool`, `pdf-to-rtf`, `handleData`,
+        // the `dev-*-docs` entries, and others) and is harmless to keep. But a group key that
+        // differs from an *actual* registered route key only by a trailing `s` (in either
+        // direction) is not a coincidence: it is exactly the overlay-pdf/overlay-pdfs class of
+        // bug, where the table was written against the tool's display name rather than the key
+        // `endpoint_key_for_uri` derives, so the group can never disable its own endpoint.
+        let mut near_misses = Vec::new();
+        for &group_key in &group_keys {
+            if route_keys.contains(group_key) {
+                continue;
+            }
+            for route_key in &route_keys {
+                if format!("{group_key}s") == *route_key || group_key == format!("{route_key}s") {
+                    near_misses.push((group_key.to_owned(), route_key.clone()));
+                }
+            }
+        }
+        assert!(
+            near_misses.is_empty(),
+            "group key(s) differ from a registered route key only by a trailing 's', so \
+             disabling the group cannot actually disable the endpoint, (group_key, route_key): \
+             {near_misses:?}"
+        );
+        Ok(())
     }
 
     #[test]
