@@ -102,6 +102,10 @@ So the promise splits in two, and only the first half is unconditional:
 | Out-of-crop **marks** deleted from the page and its content stream regenerated without them | **Yes**, whenever the endpoint returns `200` |
 | **Resources** reachable only from a deleted mark removed from the file | Only where the content naming them parsed in full |
 
+How often the second row falls short, measured: of 181 real-world PDFs collected
+from this machine, 3 (1.7%) preserved at least one scope. Both known causes are
+below.
+
 Erring towards keeping is deliberate, and it is a reversal. An earlier revision
 pruned whatever the parser did not report, on the theory that keeping data the
 caller asked to delete is the worse failure. It is not, because the parser used
