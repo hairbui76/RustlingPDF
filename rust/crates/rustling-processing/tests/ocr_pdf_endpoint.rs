@@ -113,8 +113,18 @@ async fn remove_images_after_strips_images_without_an_external_tool()
         ],
     )
     .await?;
-    if !ocrmypdf_present() && !tesseract_present() {
-        assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
+    // `removeImagesAfter` runs only after a successful ocrmypdf OCR — `run_ocr`
+    // gates it on `used_ocrmypdf` — so the pure-Rust image removal this test
+    // exercises is reachable only when ocrmypdf is available. Without it there is
+    // nothing to assert here: the real server refuses the endpoint outright,
+    // because its startup dependency discovery disables the OCR group when no tool
+    // is found; this harness deliberately builds a probe-free `RuntimeConfig`
+    // (see `RuntimeConfig::with_dependency_discovery`), so the group stays enabled
+    // and the endpoint passes the already-text `skip-text` page straight through
+    // for a `200` rather than reaching the `501`. Skip rather than assert a status
+    // this harness cannot produce; `ocr_follows_available_tooling` covers the
+    // tool-absent refusal path.
+    if !ocrmypdf_present() {
         return Ok(());
     }
     let response = require_status(response, StatusCode::OK).await?;
