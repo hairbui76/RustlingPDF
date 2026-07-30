@@ -49,31 +49,75 @@
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="ProvisionerBinaryComponent" Guid="*">
         <File Id="ProvisionerExe" Source="$(sys.SOURCEFILEDIR)stirling-provision.exe" KeyPath="yes" />
-        <!--
-          Cleanup for a key the *bundler template* authors and forgets: main.wxs
-          stores InstallDir / "Desktop Shortcut" / "Start Menu Shortcut" /
-          "Uninstaller Shortcut" under HKCU\Software\<Manufacturer>\<ProductName>
-          and only ever removes those values, leaving the key behind. A wix
-          fragment is the only hook we have into that template, so the removal is
-          attached here (this component is always installed — the External
-          feature is Absent="disallow").
-
-          The names are spelled literally, NOT as {{manufacturer}} /
-          {{product_name}}: tauri-bundler renders main.wxs through Handlebars but
-          hands fragment files to candle unrendered (tauri-bundler 2.9.4,
-          bundle/windows/msi/mod.rs — the rendered fragment string is used only
-          to sniff xmlns extensions). Manufacturer is bundle.publisher and
-          product name is productName, both "RustlingPDF" in tauri.conf.json;
-          if either changes, this key must change with it.
-
-          Only the product key is removed. The manufacturer key
-          HKCU\Software\RustlingPDF is left in place: it is a shared namespace by
-          convention, and MSI cannot express "delete only if empty".
-        -->
-        <RemoveRegistryKey Id="RemoveTemplateProductKey" Root="HKCU" Key="Software\RustlingPDF\RustlingPDF" Action="removeOnUninstall" />
       </Component>
       <Component Id="ThumbnailHandlerDllComponent" Guid="*">
         <File Id="ThumbnailHandlerDll" Source="$(sys.SOURCEFILEDIR)stirling_thumbnail_handler.dll" KeyPath="yes" />
+      </Component>
+
+      <!--
+        Cleanup for a key the *bundler template* authors and forgets: main.wxs
+        stores InstallDir / "Desktop Shortcut" / "Start Menu Shortcut" /
+        "Uninstaller Shortcut" under HKCU\Software\<Manufacturer>\<ProductName>
+        and only ever removes those values, leaving the key behind. A wix
+        fragment is the only hook we have into that template.
+
+        This MUST be its own component, and that component must be per-user.
+        The removal originally rode along on ProvisionerBinaryComponent, whose
+        KeyPath is a per-machine <File> under INSTALLDIR, and light rejected the
+        build outright:
+
+          error LGHT0204 : ICE57: Component 'ProvisionerBinaryComponent' has
+          both per-user and per-machine data with a per-machine KeyPath.
+
+        ICE57 "validates that individual components do not mix per-machine and
+        per-user data … checks registry entries, files, directory key paths, and
+        non-advertised shortcuts", and its documented remedy is to "reorganize
+        the application such that each component contains only per-user or
+        per-machine resources, and not both". Note the asymmetry that makes this
+        an error rather than a warning: an HKCU KeyPath plus per-machine data is
+        only a warning (that is main.wxs's own CMP_UninstallShortcut), whereas a
+        per-machine KeyPath plus per-user data is the error form.
+
+        Everything here is per-user: an HKCU KeyPath value and an HKCU deletion
+        row, nothing else. The Registry-table docs additionally *recommend* this
+        exact shape — "registry entries written to the HKCU hive [should]
+        reference a component having the RegistryKeyPath bit set … [to] ensure
+        that the installer writes the necessary registry entries when there are
+        multiple users on the same computer". main.wxs's RegistryEntries
+        component has the identical shape (HKCU registry KeyPath, per-user only,
+        under DirectoryRef INSTALLDIR, in this same perMachine package) and draws
+        no ICE57 finding at all in the failing build's log, which is the closest
+        thing to a proof available without running WiX.
+
+        The KeyPath value is deliberately written INSIDE the key being deleted,
+        so ForceDeleteOnUninstall takes the marker with it and this cleanup adds
+        no residue of its own. Keying the component on some *other* HKCU path
+        would simply trade the leftover key we are removing for a new leftover
+        key of our own making. It is not circular: the same
+        <RegistryKey ForceDeleteOnUninstall="yes"> wrapping a KeyPath
+        <RegistryValue> pattern is used by all four registry components below.
+
+        Sharing the key with main.wxs's RegistryEntries component is fine — a
+        registry *value* is the resource MSI refcounts, not the key, and the
+        value names differ. Both components are in Absent="disallow" features, so
+        one can never be removed while the other stays.
+
+        The names are spelled literally, NOT as {{manufacturer}} /
+        {{product_name}}: tauri-bundler renders main.wxs through Handlebars but
+        hands fragment files to candle unrendered (tauri-bundler 2.9.4,
+        bundle/windows/msi/mod.rs — the rendered fragment string is used only
+        to sniff xmlns extensions). Manufacturer is bundle.publisher and
+        product name is productName, both "RustlingPDF" in tauri.conf.json;
+        if either changes, this key must change with it.
+
+        Only the product key is removed. The manufacturer key
+        HKCU\Software\RustlingPDF is left in place: it is a shared namespace by
+        convention, and MSI cannot express "delete only if empty".
+      -->
+      <Component Id="TemplateRegistryCleanupComponent" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\RustlingPDF\RustlingPDF" ForceDeleteOnUninstall="yes">
+          <RegistryValue Type="integer" Name="InstallerRegistryCleanup" Value="1" KeyPath="yes" />
+        </RegistryKey>
       </Component>
     </DirectoryRef>
 
@@ -242,6 +286,7 @@
     <ComponentGroup Id="ProvisioningComponentGroup">
       <ComponentRef Id="ProvisionerBinaryComponent" />
       <ComponentRef Id="ThumbnailHandlerDllComponent" />
+      <ComponentRef Id="TemplateRegistryCleanupComponent" />
       <ComponentRef Id="ThumbnailHandlerClsidComponent" />
       <ComponentRef Id="ThumbnailHandlerShellexComponent" />
       <ComponentRef Id="PdfContextMenuRootComponent" />

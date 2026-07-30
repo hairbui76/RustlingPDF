@@ -121,7 +121,7 @@ still naming a DLL that no longer existed):
 | `HKLM\SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}` | `ForceDeleteOnUninstall="yes"` on that node only |
 | `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF` **and its whole subtree** (`shell\01_open…04_convert\command`) | `ForceDeleteOnUninstall="yes"` on the cascade root, and again on each `NN_*` verb key so no component depends on another's removal |
 | `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}` — the v3.1.0 cascade tree — **removed at install time**, not uninstall | `<RemoveRegistryKey Action="removeOnInstall">`; see [Upgrading from v3.1.0](#upgrading-from-v310) |
-| `HKCU\Software\RustlingPDF\RustlingPDF` (the bundler template's own key, which the template only ever empties) | `<RemoveRegistryKey Action="removeOnUninstall">` on `ProvisionerBinaryComponent` |
+| `HKCU\Software\RustlingPDF\RustlingPDF` (the bundler template's own key, which the template only ever empties) | `ForceDeleteOnUninstall="yes"` on the dedicated per-user `TemplateRegistryCleanupComponent` — see [Per-user data must live in its own component](#per-user-data-must-live-in-its-own-component-ice57) |
 | `%PROGRAMDATA%\Stirling-PDF\stirling-provisioning.json` (and the `%APPDATA%` path if the install scope ever becomes per-user) | deferred `RemoveProvisioningFile*` CustomActions |
 
 `ForceDeleteOnUninstall="yes"` compiles (WiX 3.14.1 `Compiler.cs`) to a Registry
@@ -154,6 +154,56 @@ now-empty `HKLM\SOFTWARE\Classes\.pdf\shellex` key survives. MSI has no
 "delete only if empty" primitive, and an empty key is strictly less harmful than
 deleting another vendor's registrations. Same reasoning for the manufacturer
 key.
+
+### Per-user data must live in its own component (ICE57)
+
+**Authoring constraint, load-bearing: no component in `provisioning.wxs` may mix
+per-machine and per-user resources.** ICE57 "validates that individual components
+do not mix per-machine and per-user data … checks registry entries, files,
+directory key paths, and non-advertised shortcuts", and `light` runs the full ICE
+suite on every build — tauri-bundler's `run_light` passes neither `-sval` nor
+`-sice:`, and its command line is hardcoded (`-cultures:`, `-loc`, `*.wixobj`),
+so there is **no way to suppress an ICE from `tauri.conf.json`**: `bundle.windows.wix`
+exposes no `lightArgs`/`candleArgs` field in tauri-bundler 2.9.4.
+
+The severity is asymmetric, which is why this bites harder than the bundler
+template's own violation:
+
+| Component shape | ICE57 result |
+| --- | --- |
+| per-machine KeyPath (a `<File>`) + per-user data | **`error LGHT0204`** — the build fails |
+| HKCU registry KeyPath + per-machine data | `warning LGHT1076` — builds (this is main.wxs's own `CMP_UninstallShortcut`) |
+
+The HKCU cleanup therefore lives in `TemplateRegistryCleanupComponent`, which
+holds nothing but an HKCU KeyPath value and an HKCU deletion row. This is also
+what the Registry-table docs recommend independently of ICE57: "registry entries
+written to the HKCU hive [should] reference a component having the
+RegistryKeyPath bit set … [to] ensure that the installer writes the necessary
+registry entries when there are multiple users on the same computer".
+
+Two details that make it residue-free rather than merely legal:
+
+- the KeyPath value (`InstallerRegistryCleanup`) is written **inside** the key
+  being deleted, so `ForceDeleteOnUninstall` takes the marker with it. Keying the
+  component on a different HKCU path would trade the leftover key we are removing
+  for a new leftover key of our own making;
+- sharing the key with main.wxs's `RegistryEntries` component is fine — MSI
+  refcounts registry *values*, not keys, and the value names differ. Both
+  components sit in `Absent="disallow"` features, so one can never be removed
+  while the other stays.
+
+Expressing the removal without any component is impossible: `Registry.Component_`
+is a non-nullable foreign key, so every removal row must belong to one.
+
+Current state of the whole fragment — every component is homogeneous, and no row
+uses `HKMU` (`Root=-1`), so ICE57's "can be either per-user or per-machine"
+variants cannot fire either:
+
+| Component | KeyPath | Data |
+| --- | --- | --- |
+| `ProvisionerBinaryComponent`, `ThumbnailHandlerDllComponent` | `<File>` | per-machine only |
+| `ThumbnailHandlerClsidComponent`, `ThumbnailHandlerShellexComponent`, `PdfContextMenu{Root,Open,Merge,Compress,Convert}Component` | HKLM registry | per-machine only |
+| `TemplateRegistryCleanupComponent` | HKCU registry | per-user only |
 
 ### The thumbnail-provider slot is held by succession, not ownership
 
@@ -264,7 +314,10 @@ Why it does not happen:
   later `RemoveExistingProducts` schedule would have been a real problem.) The
   other components are unaffected: `ProvisionerBinaryComponent` and
   `ThumbnailHandlerDllComponent` key off files, and the two thumbnail registry
-  components key off unchanged key paths, so their GUIDs are stable.
+  components key off unchanged key paths, so their GUIDs are stable. Moving the
+  HKCU cleanup row out of `ProvisionerBinaryComponent` into its own component
+  does not disturb that either — a `RemoveRegistryKey` row never participates in
+  the key path, so the auto-GUID is computed from the same `<File>` as before.
 - **The old registry nodes would otherwise survive.** v3.1.0's package has no
   `ForceDeleteOnUninstall` rows, so the upgrade's removal pass strips its
   registry *values* and leaves the `{{product_name}}` key skeletons. The new
