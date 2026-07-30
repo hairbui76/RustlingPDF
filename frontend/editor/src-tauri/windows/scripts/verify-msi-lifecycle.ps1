@@ -330,8 +330,13 @@ $SharedKeys = @(
     'SOFTWARE\Classes\CLSID',
     'SOFTWARE\Classes\.pdf',
     'SOFTWARE\Classes\.pdf\shellex',
-    'SOFTWARE\Classes\SystemFileAssociations\.pdf\shell'
+    'SOFTWARE\Classes\SystemFileAssociations\.pdf\shell',
+    # The non-advertised "Open with" registration writes a VALUE here. Seeding a
+    # foreign sibling value proves the uninstall removes only our own entry and
+    # not a co-registered application's.
+    'SOFTWARE\Classes\.pdf\OpenWithProgIds'
 )
+$PdfProgId = 'RustlingPDF.pdf'
 $script:SeededForeign = New-Object System.Collections.Generic.List[object]
 
 function Remove-RegistryValueIfPresent {
@@ -368,13 +373,28 @@ function Remove-SeededForeignSentinel {
     # Deepest first, so a key this script created is gone before its parent is
     # considered. Only ever removes the seeded value, unless the key itself did
     # not exist before this script created it.
-    foreach ($seed in @($script:SeededForeign) | Sort-Object { $_.SubKey.Length } -Descending) {
-        if ($seed.KeyPreExisted) {
-            Remove-RegistryValueIfPresent -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView `
-                -SubKey $seed.SubKey -Name $ForeignSentinelName
+    #
+    # .ToArray() rather than @(...): the array subexpression operator applied to a
+    # System.Collections.Generic.List throws "Argument types do not match" under
+    # Set-StrictMode -Version Latest, which is exactly what made dry-run 5 exit 1
+    # after every assertion had passed -- and, because this function is also
+    # called from the trap, left the seeded registry state behind. ToArray() also
+    # snapshots the list, so the Clear() below cannot disturb the enumeration.
+    foreach ($seed in $script:SeededForeign.ToArray() | Sort-Object { $_.SubKey.Length } -Descending) {
+        # Teardown is best effort and must never throw: it runs both on the happy
+        # path and from the trap, where a second exception would replace the real
+        # failure and abandon the remaining cleanup.
+        try {
+            if ($seed.KeyPreExisted) {
+                Remove-RegistryValueIfPresent -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView `
+                    -SubKey $seed.SubKey -Name $ForeignSentinelName
+            }
+            else {
+                Remove-RegistryTree -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey $seed.SubKey
+            }
         }
-        else {
-            Remove-RegistryTree -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey $seed.SubKey
+        catch {
+            Write-Host ("  [WARN] could not tear down seeded key HKLM\{0}: {1}" -f $seed.SubKey, $_.Exception.Message) -ForegroundColor Yellow
         }
     }
     $script:SeededForeign.Clear()
@@ -407,7 +427,13 @@ function Remove-SeededLegacyKey {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal helper of an inherently state-changing verification script.')]
     param()
     if ($script:SeededLegacyKey) {
-        Remove-RegistryTree -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey "$CascadeRoot\$LegacyVerbKey"
+        # Best effort, for the same reason as Remove-SeededForeignSentinel.
+        try {
+            Remove-RegistryTree -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView -SubKey "$CascadeRoot\$LegacyVerbKey"
+        }
+        catch {
+            Write-Host ("  [WARN] could not tear down the seeded legacy cascade key: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
+        }
         $script:SeededLegacyKey = $false
     }
 }
@@ -613,6 +639,18 @@ if ($legacyViews.Count -eq 0) { $script:SeededLegacyKey = $false }
 Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::CurrentUser) `
     -SubKey 'Software\RustlingPDF\RustlingPDF' -Label 'bundler template HKCU product key' | Out-Null
 
+# Non-advertised "Open with" registration (the replacement for the advertised
+# association that was destroying HKLM\SOFTWARE\Classes\.pdf).
+Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+    -SubKey "SOFTWARE\Classes\$PdfProgId\shell\open\command" -Label "ProgId open command ($PdfProgId)" | Out-Null
+$openWith = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView `
+    -SubKey 'SOFTWARE\Classes\.pdf\OpenWithProgIds'
+$openWithNames = @()
+if ($null -ne $openWith) { $openWithNames = @($openWith.GetValueNames()); $openWith.Dispose() }
+Add-Result -Phase 'install' -Name 'RustlingPDF is listed under .pdf\OpenWithProgIds' `
+    -Ok ($openWithNames -contains $PdfProgId) -Detail "values: [$($openWithNames -join ', ')]" `
+    -FailureDetail "without this value RustlingPDF cannot appear in Explorer's Open with list, and default_app.rs can never resolve it"
+
 # Provisioning file. The MSI is perMachine (Package/@InstallScope), so WiX sets
 # ALLUSERS=1 and only the CommonAppDataFolder branch of the write CustomAction
 # can fire; the per-user path is probed anyway so a future scope change cannot
@@ -679,6 +717,19 @@ Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive
     -SubKey "$CascadeRoot\$LegacyVerbKey" -Label "legacy cascade tree '$LegacyVerbKey'"
 Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::CurrentUser) `
     -SubKey 'Software\RustlingPDF\RustlingPDF' -Label 'bundler template HKCU product key'
+Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+    -SubKey "SOFTWARE\Classes\$PdfProgId" -Label "ProgId tree ($PdfProgId)"
+
+# Our OpenWithProgIds value must go; a co-registered application's must not. The
+# seeded foreign sentinel in that same key is asserted by the shared-key loop
+# below, so together these two cover both directions.
+$openWithAfter = Get-RegistryViewKey -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) -View $SeedView `
+    -SubKey 'SOFTWARE\Classes\.pdf\OpenWithProgIds'
+$openWithNamesAfter = @()
+if ($null -ne $openWithAfter) { $openWithNamesAfter = @($openWithAfter.GetValueNames()); $openWithAfter.Dispose() }
+Add-Result -Phase 'uninstall' -Name 'our .pdf\OpenWithProgIds value was removed' `
+    -Ok (-not ($openWithNamesAfter -contains $PdfProgId)) -Detail "remaining values: [$($openWithNamesAfter -join ', ')]" `
+    -FailureDetail 'the Open with registration outlived the product'
 
 # Shared parents that still hold another application's data must survive intact.
 # Asserting bare existence would be vacuous (MSI legitimately reclaims a key once

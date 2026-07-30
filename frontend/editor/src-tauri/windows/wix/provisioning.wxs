@@ -204,6 +204,56 @@
     </DirectoryRef>
 
     <!--
+      PDF "Open with" registration — the non-advertised replacement for the
+      bundle.fileAssociations entry that tauri.windows.conf.json now suppresses
+      on Windows.
+
+      The advertised association had to go because MSI treats the HKCR\.pdf key
+      as an artifact it generated for advertisement and reclaims it AS A KEY on
+      uninstall, destroying whatever else lives inside — measured in dry-run 4
+      and analysed in rust/contracts/desktop-windows-installer.md. This pair
+      restores the same user-visible capability with removal that is scoped to
+      exactly what we wrote:
+
+      - `RustlingPDF.pdf` is our own ProgId key. Nothing else can live under it,
+        so it is force-deleted whole.
+      - The shared `.pdf\OpenWithProgIds` key gets a single VALUE named after
+        that ProgId, which is the documented way to appear in Explorer's "Open
+        with" list without claiming the default handler. MSI removes just that
+        value on uninstall under ordinary Registry-table semantics; the key is
+        NOT marked ForceDeleteOnUninstall, because it is shared with every other
+        application registered for .pdf. If we were the only entry, MSI's
+        "remove a key once its last value or subkey goes" rule reclaims the now
+        empty OpenWithProgIds by itself, which is the correct outcome.
+
+      Not claiming the default handler costs nothing: since Windows 8 an
+      installer cannot set it anyway — UserChoice requires explicit user
+      consent — so advertisement never bought that either.
+
+      Both components are HKLM-only with an HKLM registry KeyPath, so neither
+      mixes per-user and per-machine data (ICE57).
+    -->
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="PdfProgIdComponent" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\RustlingPDF.pdf" ForceDeleteOnUninstall="yes">
+          <RegistryValue Type="string" Value="PDF Document" KeyPath="yes" />
+          <RegistryValue Type="string" Name="FriendlyTypeName" Value="PDF Document" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\RustlingPDF.pdf\DefaultIcon">
+          <RegistryValue Type="string" Value="&quot;[!Path]&quot;,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\RustlingPDF.pdf\shell\open\command">
+          <RegistryValue Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
+      <Component Id="PdfOpenWithProgIdComponent" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\.pdf\OpenWithProgIds">
+          <RegistryValue Type="string" Name="RustlingPDF.pdf" Value="" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+
+    <!--
       Explorer cascade context menu for .pdf files (registry-only SubCommands
       pattern, Windows 7+). The parent verb declares MUIVerb + an EMPTY
       SubCommands value, which tells the shell to enumerate the sub-verbs from
@@ -317,6 +367,8 @@
       <ComponentRef Id="TemplateRegistryCleanupComponent" />
       <ComponentRef Id="ThumbnailHandlerClsidComponent" />
       <ComponentRef Id="ThumbnailHandlerShellexComponent" />
+      <ComponentRef Id="PdfProgIdComponent" />
+      <ComponentRef Id="PdfOpenWithProgIdComponent" />
       <ComponentRef Id="PdfContextMenuRootComponent" />
       <ComponentRef Id="PdfContextMenuOpenComponent" />
       <ComponentRef Id="PdfContextMenuMergeComponent" />

@@ -122,6 +122,8 @@ still naming a DLL that no longer existed):
 | `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF` **and its whole subtree** (`shell\01_open…04_convert\command`) | `ForceDeleteOnUninstall="yes"` on the cascade root, and again on each `NN_*` verb key so no component depends on another's removal |
 | `HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_name}}` — the v3.1.0 cascade tree — **removed at install time**, not uninstall | `<RemoveRegistryKey Action="removeOnInstall">`; see [Upgrading from v3.1.0](#upgrading-from-v310) |
 | `HKCU\Software\RustlingPDF\RustlingPDF` (the bundler template's own key, which the template only ever empties) | `ForceDeleteOnUninstall="yes"` on the dedicated per-user `TemplateRegistryCleanupComponent` — see [Per-user data must live in its own component](#per-user-data-must-live-in-its-own-component-ice57) |
+| `HKLM\SOFTWARE\Classes\RustlingPDF.pdf` — our own PDF ProgId, whole subtree | `ForceDeleteOnUninstall="yes"` on `PdfProgIdComponent` |
+| The `RustlingPDF.pdf` **value** under the shared `HKLM\SOFTWARE\Classes\.pdf\OpenWithProgIds` | ordinary Registry-table value removal; the key is never force-deleted |
 | `%PROGRAMDATA%\Stirling-PDF\stirling-provisioning.json` (and the `%APPDATA%` path if the install scope ever becomes per-user) | deferred `RemoveProvisioningFile*` CustomActions |
 
 `ForceDeleteOnUninstall="yes"` compiles (WiX 3.14.1 `Compiler.cs`) to a Registry
@@ -155,11 +157,22 @@ that is a dummy value with `+` in the Name column, which RustlingPDF declines �
 it would create real litter to stop MSI from removing litter. That rule alone
 explained the second dry-run, where every unseeded shared key vanished.
 
-> ### ⚠ CONFIRMED DEFECT — uninstalling destroyed `HKLM\SOFTWARE\Classes\.pdf`
+> ### ✅ FIXED (was: uninstalling destroyed `HKLM\SOFTWARE\Classes\.pdf`)
 >
-> **Status: measured and reproducible. Step A of the fix is authored below and
-> awaiting its dry-run; the record of the mechanism is kept because it dictates
-> what may and may not be changed here in future.**
+> **Status: fixed and measured in dry-run 5. The record of the mechanism is kept
+> because it dictates what may and may not be changed here in future — in
+> particular, do not reintroduce `bundle.fileAssociations` for the Windows
+> target.**
+>
+> **The proof, by removal.** With the advertised association suppressed, `.pdf`
+> holds **2 values / 3 subkeys at all three checkpoints** — seed, post-install,
+> post-uninstall — where dry-run 4 went 2/3 → 3/4 across the install and then
+> lost the key entirely. The install no longer touches the key at all, and the
+> diagnostic dump reports `HKLM\SOFTWARE\Classes\RustlingPDF.pdf: ABSENT`
+> where the advertised ProgId used to be. All four seeded shared keys survive
+> with their foreign content intact, and every other assertion in the run passes.
+> That converts the mechanism below from inferred-by-elimination to established:
+> removing the suspect removed the symptom.
 >
 > Uninstalling RustlingPDF removes the `HKLM\SOFTWARE\Classes\.pdf` key and
 > everything under it, **including registry data belonging to other
@@ -266,12 +279,47 @@ explained the second dry-run, where every unseeded shared key vanished.
 >    cannot amend. Only fresh installs of a fixed build, and uninstalls of them,
 >    are clean.
 >
-> #### What the dry-run for A must show
+> #### Measured outcome of A (dry-run 5)
 >
-> `.pdf` and `.pdf\shellex` **survive with their foreign sentinels intact**, and
-> everything that passed in dry-run 4 still passes. The four-key seed assertions
-> in `verify-msi-lifecycle.ps1` are deliberately unchanged — they are now the
-> regression test for this fix and must start failing again if it is reverted.
+> `.pdf` and `.pdf\shellex` survive with their foreign sentinels intact, as do
+> `CLSID` and `SystemFileAssociations\.pdf\shell`. Everything that passed in
+> dry-run 4 still passes. The four-key seed assertions in
+> `verify-msi-lifecycle.ps1` are the standing regression test for this fix and
+> must start failing again if the override is ever removed.
+>
+> #### Step C — the non-advertised replacement
+>
+> A alone left `commands/default_app.rs` matching a ProgId that no longer
+> existed, so "set as default PDF app" could never succeed. C restores the
+> capability with removal scoped to exactly what we write, and is authored in
+> `provisioning.wxs`:
+>
+> - `PdfProgIdComponent` — `HKLM\SOFTWARE\Classes\RustlingPDF.pdf` with its
+>   default value, `FriendlyTypeName`, `DefaultIcon` and `shell\open\command`.
+>   The ProgId key is ours outright, so it is force-deleted whole.
+> - `PdfOpenWithProgIdComponent` — a single **value** named `RustlingPDF.pdf`
+>   under the shared `HKLM\SOFTWARE\Classes\.pdf\OpenWithProgIds`. The key is
+>   deliberately **not** marked `ForceDeleteOnUninstall`: MSI removes just our
+>   value under ordinary Registry-table semantics, and reclaims the key itself
+>   only if we were the last entry in it.
+>
+> This is the documented way to appear in Explorer's "Open with" list without
+> claiming the default handler — which costs nothing, because since Windows 8 an
+> installer cannot claim it anyway (`UserChoice` requires user consent), so the
+> advertised association never delivered that either. Both components are
+> HKLM-only with an HKLM registry KeyPath, so neither trips ICE57.
+>
+> Not included, and beyond parity with what was removed: a
+> `HKLM\SOFTWARE\RegisteredApplications` + `Capabilities` registration, which is
+> what surfaces an app in the Settings "Default apps" by-application view. The
+> advertised association did not provide it either, so its absence is not a
+> regression.
+>
+> `verify-msi-lifecycle.ps1` covers C with the same seed-then-assert discipline:
+> `.pdf\OpenWithProgIds` joins the seeded shared keys (so a co-registered
+> application's sibling value is proven to survive), the install asserts our
+> ProgId `shell\open\command` and our `OpenWithProgIds` value both appear, and
+> the uninstall asserts the ProgId tree and our value are gone.
 
 The manufacturer key `HKCU\Software\RustlingPDF` is left alone for the same
 reason as the shared parents above, and is not affected by any of this.
@@ -406,7 +454,7 @@ Supporting details:
 | WebView2 Runtime | Shared, machine-wide, refcounted, has its own ARP entry. Removing it would break every other WebView2 app. |
 | `%TEMP%\MicrosoftEdgeWebview2Setup.exe` | Downloaded by the bundler template's bootstrapper CustomAction into TEMP; not MSI-tracked. Windows/Storage Sense reclaims it. |
 | `…\SystemFileAssociations\.pdf\shell`, `HKLM\SOFTWARE\Classes\CLSID` and `HKCU\Software\RustlingPDF` **when they still hold anything** | Shared nodes we write into but do not own; verified to survive with foreign content intact. If our node was the last thing in them, MSI reclaims the emptied key itself. |
-| `HKLM\SOFTWARE\Classes\.pdf` and `.pdf\shellex` | **DESTROYED — confirmed defect, see the warning above.** Uninstalling removes these keys and any other application's data inside them. This contract cannot promise otherwise until the file-association mechanism is changed. |
+| `HKLM\SOFTWARE\Classes\.pdf`, `.pdf\shellex` and `.pdf\OpenWithProgIds` | Preserved with foreign content intact — measured in dry-run 5 after the advertised association was removed. Our own `OpenWithProgIds` **value** goes; a co-registered application's does not. |
 | `HKCU\…\Explorer\FileExts\.pdf\OpenWithList` / `UserChoice` | Written by Windows when the *user* picks a default app. No installer owns or removes these. |
 
 The bundler template also emits `<RemoveFolder Id="DesktopFolder"
