@@ -1,9 +1,8 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-    <img src="docs/assets/logo-light.svg" alt="RustlingPDF" width="440">
-  </picture>
+  <img src="docs/assets/logo.png" alt="RustlingPDF" width="140">
 </p>
+
+<h1 align="center">RustlingPDF</h1>
 
 <p align="center">
   <a href="https://github.com/hairbui76/RustlingPDF/actions/workflows/backend.yml"><img alt="Backend CI" src="https://github.com/hairbui76/RustlingPDF/actions/workflows/backend.yml/badge.svg?branch=main"></a>
