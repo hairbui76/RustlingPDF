@@ -40,19 +40,45 @@ use crate::runtime_dependencies::discover_dependencies;
 // `GET /api/v1/config/endpoints-availability` with no query from these keys, and the SPA's tool
 // registry looks its own tool keys up in that map, treating a key it cannot find as enabled
 // (`core/hooks/useEndpointConfig.ts`). So the tool-registry spellings — `compare`, `view-pdf`,
-// `multi-tool`, `text-editor-pdf`, the `dev-*-docs` entries — must stay: dropping one would leave
-// the tool advertised as available in a UI whose group an administrator has disabled. Adding the
-// derived key next to it is what actually stops the route answering.
+// `multi-tool`, `text-editor-pdf`, `overlay-pdf`, `form-fill`, the `dev-*-docs` entries — must
+// stay: dropping one would leave the tool advertised as available in a UI whose group an
+// administrator has disabled. Adding the derived key next to it is what actually stops the route
+// answering. `every_spa_tool_registry_key_is_present_in_the_group_table` reads the registry and
+// holds the two spellings together.
 //
 // An endpoint that appears in no group at all cannot be disabled by any group setting and the
-// administrator gets no error, so a route belongs here unless it is infrastructure the UI needs in
-// order to work at all (`/api/v1/info/*`, `/api/v1/config/*`, `/api/v1/ui-data/*`,
-// `/api/v1/settings/*`, job and file plumbing, and the mobile-scanner session routes).
+// administrator gets no error, so a route belongs here unless one of two things is true:
+//
+//   1. It is infrastructure the UI needs in order to work at all — `/api/v1/info/*`,
+//      `/api/v1/config/*` (including the availability map itself), `/api/v1/ui-data/*`,
+//      `/api/v1/settings/*`, job and file plumbing, and the mobile-scanner session routes.
+//      Gating those would let an administrator brick the UI rather than disable a tool.
+//   2. It already has its own dedicated administrator switch that is strictly stronger than group
+//      gating: `send-email` exists only when `mail.enabled` yields an SMTP service
+//      (`processing_routes_with_mail` does not register the route otherwise), and every
+//      `/api/v1/ai/*` proxy route answers `503` unless `AIENGINE_ENABLED` is set
+//      (`ai_proxy::proxy_request`). Adding them to a functional group would surprise an
+//      administrator who disabled that group to switch off PDF tools.
+//
 // `every_processing_route_is_reachable_from_some_functional_group` pins that split.
+//
+// Two sharp edges worth knowing before editing:
+//
+//   - Keys are not one-to-one with routes. `/api/v1/ai/health` and `/api/v1/info/health` both
+//     derive `health`, and every `/api/v1/ai/tools/*` route derives `tools`, so gating one of a
+//     colliding pair would silently gate the other.
+//   - `is_group_enabled` reports a functional group enabled only when *every* member key is
+//     enabled, so adding a key here also means a single `endpoints.toRemove` entry can flip
+//     `group-enabled?group=<name>` to false for the whole group.
 const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     (
         "PageOps",
-        "remove-pages merge-pdfs split-pages rearrange-pages rotate-pdf multi-page-layout booklet-imposition scale-pages crop pdf-to-single-page auto-split-pdf split-by-size-or-count overlay-pdfs split-pdf-by-sections split-pdf-by-chapters add-page-numbers extract-pages",
+        concat!(
+            "remove-pages merge-pdfs split-pages rearrange-pages rotate-pdf multi-page-layout ",
+            "booklet-imposition scale-pages crop pdf-to-single-page auto-split-pdf ",
+            "split-by-size-or-count overlay-pdfs overlay-pdf split-pdf-by-sections ",
+            "split-pdf-by-chapters add-page-numbers extract-pages split-for-poster-print",
+        ),
     ),
     (
         "Convert",
@@ -80,12 +106,25 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
             "text-editor-pdf add-image compare view-pdf multi-tool fields modify-fields ",
             "delete-fields fill ",
             // Text editor: `text-editor-pdf` above is the SPA tool-registry spelling; these two
-            // are the keys the registered routes actually derive.
+            // are the keys the registered routes actually derive. Deliberately here rather than
+            // in `Convert`: the routes live under `/api/v1/convert/` but they are the text
+            // editor's own machinery, not a conversion a user picks, and upstream groups the
+            // tool under `Other` too.
             "pdf-to-text-editor text-editor-to-pdf edit-text remove-image-pdf ",
             // Attachment family, alongside its `add-attachments` sibling.
             "extract-attachments list-attachments delete-attachment rename-attachment ",
-            // Form family, alongside its `fields`/`modify-fields`/`delete-fields`/`fill` siblings.
-            "extract-csv extract-xlsx fields-with-coordinates ",
+            // Form family, alongside its `fields`/`modify-fields`/`delete-fields`/`fill`
+            // siblings. `form-fill` is the SPA tool-registry spelling of `fill`.
+            "extract-csv extract-xlsx fields-with-coordinates form-fill ",
+            // Bookmark extraction beside `edit-table-of-contents`, and comment insertion beside
+            // `remove-annotations`.
+            "extract-bookmarks add-comments ",
+            // `/api/v1/filter/*`: upstream leaves all six out of its group map but names them in
+            // testing/allEndpointsRemovedSettings.yml's `toRemove` set, so it treats them as
+            // ordinary disableable endpoints; they also parse an uploaded PDF, the same argument
+            // that places the analysis routes below.
+            "filter-contains-image filter-contains-text filter-file-size filter-page-count ",
+            "filter-page-rotation filter-page-size ",
             // `/api/v1/analysis/*` introspection: the same parse-a-user-PDF-and-report surface as
             // `get-info-on-pdf` above, which this group already covers.
             "annotation-info basic-info document-properties font-info form-fields page-count ",
@@ -94,7 +133,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ),
     (
         "Advance",
-        "compress-pdf decompress-pdf extract-image-scans repair auto-rename scanner-effect overlay-pdfs adjust-contrast",
+        "compress-pdf decompress-pdf extract-image-scans repair auto-rename scanner-effect overlay-pdfs overlay-pdf adjust-contrast",
     ),
     ("Automation", "handleData automate pipeline"),
     ("DeveloperTools", "show-javascript"),
@@ -2071,6 +2110,8 @@ mod tests {
     use serde_json::json;
     use tempfile::tempdir;
 
+    use std::path::Path;
+
     use super::{
         ENDPOINT_ALTERNATIVES, ENDPOINT_GROUPS, FUNCTIONAL_GROUPS, RuntimeConfig,
         endpoint_key_for_uri, is_tool_group, merge_json, parse_boolean, split_strings, yaml_bool,
@@ -2570,6 +2611,72 @@ mod tests {
     }
 
     #[test]
+    fn disabling_pageops_or_advance_reports_the_spa_overlay_key_disabled()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Spelling only the derived `overlay-pdfs` fixes the 403 but not the UI. The SPA tool
+        // registry declares the overlay tool as `overlay-pdf`, and `useEndpointConfig.ts` reads
+        // the *no-query* endpoints-availability map and treats a key missing from it as enabled —
+        // so with only the derived key in the table the endpoint correctly refuses requests while
+        // the tool stays advertised in the disabled group's UI. Assert on the map the UI reads,
+        // not merely on the route.
+        for group in ["PageOps", "Advance"] {
+            let directory = tempdir()?;
+            let settings = directory.path().join("settings.yml");
+            fs::write(
+                &settings,
+                format!("endpoints:\n  groupsToRemove: [{group}]\n"),
+            )?;
+            let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+            let availability = config.endpoint_availability(&[]);
+            let advertised = availability.get("overlay-pdf").unwrap_or_else(|| {
+                panic!(
+                    "the no-query availability map must carry the SPA registry key `overlay-pdf`; \
+                     without it, disabling {group} leaves the overlay tool advertised as enabled"
+                )
+            });
+            assert!(
+                !advertised.enabled,
+                "disabling {group} must report `overlay-pdf` disabled to the UI"
+            );
+            assert_eq!(advertised.reason, Some("CONFIG"));
+            // The registered route stays gated by its own derived key.
+            assert!(!config.is_endpoint_enabled_for_uri("/api/v1/general/overlay-pdfs"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn every_spa_tool_registry_key_is_present_in_the_group_table()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // A registry key absent from ENDPOINT_GROUPS never appears in the availability map, and
+        // `useEndpointConfig.ts` reads a missing key as enabled — so the tool stays advertised
+        // however the administrator has configured groups. Two instances of that were found by
+        // hand (`overlay-pdf`, `form-fill`); this closes the class.
+        let registry_keys = spa_tool_registry_keys()?;
+        assert!(
+            registry_keys.len() > 40,
+            "found only {} registry keys; the tool-registry scan likely stopped matching",
+            registry_keys.len()
+        );
+        assert!(registry_keys.contains("overlay-pdf"));
+        assert!(registry_keys.contains("form-fill"));
+
+        let group_keys = group_keys();
+        let missing: Vec<&str> = registry_keys
+            .iter()
+            .map(String::as_str)
+            .filter(|key| !group_keys.contains(key))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "SPA tool-registry key(s) are absent from ENDPOINT_GROUPS, so the availability map \
+             never mentions them and the UI advertises those tools as enabled whatever the \
+             administrator disabled: {missing:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn endpoint_keys_follow_the_java_uri_mapping() {
         assert_eq!(
             endpoint_key_for_uri("/api/v1/general/remove-pages"),
@@ -2582,31 +2689,131 @@ mod tests {
         assert_eq!(endpoint_key_for_uri("/api/v1/general"), None);
     }
 
-    /// Every endpoint key `endpoint_key_for_uri` derives from a route constant declared in
-    /// lib.rs, mapped to the registered paths that yield it.
+    /// Every endpoint key `endpoint_key_for_uri` derives from a route this crate registers,
+    /// mapped to the registered paths that yield it.
     ///
-    /// Parses `const <NAME>_PATH: &str = "/api/v1/...";` straight out of lib.rs's own source
-    /// (single-line and line-wrapped alike) rather than a hand-maintained duplicate list, so the
-    /// gating tests track routes exactly as they are registered.
+    /// Walks the crate's own `src/` tree at test time rather than a hand-maintained duplicate
+    /// list, so a route added in any module is covered, not only the ones in lib.rs — `pipeline`,
+    /// `smtp_mail`, `classification`, and the AI proxies all register their own. Each file is cut
+    /// at its first `#[cfg(test)]`, which is always its trailing test module, so fixture routers
+    /// such as lib.rs's `/api/v1/misc/echo` are not mistaken for shipped routes. Only a path that
+    /// reaches a `.route(...)` call counts: `classification.rs` also declares
+    /// `/api/v1/documents/classify`, but that is the *engine* path it proxies to, not a route
+    /// this service serves.
     fn registered_routes() -> Result<BTreeMap<String, BTreeSet<String>>, Box<dyn std::error::Error>>
     {
-        let lib_source = include_str!("lib.rs");
-        let path_const =
-            Regex::new(r#"const\s+[A-Za-z0-9_]+_PATH\s*:\s*&str\s*=\s*"([^"]*)"\s*;"#)?;
+        let string_const = Regex::new(r#"const\s+([A-Za-z0-9_]+)\s*:\s*&str\s*=\s*"([^"]*)"\s*;"#)?;
+        let route_by_name = Regex::new(r"\.route\(\s*([A-Za-z0-9_]+)\s*,")?;
+        let route_by_literal = Regex::new(r#"\.route\(\s*"([^"]*)"\s*,"#)?;
+
+        let mut constants: BTreeMap<String, String> = BTreeMap::new();
+        let mut registered_names: BTreeSet<String> = BTreeSet::new();
+        let mut registered_paths: BTreeSet<String> = BTreeSet::new();
+        let mut scanned = 0usize;
+        let mut pending = vec![Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+        while let Some(directory) = pending.pop() {
+            for entry in fs::read_dir(&directory)? {
+                let path = entry?.path();
+                if path.is_dir() {
+                    pending.push(path);
+                    continue;
+                }
+                if path.extension().is_none_or(|extension| extension != "rs") {
+                    continue;
+                }
+                let source = fs::read_to_string(&path)?;
+                let shipped = source.split("#[cfg(test)]").next().unwrap_or_default();
+                scanned += 1;
+                for capture in string_const.captures_iter(shipped) {
+                    constants.insert(capture[1].to_owned(), capture[2].to_owned());
+                }
+                for capture in route_by_name.captures_iter(shipped) {
+                    registered_names.insert(capture[1].to_owned());
+                }
+                for capture in route_by_literal.captures_iter(shipped) {
+                    registered_paths.insert(capture[1].to_owned());
+                }
+            }
+        }
+        assert!(
+            scanned > 50,
+            "scanned only {scanned} source files; the src walk is not reaching the crate"
+        );
+
+        for name in &registered_names {
+            let path = constants.get(name).ok_or_else(|| {
+                format!("`.route({name}, ...)` names a constant this scan could not resolve")
+            })?;
+            registered_paths.insert(path.clone());
+        }
         let mut routes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-        for capture in path_const.captures_iter(lib_source) {
-            let path = &capture[1];
-            if let Some(key) = endpoint_key_for_uri(path) {
-                routes.entry(key).or_default().insert(path.to_owned());
+        for path in registered_paths {
+            if let Some(key) = endpoint_key_for_uri(&path) {
+                routes.entry(key).or_default().insert(path);
             }
         }
         assert!(
             routes.len() > 100,
-            "found only {} route keys; the const-scanning regex likely stopped matching \
-             lib.rs's current formatting",
+            "found only {} route keys; the scanning regexes likely stopped matching the crate's \
+             current formatting",
             routes.len()
         );
         Ok(routes)
+    }
+
+    /// Every endpoint key the SPA's tool registry asks the availability map about.
+    ///
+    /// Read from the frontend sources at test time, because the two trees have to agree and
+    /// nothing else makes them: `useEndpointConfig.ts` fetches the no-query
+    /// `endpoints-availability` map and treats a key it cannot find there as enabled, so a
+    /// registry spelling absent from `ENDPOINT_GROUPS` leaves its tool advertised no matter what
+    /// the administrator disabled. A checkout without `frontend/` fails this loudly rather than
+    /// skipping: a silent skip would be the same blind spot with extra steps.
+    fn spa_tool_registry_keys() -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
+        let frontend = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../frontend/editor/src");
+        let registry_path = frontend.join("core/data/useTranslatedToolRegistry.tsx");
+        let registry = fs::read_to_string(&registry_path)
+            .map_err(|error| format!("cannot read {}: {error}", registry_path.display()))?;
+
+        let quoted = Regex::new(r#""([^"]*)""#)?;
+        let inline_list = Regex::new(r"endpoints:\s*\[([^\]]*)\]")?;
+        let mut keys = BTreeSet::new();
+        let mut inline_entries = 0usize;
+        for capture in inline_list.captures_iter(&registry) {
+            inline_entries += 1;
+            for key in quoted.captures_iter(&capture[1]) {
+                keys.insert(key[1].to_owned());
+            }
+        }
+
+        // One registry entry builds its list in code rather than spelling it inline
+        // (`endpoints: Array.from(new Set(Object.values(SPLIT_ENDPOINT_NAMES)))`), so resolve
+        // that constant too. Pinning the count means a second computed entry cannot slip past
+        // this scan unnoticed.
+        let declared_entries = registry.matches("endpoints:").count();
+        assert_eq!(
+            declared_entries,
+            inline_entries + 1,
+            "the tool registry declares {declared_entries} endpoint lists but only \
+             {inline_entries} are inline arrays; a computed list other than SPLIT_ENDPOINT_NAMES \
+             would be invisible to this scan"
+        );
+        let split_constants_path = frontend.join("core/constants/splitConstants.ts");
+        let split_constants = fs::read_to_string(&split_constants_path)
+            .map_err(|error| format!("cannot read {}: {error}", split_constants_path.display()))?;
+        let split_block = split_constants
+            .split_once("export const ENDPOINTS = {")
+            .and_then(|(_, rest)| rest.split_once('}'))
+            .ok_or("splitConstants.ts no longer declares `export const ENDPOINTS = { .. }`")?
+            .0;
+        for key in quoted.captures_iter(split_block) {
+            keys.insert(key[1].to_owned());
+        }
+        assert!(
+            keys.contains("split-for-poster-print"),
+            "SPLIT_ENDPOINT_NAMES did not resolve; its declared members are missing from the scan"
+        );
+        Ok(keys)
     }
 
     fn group_keys() -> BTreeSet<&'static str> {
@@ -2787,8 +2994,9 @@ mod tests {
         // Infrastructure the SPA needs in order to work at all. An administrator who could gate
         // these would brick the UI rather than disable a tool, so they are deliberately in no
         // group: config/settings lookups (including the availability map itself), the info
-        // metrics, the UI-data payloads, job and file plumbing, the mobile-scanner session
-        // handshake, and the AI tool-descriptor route, which is gated by AIENGINE_ENABLED.
+        // metrics, the UI-data payloads, job and file plumbing, and the mobile-scanner session
+        // handshake. `health` covers `/api/v1/info/health` and `/api/v1/ai/health` alike, since
+        // both derive the same key.
         const INFRASTRUCTURE_ROUTES: &[&str] = &[
             "app-config",
             "create-session",
@@ -2809,27 +3017,19 @@ mod tests {
             "requests",
             "session",
             "status",
-            "tools",
             "upload",
             "uptime",
             "validate-session",
             "wau",
         ];
-        // Processing routes that are still in no group, so no `groupsToRemove` value can disable
-        // them and an administrator gets no error saying so. Listed to keep the remaining gap
-        // visible instead of silent — which group each belongs in is a maintainer decision, not
-        // something to guess here. Shrinking this list is the fix; growing it needs a reason.
-        const UNGROUPED_PROCESSING_ROUTES: &[&str] = &[
-            "add-comments",
-            "extract-bookmarks",
-            "filter-contains-image",
-            "filter-contains-text",
-            "filter-file-size",
-            "filter-page-count",
-            "filter-page-rotation",
-            "filter-page-size",
-            "split-for-poster-print",
-        ];
+        // Routes whose own administrator switch is strictly stronger than group gating, so a
+        // group entry would add nothing and would surprise whoever disabled that group to switch
+        // off PDF tools. `send-email` is not registered at all unless `mail.enabled` yields an
+        // SMTP service (`processing_routes_with_mail`); the AI proxies — `orchestrate`, `pdf`,
+        // and every `/api/v1/ai/tools/*` route, which all derive `tools` — answer `503` unless
+        // AIENGINE_ENABLED is set (`ai_proxy::proxy_request`).
+        const ROUTES_WITH_THEIR_OWN_SWITCH: &[&str] =
+            &["orchestrate", "pdf", "send-email", "tools"];
 
         let routes = registered_routes()?;
         let group_keys = group_keys();
@@ -2840,12 +3040,12 @@ mod tests {
             .collect();
         let expected: BTreeSet<&str> = INFRASTRUCTURE_ROUTES
             .iter()
-            .chain(UNGROUPED_PROCESSING_ROUTES)
+            .chain(ROUTES_WITH_THEIR_OWN_SWITCH)
             .copied()
             .collect();
         assert_eq!(
             expected.len(),
-            INFRASTRUCTURE_ROUTES.len() + UNGROUPED_PROCESSING_ROUTES.len(),
+            INFRASTRUCTURE_ROUTES.len() + ROUTES_WITH_THEIR_OWN_SWITCH.len(),
             "the two lists must stay disjoint and duplicate-free"
         );
         for key in &expected {
