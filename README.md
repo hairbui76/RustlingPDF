@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="RustlingPDF" width="140">
+  <img src="docs/assets/logo.png" alt="RustlingPDF" width="260">
 </p>
-
-<h1 align="center">RustlingPDF</h1>
 
 <p align="center">
   <a href="https://github.com/hairbui76/RustlingPDF/actions/workflows/backend.yml"><img alt="Backend CI" src="https://github.com/hairbui76/RustlingPDF/actions/workflows/backend.yml/badge.svg?branch=main"></a>
