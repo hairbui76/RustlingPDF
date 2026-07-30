@@ -41,6 +41,44 @@ registered tool-group alternative is available. Legacy Java-only group names
 `group-enabled` returns `false` and they cannot make a Rust endpoint available
 or unavailable.
 
+A group's members are the endpoint keys `endpoint_key_for_uri` derives from the
+registered routes (`/api/v1/<area>/<endpoint>` yields `<endpoint>`;
+`/api/v1/convert/<a>/<b>` yields `<a>-to-<b>`), not the tool's display name. The
+group table also carries the SPA tool-registry spellings — `compare`,
+`view-pdf`, `multi-tool`, `text-editor-pdf`, the `dev-*-docs` entries — which
+match no route and gate nothing, but do appear in the `endpoints-availability`
+map the UI reads to decide whether to advertise a tool. Both spellings therefore
+coexist where they differ.
+
+RustlingPDF diverges from Java's `EndpointConfiguration` by grouping endpoints
+upstream leaves in no group, because an endpoint in no group cannot be disabled
+by any group setting and the administrator gets no error saying so:
+`redact-execute` under `Security` beside `redact` and `auto-redact`;
+`pdf-to-text-editor` and `text-editor-to-pdf` (the derived keys upstream's
+`text-editor-pdf` entry never matched), `edit-text`, `remove-image-pdf`, the
+`extract-attachments`/`list-attachments`/`delete-attachment`/`rename-attachment`
+family, the `extract-csv`/`extract-xlsx`/`fields-with-coordinates` form family,
+and the eight `/api/v1/analysis/*` introspection routes under `Other`;
+`pdf-to-xlsx` and `svg-to-pdf` under `Convert`; `decompress-pdf` under
+`Advance`. The `/api/v1/analysis/*` routes are grouped with `get-info-on-pdf`
+because they are the same surface — parse an uploaded PDF, report what is inside
+it — and the SPA never calls them, so gating them cannot brick the UI.
+
+Infrastructure stays ungated deliberately: `/api/v1/info/*`, `/api/v1/config/*`
+(including the availability map itself), `/api/v1/ui-data/*`,
+`/api/v1/settings/*`, the job and file plumbing, the mobile-scanner session
+routes, and the AI tool-descriptor route, which `AIENGINE_ENABLED` governs
+instead. Gating any of those would let an administrator brick the UI rather than
+disable a tool. Nine processing routes are still in no group and so cannot be
+disabled by any `groupsToRemove` value — `add-comments`, `extract-bookmarks`,
+the six `/api/v1/filter/*` routes, and `split-for-poster-print`;
+`every_processing_route_is_reachable_from_some_functional_group` pins that list
+so it stays visible.
+
+Adding a key to a group only makes an endpoint *disableable*. A default
+`settings.yml` disables nothing, and `url-to-pdf` remains the one route that
+ships off, by `system.enableUrlToPDF` rather than by any group.
+
 `system.enableUrlToPDF` also controls both the `url-to-pdf` availability result
 and the global API availability interceptor. It remains disabled by default, so
 the normal router returns `403 This endpoint is disabled` before a controller

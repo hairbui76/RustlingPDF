@@ -4,6 +4,11 @@
 `POST /api/v1/security/redact-execute` accept their existing `multipart/form-data` request shapes
 and return `<source>_redacted.pdf` as `application/pdf`.
 
+All three routes belong to the `Security` endpoint group, so
+`endpoints.groupsToRemove: [Security]` disables the whole family. Upstream leaves
+`redact-execute` in no group, which let it keep answering after an administrator disabled
+`Security`; see [`runtime-config.md`](runtime-config.md).
+
 ## Manual request: `redact`
 
 - `fileInput`: required PDF upload.

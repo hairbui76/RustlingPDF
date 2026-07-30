@@ -34,6 +34,21 @@ use crate::runtime_dependencies::discover_dependencies;
 // derived key instead: an administrator who disables a group expects every endpoint in it to stop
 // answering. A key here that no route yields is inert, which is why the entries mirroring
 // upstream-only tools are harmless to keep.
+//
+// The table serves a second consumer, which is why a display-name key is kept *beside* the derived
+// key rather than replaced by it. `endpoint_availability` answers
+// `GET /api/v1/config/endpoints-availability` with no query from these keys, and the SPA's tool
+// registry looks its own tool keys up in that map, treating a key it cannot find as enabled
+// (`core/hooks/useEndpointConfig.ts`). So the tool-registry spellings — `compare`, `view-pdf`,
+// `multi-tool`, `text-editor-pdf`, the `dev-*-docs` entries — must stay: dropping one would leave
+// the tool advertised as available in a UI whose group an administrator has disabled. Adding the
+// derived key next to it is what actually stops the route answering.
+//
+// An endpoint that appears in no group at all cannot be disabled by any group setting and the
+// administrator gets no error, so a route belongs here unless it is infrastructure the UI needs in
+// order to work at all (`/api/v1/info/*`, `/api/v1/config/*`, `/api/v1/ui-data/*`,
+// `/api/v1/settings/*`, job and file plumbing, and the mobile-scanner session routes).
+// `every_processing_route_is_reachable_from_some_functional_group` pins that split.
 const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     (
         "PageOps",
@@ -41,19 +56,45 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ),
     (
         "Convert",
-        "pdf-to-img img-to-pdf pdf-to-pdfa file-to-pdf pdf-to-word pdf-to-presentation pdf-to-text pdf-to-html pdf-to-xml html-to-pdf url-to-pdf markdown-to-pdf pdf-to-csv pdf-to-markdown eml-to-pdf pdf-to-epub ebook-to-pdf pdf-to-vector vector-to-pdf pdf-to-video cbz-to-pdf cbr-to-pdf pdf-to-cbz pdf-to-cbr pdf-to-json json-to-pdf pdf-to-rtf",
+        concat!(
+            "pdf-to-img img-to-pdf pdf-to-pdfa file-to-pdf pdf-to-word pdf-to-presentation ",
+            "pdf-to-text pdf-to-html pdf-to-xml html-to-pdf url-to-pdf markdown-to-pdf ",
+            "pdf-to-csv pdf-to-xlsx pdf-to-markdown eml-to-pdf pdf-to-epub ebook-to-pdf ",
+            "pdf-to-vector vector-to-pdf svg-to-pdf pdf-to-video cbz-to-pdf cbr-to-pdf ",
+            "pdf-to-cbz pdf-to-cbr pdf-to-json json-to-pdf pdf-to-rtf",
+        ),
     ),
     (
         "Security",
-        "add-password remove-password change-permissions add-watermark cert-sign remove-cert-sign sanitize-pdf timestamp-pdf auto-redact validate-signature add-stamp unlock-pdf-forms redact verify-pdf sign",
+        concat!(
+            "add-password remove-password change-permissions add-watermark cert-sign ",
+            "remove-cert-sign sanitize-pdf timestamp-pdf auto-redact validate-signature ",
+            "add-stamp unlock-pdf-forms redact redact-execute verify-pdf sign",
+        ),
     ),
     (
         "Other",
-        "ocr-pdf extract-images update-metadata flatten remove-blanks remove-annotations get-info-on-pdf add-attachments replace-invert-pdf edit-table-of-contents text-editor-pdf add-image compare view-pdf multi-tool fields modify-fields delete-fields fill",
+        concat!(
+            "ocr-pdf extract-images update-metadata flatten remove-blanks remove-annotations ",
+            "get-info-on-pdf add-attachments replace-invert-pdf edit-table-of-contents ",
+            "text-editor-pdf add-image compare view-pdf multi-tool fields modify-fields ",
+            "delete-fields fill ",
+            // Text editor: `text-editor-pdf` above is the SPA tool-registry spelling; these two
+            // are the keys the registered routes actually derive.
+            "pdf-to-text-editor text-editor-to-pdf edit-text remove-image-pdf ",
+            // Attachment family, alongside its `add-attachments` sibling.
+            "extract-attachments list-attachments delete-attachment rename-attachment ",
+            // Form family, alongside its `fields`/`modify-fields`/`delete-fields`/`fill` siblings.
+            "extract-csv extract-xlsx fields-with-coordinates ",
+            // `/api/v1/analysis/*` introspection: the same parse-a-user-PDF-and-report surface as
+            // `get-info-on-pdf` above, which this group already covers.
+            "annotation-info basic-info document-properties font-info form-fields page-count ",
+            "page-dimensions security-info",
+        ),
     ),
     (
         "Advance",
-        "compress-pdf extract-image-scans repair auto-rename scanner-effect overlay-pdfs adjust-contrast",
+        "compress-pdf decompress-pdf extract-image-scans repair auto-rename scanner-effect overlay-pdfs adjust-contrast",
     ),
     ("Automation", "handleData automate pipeline"),
     ("DeveloperTools", "show-javascript"),
@@ -2541,64 +2582,283 @@ mod tests {
         assert_eq!(endpoint_key_for_uri("/api/v1/general"), None);
     }
 
-    #[test]
-    fn no_group_key_is_a_trailing_s_near_miss_of_a_route_declared_in_lib_rs()
-    -> Result<(), Box<dyn std::error::Error>> {
-        // Parse every `const <NAME>_PATH: &str = "/api/v1/...";` straight out of lib.rs's own
-        // source (single-line and line-wrapped alike) rather than a hand-maintained duplicate
-        // list, so this test tracks routes exactly as they are registered.
+    /// Every endpoint key `endpoint_key_for_uri` derives from a route constant declared in
+    /// lib.rs, mapped to the registered paths that yield it.
+    ///
+    /// Parses `const <NAME>_PATH: &str = "/api/v1/...";` straight out of lib.rs's own source
+    /// (single-line and line-wrapped alike) rather than a hand-maintained duplicate list, so the
+    /// gating tests track routes exactly as they are registered.
+    fn registered_routes() -> Result<BTreeMap<String, BTreeSet<String>>, Box<dyn std::error::Error>>
+    {
         let lib_source = include_str!("lib.rs");
         let path_const =
             Regex::new(r#"const\s+[A-Za-z0-9_]+_PATH\s*:\s*&str\s*=\s*"([^"]*)"\s*;"#)?;
-        let route_keys: BTreeSet<String> = path_const
-            .captures_iter(lib_source)
-            .filter_map(|capture| endpoint_key_for_uri(&capture[1]))
-            .collect();
+        let mut routes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for capture in path_const.captures_iter(lib_source) {
+            let path = &capture[1];
+            if let Some(key) = endpoint_key_for_uri(path) {
+                routes.entry(key).or_default().insert(path.to_owned());
+            }
+        }
         assert!(
-            route_keys.len() > 100,
+            routes.len() > 100,
             "found only {} route keys; the const-scanning regex likely stopped matching \
              lib.rs's current formatting",
-            route_keys.len()
+            routes.len()
         );
+        Ok(routes)
+    }
 
-        // Pin the specific regression directly: the overlay route's derived key must match what
-        // `endpoint_key_for_uri` computes for its registered path, and that key must be present
-        // in the table, so this stays caught even if the general near-miss rule below is ever
-        // loosened.
+    fn group_keys() -> BTreeSet<&'static str> {
+        ENDPOINT_GROUPS
+            .iter()
+            .flat_map(|(_, endpoints)| endpoints.split_whitespace())
+            .collect()
+    }
+
+    /// The two shapes of the "table written against the tool's display name" mistake, and
+    /// deliberately only those two — an edit-distance rule would flag the inert upstream-only
+    /// entries (`pdf-to-json` against `pdf-to-json`-less routes, `compare`, `view-pdf`, …) and
+    /// train the next reader to ignore the failure.
+    fn is_display_name_lookalike(group_key: &str, route_key: &str) -> bool {
+        // A trailing `s`, in either direction: `overlay-pdf` against the registered
+        // `overlay-pdfs`.
+        if route_key.strip_suffix('s') == Some(group_key)
+            || group_key.strip_suffix('s') == Some(route_key)
+        {
+            return true;
+        }
+        // A dropped `-to-` segment: `text-editor-pdf` against the registered
+        // `text-editor-to-pdf`, where the tool is named after its two file formats but the route
+        // is `/api/v1/convert/<a>/<b>`.
+        route_key
+            .split_once("-to-")
+            .is_some_and(|(before, after)| format!("{before}-{after}") == group_key)
+    }
+
+    #[test]
+    fn no_ungated_route_hides_behind_a_display_name_lookalike_group_key()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let routes = registered_routes()?;
+        let group_keys = group_keys();
+
+        // Pin the two known regressions directly, so they stay caught even if the general rule
+        // below is ever loosened: each route's derived key must be what `endpoint_key_for_uri`
+        // computes for its registered path, and must be present in the table.
         assert_eq!(
             endpoint_key_for_uri("/api/v1/general/overlay-pdfs"),
             Some("overlay-pdfs".to_owned())
         );
-        assert!(route_keys.contains("overlay-pdfs"));
-        let group_keys: BTreeSet<&str> = ENDPOINT_GROUPS
-            .iter()
-            .flat_map(|(_, endpoints)| endpoints.split_whitespace())
-            .collect();
+        assert!(routes.contains_key("overlay-pdfs"));
         assert!(group_keys.contains("overlay-pdfs"));
+        assert_eq!(
+            endpoint_key_for_uri("/api/v1/convert/text-editor/pdf"),
+            Some("text-editor-to-pdf".to_owned())
+        );
+        assert_eq!(
+            endpoint_key_for_uri("/api/v1/convert/pdf/text-editor/metadata"),
+            Some("pdf-to-text-editor".to_owned())
+        );
+        assert!(routes.contains_key("text-editor-to-pdf"));
+        assert!(routes.contains_key("pdf-to-text-editor"));
+        assert!(group_keys.contains("text-editor-to-pdf"));
+        assert!(group_keys.contains("pdf-to-text-editor"));
 
         // A group key that matches no route is normally inert: it mirrors an upstream-only tool
-        // that was never ported (`compare`, `view-pdf`, `multi-tool`, `pdf-to-rtf`, `handleData`,
-        // the `dev-*-docs` entries, and others) and is harmless to keep. But a group key that
-        // differs from an *actual* registered route key only by a trailing `s` (in either
-        // direction) is not a coincidence: it is exactly the overlay-pdf/overlay-pdfs class of
-        // bug, where the table was written against the tool's display name rather than the key
-        // `endpoint_key_for_uri` derives, so the group can never disable its own endpoint.
-        let mut near_misses = Vec::new();
-        for &group_key in &group_keys {
-            if route_keys.contains(group_key) {
+        // that was never ported, or is the SPA tool-registry spelling kept so the UI can read the
+        // tool's availability, and is harmless either way.
+        //
+        // The defect is narrower than "a key matches no route". It is a *registered route that no
+        // group can disable* sitting next to a group key a reader would take for that route — the
+        // overlay-pdf/overlay-pdfs class of bug, where the table was written against the tool's
+        // display name rather than the key `endpoint_key_for_uri` derives, so the group silently
+        // never disables its own endpoint. Once the derived key is in the table the group does
+        // disable the route, and the display-name key beside it is a harmless alias, so only
+        // routes that are in no group at all are reported.
+        let mut lookalikes = Vec::new();
+        for route_key in routes.keys() {
+            if group_keys.contains(route_key.as_str()) {
                 continue;
             }
-            for route_key in &route_keys {
-                if format!("{group_key}s") == *route_key || group_key == format!("{route_key}s") {
-                    near_misses.push((group_key.to_owned(), route_key.clone()));
+            for &group_key in &group_keys {
+                if routes.contains_key(group_key) {
+                    continue;
+                }
+                if is_display_name_lookalike(group_key, route_key) {
+                    lookalikes.push((group_key.to_owned(), route_key.clone()));
                 }
             }
         }
         assert!(
-            near_misses.is_empty(),
-            "group key(s) differ from a registered route key only by a trailing 's', so \
-             disabling the group cannot actually disable the endpoint, (group_key, route_key): \
-             {near_misses:?}"
+            lookalikes.is_empty(),
+            "group key(s) name a registered route that is in no group, differing from its derived \
+             key only by a trailing 's' or a dropped '-to-', so disabling the group cannot \
+             actually disable the endpoint, (group_key, route_key): {lookalikes:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn disabling_security_disables_the_registered_redact_execute_route()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // `redact` and `auto-redact` were both in the Security group while `redact-execute` — the
+        // route that performs the redaction the manual tool has only previewed — was in no group,
+        // so an administrator who disabled Security still had a live redaction endpoint. Assert
+        // on the URI, the same input the axum middleware feeds `is_endpoint_enabled_for_uri`.
+        const REDACT_EXECUTE_URI: &str = "/api/v1/security/redact-execute";
+        assert_eq!(
+            endpoint_key_for_uri(REDACT_EXECUTE_URI),
+            Some("redact-execute".to_owned())
+        );
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "endpoints:\n  groupsToRemove: [Security]\n")?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        for uri in [
+            REDACT_EXECUTE_URI,
+            "/api/v1/security/redact",
+            "/api/v1/security/auto-redact",
+        ] {
+            assert!(
+                !config.is_endpoint_enabled_for_uri(uri),
+                "disabling Security must disable {uri}"
+            );
+        }
+        assert_eq!(
+            config.disabled_endpoint_statuses().get("redact-execute"),
+            Some(&false),
+            "a disabled redact-execute must also be reported by get-endpoints-status"
+        );
+
+        // Disabling a different functional group must leave it alone.
+        fs::write(&settings, "endpoints:\n  groupsToRemove: [PageOps]\n")?;
+        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        assert!(config.is_endpoint_enabled_for_uri(REDACT_EXECUTE_URI));
+        Ok(())
+    }
+
+    #[test]
+    fn a_default_configuration_leaves_every_registered_route_enabled()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Adding a key to ENDPOINT_GROUPS only makes an endpoint *disableable*; nothing is
+        // disabled until an administrator names a group or an endpoint. Walk every registered
+        // route through the exact call the middleware makes and prove that.
+        let routes = registered_routes()?;
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        for (key, paths) in &routes {
+            for path in paths {
+                // `url-to-pdf` is the single route that ships disabled, gated by
+                // `system.enableUrlToPDF` rather than by any group; asserted separately below.
+                if key == "url-to-pdf" {
+                    continue;
+                }
+                assert!(
+                    config.is_endpoint_enabled_for_uri(path),
+                    "{path} ({key}) must stay enabled on a default configuration"
+                );
+                assert!(
+                    config.endpoint_availability(std::slice::from_ref(key))[key].enabled,
+                    "{key} must report enabled on a default configuration"
+                );
+            }
+        }
+        assert!(!config.is_endpoint_enabled_for_uri("/api/v1/convert/url/pdf"));
+
+        // With that one opt-in turned on, no registered route is disabled at all.
+        fs::write(&settings, "system:\n  enableUrlToPDF: true\n")?;
+        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        for (key, paths) in &routes {
+            for path in paths {
+                assert!(
+                    config.is_endpoint_enabled_for_uri(path),
+                    "{path} ({key}) must stay enabled on a default configuration"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn every_processing_route_is_reachable_from_some_functional_group()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Infrastructure the SPA needs in order to work at all. An administrator who could gate
+        // these would brick the UI rather than disable a tool, so they are deliberately in no
+        // group: config/settings lookups (including the availability map itself), the info
+        // metrics, the UI-data payloads, job and file plumbing, the mobile-scanner session
+        // handshake, and the AI tool-descriptor route, which is gated by AIENGINE_ENABLED.
+        const INFRASTRUCTURE_ROUTES: &[&str] = &[
+            "app-config",
+            "create-session",
+            "download",
+            "endpoint-enabled",
+            "endpoints-availability",
+            "endpoints-enabled",
+            "files",
+            "footer-info",
+            "get-endpoints-status",
+            "group-enabled",
+            "health",
+            "home",
+            "job",
+            "licenses",
+            "load",
+            "login-disclaimer",
+            "requests",
+            "session",
+            "status",
+            "tools",
+            "upload",
+            "uptime",
+            "validate-session",
+            "wau",
+        ];
+        // Processing routes that are still in no group, so no `groupsToRemove` value can disable
+        // them and an administrator gets no error saying so. Listed to keep the remaining gap
+        // visible instead of silent — which group each belongs in is a maintainer decision, not
+        // something to guess here. Shrinking this list is the fix; growing it needs a reason.
+        const UNGROUPED_PROCESSING_ROUTES: &[&str] = &[
+            "add-comments",
+            "extract-bookmarks",
+            "filter-contains-image",
+            "filter-contains-text",
+            "filter-file-size",
+            "filter-page-count",
+            "filter-page-rotation",
+            "filter-page-size",
+            "split-for-poster-print",
+        ];
+
+        let routes = registered_routes()?;
+        let group_keys = group_keys();
+        let ungated: BTreeSet<&str> = routes
+            .keys()
+            .map(String::as_str)
+            .filter(|key| !group_keys.contains(key))
+            .collect();
+        let expected: BTreeSet<&str> = INFRASTRUCTURE_ROUTES
+            .iter()
+            .chain(UNGROUPED_PROCESSING_ROUTES)
+            .copied()
+            .collect();
+        assert_eq!(
+            expected.len(),
+            INFRASTRUCTURE_ROUTES.len() + UNGROUPED_PROCESSING_ROUTES.len(),
+            "the two lists must stay disjoint and duplicate-free"
+        );
+        for key in &expected {
+            assert!(
+                routes.contains_key(*key),
+                "{key} is listed as an ungated route but lib.rs registers no route yielding it"
+            );
+        }
+        assert_eq!(
+            ungated, expected,
+            "the set of routes that no functional group can disable changed. A route missing from \
+             the right-hand side is in no group: pick the group matching what it does and add its \
+             derived key to ENDPOINT_GROUPS, or list it above with a reason."
         );
         Ok(())
     }

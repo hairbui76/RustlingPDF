@@ -32,6 +32,14 @@ decoded form. Java's controller instead serializes parsed `Calendar` objects
 with `Calendar.toString()`; normalizing that legacy representation remains a
 documented cutover difference.
 
+## Availability
+
+All eight routes belong to the `Other` endpoint group, alongside
+`get-info-on-pdf`, whose reporting surface they overlap; upstream's
+`EndpointConfiguration` leaves them in no group and so cannot disable them. The
+SPA does not call these routes, so gating them affects API consumers only. See
+[`runtime-config.md`](runtime-config.md).
+
 ## Verification
 
 Endpoint tests exercise all eight routes using a two-page document with an
