@@ -402,6 +402,19 @@ a shading with a Type 0 sampled function all lose their payloads when only an
 out-of-crop mark referenced them; and a Type 3 font text run outside the crop is
 removed without crashing the process.
 
+Four fixtures cover values written as **indirect references**, because a PDF may
+always write one and the walk had four places that assumed otherwise:
+`/ExtGState` `/Font` as an indirect array, the same with a decoy declaration of the
+same name elsewhere in the document, a Form `XObject` with an indirect `/Subtype`,
+and a `/Pattern` dictionary reached through a reference chain.
+`follows_resources_written_as_indirect_references` reports all four rather than
+stopping at the first, since which shape broke is the diagnosis. Reverting any of
+the four reads to a raw lookup fails both it and the property test below, and the
+property test names the exact resource and crop rectangle.
+
+`an_unbalanced_delimiter_does_not_blind_the_checker` pins the tokeniser against one
+stray `(`, which used to consume the rest of the stream and hide every later name.
+
 The corruption direction is covered as a property rather than a case list.
 `every_fixture_comes_back_without_a_dangling_resource_name` crops every fixture in
 the file in both modes and requires that no surviving content stream names a
@@ -419,5 +432,4 @@ to still be declared.
 content genuinely cannot be parsed at all. Setting `RUSTLING_CROP_CORPUS_DIR` runs
 the same invariant over a directory of real PDFs, comparing each removal output
 against its own `removeDataOutsideCrop=false` control so only names the pruning
-introduced are reported; 1017 unique local PDFs were swept this way with none
-introduced.
+introduced are reported.
