@@ -43,37 +43,57 @@ or unavailable.
 
 A group's members are the endpoint keys `endpoint_key_for_uri` derives from the
 registered routes (`/api/v1/<area>/<endpoint>` yields `<endpoint>`;
-`/api/v1/convert/<a>/<b>` yields `<a>-to-<b>`), not the tool's display name. The
-group table also carries the SPA tool-registry spellings — `compare`,
-`view-pdf`, `multi-tool`, `text-editor-pdf`, the `dev-*-docs` entries — which
-match no route and gate nothing, but do appear in the `endpoints-availability`
-map the UI reads to decide whether to advertise a tool. Both spellings therefore
-coexist where they differ.
+`/api/v1/convert/<a>/<b>` yields `<a>-to-<b>`), not the tool's display name.
+
+The group table also carries the SPA tool-registry spellings — `compare`,
+`view-pdf`, `multi-tool`, `text-editor-pdf`, `overlay-pdf`, `form-fill`, the
+`dev-*-docs` entries. These match no route and gate nothing, but the no-query
+`endpoints-availability` map is built from these keys, and the SPA reads a key
+missing from that map as *enabled*, so a registry spelling that is absent leaves
+its tool advertised however the administrator has configured groups. Both
+spellings therefore coexist wherever they differ, and
+`every_spa_tool_registry_key_is_present_in_the_group_table` reads
+`useTranslatedToolRegistry.tsx` to keep them together.
 
 RustlingPDF diverges from Java's `EndpointConfiguration` by grouping endpoints
 upstream leaves in no group, because an endpoint in no group cannot be disabled
 by any group setting and the administrator gets no error saying so:
 `redact-execute` under `Security` beside `redact` and `auto-redact`;
 `pdf-to-text-editor` and `text-editor-to-pdf` (the derived keys upstream's
-`text-editor-pdf` entry never matched), `edit-text`, `remove-image-pdf`, the
+`text-editor-pdf` entry never matched), `edit-text`, `remove-image-pdf`,
+`extract-bookmarks`, `add-comments`, the
 `extract-attachments`/`list-attachments`/`delete-attachment`/`rename-attachment`
 family, the `extract-csv`/`extract-xlsx`/`fields-with-coordinates` form family,
-and the eight `/api/v1/analysis/*` introspection routes under `Other`;
-`pdf-to-xlsx` and `svg-to-pdf` under `Convert`; `decompress-pdf` under
-`Advance`. The `/api/v1/analysis/*` routes are grouped with `get-info-on-pdf`
+the six `/api/v1/filter/*` routes, and the eight `/api/v1/analysis/*`
+introspection routes under `Other`; `pdf-to-xlsx` and `svg-to-pdf` under
+`Convert`; `decompress-pdf` under `Advance`; `split-for-poster-print` under
+`PageOps`. The `/api/v1/analysis/*` routes are grouped with `get-info-on-pdf`
 because they are the same surface — parse an uploaded PDF, report what is inside
-it — and the SPA never calls them, so gating them cannot brick the UI.
+it — and the SPA never calls them, so gating them cannot brick the UI. The
+`/api/v1/filter/*` routes parse an uploaded PDF for the same reason, and
+upstream's own `testing/allEndpointsRemovedSettings.yml` names all six in its
+`toRemove` set, so upstream treats them as ordinary disableable endpoints even
+though its group map omits them.
 
-Infrastructure stays ungated deliberately: `/api/v1/info/*`, `/api/v1/config/*`
-(including the availability map itself), `/api/v1/ui-data/*`,
-`/api/v1/settings/*`, the job and file plumbing, the mobile-scanner session
-routes, and the AI tool-descriptor route, which `AIENGINE_ENABLED` governs
-instead. Gating any of those would let an administrator brick the UI rather than
-disable a tool. Nine processing routes are still in no group and so cannot be
-disabled by any `groupsToRemove` value — `add-comments`, `extract-bookmarks`,
-the six `/api/v1/filter/*` routes, and `split-for-poster-print`;
-`every_processing_route_is_reachable_from_some_functional_group` pins that list
-so it stays visible.
+Two categories stay ungated on purpose, and
+`every_processing_route_is_reachable_from_some_functional_group` pins both so
+neither can grow silently:
+
+- Infrastructure the UI needs in order to work at all — `/api/v1/info/*`,
+  `/api/v1/config/*` (including the availability map itself),
+  `/api/v1/ui-data/*`, `/api/v1/settings/*`, the job and file plumbing, and the
+  mobile-scanner session routes. Gating any of these would let an administrator
+  brick the UI rather than disable a tool.
+- Routes with their own, stronger administrator switch: `send-email` is not
+  registered at all unless `mail.enabled` yields an SMTP service, and every
+  `/api/v1/ai/*` proxy route answers `503` unless `AIENGINE_ENABLED` is set.
+
+Endpoint keys are not one-to-one with routes: `/api/v1/info/health` and
+`/api/v1/ai/health` both derive `health`, and every `/api/v1/ai/tools/*` route
+derives `tools`, so gating one of a colliding pair would silently gate the
+other. `is_group_enabled` also reports a functional group enabled only when
+*every* member key is enabled, so a single `endpoints.toRemove` entry flips
+`group-enabled?group=<name>` to false for the whole group.
 
 Adding a key to a group only makes an endpoint *disableable*. A default
 `settings.yml` disables nothing, and `url-to-pdf` remains the one route that
