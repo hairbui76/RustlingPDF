@@ -33,7 +33,7 @@ pub mod pdf_booklet;
 mod pdf_bookmarks;
 pub mod pdf_comments;
 pub mod pdf_compress;
-pub mod pdf_crop;
+mod pdf_crop;
 pub mod pdf_document_ops;
 pub mod pdf_edit_text;
 pub mod pdf_extract_images;
@@ -1221,6 +1221,16 @@ impl ApiError {
     fn internal_at(path: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: message.into(),
+            path,
+        }
+    }
+
+    /// A request the service understood and deliberately declined, because of a
+    /// property of the payload rather than a fault in the server.
+    fn unprocessable_at(path: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
             message: message.into(),
             path,
         }
@@ -11842,10 +11852,23 @@ fn map_crop_error(error: &CropError) -> ApiError {
         | CropError::WritePdf(_)
         | CropError::CropContentInput(_)
         | CropError::CropContent(_)
+        | CropError::Worker(_)
         | CropError::CropContentRuntime {
             explicitly_configured: true,
             ..
         } => ApiError::internal_at(CROP_PATH, error.to_string()),
+        // A property of the payload, not a server fault: this document would make
+        // PDFium expand a form graph without bound, which is a dead process rather
+        // than a slow one. Logged at WARN so operators can see it without 5xx noise.
+        CropError::UnboundedFormExpansion { details } => {
+            tracing::warn!(
+                target: "rustling_processing::crop",
+                event = "crop_form_expansion_refused",
+                details = %details,
+                "refused out-of-crop removal because the form graph expands without bound"
+            );
+            ApiError::unprocessable_at(CROP_PATH, error.to_string())
+        }
     }
 }
 

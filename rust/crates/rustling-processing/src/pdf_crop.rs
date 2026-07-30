@@ -64,7 +64,35 @@ pub enum CropError {
     },
     #[error(transparent)]
     CropContent(#[from] PdfiumCropContentError),
+    #[error(
+        "this PDF's Form XObject graph expands without bound ({details}), and removing \
+         out-of-crop content requires expanding it; retry with removeDataOutsideCrop=false \
+         to crop without removal"
+    )]
+    UnboundedFormExpansion { details: String },
+    #[error("the crop worker did not finish: {0}")]
+    Worker(String),
 }
+
+/// Stack for the thread the crop runs on.
+///
+/// `lopdf` traverses a document recursively, so the depth it needs is a property
+/// of the uploaded file. `tokio` gives its blocking threads 2 MiB, and a real
+/// 932 KB document with 1,353 forms needs between 2 and 4 MiB — measured by
+/// sweeping the stack size, deterministically, on this exact file. Overflowing a
+/// stack **aborts the process**, so an unauthenticated request took the whole
+/// service down and every concurrent caller with it. That is why this is not left
+/// to the ambient stack.
+///
+/// Neither PDFium nor the resource walk is involved: PDFium completes this file on
+/// its own, the walk is iterative by construction, and the rebuild's traversal of
+/// PDFium's output is what recurses.
+///
+/// This is **containment, not a proof**. A document nested deeper still overflows,
+/// just further out; only an iterative traversal in `lopdf` would make it
+/// impossible. 32 MiB is 16x the depth that was crashing and far beyond anything
+/// in a thousand-document corpus.
+const CROP_STACK_BYTES: usize = 32 * 1024 * 1024;
 
 /// Crops every page using explicit coordinates or PDFium-rendered content bounds.
 ///
@@ -78,6 +106,26 @@ pub enum CropError {
 /// read or rebuilt, or `PDFium` — required for automatic detection and for
 /// out-of-crop content removal — is unavailable or fails.
 pub fn crop_pdf_to_file(
+    input_path: &Path,
+    filename: &str,
+    options: CropOptions,
+    output_path: &Path,
+) -> Result<(), CropError> {
+    // Scoped so the worker can borrow the paths; see [`CROP_STACK_BYTES`] for why
+    // it does not simply run on the caller's stack.
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(CROP_STACK_BYTES)
+            .spawn_scoped(scope, || {
+                crop_pdf_to_file_inner(input_path, filename, options, output_path)
+            })
+            .map_err(|error| CropError::Worker(error.to_string()))?
+            .join()
+            .map_err(|_| CropError::Worker("the crop worker panicked".to_owned()))?
+    })
+}
+
+fn crop_pdf_to_file_inner(
     input_path: &Path,
     filename: &str,
     options: CropOptions,
@@ -101,6 +149,9 @@ pub fn crop_pdf_to_file(
 
     let bounds = explicit_bounds(options)?;
     if options.remove_data_outside_crop {
+        // Before PDFium, not after: the expansion happens inside it, and by the
+        // time it has started there is nothing left to refuse with.
+        form_expansion_within_bounds(&load_document(input_path, filename)?)?;
         let pruned = NamedTempFile::new_in(output_path.parent().unwrap_or_else(|| Path::new(".")))
             .map_err(CropError::CropContentInput)?;
         match try_remove_content_outside_crop(input_path, filename, bounds, pruned.path())? {
@@ -206,6 +257,180 @@ fn rebuild_cropped_pdf(
     Ok(())
 }
 
+/// The expanded `Do` invocations a document may cost before removal is refused.
+///
+/// `PDFium` expands every form invocation when it regenerates a page, and it
+/// bounds neither the recursion nor the fan out. ISO 32000-1 §8.10.1 forbids a
+/// form from invoking itself directly or indirectly, so a cycle is already an
+/// invalid document — but PDFium follows one anyway, and an acyclic graph can be
+/// just as expensive: measured on this unauthenticated endpoint, a **1,982-byte**
+/// upload whose six forms each invoke all six reached 45 GB resident and never
+/// returned, and a 557 KB document fanning 60 ways across 8 levels reached 84 GB.
+///
+/// This is *not* something the resource walk's bounds can reach. The cost is
+/// spent inside PDFium, before the walk runs at all — verified by disabling the
+/// walk entirely and watching the same 45 GB. The only place to stop it is on the
+/// way in.
+///
+/// The graph follows **executed** `Do` operators, because that is what PDFium
+/// expands. Declarations alone are far too coarse: a Form XObject sharing its
+/// page's `/Resources` dictionary — spec-legal, and something real generators
+/// emit — declares *itself*, so every such document would look like a cycle and
+/// be refused.
+///
+/// Where the operators cannot be read, the form's declared children are used
+/// instead. That is the safe direction and it closes the obvious evasion: a
+/// crafted file cannot hide its recursion behind a construct the content parser
+/// stops at, because failing to parse is exactly what triggers the conservative
+/// reading.
+///
+/// `removeDataOutsideCrop=false` never invokes PDFium and stays available — it
+/// answers both of the documents above in under a fifth of a second.
+const MAX_FORM_EXPANSION: u64 = 1_000_000;
+
+/// Refuses a document whose Form `XObject` graph would expand past
+/// [`MAX_FORM_EXPANSION`].
+///
+/// # Errors
+///
+/// Returns [`CropError::UnboundedFormExpansion`] for a cyclic graph, or one whose
+/// expanded invocation count exceeds the bound.
+fn form_expansion_within_bounds(document: &Document) -> Result<(), CropError> {
+    enum Step {
+        Enter(ObjectId),
+        Exit(ObjectId),
+    }
+    let refuse = |details: &str| CropError::UnboundedFormExpansion {
+        details: details.to_owned(),
+    };
+    let mut cost: std::collections::HashMap<ObjectId, u64> = std::collections::HashMap::new();
+    let mut on_path: HashSet<ObjectId> = HashSet::new();
+    for page_id in document.get_pages().into_values() {
+        let scope = page_resources_id(document, page_id);
+        let roots = scope
+            .and_then(|scope| {
+                invoked_form_ids(document, &document.get_page_content(page_id), scope)
+            })
+            .unwrap_or_else(|| declared_form_ids(document, scope));
+        let mut stack: Vec<Step> = roots.iter().rev().map(|id| Step::Enter(*id)).collect();
+        while let Some(step) = stack.pop() {
+            match step {
+                Step::Enter(id) => {
+                    if cost.contains_key(&id) {
+                        continue;
+                    }
+                    if !on_path.insert(id) {
+                        return Err(refuse(
+                            "a Form XObject invokes itself, directly or indirectly",
+                        ));
+                    }
+                    stack.push(Step::Exit(id));
+                    for child in form_children(document, id) {
+                        stack.push(Step::Enter(child));
+                    }
+                }
+                Step::Exit(id) => {
+                    on_path.remove(&id);
+                    let mut expanded: u64 = 1;
+                    for child in form_children(document, id) {
+                        expanded = expanded.saturating_add(cost.get(&child).copied().unwrap_or(1));
+                    }
+                    if expanded >= MAX_FORM_EXPANSION {
+                        return Err(refuse(
+                            "one Form XObject expands to more than a million invocations",
+                        ));
+                    }
+                    cost.insert(id, expanded);
+                }
+            }
+        }
+        let page_cost = roots.iter().fold(0_u64, |total, id| {
+            total.saturating_add(cost.get(id).copied().unwrap_or(1))
+        });
+        if page_cost >= MAX_FORM_EXPANSION {
+            return Err(refuse(
+                "one page expands to more than a million form invocations",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The Form `XObject` object ids a resource scope declares.
+fn declared_form_ids(document: &Document, resources_id: Option<ResourcesId>) -> Vec<ObjectId> {
+    let Some(resources_id) = resources_id else {
+        return Vec::new();
+    };
+    let Some((_, entries)) = category_dictionary(document, resources_id, ResourceCategory::XObject)
+    else {
+        return Vec::new();
+    };
+    entries
+        .iter()
+        .filter_map(|(_, value)| form_object_id(document, value))
+        .collect()
+}
+
+/// The forms a form actually invokes, falling back to what it declares when its
+/// operators cannot be read.
+fn form_children(document: &Document, form_id: ObjectId) -> Vec<ObjectId> {
+    let Ok(Object::Stream(stream)) = document.get_object(form_id) else {
+        return Vec::new();
+    };
+    let scope = stream
+        .dict
+        .get(b"Resources")
+        .ok()
+        .and_then(|resources| scope_id(document, Some(form_id), resources));
+    let declared = declared_form_ids(document, scope);
+    if declared.is_empty() {
+        return Vec::new();
+    }
+    let Some(scope) = scope else {
+        return declared;
+    };
+    let Ok(content) = stream.decompressed_content() else {
+        return declared;
+    };
+    invoked_form_ids(document, &content, scope).unwrap_or(declared)
+}
+
+/// The forms a content stream's `Do` operators name, resolved in `scope`.
+///
+/// `None` means the stream could not be read closely enough to be sure — an
+/// operator stream that does not parse in full, or a name that resolves through a
+/// scope inherited from whoever invoked this stream, which is not knowable from
+/// here. Callers fall back to the declared set.
+fn invoked_form_ids(
+    document: &Document,
+    content: &[u8],
+    scope: ResourcesId,
+) -> Option<Vec<ObjectId>> {
+    let decoded = Content::decode_strict(content).ok()?;
+    let mut invoked = Vec::new();
+    for operation in &decoded.operations {
+        if operation.operator != "Do" {
+            continue;
+        }
+        let name = operand_name(&operation.operands)?;
+        let (_, value) = resolve_resource(document, &[scope], ResourceCategory::XObject, name)?;
+        if let Some(object_id) = form_object_id(document, &value) {
+            invoked.push(object_id);
+        }
+    }
+    Some(invoked)
+}
+
+/// The object id of a value that is a Form `XObject`, following references.
+fn form_object_id(document: &Document, value: &Object) -> Option<ObjectId> {
+    let (object_id, object) = document.dereference(value).ok()?;
+    let stream = object.as_stream().ok()?;
+    if resolved_name(document, stream.dict.get(b"Subtype").ok()) != Some(b"Form".as_slice()) {
+        return None;
+    }
+    object_id
+}
+
 /// Bounds on the resource-reachability walk.
 ///
 /// The byte budget counts **decoded content bytes**, not streams. A stream reached
@@ -233,11 +458,17 @@ const MAX_SCANNED_CONTENT_BYTES: u64 = 256 * 1024 * 1024;
 ///
 /// Both bounds are needed. The pair count alone would still allow
 /// `MAX_SCOPED_STREAMS * MAX_RESOURCE_SCOPE_DEPTH` links; the link budget prices
-/// depth, which is what the memory is actually spent on. Real documents sit far
-/// below both — the deepest scope nesting measured across a 1,000-document corpus
-/// is single digits.
-const MAX_SCOPED_STREAMS: usize = 100_000;
-const MAX_SCOPE_LINKS: usize = 2_000_000;
+/// depth, which is what both the memory and the per-chain set work are actually
+/// spent on. Every path that touches a chain is charged against the link budget,
+/// including the give-up paths that admit no pair and decode no byte — those were
+/// the last unpriced work, and they alone kept a six-form clique busy for five
+/// minutes while sitting inside every other bound.
+///
+/// Real documents sit orders of magnitude below both: the deepest scope nesting
+/// measured across a 1,000-document corpus is single digits, and the widest fan
+/// out is tens of thousands of forms at depth one.
+const MAX_SCOPED_STREAMS: usize = 50_000;
+const MAX_SCOPE_LINKS: usize = 500_000;
 
 /// Pins the property that makes the resource walk cheap: a scope is carried by
 /// **identity**, never by value.
@@ -549,7 +780,17 @@ impl<'a> ResourceWalk<'a> {
 
     /// Records that a stream resolving names against `chain` could not be read in
     /// full, so no scope it could have named into may be filtered.
+    ///
+    /// Charged against the link budget like everything else. It has to be: the
+    /// give-up paths call this *without* admitting a pair or decoding a byte, so
+    /// on a document that keeps hitting the depth bound it was the one piece of
+    /// unbounded, unpriced work left. A six-form clique in a 1,982-byte upload
+    /// spent five minutes here — inside the caps, because nothing counted it.
     fn preserve(&mut self, chain: &[ResourcesId]) {
+        self.links = self.links.saturating_add(chain.len());
+        if self.links >= MAX_SCOPE_LINKS {
+            self.abandoned = true;
+        }
         self.preserved.extend(chain.iter().copied());
     }
 
