@@ -582,6 +582,7 @@ async fn keeps_declarations_when_a_comment_truncates_the_content_parse()
 #[tokio::test]
 async fn follows_resources_written_as_indirect_references() -> Result<(), Box<dyn std::error::Error>>
 {
+    let mut failures = Vec::new();
     for (label, source, marker) in [
         // `/ExtGState` `/Font` is `[<type3> size]` behind a reference, so matching
         // on `Object::Array` without resolving never fired and the Type 3 glyph
@@ -629,13 +630,19 @@ async fn follows_resources_written_as_indirect_references() -> Result<(), Box<dy
         let response = require_status(response, StatusCode::OK).await?;
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let report = audit_resource_names(&bytes)?;
-        assert!(
-            document_contains(&bytes, marker)?,
-            "{label}: the resource the surviving content still paints with was deleted; \
-             the checker said {report:?}"
-        );
-        assert!(report.is_clean(), "{label}: {report:?}");
+        // Collected rather than asserted case by case: when this regresses, which
+        // of the four indirection shapes broke is the whole diagnosis, and
+        // stopping at the first hides the other three.
+        if !document_contains(&bytes, marker)? {
+            failures.push(format!(
+                "{label}: the resource the surviving content still paints with was deleted; \
+                 the checker said {report:?}"
+            ));
+        } else if !report.is_clean() {
+            failures.push(format!("{label}: {report:?}"));
+        }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
     Ok(())
 }
 
