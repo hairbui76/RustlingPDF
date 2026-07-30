@@ -79,7 +79,9 @@ this list until their features were removed in batch 7).
 **Deliberate behavioural divergences — upstream defects not reproduced
 (2026-07-30).** An audit of three bugs Stirling-PDF fixed after v2.14.2 found
 that two of them are *not* upstream-specific: upstream still carries them, and
-we chose not to match. Both are recorded in their contracts.
+we chose not to match. A third divergence was found separately while auditing
+the endpoint-gating table. All are recorded in their contracts or pinned by
+tests.
 
 - **`security/cert-sign` visible-signature placement.** Upstream
   (`CertSignController.java:414`) builds `new PDRectangle(0, 0, 200, 50)` and
@@ -97,6 +99,22 @@ we chose not to match. Both are recorded in their contracts.
   mode. (Upstream's own DUPLICATE cyclic-page-node bug, #6851, was never
   present here: duplicated pages have always been cloned into distinct
   objects.)
+
+- **`ENDPOINT_GROUPS` keys are spelled as derived route keys.** Upstream
+  registers the overlay tool as `overlay-pdf`
+  (`EndpointConfiguration.java:348` and `:427`) while its controller serves
+  `/overlay-pdfs` (`PdfOverlayController.java:45`), and its `normalizeEndpoint`
+  only strips a leading slash. Since both implementations derive the key from
+  the URI's last segment, upstream silently **cannot disable that endpoint
+  through the `PageOps` or `Advance` group** — its own
+  `testing/allEndpointsRemovedSettings.yml` works around this by naming
+  `overlay-pdfs` outright. We spell the derived key, because an administrator
+  who disables a group expects every endpoint in it to stop answering; a
+  disabled-but-live security control is worse than a visible refusal. Pinned by
+  `disabling_pageops_or_advance_disables_the_registered_overlay_pdfs_route` and
+  by a near-miss test that fails if any group key differs from a real route key
+  by only a trailing `s`. Group keys matching no route stay: they are inert, and
+  they let a settings.yml carried over from Stirling-PDF keep parsing.
 
 The third was a genuine parity gap and is now closed: `misc/add-stamp`,
 `misc/add-image` and `security/add-watermark` appended page content without
