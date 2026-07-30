@@ -39,10 +39,6 @@ export const shouldProcessFilesSeparately = (
       // PDF to image conversions (each PDF should generate its own image file)
       (parameters.fromExtension === "pdf" &&
         isImageFormat(parameters.toExtension)) ||
-      // PDF to PDF/A and PDF/X conversions (each PDF should be processed separately)
-      (parameters.fromExtension === "pdf" &&
-        (parameters.toExtension === "pdfa" ||
-          parameters.toExtension === "pdfx")) ||
       // PDF to text-like/spreadsheet formats should be one output per input
       (parameters.fromExtension === "pdf" &&
         ["txt", "rtf", "csv", "xlsx"].includes(parameters.toExtension)) ||
@@ -86,11 +82,7 @@ export const buildConvertFormData = (
     imageOptions,
     htmlOptions,
     emailOptions,
-    pdfaOptions,
-    pdfxOptions,
-    cbrOptions,
     pdfToCbrOptions,
-    cbzOptions,
     cbzOutputOptions,
     ebookOptions,
     epubOptions,
@@ -145,25 +137,12 @@ export const buildConvertFormData = (
       "includeAllRecipients",
       emailOptions.includeAllRecipients.toString(),
     );
-  } else if (fromExtension === "pdf" && toExtension === "pdfa") {
-    formData.append("outputFormat", pdfaOptions.outputFormat);
-    formData.append("strict", String(!!pdfaOptions.strict));
-  } else if (fromExtension === "pdf" && toExtension === "pdfx") {
-    // Use PDF/A endpoint with PDF/X format parameter
-    formData.append("outputFormat", pdfxOptions?.outputFormat || "pdfx");
   } else if (fromExtension === "pdf" && toExtension === "csv") {
     formData.append("pageNumbers", "all");
   } else if (fromExtension === "pdf" && toExtension === "xlsx") {
     formData.append("pageNumbers", "all");
-  } else if (fromExtension === "cbr" && toExtension === "pdf") {
-    formData.append("optimizeForEbook", cbrOptions.optimizeForEbook.toString());
   } else if (fromExtension === "pdf" && toExtension === "cbr") {
     formData.append("dpi", pdfToCbrOptions.dpi.toString());
-  } else if (fromExtension === "cbz" && toExtension === "pdf") {
-    formData.append(
-      "optimizeForEbook",
-      (cbzOptions?.optimizeForEbook ?? false).toString(),
-    );
   } else if (fromExtension === "pdf" && toExtension === "cbz") {
     formData.append("dpi", (cbzOutputOptions?.dpi ?? 150).toString());
   } else if (
@@ -181,10 +160,6 @@ export const buildConvertFormData = (
     formData.append(
       "includePageNumbers",
       (ebookOptions?.includePageNumbers ?? false).toString(),
-    );
-    formData.append(
-      "optimizeForEbook",
-      (ebookOptions?.optimizeForEbook ?? false).toString(),
     );
   } else if (
     fromExtension === "pdf" &&
@@ -216,11 +191,6 @@ export const createFileFromResponse = (
 ): File => {
   const originalName = originalFileName.split(".")[0];
 
-  // Map both pdfa and pdfx to pdf since they both result in PDF files
-  if (targetExtension == "pdfa" || targetExtension == "pdfx") {
-    targetExtension = "pdf";
-  }
-
   const fallbackFilename = `${originalName}.${targetExtension}`;
 
   return createFileFromApiResponse(responseData, headers, fallbackFilename);
@@ -233,21 +203,20 @@ export const convertProcessor = async (
 ): Promise<CustomProcessorResult> => {
   const processedFiles: File[] = [];
 
-  // Map PDF/X to use PDF/A endpoint
-  const actualToExtension =
-    parameters.toExtension === "pdfx" ? "pdfa" : parameters.toExtension;
-  const endpoint = getEndpointUrl(parameters.fromExtension, actualToExtension);
+  const endpoint = getEndpointUrl(
+    parameters.fromExtension,
+    parameters.toExtension,
+  );
 
   if (!endpoint) {
     throw new Error("Unsupported conversion format");
   }
 
   // Convert-specific routing logic: decide batch vs individual processing
-  // For PDF/X, we want to treat it similar to PDF/A (separate processing)
-  const isSeparateProcessing = shouldProcessFilesSeparately(selectedFiles, {
-    ...parameters,
-    toExtension: actualToExtension, // Use the mapped extension for decision logic
-  });
+  const isSeparateProcessing = shouldProcessFilesSeparately(
+    selectedFiles,
+    parameters,
+  );
 
   if (isSeparateProcessing) {
     // Individual processing for complex cases (PDF→image, smart detection, etc.)
@@ -262,7 +231,7 @@ export const convertProcessor = async (
           response.data,
           response.headers,
           file.name,
-          actualToExtension === "pdfa" ? "pdfx" : parameters.toExtension,
+          parameters.toExtension,
         );
 
         processedFiles.push(convertedFile);
@@ -284,7 +253,7 @@ export const convertProcessor = async (
       response.data,
       response.headers,
       baseFilename,
-      actualToExtension === "pdfa" ? "pdfx" : parameters.toExtension,
+      parameters.toExtension,
     );
     processedFiles.push(convertedFile);
   }
@@ -306,9 +275,9 @@ export const convertOperationConfig = defineCustomTool({
   defaultParameters,
   endpoint: (params: ConvertParameters): string | undefined => {
     if (!params.fromExtension || !params.toExtension) return undefined;
-    const actualToExtension =
-      params.toExtension === "pdfx" ? "pdfa" : params.toExtension;
-    return getEndpointUrl(params.fromExtension, actualToExtension) ?? undefined;
+    return (
+      getEndpointUrl(params.fromExtension, params.toExtension) ?? undefined
+    );
   },
 });
 
@@ -320,10 +289,7 @@ export const useConvertOperation = (parameters?: ConvertParameters) => {
     if (!parameters?.fromExtension || !parameters?.toExtension)
       return undefined;
 
-    // Map PDF/X to use PDF/A endpoint (same as in convertProcessor)
-    const actualToExtension =
-      parameters.toExtension === "pdfx" ? "pdfa" : parameters.toExtension;
-    return getEndpointName(parameters.fromExtension, actualToExtension);
+    return getEndpointName(parameters.fromExtension, parameters.toExtension);
   }, [parameters?.fromExtension, parameters?.toExtension]);
 
   // Check if current conversion will use cloud

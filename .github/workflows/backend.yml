@@ -59,21 +59,14 @@ jobs:
 
       # External-tool policy: no backend test HARD-requires an external binary.
       # Every suite that exercises one branches on a presence helper
-      # (ghostscript_present(), libreoffice_present(), weasyprint_present(),
-      # tesseract_present(), pdftohtml_present(), ocrmypdf_present(),
-      # calibre_present()) and asserts the 501/DEPENDENCY path when the tool is
-      # absent — so the suite is green either way. Ghostscript is the one cheap
-      # apt package that flips several suites (PDF/A conversion, add-attachments
-      # PDF/A-3b, replace-invert colour-space) onto their real execution paths,
-      # so we install it. The heavy tools (LibreOffice, Tesseract/OCRmyPDF,
-      # WeasyPrint, Calibre) are deliberately NOT installed: their suites
-      # self-adapt to absence, and installing them would multiply job time for
-      # little signal. Add them here only if a test ever hard-requires them.
-      - name: Install native tools (Ghostscript)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ghostscript
-          gs --version
+      # (libreoffice_present(), weasyprint_present(), tesseract_present(),
+      # pdftohtml_present(), ocrmypdf_present(), calibre_present()) and asserts
+      # the 501/DEPENDENCY path when the tool is absent — so the suite is green
+      # either way. No external tool is installed here: the heavy ones
+      # (LibreOffice, Tesseract/OCRmyPDF, WeasyPrint, Calibre) would multiply
+      # job time for little signal, and Ghostscript was removed from the product
+      # entirely (AGPL-3.0-or-commercial), so installing it would prove nothing.
+      # Add a tool here only if a test ever hard-requires it.
 
       # Pinned PDFium revision with sha256 verification — the script is the
       # single source of truth for the version (also used by `task rust:install`).

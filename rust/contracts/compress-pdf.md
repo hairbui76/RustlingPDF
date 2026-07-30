@@ -33,11 +33,15 @@ same 1/2/3-level escalation rules until it reaches the target or level 9.
 - When available, QPDF applies the Java recompression, object-stream, image
   optimization, normalize, and linearize arguments. Set
   `RUSTLING_PROCESSING_QPDF_COMMAND` for an explicit executable.
-- At levels 6–9, available Ghostscript applies the Java PDF settings,
-  resolution table, duplicate-image detection, font compression, grayscale,
-  and CMYK-to-RGB options. It uses the shared
-  `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND` discovery adapter and adds
-  `-dSAFER`.
+- Levels 6–9 no longer have a Ghostscript tier. Java, and this port until
+  Ghostscript was removed for its AGPL-3.0-or-commercial licence, ran
+  `pdfwrite` with the Java PDF settings, resolution table, duplicate-image
+  detection, font compression, grayscale, and CMYK-to-RGB options at those
+  levels. Levels 6–9 now behave like levels 4–5 plus their higher image
+  quality-table entries, so for inputs Ghostscript used to shrink further —
+  documents dominated by duplicate images, uncompressed fonts, or content
+  types the native image rewriter skips — the output can be larger than
+  before. The requested level is still honoured and never rejected.
 - If the candidate output is not smaller than the upload, the original PDF is
   rewritten as the response, matching Java's larger-output fallback.
 
@@ -50,7 +54,7 @@ mode is best effort and does not promise an impossible byte size.
 
 - Native image rewriting skips masks, soft masks, non-8-bit samples, CMYK/ICC/
   indexed color spaces, and filters that the bounded decoder cannot safely
-  interpret. QPDF/Ghostscript can still optimize those inputs when installed.
+  interpret. QPDF can still optimize those inputs when installed.
 - `linearize=true` and `normalize=true` require QPDF; an absent auto-discovered
   runtime returns `501`, while an explicitly configured failing runtime returns
   `500`.

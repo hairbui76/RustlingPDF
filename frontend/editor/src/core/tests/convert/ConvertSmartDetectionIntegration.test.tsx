@@ -28,7 +28,7 @@ import {
   createTestStirlingFile,
   createTestFilesWithId,
 } from "@app/tests/utils/testFileHelpers";
-import { allowConsole, expectConsole } from "@app/tests/failOnConsole";
+import { expectConsole } from "@app/tests/failOnConsole";
 import { fileStorage } from "@app/services/fileStorage";
 import { MantineProvider } from "@mantine/core";
 
@@ -501,63 +501,6 @@ describe("Convert Tool - Smart Detection Integration Tests", () => {
       expect(formData.get("maxAttachmentSizeMB")).toBe("20");
       expect(formData.get("downloadHtml")).toBe("true");
       expect(formData.get("includeAllRecipients")).toBe("true");
-    });
-
-    test("should send correct PDF/A parameters for pdf-to-pdfa conversion", async () => {
-      // Test files aren't registered in the FileContext stub registry, so
-      // production warns about the stub/output mismatch - incidental to what
-      // this test asserts.
-      allowConsole.warn(
-        /\[useToolOperation\] Mismatch successInputStubs vs outputs/,
-      );
-      const { result: paramsResult } = renderHook(
-        () => useConvertParameters(),
-        {
-          wrapper: TestWrapper,
-        },
-      );
-
-      const { result: operationResult } = renderHook(
-        () => useConvertOperation(),
-        {
-          wrapper: TestWrapper,
-        },
-      );
-
-      const pdfFile = createTestStirlingFile(
-        "document.pdf",
-        "pdf content",
-        "application/pdf",
-      );
-
-      // Set up PDF/A conversion parameters
-      act(() => {
-        paramsResult.current.updateParameter("fromExtension", "pdf");
-        paramsResult.current.updateParameter("toExtension", "pdfa");
-        paramsResult.current.updateParameter("pdfaOptions", {
-          outputFormat: "pdfa",
-          strict: false,
-        });
-      });
-
-      await act(async () => {
-        await operationResult.current.executeOperation(
-          paramsResult.current.parameters,
-          [pdfFile],
-        );
-      });
-
-      const formData = (mockedApiClient.post as Mock).mock
-        .calls[0][1] as FormData;
-      expect(formData.get("outputFormat")).toBe("pdfa");
-      expect(formData.get("strict")).toBe("false");
-      expect(mockedApiClient.post).toHaveBeenCalledWith(
-        "/api/v1/convert/pdf/pdfa",
-        expect.any(FormData),
-        {
-          responseType: "blob",
-        },
-      );
     });
   });
 

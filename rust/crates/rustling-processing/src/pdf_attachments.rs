@@ -92,40 +92,12 @@ pub fn add_attachments_to_file(
     attachments: &[AttachmentInput],
     output_path: &Path,
 ) -> Result<(), AttachmentError> {
-    add_attachments_to_file_with_options(
+    add_attachments_to_file_with_limits(
         input_path,
         filename,
         attachments,
         output_path,
         AttachmentLimits::DEFAULT,
-        false,
-    )
-}
-
-/// Adds attachments to a PDF/A-3b document and records their required
-/// associated-file metadata.
-///
-/// The caller must convert the input to PDF/A-3b first. This function then
-/// marks every embedded file as an associated file without re-running the
-/// archive conversion and potentially stripping those files again.
-///
-/// # Errors
-///
-/// Returns [`AttachmentError`] for invalid attachment sizes, malformed input,
-/// or an output write failure.
-pub fn add_attachments_to_pdfa3b_file(
-    input_path: &Path,
-    filename: &str,
-    attachments: &[AttachmentInput],
-    output_path: &Path,
-) -> Result<(), AttachmentError> {
-    add_attachments_to_file_with_options(
-        input_path,
-        filename,
-        attachments,
-        output_path,
-        AttachmentLimits::DEFAULT,
-        true,
     )
 }
 
@@ -141,24 +113,6 @@ pub fn add_attachments_to_file_with_limits(
     attachments: &[AttachmentInput],
     output_path: &Path,
     limits: AttachmentLimits,
-) -> Result<(), AttachmentError> {
-    add_attachments_to_file_with_options(
-        input_path,
-        filename,
-        attachments,
-        output_path,
-        limits,
-        false,
-    )
-}
-
-fn add_attachments_to_file_with_options(
-    input_path: &Path,
-    filename: &str,
-    attachments: &[AttachmentInput],
-    output_path: &Path,
-    limits: AttachmentLimits,
-    ensure_pdfa3b_compliance: bool,
 ) -> Result<(), AttachmentError> {
     validate_inputs(attachments, limits)?;
     let mut document = load(input_path, filename)?;
@@ -204,11 +158,8 @@ fn add_attachments_to_file_with_options(
         };
         specifications.insert(attachment.filename.clone(), specification);
     }
-    let specifications = replace_specifications(&mut document, specifications)?;
+    replace_specifications(&mut document, specifications)?;
     set_attachment_viewer_preferences(&mut document)?;
-    if ensure_pdfa3b_compliance {
-        ensure_pdfa3b_embedded_file_compliance(&mut document, &specifications)?;
-    }
     document.save(output_path)?;
     Ok(())
 }
@@ -312,7 +263,7 @@ pub fn rename_attachment_to_file(
             name: attachment_name.to_owned(),
         });
     }
-    let _ = replace_specifications(&mut document, renamed)?;
+    replace_specifications(&mut document, renamed)?;
     document.save(output_path)?;
     Ok(())
 }
@@ -348,7 +299,7 @@ pub fn delete_attachment_to_file(
             name: attachment_name.to_owned(),
         });
     }
-    let _ = replace_specifications(&mut document, retained)?;
+    replace_specifications(&mut document, retained)?;
     document.save(output_path)?;
     Ok(())
 }
@@ -435,14 +386,12 @@ fn collect_tree_node(
 fn replace_specifications(
     document: &mut Document,
     specifications: BTreeMap<String, Dictionary>,
-) -> Result<Vec<(String, ObjectId)>, AttachmentError> {
+) -> Result<(), AttachmentError> {
     let mut name_array = Vec::with_capacity(specifications.len() * 2);
-    let mut references = Vec::with_capacity(specifications.len());
     for (key, specification) in specifications {
         let specification_id = document.add_object(specification);
         name_array.push(Object::string_literal(key.as_str()));
         name_array.push(Object::Reference(specification_id));
-        references.push((key, specification_id));
     }
     let tree_id = document.add_object(dictionary! { "Names" => name_array });
     let mut names = document
@@ -456,96 +405,7 @@ fn replace_specifications(
     names.set("EmbeddedFiles", tree_id);
     let names_id = document.add_object(names);
     document.catalog_mut()?.set("Names", names_id);
-    Ok(references)
-}
-
-fn ensure_pdfa3b_embedded_file_compliance(
-    document: &mut Document,
-    specifications: &[(String, ObjectId)],
-) -> Result<(), AttachmentError> {
-    let mut associated_files = Vec::with_capacity(specifications.len());
-    for (filename, specification_id) in specifications {
-        let embedded_file = {
-            let specification = document.get_dictionary_mut(*specification_id)?;
-            if specification.get(b"AFRelationship").is_err() {
-                specification.set("AFRelationship", Object::Name(b"Unspecified".to_vec()));
-            }
-            if specification.get(b"F").is_err() {
-                specification.set("F", Object::string_literal(filename.as_str()));
-            }
-            if specification.get(b"UF").is_err() {
-                specification.set("UF", Object::string_literal(filename.as_str()));
-            }
-            specification.get(b"EF").ok().cloned()
-        };
-        ensure_embedded_file_mime_type(document, embedded_file.as_ref(), filename)?;
-        associated_files.push(Object::Reference(*specification_id));
-    }
-    document.catalog_mut()?.set("AF", associated_files);
     Ok(())
-}
-
-fn ensure_embedded_file_mime_type(
-    document: &mut Document,
-    embedded_files: Option<&Object>,
-    filename: &str,
-) -> Result<(), AttachmentError> {
-    let Some(embedded_files) = embedded_files else {
-        return Ok(());
-    };
-    let (_, embedded_files) = document.dereference(embedded_files)?;
-    let embedded_files = embedded_files.as_dict()?;
-    let embedded_file = [b"UF".as_slice(), b"F", b"DOS", b"Mac", b"Unix"]
-        .iter()
-        .find_map(|key| embedded_files.get(key).ok())
-        .and_then(|object| object.as_reference().ok());
-    let Some(embedded_file) = embedded_file else {
-        return Ok(());
-    };
-    let stream = document.get_object_mut(embedded_file)?.as_stream_mut()?;
-    if stream.dict.get(b"Subtype").is_err() {
-        stream.dict.set(
-            "Subtype",
-            Object::Name(attachment_mime_type(filename).as_bytes().to_vec()),
-        );
-    }
-    Ok(())
-}
-
-fn attachment_mime_type(filename: &str) -> &'static str {
-    let lowercase_name = filename.to_ascii_lowercase();
-    match lowercase_name
-        .rsplit_once('.')
-        .map(|(_, extension)| extension)
-    {
-        Some("xml") => "application/xml",
-        Some("json") => "application/json",
-        Some("txt") => "text/plain",
-        Some("csv") => "text/csv",
-        Some("pdf") => "application/pdf",
-        Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
-        Some("gif") => "image/gif",
-        Some("html" | "htm") => "text/html",
-        Some("zip") => "application/zip",
-        Some("doc") => "application/msword",
-        Some("docx") => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        Some("xls") => "application/vnd.ms-excel",
-        Some("xlsx") => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        Some("ppt") => "application/vnd.ms-powerpoint",
-        Some("pptx") => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        Some("svg") => "image/svg+xml",
-        Some("webp") => "image/webp",
-        Some("mp3") => "audio/mpeg",
-        Some("mp4") => "video/mp4",
-        Some("wav") => "audio/wav",
-        Some("avi") => "video/x-msvideo",
-        Some("tar") => "application/x-tar",
-        Some("gz") => "application/gzip",
-        Some("rar") => "application/vnd.rar",
-        Some("7z") => "application/x-7z-compressed",
-        _ => "application/octet-stream",
-    }
 }
 
 fn set_attachment_viewer_preferences(document: &mut Document) -> Result<(), AttachmentError> {
@@ -698,12 +558,9 @@ fn load(path: &Path, filename: &str) -> Result<Document, AttachmentError> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, fs};
+    use std::collections::HashSet;
 
-    use super::{
-        AttachmentInput, add_attachments_to_pdfa3b_file, sanitize_filename, unique_filename,
-    };
-    use lopdf::{Document, Object, dictionary};
+    use super::{sanitize_filename, unique_filename};
 
     #[test]
     fn sanitizes_paths_and_uniquifies_extensions() {
@@ -717,58 +574,5 @@ mod tests {
             unique_filename("report.txt".to_owned(), &mut used),
             "report_1.txt"
         );
-    }
-
-    #[test]
-    fn pdfa3b_attachments_are_associated_and_receive_a_mime_type()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempfile::tempdir()?;
-        let input = directory.path().join("source.pdf");
-        let attachment_path = directory.path().join("notes.txt");
-        let output = directory.path().join("output.pdf");
-        fs::write(&attachment_path, b"review notes")?;
-
-        let mut source = Document::with_version("1.7");
-        let pages_id = source.new_object_id();
-        source.objects.insert(
-            pages_id,
-            Object::Dictionary(dictionary! {
-                "Type" => "Pages", "Kids" => Vec::<Object>::new(), "Count" => 0,
-            }),
-        );
-        let catalog_id =
-            source.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
-        source.trailer.set("Root", catalog_id);
-        source.save(&input)?;
-
-        add_attachments_to_pdfa3b_file(
-            &input,
-            "source.pdf",
-            &[AttachmentInput {
-                filename: "notes.txt".to_owned(),
-                content_type: None,
-                path: attachment_path,
-                size: 12,
-            }],
-            &output,
-        )?;
-
-        let document = Document::load(&output)?;
-        let catalog = document.catalog()?;
-        let associated_files = catalog.get(b"AF")?.as_array()?;
-        assert_eq!(associated_files.len(), 1);
-        let specification_id = associated_files[0].as_reference()?;
-        let specification = document.get_dictionary(specification_id)?;
-        assert_eq!(
-            specification.get(b"AFRelationship")?.as_name()?,
-            b"Unspecified"
-        );
-        assert_eq!(specification.get(b"F")?.as_str()?, b"notes.txt");
-        assert_eq!(specification.get(b"UF")?.as_str()?, b"notes.txt");
-        let embedded_files = specification.get(b"EF")?.as_dict()?;
-        let embedded_id = embedded_files.get(b"F")?.as_reference()?;
-        let embedded = document.get_object(embedded_id)?.as_stream()?;
-        assert_eq!(embedded.dict.get(b"Subtype")?.as_name()?, b"text/plain");
-        Ok(())
     }
 }

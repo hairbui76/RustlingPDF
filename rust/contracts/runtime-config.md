@@ -112,7 +112,7 @@ environment aliases take precedence.
 The standalone Rust executable probes optional command-line tools once before
 accepting requests. The discovery table is the single source of tool-group
 names. It resolves configured command overrides and platform `PATH` candidates
-for Ghostscript, OCRmyPDF, Tesseract, LibreOffice, WeasyPrint, `pdftohtml`,
+for OCRmyPDF, Tesseract, LibreOffice, WeasyPrint, `pdftohtml`,
 QPDF, RAR creation, Calibre, FFmpeg, veraPDF, and RAR extraction through
 `unrar` or `7z`/`7zz`. QPDF below 12.0.0 and WeasyPrint below 58.0 are treated
 as unavailable, matching Java's minimum-version gates. A 7-Zip-shaped candidate

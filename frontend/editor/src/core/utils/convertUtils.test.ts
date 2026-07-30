@@ -37,9 +37,6 @@ describe("convertUtils", () => {
       expect(getEndpointName("pdf", "html")).toBe("pdf-to-html");
       expect(getEndpointName("pdf", "xml")).toBe("pdf-to-xml");
 
-      // PDF to PDF/A
-      expect(getEndpointName("pdf", "pdfa")).toBe("pdf-to-pdfa");
-
       // Office Documents to PDF
       expect(getEndpointName("docx", "pdf")).toBe("file-to-pdf");
       expect(getEndpointName("doc", "pdf")).toBe("file-to-pdf");
@@ -123,9 +120,6 @@ describe("convertUtils", () => {
       expect(getEndpointUrl("pdf", "html")).toBe("/api/v1/convert/pdf/html");
       expect(getEndpointUrl("pdf", "xml")).toBe("/api/v1/convert/pdf/xml");
 
-      // PDF to PDF/A
-      expect(getEndpointUrl("pdf", "pdfa")).toBe("/api/v1/convert/pdf/pdfa");
-
       // Office Documents to PDF
       expect(getEndpointUrl("docx", "pdf")).toBe("/api/v1/convert/file/pdf");
       expect(getEndpointUrl("doc", "pdf")).toBe("/api/v1/convert/file/pdf");
@@ -203,9 +197,6 @@ describe("convertUtils", () => {
       // PDF to Web formats
       expect(isConversionSupported("pdf", "html")).toBe(true);
       expect(isConversionSupported("pdf", "xml")).toBe(true);
-
-      // PDF to PDF/A
-      expect(isConversionSupported("pdf", "pdfa")).toBe(true);
 
       // Office Documents to PDF
       expect(isConversionSupported("docx", "pdf")).toBe(true);

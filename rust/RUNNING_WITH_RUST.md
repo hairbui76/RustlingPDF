@@ -51,8 +51,7 @@ mechanism.
 | Tool (binary) | Enables | Notes |
 |---|---|---|
 | LibreOffice (`soffice`) | office ↔ PDF (`convert/file/pdf`, `pdf/word`, `pdf/presentation`, `pdf/xml`) | |
-| Ghostscript (`gs`) | PDF/A / PDF/X, repair, compress assist, color-space conversion, e-reader optimisation | |
-| qpdf | repair (second choice), compress assist | minimum version 12 |
+| qpdf | repair, compress assist | minimum version 12 |
 | OCRmyPDF (`ocrmypdf`) | preferred OCR path for `misc/ocr-pdf` | |
 | Tesseract (`tesseract`) | OCR fallback path; language data under the configured tessdata dir | |
 | WeasyPrint (`weasyprint`) | HTML/Markdown/EML/URL → PDF, AI create-PDF | minimum version 58 |
@@ -63,8 +62,8 @@ mechanism.
 | veraPDF | strict PDF/A validation (optional) | set `RUSTLING_PROCESSING_VERAPDF_COMMAND` |
 
 Every tool's executable can be overridden explicitly with
-`RUSTLING_PROCESSING_<TOOL>_COMMAND` (e.g. `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND`,
-`..._SOFFICE_COMMAND`, `..._QPDF_COMMAND`, `..._WEASYPRINT_COMMAND`,
+`RUSTLING_PROCESSING_<TOOL>_COMMAND` (e.g. `RUSTLING_PROCESSING_SOFFICE_COMMAND`,
+`..._QPDF_COMMAND`, `..._WEASYPRINT_COMMAND`,
 `..._OCRMYPDF_COMMAND`, `..._TESSERACT_COMMAND`, `..._PDFTOHTML_COMMAND`,
 `..._EBOOK_CONVERT_COMMAND`, `..._UNRAR_COMMAND`, `..._RAR_COMMAND`).
 
@@ -248,7 +247,7 @@ reproducible deployments; `latest` moves on every release.
   repo's default dev/build mode: the core UI plus client-side extras
   (heuristic classification, watched folders via the File System Access API).
 - **External tools** (Debian trixie packages): LibreOffice `-nogui`
-  (writer/calc/impress/draw), Ghostscript, qpdf 12.2, Tesseract (+`eng`+OSD),
+  (writer/calc/impress/draw), qpdf 12.2, Tesseract (+`eng`+OSD),
   OCRmyPDF (+unpaper/pngquant), WeasyPrint 62, poppler-utils (`pdftohtml`),
   7zip (CBR fallback), and metric-compatible + Noto/CJK fonts. **Not**
   included, versus upstream's standard image: Calibre (~1 GB — the ebook↔PDF

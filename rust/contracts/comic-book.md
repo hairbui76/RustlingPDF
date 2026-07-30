@@ -17,10 +17,10 @@
 - Archives are bounded to 100,000 entries and 2,000 MiB of declared
   uncompressed supported-image content before extraction.
 
-`optimizeForEbook` is currently accepted but leaves output unoptimized. Java
-also disables this option whenever its Ghostscript endpoint group is not
-enabled; the enabled Ghostscript optimization path remains an explicit external
-adapter cutover item.
+`optimizeForEbook` is accepted but leaves output unoptimized. Java implemented it
+with Ghostscript, which was removed from this product for its
+AGPL-3.0-or-commercial licence, so the option is now permanently a no-op rather
+than a pending cutover item.
 
 ## PDF to CBZ
 
@@ -110,8 +110,7 @@ uses `comic_converted.cbr`.
 - PDF-to-CBR requires a licensed or otherwise provisioned `rar` command at
   deployment time. No CBR is synthesized as ZIP, because that would violate the
   CBR media contract.
-- The configured Ghostscript ebook optimization branch and server-side
-  asynchronous `fileId` resolution remain later migration slices.
+- Server-side asynchronous `fileId` resolution remains a later migration slice.
 
 Unit and HTTP tests cover Java natural sorting, corrupt-image skipping,
 deflated archives, filename fallbacks, invalid/empty/imageless CBZ input,

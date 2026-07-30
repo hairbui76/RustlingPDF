@@ -1,15 +1,16 @@
 //! eBook to PDF conversion through Calibre, ported from `ConvertEbookToPDFController`.
 //!
-//! Calibre owns eBook layout and supports the same input extensions as Java. Optional
-//! e-reader optimization uses Ghostscript's `/ebook` settings when it is available;
-//! as in Java, an optimization failure returns Calibre's original PDF instead.
+//! Calibre owns eBook layout and supports the same input extensions as Java. The
+//! `OPTIMIZED_FOR_EBOOK` output mode used to run a best-effort Ghostscript `/ebook`
+//! pass afterwards; Ghostscript was removed from the product, so the mode is accepted
+//! for wire compatibility and returns Calibre's own PDF.
 
 use std::{ffi::OsString, fs, io::ErrorKind, path::Path, process::Command};
 
 use tempfile::TempDir;
 use thiserror::Error;
 
-use crate::ghostscript::{exit_status, ghostscript_commands};
+use crate::process_executor::exit_status;
 
 const EBOOK_CONVERT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND";
 const SUPPORTED_EXTENSIONS: &[&str] = &["epub", "mobi", "azw3", "fb2", "txt", "docx"];
@@ -93,15 +94,6 @@ pub fn convert_ebook_to_pdf(
         return Err(EbookToPdfError::NoOutput);
     }
 
-    if options.output_mode == EbookOutputMode::OptimizedForEbook {
-        let optimized_pdf = working_directory.path().join("optimized.pdf");
-        if optimize_with_ghostscript(&converted_pdf, &optimized_pdf).is_ok()
-            && is_pdf_file(&optimized_pdf)
-        {
-            fs::copy(optimized_pdf, output_path)?;
-            return Ok(());
-        }
-    }
     fs::copy(converted_pdf, output_path)?;
     Ok(())
 }
@@ -153,29 +145,6 @@ fn run_ebook_convert(arguments: &[OsString]) -> Result<(), EbookToPdfError> {
     Err(EbookToPdfError::EbookConvertUnavailable {
         explicitly_configured: commands.explicitly_configured,
     })
-}
-
-fn optimize_with_ghostscript(input: &Path, output: &Path) -> Result<(), ()> {
-    let mut output_argument = OsString::from("-sOutputFile=");
-    output_argument.push(output.as_os_str());
-    let arguments = [
-        OsString::from("-sDEVICE=pdfwrite"),
-        OsString::from("-dPDFSETTINGS=/ebook"),
-        OsString::from("-dFastWebView=true"),
-        OsString::from("-dNOPAUSE"),
-        OsString::from("-dQUIET"),
-        OsString::from("-dBATCH"),
-        output_argument,
-        input.as_os_str().to_owned(),
-    ];
-    for command in ghostscript_commands().candidates {
-        match Command::new(command).args(&arguments).output() {
-            Ok(process) if process.status.success() => return Ok(()),
-            Err(source) if source.kind() == ErrorKind::NotFound => {}
-            Ok(_) | Err(_) => return Err(()),
-        }
-    }
-    Err(())
 }
 
 fn ebook_convert_commands() -> EbookConvertCommands {

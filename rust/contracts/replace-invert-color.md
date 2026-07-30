@@ -33,13 +33,42 @@ the pinned native revision.
 
 ### `COLOR_SPACE_CONVERSION`
 
-Ported via Ghostscript. The input is run through `-sDEVICE=pdfwrite` with
+Ported in pure Rust; no external process is involved, so the mode can no longer
+return `501` for a missing tool. Java (and this port until Ghostscript was removed
+for its AGPL-3.0-or-commercial licence) ran `pdfwrite` with
 `-sProcessColorModel=DeviceCMYK`, `-sColorConversionStrategy=CMYK`,
-`-sColorConversionStrategyForImages=CMYK`, and `-dPDFSETTINGS=/prepress`,
-matching the Java `ColorSpaceConversionStrategy`. When no Ghostscript binary is
-found the endpoint returns `501 Not Implemented` (the Java factory rejects the
-same request when the Ghostscript capability group is disabled); a Ghostscript
-process that starts but fails returns a server error.
+`-sColorConversionStrategyForImages=CMYK`, and `-dPDFSETTINGS=/prepress`. The Rust
+implementation converts the same two layers:
+
+**Content streams.** Page contents and Form XObjects — nested and shared forms are
+traversed once each — are rewritten operator by operator. `g`/`G` and `rg`/`RG`
+become `k`/`K`, and `sc`/`scn`/`SC`/`SCN` are converted whenever the graphics state
+selected `DeviceGray`, `DeviceRGB`, `CalGray`, or `CalRGB` (directly or through a
+`/ColorSpace` resource name). `q`/`Q` nesting and separate stroking/non-stroking
+state are tracked. The conversion is the device conversion of ISO 32000-1 §10.4 with
+full black generation and undercolour removal: gray `v` becomes `0 0 0 (1-v)`, and
+RGB becomes `c=1-R, m=1-G, y=1-B, k=min(c,m,y)` with `k` subtracted from the other
+three. Colours already in `DeviceCMYK` are emitted unchanged.
+
+**Image XObjects.** 8-bit-per-component images in `DeviceGray`, `DeviceRGB`,
+`CalGray`, `CalRGB`, or `ICCBased` with `N` of 1 or 3 are resampled to `DeviceCMYK`
+and re-emitted as Flate-compressed 8-bit CMYK. An embedded ICC profile is converted
+to sRGB with `moxcms` first, using the same bounded ICC handling as `pdf_json`: an
+unusable profile makes the image be skipped rather than guessed at.
+
+**Deliberately left untouched** (a wrong rewrite would corrupt them, and leaving
+them is visible and reversible): images used as `/SMask` or `/Mask`, stencil masks,
+images carrying a `/Decode` array, non-8-bit depths, `Indexed`/`Separation`/
+`DeviceN`/`Lab` colour spaces, four-component `ICCBased` images (already CMYK-like),
+images larger than 256 Mi samples, and images behind filters `lopdf` cannot decode
+on its own (DCT/JPEG, JPX, CCITT, JBIG2). Shadings (`sh`), pattern colour spaces,
+Type3 glyph procedures, and annotation appearance streams keep their original
+colours. The result is therefore a document whose device colours are CMYK, not a
+certified prepress conversion; unlike Ghostscript's `/prepress` pass it also does
+not downsample, re-encode, or restructure anything else.
+
+Failures are limited to reading, decoding, re-encoding, or writing the PDF and
+return a server error.
 
 ### `HIGH_CONTRAST_COLOR` and `CUSTOM_COLOR`
 
@@ -65,5 +94,8 @@ non-stroking color.
 HTTP tests cover required-field validation, invalid option/color rejection,
 high-contrast/custom page and nested-Form recoloring, preservation of selectable
 text, and the `FULL_INVERSION` branch against both the no-native boundary and the
-pinned native runtime. The `COLOR_SPACE_CONVERSION` branch is asserted against
-whichever Ghostscript state the host provides.
+pinned native runtime. `COLOR_SPACE_CONVERSION` is asserted unconditionally, with
+no host dependency: one test checks that `rg`/`g`/`RG` are gone and that pure red
+became `0 1 1 0`, one converts a `DeviceRGB` image and checks both the resulting
+CMYK bytes and that its soft mask kept `DeviceGray`, and one checks an already-CMYK
+page round-trips unchanged.

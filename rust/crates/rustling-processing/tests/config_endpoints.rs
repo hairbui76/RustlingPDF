@@ -106,6 +106,71 @@ async fn interceptor_blocks_disabled_routes_and_marks_api_responses_no_store()
     Ok(())
 }
 
+/// A `settings.yml` still carrying the Ghostscript keys of a pre-removal install
+/// must keep booting: the keys are accepted and ignored, never refused, and the
+/// removed `Ghostscript` group and its endpoints are simply not advertised.
+#[tokio::test]
+async fn legacy_ghostscript_settings_are_accepted_and_ignored()
+-> Result<(), Box<dyn std::error::Error>> {
+    let directory = tempdir()?;
+    let settings = directory.path().join("settings.yml");
+    fs::write(
+        &settings,
+        "processExecutor:\n  \
+           sessionLimit:\n    ghostscriptSessionLimit: 8\n    qpdfSessionLimit: 2\n  \
+           timeoutMinutes:\n    ghostscriptTimeoutMinutes: 30\n    qpdfTimeoutMinutes: 30\n\
+         endpoints:\n  groupsToRemove: [Ghostscript]\n  toRemove: [pdf-to-pdfa, pdf-to-vector]\n",
+    )?;
+    let runtime_config =
+        RuntimeConfig::from_files(&settings, directory.path().join("custom_settings.yml"));
+    // The startup warning path must not panic on these keys.
+    runtime_config.warn_on_ignored_legacy_settings();
+
+    let availability = json_body(
+        request(
+            runtime_config.clone(),
+            "/api/v1/config/endpoints-availability?endpoints=pdf-to-pdfa,pdf-to-vector,merge-pdfs",
+            &[],
+        )
+        .await?,
+    )
+    .await?;
+    // The removed `Ghostscript` group name in `groupsToRemove` matches no group,
+    // so it disables nothing; unrelated endpoints stay enabled.
+    assert_eq!(availability["merge-pdfs"]["enabled"], true);
+    // The explicit `toRemove` entries for the deleted endpoints are still honoured
+    // as opaque keys rather than rejected as unknown.
+    for endpoint in ["pdf-to-pdfa", "pdf-to-vector"] {
+        assert_eq!(availability[endpoint]["enabled"], false, "{endpoint}");
+    }
+
+    // The deleted routes are gone from the router entirely — checked against a
+    // configuration that does not disable them, so a 404 can only come from the
+    // route being absent rather than from the disabled-endpoint interceptor.
+    let plain = directory.path().join("plain.yml");
+    fs::write(&plain, "{}\n")?;
+    for path in [
+        "/api/v1/convert/pdf/pdfa",
+        "/api/v1/convert/pdf/vector",
+        "/api/v1/convert/vector/pdf",
+    ] {
+        let response = app_with_runtime_config(
+            1024 * 1024,
+            TimestampSettings::default(),
+            RuntimeConfig::from_files(&plain, directory.path().join("missing.yml")),
+        )
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(path)
+                .body(Body::empty())?,
+        )
+        .await?;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+    }
+    Ok(())
+}
+
 fn configured_runtime() -> Result<RuntimeConfig, Box<dyn std::error::Error>> {
     let directory = tempdir()?;
     let settings = directory.path().join("settings.yml");

@@ -83,8 +83,9 @@ pub enum ComicBookError {
 
 /// Converts naturally sorted images from a CBZ/ZIP archive into one PDF page each.
 ///
-/// `optimize_for_ebook` is accepted for wire compatibility; Ghostscript
-/// optimization remains a later external-adapter cutover item.
+/// `optimize_for_ebook` is accepted for wire compatibility and is a permanent
+/// no-op: Java implemented it with Ghostscript, which was removed from this
+/// product for its AGPL-3.0-or-commercial licence.
 ///
 /// # Errors
 ///

@@ -13,7 +13,7 @@ use lopdf::{Document, Object, Stream, dictionary};
 use tempfile::tempdir;
 use thiserror::Error;
 
-use crate::ghostscript::{exit_status, ghostscript_commands};
+use crate::process_executor::exit_status;
 
 const QPDF_COMMAND_ENV: &str = "RUSTLING_PROCESSING_QPDF_COMMAND";
 const MAX_IMAGE_BYTES: usize = 512 * 1024 * 1024;
@@ -73,7 +73,7 @@ pub enum CompressError {
     Io(#[from] std::io::Error),
 }
 
-/// Optimizes a PDF with native stream/image rewriting and optional Ghostscript/QPDF adapters.
+/// Optimizes a PDF with native stream/image rewriting and an optional QPDF adapter.
 ///
 /// The native path recompresses structure, downscales common embedded RGB/gray images, converts
 /// images to gray when requested, and implements line-art conversion as 1-bit embedded images.
@@ -129,16 +129,6 @@ pub fn compress_pdf_to_file(
     let mut iteration = 0_u8;
     loop {
         iteration = iteration.saturating_add(1);
-        let ghostscript_path = work.path().join(format!("ghostscript-{iteration}.pdf"));
-        let ghostscript_applied = if level >= 6 {
-            try_ghostscript_compression(&current_path, &ghostscript_path, level, options.grayscale)?
-        } else {
-            false
-        };
-        if ghostscript_applied {
-            current_path = ghostscript_path;
-        }
-
         let qpdf_path = work.path().join(format!("qpdf-{iteration}.pdf"));
         let qpdf_applied = try_qpdf_compression(
             &current_path,
@@ -155,7 +145,7 @@ pub fn compress_pdf_to_file(
             });
         }
 
-        if (level >= 4 || options.grayscale) && !ghostscript_applied {
+        if level >= 4 || options.grayscale {
             let images_path = work.path().join(format!("images-{iteration}.pdf"));
             transform_images(
                 &current_path,
@@ -542,73 +532,6 @@ const fn jpeg_quality(level: i32) -> u8 {
     }
 }
 
-fn try_ghostscript_compression(
-    input_path: &Path,
-    output_path: &Path,
-    level: i32,
-    grayscale: bool,
-) -> Result<bool, CompressError> {
-    let commands = ghostscript_commands();
-    let mut arguments = vec![
-        OsString::from("-sDEVICE=pdfwrite"),
-        OsString::from("-dCompatibilityLevel=1.5"),
-        OsString::from("-dNOPAUSE"),
-        OsString::from("-dQUIET"),
-        OsString::from("-dBATCH"),
-        OsString::from("-dSAFER"),
-        OsString::from("-dDetectDuplicateImages=true"),
-        OsString::from("-dDownsampleColorImages=true"),
-        OsString::from("-dCompressFonts=true"),
-        OsString::from("-dSubsetFonts=true"),
-    ];
-    arguments.extend(
-        ghostscript_level_arguments(level)
-            .into_iter()
-            .map(OsString::from),
-    );
-    if grayscale {
-        arguments.push(OsString::from("-dColorConversionStrategy=/Gray"));
-        arguments.push(OsString::from("-dProcessColorModel=/DeviceGray"));
-    } else if level >= 7 {
-        arguments.push(OsString::from("-dConvertCMYKImagesToRGB=true"));
-    }
-    arguments.push(output_argument(output_path));
-    arguments.push(input_path.as_os_str().to_owned());
-    run_optional_command(
-        &commands.candidates,
-        commands.explicitly_configured,
-        &arguments,
-        output_path,
-    )
-}
-
-fn ghostscript_level_arguments(level: i32) -> Vec<&'static str> {
-    match level {
-        1 => vec!["-dPDFSETTINGS=/prepress"],
-        2 => vec!["-dPDFSETTINGS=/printer"],
-        3 => vec!["-dPDFSETTINGS=/ebook"],
-        4 | 5 => vec!["-dPDFSETTINGS=/screen"],
-        6 | 7 => vec![
-            "-dPDFSETTINGS=/screen",
-            "-dColorImageResolution=150",
-            "-dGrayImageResolution=150",
-            "-dMonoImageResolution=300",
-        ],
-        8 => vec![
-            "-dPDFSETTINGS=/screen",
-            "-dColorImageResolution=100",
-            "-dGrayImageResolution=100",
-            "-dMonoImageResolution=200",
-        ],
-        _ => vec![
-            "-dPDFSETTINGS=/screen",
-            "-dColorImageResolution=72",
-            "-dGrayImageResolution=72",
-            "-dMonoImageResolution=150",
-        ],
-    }
-}
-
 fn try_qpdf_compression(
     input_path: &Path,
     output_path: &Path,
@@ -680,12 +603,6 @@ fn qpdf_commands() -> (Vec<String>, bool) {
     } else {
         (vec!["qpdf".to_owned()], false)
     }
-}
-
-fn output_argument(output_path: &Path) -> OsString {
-    let mut argument = OsString::from("-sOutputFile=");
-    argument.push(output_path.as_os_str());
-    argument
 }
 
 fn run_optional_command(

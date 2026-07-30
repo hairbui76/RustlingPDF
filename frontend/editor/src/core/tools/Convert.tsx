@@ -157,7 +157,6 @@ const Convert = ({ onPreviewFile, onComplete, onError }: BaseToolProps) => {
             parameters={convertParams.parameters}
             onParameterChange={convertParams.updateParameter}
             getAvailableToExtensions={convertParams.getAvailableToExtensions}
-            selectedFiles={selectedFiles}
             disabled={endpointLoading}
           />
         ),

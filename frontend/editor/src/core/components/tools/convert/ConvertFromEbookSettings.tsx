@@ -24,7 +24,6 @@ const ConvertFromEbookSettings = ({
       includeTableOfContents:
         parameters.ebookOptions?.includeTableOfContents ?? false,
       includePageNumbers: parameters.ebookOptions?.includePageNumbers ?? false,
-      optimizeForEbook: parameters.ebookOptions?.optimizeForEbook ?? false,
     });
   };
 
@@ -33,7 +32,6 @@ const ConvertFromEbookSettings = ({
       embedAllFonts: parameters.ebookOptions?.embedAllFonts ?? false,
       includeTableOfContents: value,
       includePageNumbers: parameters.ebookOptions?.includePageNumbers ?? false,
-      optimizeForEbook: parameters.ebookOptions?.optimizeForEbook ?? false,
     });
   };
 
@@ -43,17 +41,6 @@ const ConvertFromEbookSettings = ({
       includeTableOfContents:
         parameters.ebookOptions?.includeTableOfContents ?? false,
       includePageNumbers: value,
-      optimizeForEbook: parameters.ebookOptions?.optimizeForEbook ?? false,
-    });
-  };
-
-  const handleOptimizeForEbookChange = (value: boolean) => {
-    onParameterChange("ebookOptions", {
-      embedAllFonts: parameters.ebookOptions?.embedAllFonts ?? false,
-      includeTableOfContents:
-        parameters.ebookOptions?.includeTableOfContents ?? false,
-      includePageNumbers: parameters.ebookOptions?.includePageNumbers ?? false,
-      optimizeForEbook: value,
     });
   };
 
@@ -62,7 +49,6 @@ const ConvertFromEbookSettings = ({
     embedAllFonts: false,
     includeTableOfContents: false,
     includePageNumbers: false,
-    optimizeForEbook: false,
   };
 
   return (
@@ -106,21 +92,6 @@ const ConvertFromEbookSettings = ({
         checked={ebookOptions.includePageNumbers}
         onChange={(event) =>
           handleIncludePageNumbersChange(event.currentTarget.checked)
-        }
-        disabled={disabled}
-      />
-      <Checkbox
-        label={t(
-          "convert.ebookOptions.optimizeForEbookPdf",
-          "Optimize for ebook readers",
-        )}
-        description={t(
-          "convert.ebookOptions.optimizeForEbookPdfDesc",
-          "Optimize the PDF for eBook reading (smaller file size, better rendering on eInk devices)",
-        )}
-        checked={ebookOptions.optimizeForEbook}
-        onChange={(event) =>
-          handleOptimizeForEbookChange(event.currentTarget.checked)
         }
         disabled={disabled}
       />

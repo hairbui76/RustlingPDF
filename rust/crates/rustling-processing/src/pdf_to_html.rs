@@ -23,7 +23,6 @@ use thiserror::Error;
 use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 use crate::{
-    ghostscript::exit_status,
     pdf_markdown::{heading_prefix, reading_order_groups},
     pdfium_backend::{
         ExtractImageFormat, ExtractedPageImage, MarkdownPageGeometry, MarkdownTextLine,
@@ -31,6 +30,7 @@ use crate::{
         PdfiumMarkdownAttempt, PdfiumTextError, try_extract_markdown_lines,
         try_extract_page_images_to_zip,
     },
+    process_executor::exit_status,
 };
 
 const MAX_OUTPUT_FILES: usize = 100_000;

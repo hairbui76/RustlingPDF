@@ -42,8 +42,6 @@ const ALL_BACKEND_ENDPOINTS = [
   "pdf-to-xml",
   "pdf-to-csv",
   "pdf-to-xlsx",
-  "pdf-to-pdfa",
-  "pdf-to-pdfx",
   "pdf-to-presentation",
   "pdf-to-markdown",
   "pdf-to-cbz",

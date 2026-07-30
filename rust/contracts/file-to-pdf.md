@@ -58,7 +58,7 @@ pass matches Java by neutralizing external references rather than deleting VBA p
 ## Availability
 
 When no LibreOffice binary is found the endpoint returns `501 Not Implemented`
-(mirroring the flatten/Ghostscript "tool not available" convention). A LibreOffice
+(mirroring the flatten "tool not available" convention). A LibreOffice
 process that starts but fails, or produces no PDF, returns a server error.
 
 ## Verification

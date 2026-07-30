@@ -1,16 +1,23 @@
-use std::{collections::HashSet, ffi::OsString, io::ErrorKind, path::Path, process::Command};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use lopdf::{
-    Dictionary, Document, Object, ObjectId,
+    Dictionary, Document, Object, ObjectId, Stream,
     content::{Content, Operation},
 };
+use moxcms::{ColorProfile, DataColorSpace, Layout, TransformOptions};
 use thiserror::Error;
 
 use crate::{
-    ghostscript::{exit_status, ghostscript_commands},
     pdf_flatten::configured_max_render_dpi,
     pdfium_backend::{PdfiumInvertAttempt, PdfiumInvertError, try_invert_pdf_to_file},
 };
+
+/// Upper bound on the samples of a single image the CMYK conversion will rewrite.
+/// Larger images keep their original colour space instead of being buffered.
+const MAX_CMYK_IMAGE_SAMPLES: usize = 256 * 1024 * 1024;
 
 /// Color transformation requested by the `replace-invert-pdf` endpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -109,34 +116,19 @@ pub enum ReplaceInvertError {
     },
     #[error(transparent)]
     Pdfium(#[from] PdfiumInvertError),
-    #[error(
-        "CMYK color space conversion requires Ghostscript, which is not available on this system"
-    )]
-    GhostscriptUnavailable,
-    #[error("Ghostscript CMYK conversion with '{command}' failed with status {status}: {details}")]
-    GhostscriptFailed {
-        command: String,
-        status: String,
-        details: String,
-    },
-    #[error("could not start Ghostscript command '{command}': {source}")]
-    GhostscriptStart {
-        command: String,
-        #[source]
-        source: std::io::Error,
-    },
 }
 
 /// Applies the requested color transformation and writes the result to `output_path`.
 ///
 /// `FULL_INVERSION` rasterizes each page and inverts its colors. `COLOR_SPACE_CONVERSION`
-/// shells out to Ghostscript for a CMYK/prepress conversion. High-contrast and custom modes
-/// prepend a page background and recolor text-showing operations in page/Form content streams.
+/// rewrites device colors and images into `DeviceCMYK` in process. High-contrast and custom
+/// modes prepend a page background and recolor text-showing operations in page/Form content
+/// streams.
 ///
 /// # Errors
 ///
-/// Returns [`ReplaceInvertError`] when the option is unsupported, `PDFium` or Ghostscript
-/// is unavailable, or the underlying tool fails.
+/// Returns [`ReplaceInvertError`] when the option is unsupported, `PDFium` is unavailable,
+/// or the PDF cannot be read, rewritten, or saved.
 pub fn replace_invert_color_to_file(
     input_path: &Path,
     filename: &str,
@@ -145,7 +137,9 @@ pub fn replace_invert_color_to_file(
 ) -> Result<(), ReplaceInvertError> {
     match options.option {
         ReplaceAndInvert::FullInversion => invert_full_color(input_path, filename, output_path),
-        ReplaceAndInvert::ColorSpaceConversion => convert_color_space_cmyk(input_path, output_path),
+        ReplaceAndInvert::ColorSpaceConversion => {
+            convert_color_space_cmyk(input_path, filename, output_path)
+        }
         ReplaceAndInvert::HighContrastColor => {
             let (text_color, background_color) = options.high_contrast_combination.colors();
             recolor_text_content(
@@ -468,72 +462,523 @@ fn invert_full_color(
     }
 }
 
+/// Converts a PDF into `DeviceCMYK` without any external process.
+///
+/// Two layers are rewritten:
+///
+/// * **Content streams** — page contents and (nested, shared) Form `XObjects`. Every
+///   `DeviceGray`/`DeviceRGB` colour operator (`g`, `G`, `rg`, `RG`, and `sc`/`scn`/`SC`/`SCN`
+///   under a `cs`/`CS`-selected device space) is replaced by the equivalent `k`/`K` operator
+///   using the PDF device conversion of ISO 32000-1 §10.4. Colours already in `DeviceCMYK`
+///   are left untouched, and non-device spaces (`ICCBased`, Indexed, Separation, `DeviceN`, Lab,
+///   Pattern) are preserved verbatim rather than guessed at.
+/// * **Image `XObjects`** — 8-bit-per-component gray/RGB images, including `ICCBased` ones,
+///   are resampled into `DeviceCMYK`. An embedded ICC profile is first converted to sRGB with
+///   `moxcms` (the same bounded ICC handling `pdf_json` uses) before the device conversion.
+///
+/// # Errors
+///
+/// Returns [`ReplaceInvertError`] when the PDF cannot be read, a content stream cannot be
+/// decoded or re-encoded, or the result cannot be written.
 fn convert_color_space_cmyk(
     input_path: &Path,
+    filename: &str,
     output_path: &Path,
 ) -> Result<(), ReplaceInvertError> {
-    let commands = ghostscript_commands();
-    let mut output_argument = OsString::from("-sOutputFile=");
-    output_argument.push(output_path.as_os_str());
-    let arguments = [
-        OsString::from("-sDEVICE=pdfwrite"),
-        OsString::from("-dCompatibilityLevel=1.5"),
-        OsString::from("-dPDFSETTINGS=/prepress"),
-        OsString::from("-dNOPAUSE"),
-        OsString::from("-dQUIET"),
-        OsString::from("-dBATCH"),
-        OsString::from("-sProcessColorModel=DeviceCMYK"),
-        OsString::from("-sColorConversionStrategy=CMYK"),
-        OsString::from("-sColorConversionStrategyForImages=CMYK"),
-        output_argument,
-        input_path.as_os_str().to_owned(),
-    ];
-    for command in &commands.candidates {
-        match Command::new(command).args(&arguments).output() {
-            Ok(output) if output.status.success() => {
-                if output_path
-                    .metadata()
-                    .is_ok_and(|metadata| metadata.len() > 0)
-                {
-                    return Ok(());
+    let mut document =
+        Document::load(input_path).map_err(|source| ReplaceInvertError::ReadPdf {
+            filename: filename.to_owned(),
+            source,
+        })?;
+    let page_ids = document.page_iter().collect::<Vec<_>>();
+    let mut visited_forms = HashSet::new();
+    for page_id in page_ids {
+        let color_spaces = page_color_space_names(&document, page_id);
+        let form_ids = page_form_xobject_ids(&document, page_id)?;
+        let content_data = document.get_page_content(page_id);
+        let mut content = Content::decode(&content_data)?;
+        convert_content_to_cmyk(&mut content.operations, &color_spaces);
+        document.change_page_content(page_id, content.encode()?)?;
+        for form_id in form_ids {
+            convert_form_xobject_to_cmyk(&mut document, form_id, &mut visited_forms)?;
+        }
+    }
+    convert_images_to_cmyk(&mut document);
+    document.save(output_path)?;
+    Ok(())
+}
+
+fn convert_form_xobject_to_cmyk(
+    document: &mut Document,
+    form_id: ObjectId,
+    visited_forms: &mut HashSet<ObjectId>,
+) -> Result<(), ReplaceInvertError> {
+    if !visited_forms.insert(form_id) {
+        return Ok(());
+    }
+    let child_forms = form_xobject_ids(document, form_id)?;
+    let form = document.get_object(form_id)?.as_stream()?;
+    let color_spaces = form
+        .dict
+        .get(b"Resources")
+        .ok()
+        .and_then(|resources| resource_dictionary(document, resources))
+        .map(|resources| device_color_space_names(document, resources))
+        .unwrap_or_default();
+    let content_data = form.decompressed_content()?;
+    let mut content = Content::decode(&content_data)?;
+    convert_content_to_cmyk(&mut content.operations, &color_spaces);
+    document
+        .get_object_mut(form_id)?
+        .as_stream_mut()?
+        .set_plain_content(content.encode()?);
+    for child_id in child_forms {
+        convert_form_xobject_to_cmyk(document, child_id, visited_forms)?;
+    }
+    Ok(())
+}
+
+/// The device colour space a `cs`/`CS` operand selects, as far as the conversion cares.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum DeviceColorSpace {
+    Gray,
+    Rgb,
+    /// `DeviceCMYK` or any space this conversion deliberately leaves alone.
+    #[default]
+    Other,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct ColorSpaceState {
+    non_stroking: DeviceColorSpace,
+    stroking: DeviceColorSpace,
+}
+
+/// Rewrites the device colour operators of one content stream into `DeviceCMYK`.
+fn convert_content_to_cmyk(
+    operations: &mut Vec<Operation>,
+    color_spaces: &HashMap<Vec<u8>, DeviceColorSpace>,
+) {
+    let mut output = Vec::with_capacity(operations.len());
+    let mut state = ColorSpaceState::default();
+    let mut stack: Vec<ColorSpaceState> = Vec::new();
+    for operation in operations.drain(..) {
+        match operation.operator.as_str() {
+            "q" => stack.push(state),
+            "Q" => state = stack.pop().unwrap_or_default(),
+            "g" | "G" => {
+                let stroking = operation.operator == "G";
+                if let Some(gray) = single_component(&operation.operands) {
+                    output.push(cmyk_operation(gray_to_cmyk(gray), stroking));
+                    set_space(&mut state, stroking, DeviceColorSpace::Other);
+                    continue;
                 }
-                return Err(ReplaceInvertError::GhostscriptFailed {
-                    command: command.clone(),
-                    status: exit_status(output.status),
-                    details: "Ghostscript produced no output".to_owned(),
-                });
             }
-            Ok(output) => {
-                return Err(ReplaceInvertError::GhostscriptFailed {
-                    command: command.clone(),
-                    status: exit_status(output.status),
-                    details: process_details(&output.stdout, &output.stderr),
-                });
+            "rg" | "RG" => {
+                let stroking = operation.operator == "RG";
+                if let Some(rgb) = three_components(&operation.operands) {
+                    output.push(cmyk_operation(rgb_to_cmyk(rgb), stroking));
+                    set_space(&mut state, stroking, DeviceColorSpace::Other);
+                    continue;
+                }
             }
-            Err(source) if source.kind() == ErrorKind::NotFound => {}
-            Err(source) => {
-                return Err(ReplaceInvertError::GhostscriptStart {
-                    command: command.clone(),
-                    source,
-                });
+            "k" | "K" => set_space(
+                &mut state,
+                operation.operator == "K",
+                DeviceColorSpace::Other,
+            ),
+            "cs" | "CS" => {
+                let stroking = operation.operator == "CS";
+                let space = operation
+                    .operands
+                    .first()
+                    .and_then(|operand| operand.as_name().ok())
+                    .map_or(DeviceColorSpace::Other, |name| {
+                        named_device_color_space(name, color_spaces)
+                    });
+                set_space(&mut state, stroking, space);
+                if space == DeviceColorSpace::Other {
+                    output.push(operation);
+                } else {
+                    output.push(Operation::new(
+                        if stroking { "CS" } else { "cs" },
+                        vec![Object::Name(b"DeviceCMYK".to_vec())],
+                    ));
+                }
+                continue;
+            }
+            "sc" | "scn" | "SC" | "SCN" => {
+                let stroking = matches!(operation.operator.as_str(), "SC" | "SCN");
+                let space = if stroking {
+                    state.stroking
+                } else {
+                    state.non_stroking
+                };
+                let converted = match space {
+                    DeviceColorSpace::Gray => {
+                        single_component(&operation.operands).map(gray_to_cmyk)
+                    }
+                    DeviceColorSpace::Rgb => three_components(&operation.operands).map(rgb_to_cmyk),
+                    DeviceColorSpace::Other => None,
+                };
+                if let Some(cmyk) = converted {
+                    output.push(cmyk_operation(cmyk, stroking));
+                    continue;
+                }
+            }
+            _ => {}
+        }
+        output.push(operation);
+    }
+    *operations = output;
+}
+
+fn set_space(state: &mut ColorSpaceState, stroking: bool, space: DeviceColorSpace) {
+    if stroking {
+        state.stroking = space;
+    } else {
+        state.non_stroking = space;
+    }
+}
+
+fn cmyk_operation(cmyk: [f32; 4], stroking: bool) -> Operation {
+    Operation::new(
+        if stroking { "K" } else { "k" },
+        cmyk.into_iter().map(Object::Real).collect(),
+    )
+}
+
+/// ISO 32000-1 §10.4: `DeviceGray` to `DeviceCMYK`.
+fn gray_to_cmyk(gray: f32) -> [f32; 4] {
+    [0.0, 0.0, 0.0, (1.0 - gray).clamp(0.0, 1.0)]
+}
+
+/// ISO 32000-1 §10.4: `DeviceRGB` to `DeviceCMYK` with full black generation and
+/// undercolour removal (`k = min(c, m, y)`).
+fn rgb_to_cmyk(rgb: [f32; 3]) -> [f32; 4] {
+    let cyan = (1.0 - rgb[0]).clamp(0.0, 1.0);
+    let magenta = (1.0 - rgb[1]).clamp(0.0, 1.0);
+    let yellow = (1.0 - rgb[2]).clamp(0.0, 1.0);
+    let black = cyan.min(magenta).min(yellow);
+    [cyan - black, magenta - black, yellow - black, black]
+}
+
+fn rgb_bytes_to_cmyk_bytes(rgb: &[u8]) -> Vec<u8> {
+    let mut cmyk = Vec::with_capacity(rgb.len() / 3 * 4);
+    for pixel in rgb.chunks_exact(3) {
+        let components = rgb_to_cmyk([
+            f32::from(pixel[0]) / 255.0,
+            f32::from(pixel[1]) / 255.0,
+            f32::from(pixel[2]) / 255.0,
+        ]);
+        for component in components {
+            cmyk.push(sample_byte(component));
+        }
+    }
+    cmyk
+}
+
+fn gray_bytes_to_cmyk_bytes(gray: &[u8]) -> Vec<u8> {
+    let mut cmyk = Vec::with_capacity(gray.len() * 4);
+    for value in gray {
+        cmyk.extend_from_slice(&[0, 0, 0, 255 - *value]);
+    }
+    cmyk
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn sample_byte(value: f32) -> u8 {
+    (value.clamp(0.0, 1.0) * 255.0).round() as u8
+}
+
+fn single_component(operands: &[Object]) -> Option<f32> {
+    match operands {
+        [value] => operand_number(value),
+        _ => None,
+    }
+}
+
+fn three_components(operands: &[Object]) -> Option<[f32; 3]> {
+    match operands {
+        [red, green, blue] => Some([
+            operand_number(red)?,
+            operand_number(green)?,
+            operand_number(blue)?,
+        ]),
+        _ => None,
+    }
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn operand_number(object: &Object) -> Option<f32> {
+    match object {
+        Object::Integer(value) => Some(*value as f32),
+        Object::Real(value) => Some(*value),
+        _ => None,
+    }
+}
+
+fn named_device_color_space(
+    name: &[u8],
+    color_spaces: &HashMap<Vec<u8>, DeviceColorSpace>,
+) -> DeviceColorSpace {
+    match name {
+        b"DeviceGray" | b"G" | b"CalGray" => DeviceColorSpace::Gray,
+        b"DeviceRGB" | b"RGB" | b"CalRGB" => DeviceColorSpace::Rgb,
+        _ => color_spaces
+            .get(name)
+            .copied()
+            .unwrap_or(DeviceColorSpace::Other),
+    }
+}
+
+fn page_color_space_names(
+    document: &Document,
+    page_id: ObjectId,
+) -> HashMap<Vec<u8>, DeviceColorSpace> {
+    let mut names = HashMap::new();
+    if let Ok((resources, resource_ids)) = document.get_page_resources(page_id) {
+        if let Some(resources) = resources {
+            names.extend(device_color_space_names(document, resources));
+        }
+        for resource_id in resource_ids {
+            if let Ok(resources) = document.get_dictionary(resource_id) {
+                names.extend(device_color_space_names(document, resources));
             }
         }
     }
-    Err(ReplaceInvertError::GhostscriptUnavailable)
+    names
 }
 
-fn process_details(stdout: &[u8], stderr: &[u8]) -> String {
-    let bytes = if stderr.is_empty() { stdout } else { stderr };
-    let details = String::from_utf8_lossy(bytes);
-    let mut characters = details.trim().chars();
-    let result = characters.by_ref().take(2_048).collect::<String>();
-    if characters.next().is_some() {
-        format!("{result}…")
-    } else if result.is_empty() {
-        "no diagnostic output".to_owned()
-    } else {
-        result
+/// Maps `/ColorSpace` resource names onto the device space they resolve to.
+/// Only direct `/DeviceGray`, `/DeviceRGB`, `/CalGray`, and `/CalRGB` entries are
+/// classified; anything else stays [`DeviceColorSpace::Other`] and is untouched.
+fn device_color_space_names(
+    document: &Document,
+    resources: &Dictionary,
+) -> HashMap<Vec<u8>, DeviceColorSpace> {
+    let Some(color_spaces) = resources
+        .get(b"ColorSpace")
+        .ok()
+        .and_then(|color_spaces| resource_dictionary(document, color_spaces))
+    else {
+        return HashMap::new();
+    };
+    color_spaces
+        .iter()
+        .filter_map(|(name, object)| {
+            let (_, resolved) = document.dereference(object).ok()?;
+            let space = match resolved.as_name().ok()? {
+                b"DeviceGray" | b"CalGray" => DeviceColorSpace::Gray,
+                b"DeviceRGB" | b"CalRGB" => DeviceColorSpace::Rgb,
+                _ => return None,
+            };
+            Some((name.clone(), space))
+        })
+        .collect()
+}
+
+/// Rewrites eligible image `XObjects` into `DeviceCMYK`.
+///
+/// Images that act as soft masks or stencil masks, carry a `/Decode` array, use a
+/// non-8-bit depth, use a colour space this conversion does not model, or whose data
+/// cannot be decoded with `lopdf` alone (DCT, JPX, CCITT, JBIG2) are left untouched:
+/// a wrong rewrite would corrupt them, and leaving them is visible and reversible.
+fn convert_images_to_cmyk(document: &mut Document) {
+    let mask_ids = mask_object_ids(document);
+    let image_ids = document
+        .objects
+        .iter()
+        .filter(|(object_id, object)| {
+            !mask_ids.contains(*object_id)
+                && object.as_stream().is_ok_and(|stream| {
+                    stream
+                        .dict
+                        .get(b"Subtype")
+                        .and_then(Object::as_name)
+                        .is_ok_and(|subtype| subtype == b"Image")
+                })
+        })
+        .map(|(object_id, _)| *object_id)
+        .collect::<Vec<_>>();
+    for image_id in image_ids {
+        let Ok(stream) = document.get_object(image_id).and_then(Object::as_stream) else {
+            continue;
+        };
+        let Some(samples) = image_cmyk_samples(document, stream) else {
+            continue;
+        };
+        if let Ok(stream) = document
+            .get_object_mut(image_id)
+            .and_then(Object::as_stream_mut)
+        {
+            write_cmyk_image(stream, samples);
+        }
     }
+}
+
+fn write_cmyk_image(stream: &mut Stream, samples: Vec<u8>) {
+    stream.dict.remove(b"Filter");
+    stream.dict.remove(b"DecodeParms");
+    stream
+        .dict
+        .set("ColorSpace", Object::Name(b"DeviceCMYK".to_vec()));
+    stream.dict.set("BitsPerComponent", 8);
+    stream.set_plain_content(samples);
+    let _ = stream.compress();
+}
+
+/// Object ids used as soft masks or stencil masks, which must keep their own
+/// single-channel colour space.
+fn mask_object_ids(document: &Document) -> HashSet<ObjectId> {
+    document
+        .objects
+        .values()
+        .filter_map(|object| object.as_stream().ok())
+        .flat_map(|stream| {
+            [b"SMask".as_slice(), b"Mask"]
+                .into_iter()
+                .filter_map(|key| stream.dict.get(key).ok()?.as_reference().ok())
+        })
+        .collect()
+}
+
+fn image_cmyk_samples(document: &Document, stream: &lopdf::Stream) -> Option<Vec<u8>> {
+    if stream.dict.get(b"ImageMask").is_ok() || stream.dict.get(b"Decode").is_ok() {
+        return None;
+    }
+    if stream
+        .dict
+        .get(b"BitsPerComponent")
+        .and_then(Object::as_i64)
+        .ok()?
+        != 8
+    {
+        return None;
+    }
+    if !decodable_with_lopdf(&stream.dict) {
+        return None;
+    }
+    let width = usize::try_from(stream.dict.get(b"Width").and_then(Object::as_i64).ok()?).ok()?;
+    let height = usize::try_from(stream.dict.get(b"Height").and_then(Object::as_i64).ok()?).ok()?;
+    let color_space = image_color_space(document, stream)?;
+    let channels = color_space.channels();
+    let expected = width.checked_mul(height)?.checked_mul(channels)?;
+    if expected == 0 || expected > MAX_CMYK_IMAGE_SAMPLES {
+        return None;
+    }
+    let data = stream.decompressed_content().ok()?;
+    if data.len() < expected {
+        return None;
+    }
+    let data = &data[..expected];
+    match color_space {
+        ImageColorSpace::Gray => Some(gray_bytes_to_cmyk_bytes(data)),
+        ImageColorSpace::Rgb => Some(rgb_bytes_to_cmyk_bytes(data)),
+        ImageColorSpace::Icc { channels, profile } => {
+            let rgb = icc_samples_to_rgb(data, channels, &profile)?;
+            Some(rgb_bytes_to_cmyk_bytes(&rgb))
+        }
+    }
+}
+
+/// Whether the stream's filter chain is one `lopdf` can decode on its own.
+fn decodable_with_lopdf(dictionary: &Dictionary) -> bool {
+    let filters: Vec<&[u8]> = match dictionary.get(b"Filter") {
+        Err(_) => return true,
+        Ok(Object::Name(name)) => vec![name.as_slice()],
+        Ok(Object::Array(names)) => names
+            .iter()
+            .filter_map(|name| name.as_name().ok())
+            .collect(),
+        Ok(_) => return false,
+    };
+    filters.iter().all(|filter| {
+        matches!(
+            *filter,
+            b"FlateDecode" | b"Fl" | b"LZWDecode" | b"LZW" | b"ASCII85Decode" | b"ASCIIHexDecode"
+        )
+    })
+}
+
+enum ImageColorSpace {
+    Gray,
+    Rgb,
+    Icc { channels: usize, profile: Vec<u8> },
+}
+
+impl ImageColorSpace {
+    fn channels(&self) -> usize {
+        match self {
+            Self::Gray => 1,
+            Self::Rgb => 3,
+            Self::Icc { channels, .. } => *channels,
+        }
+    }
+}
+
+fn image_color_space(document: &Document, stream: &lopdf::Stream) -> Option<ImageColorSpace> {
+    let (_, color_space) = document
+        .dereference(stream.dict.get(b"ColorSpace").ok()?)
+        .ok()?;
+    match color_space {
+        Object::Name(name) => match name.as_slice() {
+            b"DeviceGray" | b"G" | b"CalGray" => Some(ImageColorSpace::Gray),
+            b"DeviceRGB" | b"RGB" | b"CalRGB" => Some(ImageColorSpace::Rgb),
+            _ => None,
+        },
+        Object::Array(values) => icc_image_color_space(document, values),
+        _ => None,
+    }
+}
+
+fn icc_image_color_space(document: &Document, values: &[Object]) -> Option<ImageColorSpace> {
+    if values.first()?.as_name().ok()? != b"ICCBased" {
+        return None;
+    }
+    let (_, profile_stream) = document.dereference(values.get(1)?).ok()?;
+    let profile_stream = profile_stream.as_stream().ok()?;
+    let channels = usize::try_from(
+        profile_stream
+            .dict
+            .get(b"N")
+            .and_then(Object::as_i64)
+            .ok()?,
+    )
+    .ok()?;
+    if !matches!(channels, 1 | 3) {
+        return None;
+    }
+    let profile = profile_stream.decompressed_content().ok()?;
+    Some(ImageColorSpace::Icc { channels, profile })
+}
+
+/// Converts ICC-tagged samples to sRGB, mirroring the bounded ICC handling in
+/// `pdf_json`: an unusable profile makes the caller skip the image rather than
+/// guess at its colours.
+fn icc_samples_to_rgb(samples: &[u8], channels: usize, profile: &[u8]) -> Option<Vec<u8>> {
+    if channels == 0 || !samples.len().is_multiple_of(channels) {
+        return None;
+    }
+    let source_profile = ColorProfile::new_from_slice(profile).ok()?;
+    let source_layout = match (channels, source_profile.color_space) {
+        (1, DataColorSpace::Gray) => Layout::Gray,
+        (3, DataColorSpace::Rgb) => Layout::Rgb,
+        _ => return None,
+    };
+    let destination_profile = ColorProfile::new_srgb();
+    let transform = source_profile
+        .create_transform_8bit(
+            source_layout,
+            &destination_profile,
+            Layout::Rgb,
+            TransformOptions::default(),
+        )
+        .ok()?;
+    let pixel_count = samples.len().checked_div(channels)?;
+    let mut rgb = vec![0; pixel_count.checked_mul(3)?];
+    transform.transform(samples, &mut rgb).ok()?;
+    Some(rgb)
 }
 
 #[cfg(test)]

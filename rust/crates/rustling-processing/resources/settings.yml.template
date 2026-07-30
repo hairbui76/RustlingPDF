@@ -208,7 +208,7 @@ processExecutor:
     installAppSessionLimit: 1
     calibreSessionLimit: 1
     imageMagickSessionLimit: 4
-    ghostscriptSessionLimit: 8
+    ghostscriptSessionLimit: 8 # Ignored: Ghostscript was removed from this service
     ocrMyPdfSessionLimit: 2
   timeoutMinutes: # Process executor timeout in minutes
     libreOfficetimeoutMinutes: 30
@@ -220,7 +220,7 @@ processExecutor:
     imageMagickTimeoutMinutes: 30
     tesseractTimeoutMinutes: 30
     qpdfTimeoutMinutes: 30
-    ghostscriptTimeoutMinutes: 30
+    ghostscriptTimeoutMinutes: 30 # Ignored: Ghostscript was removed from this service
     ocrMyPdfTimeoutMinutes: 30
 
 aiEngine:

@@ -45,7 +45,7 @@ export function useSuggestedAutomations(): SuggestedAutomation[] {
         ),
         description: t(
           "automation.suggested.securePdfIngestionDesc",
-          "Comprehensive PDF processing workflow that sanitizes documents, applies OCR with cleanup, converts to PDF/A format for long-term archival, and optimizes file size.",
+          "Comprehensive PDF processing workflow that sanitizes documents, applies OCR with cleanup, and optimizes file size.",
         ),
         operations: [
           {
@@ -66,17 +66,6 @@ export function useSuggestedAutomations(): SuggestedAutomation[] {
               ocrType: "skip-text",
               ocrRenderType: "hocr",
               additionalOptions: ["clean", "cleanFinal"],
-            },
-          },
-          {
-            operation: "convert",
-            parameters: {
-              fromExtension: "pdf",
-              toExtension: "pdfa",
-              pdfaOptions: {
-                outputFormat: "pdfa-2b",
-                strict: false,
-              },
             },
           },
           {

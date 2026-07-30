@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::Path};
 
-use lopdf::{Dictionary, Document, Object, ObjectId, Stream, dictionary};
+use lopdf::{Dictionary, Document, Object, ObjectId, Stream, content::Content, dictionary};
 use regex::Regex;
 use thiserror::Error;
 
@@ -81,6 +81,192 @@ pub fn remove_images_to_file(
     output_path: &Path,
 ) -> Result<(), DocumentOperationError> {
     transform_pdf(input_path, filename, output_path, remove_images)
+}
+
+/// Strips every raster image from a PDF: image `XObject` resources and the `Do`
+/// operators that paint them, inline `BI`/`ID`/`EI` images, and finally the now
+/// unreferenced image streams themselves.
+///
+/// This is the pure-Rust replacement for the Ghostscript `-dFILTERIMAGE` pass the
+/// OCR endpoint used for `removeImagesAfter=true`. Unlike
+/// [`remove_images_to_file`], which only detaches images from the resource tree,
+/// this also deletes the drawing operators and prunes the orphaned streams, so the
+/// image bytes are gone from the saved file rather than merely unreferenced.
+///
+/// # Errors
+///
+/// Returns [`DocumentOperationError`] when the PDF cannot be read, its content
+/// streams cannot be decoded or re-encoded, or the result cannot be written.
+pub fn strip_images_to_file(
+    input_path: &Path,
+    filename: &str,
+    output_path: &Path,
+) -> Result<(), DocumentOperationError> {
+    transform_pdf(input_path, filename, output_path, |document| {
+        strip_images(document)?;
+        document.prune_objects();
+        Ok(())
+    })
+}
+
+fn strip_images(document: &mut Document) -> Result<(), DocumentOperationError> {
+    let image_ids = image_object_ids(document);
+    let page_ids = document.get_pages().into_values().collect::<Vec<_>>();
+    let mut visited_forms = HashSet::new();
+    for page_id in page_ids {
+        let resources = inherited_value(document, page_id, b"Resources")
+            .unwrap_or_else(|_| Object::Dictionary(Dictionary::new()));
+        let (resources, removed) = detach_image_xobjects(document, &resources, &image_ids)?;
+        let mut form_ids = Vec::new();
+        collect_form_xobject_ids(document, &resources, &mut form_ids);
+        document
+            .get_dictionary_mut(page_id)?
+            .set("Resources", resources);
+        let content = document.get_page_content(page_id);
+        let rewritten = drop_image_operations(&content, &removed)?;
+        document.change_page_content(page_id, rewritten)?;
+        for form_id in form_ids {
+            strip_images_from_form(document, form_id, &image_ids, &mut visited_forms)?;
+        }
+    }
+    Ok(())
+}
+
+fn strip_images_from_form(
+    document: &mut Document,
+    form_id: ObjectId,
+    image_ids: &HashSet<ObjectId>,
+    visited_forms: &mut HashSet<ObjectId>,
+) -> Result<(), DocumentOperationError> {
+    if !visited_forms.insert(form_id) {
+        return Ok(());
+    }
+    let form = document.get_object(form_id)?.as_stream()?.clone();
+    let resources = form
+        .dict
+        .get(b"Resources")
+        .cloned()
+        .unwrap_or_else(|_| Object::Dictionary(Dictionary::new()));
+    let (resources, removed) = detach_image_xobjects(document, &resources, image_ids)?;
+    let mut child_ids = Vec::new();
+    collect_form_xobject_ids(document, &resources, &mut child_ids);
+    let content = form.decompressed_content()?;
+    let rewritten = drop_image_operations(&content, &removed)?;
+    {
+        let stream = document.get_object_mut(form_id)?.as_stream_mut()?;
+        stream.dict.set("Resources", resources);
+        stream.set_plain_content(rewritten);
+    }
+    for child_id in child_ids {
+        strip_images_from_form(document, child_id, image_ids, visited_forms)?;
+    }
+    Ok(())
+}
+
+fn image_object_ids(document: &Document) -> HashSet<ObjectId> {
+    document
+        .objects
+        .iter()
+        .filter(|(_, object)| {
+            object.as_stream().is_ok_and(|stream| {
+                stream
+                    .dict
+                    .get(b"Subtype")
+                    .and_then(Object::as_name)
+                    .is_ok_and(|subtype| subtype == b"Image")
+            })
+        })
+        .map(|(object_id, _)| *object_id)
+        .collect()
+}
+
+/// Removes image entries from an `XObject` resource dictionary and reports the
+/// resource names that were removed, so the matching `Do` operators can go too.
+fn detach_image_xobjects(
+    document: &mut Document,
+    resources: &Object,
+    image_ids: &HashSet<ObjectId>,
+) -> Result<(Object, HashSet<Vec<u8>>), DocumentOperationError> {
+    let (_, resolved) = document.dereference(resources)?;
+    let mut dictionary = resolved.as_dict()?.clone();
+    let mut removed = HashSet::new();
+    let Ok(xobjects) = dictionary.get(b"XObject").cloned() else {
+        return Ok((Object::Dictionary(dictionary), removed));
+    };
+    let (_, xobjects) = document.dereference(&xobjects)?;
+    let mut xobjects = xobjects.as_dict()?.clone();
+    let names = xobjects
+        .iter()
+        .map(|(name, _)| name.clone())
+        .collect::<Vec<_>>();
+    for name in names {
+        let is_image = xobjects.get(&name).is_ok_and(|xobject| match xobject {
+            Object::Reference(object_id) => image_ids.contains(object_id),
+            Object::Stream(stream) => stream
+                .dict
+                .get(b"Subtype")
+                .and_then(Object::as_name)
+                .is_ok_and(|subtype| subtype == b"Image"),
+            _ => false,
+        });
+        if is_image {
+            xobjects.remove(&name);
+            removed.insert(name);
+        }
+    }
+    // The rewritten XObject dictionary is inlined into the resources so an
+    // indirect dictionary shared with an untouched page is never mutated in place.
+    dictionary.set("XObject", Object::Dictionary(xobjects));
+    Ok((Object::Dictionary(dictionary), removed))
+}
+
+fn collect_form_xobject_ids(document: &Document, resources: &Object, forms: &mut Vec<ObjectId>) {
+    let Some(dictionary) = resources.as_dict().ok() else {
+        return;
+    };
+    let Ok(Object::Dictionary(xobjects)) = dictionary.get(b"XObject") else {
+        return;
+    };
+    for (_, xobject) in xobjects {
+        let Ok(object_id) = xobject.as_reference() else {
+            continue;
+        };
+        let is_form = document
+            .get_object(object_id)
+            .and_then(Object::as_stream)
+            .is_ok_and(|stream| {
+                stream
+                    .dict
+                    .get(b"Subtype")
+                    .and_then(Object::as_name)
+                    .is_ok_and(|subtype| subtype == b"Form")
+            });
+        if is_form && !forms.contains(&object_id) {
+            forms.push(object_id);
+        }
+    }
+}
+
+/// Drops `Do` operators naming a removed image resource and every inline image.
+fn drop_image_operations(
+    content: &[u8],
+    removed: &HashSet<Vec<u8>>,
+) -> Result<Vec<u8>, DocumentOperationError> {
+    let mut decoded = Content::decode(content)?;
+    decoded.operations.retain(|operation| {
+        match operation.operator.as_str() {
+            // `BI` carries the whole inline image (dictionary plus samples) as its
+            // operand, so dropping the operation removes the pixels as well.
+            "BI" => false,
+            "Do" => !operation
+                .operands
+                .first()
+                .and_then(|operand| operand.as_name().ok())
+                .is_some_and(|name| removed.contains(name)),
+            _ => true,
+        }
+    });
+    Ok(decoded.encode()?)
 }
 
 /// Performs the Java controller's dependency-free repair fallback by parsing
@@ -298,5 +484,112 @@ fn clean_resources(
         Ok(Object::Reference(resources_id))
     } else {
         Ok(Object::Dictionary(dictionary))
+    }
+}
+
+#[cfg(test)]
+mod strip_images_tests {
+    use lopdf::{Document, Object, Stream, content::Content, dictionary};
+
+    use super::strip_images_to_file;
+
+    /// The OCR `removeImagesAfter` replacement must delete the image resource,
+    /// the `Do` that paints it, the inline image, and the image bytes, while
+    /// leaving the text-showing operators and their font resource untouched.
+    #[test]
+    fn strips_image_xobjects_inline_images_and_their_bytes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let input = directory.path().join("input.pdf");
+        let output = directory.path().join("output.pdf");
+
+        let mut document = Document::with_version("1.7");
+        let page_tree_id = document.new_object_id();
+        let font_id = document.add_object(dictionary! {
+            "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+        });
+        let image_id = document.add_object(Stream::new(
+            dictionary! {
+                "Type" => "XObject",
+                "Subtype" => "Image",
+                "Width" => 2,
+                "Height" => 1,
+                "ColorSpace" => Object::Name(b"DeviceGray".to_vec()),
+                "BitsPerComponent" => 8,
+            },
+            b"IMAGEPIXELBYTES".to_vec(),
+        ));
+        let content_id = document.add_object(Stream::new(
+            dictionary! {},
+            b"BT /F1 12 Tf 10 10 Td (OCRTEXTLAYER) Tj ET\n\
+              q 40 0 0 40 5 5 cm /Im0 Do Q\n\
+              BI /W 1 /H 1 /CS /G /BPC 8 ID \x11 EI"
+                .to_vec(),
+        ));
+        let page_id = document.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => page_tree_id,
+            "MediaBox" => vec![0.into(), 0.into(), 100.into(), 100.into()],
+            "Resources" => dictionary! {
+                "Font" => dictionary! { "F1" => font_id },
+                "XObject" => dictionary! { "Im0" => Object::Reference(image_id) },
+            },
+            "Contents" => content_id,
+        });
+        document.objects.insert(
+            page_tree_id,
+            Object::Dictionary(dictionary! {
+                "Type" => "Pages",
+                "Kids" => vec![Object::Reference(page_id)],
+                "Count" => 1,
+            }),
+        );
+        let catalog_id =
+            document.add_object(dictionary! { "Type" => "Catalog", "Pages" => page_tree_id });
+        document.trailer.set("Root", catalog_id);
+        document.save(&input)?;
+
+        strip_images_to_file(&input, "input.pdf", &output)?;
+
+        let bytes = std::fs::read(&output)?;
+        assert!(
+            !bytes
+                .windows(b"IMAGEPIXELBYTES".len())
+                .any(|window| window == b"IMAGEPIXELBYTES"),
+            "the image stream survived stripping"
+        );
+
+        let stripped = Document::load(&output)?;
+        let page_id = stripped
+            .get_pages()
+            .into_values()
+            .next()
+            .ok_or("no page after stripping")?;
+        let content = Content::decode(&stripped.get_page_content(page_id))?;
+        let operators = content
+            .operations
+            .iter()
+            .map(|operation| operation.operator.as_str())
+            .collect::<Vec<_>>();
+        assert!(!operators.contains(&"Do"), "{operators:?}");
+        assert!(!operators.contains(&"BI"), "{operators:?}");
+        assert!(operators.contains(&"Tj"), "{operators:?}");
+        let (resources, _) = stripped.get_page_resources(page_id)?;
+        let resources = resources.ok_or("page lost its resources")?;
+        assert!(resources.get(b"Font").is_ok(), "the font resource was lost");
+        let xobjects = resources.get(b"XObject")?.as_dict()?;
+        assert!(xobjects.is_empty(), "an image XObject resource remained");
+        assert!(
+            !stripped
+                .objects
+                .values()
+                .any(|object| object.as_stream().is_ok_and(|stream| stream
+                    .dict
+                    .get(b"Subtype")
+                    .and_then(Object::as_name)
+                    .is_ok_and(|subtype| subtype == b"Image"))),
+            "an image object remained in the document"
+        );
+        Ok(())
     }
 }

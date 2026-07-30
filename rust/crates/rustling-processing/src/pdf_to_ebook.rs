@@ -8,7 +8,7 @@ use std::{ffi::OsString, fs, io::ErrorKind, path::Path, process::Command};
 use tempfile::TempDir;
 use thiserror::Error;
 
-use crate::ghostscript::exit_status;
+use crate::process_executor::exit_status;
 
 const EBOOK_CONVERT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND";
 const FILTERED_CSS: &str = "font-family,color,background-color,margin-left,margin-right";

@@ -2,12 +2,10 @@ import { useState } from "react";
 
 export interface AddAttachmentsParameters {
   attachments: File[];
-  convertToPdfA3b: boolean;
 }
 
 const defaultParameters: AddAttachmentsParameters = {
   attachments: [],
-  convertToPdfA3b: false,
 };
 
 export const useAddAttachmentsParameters = () => {

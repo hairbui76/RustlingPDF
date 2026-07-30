@@ -26,7 +26,6 @@ export const URL_TO_TOOL_MAP: Record<string, ToolId> = {
   "/pdf-to-xlsx": "convert",
   "/pdf-to-img": "convert",
   "/pdf-to-markdown": "convert",
-  "/pdf-to-pdfa": "convert",
   "/pdf-to-word": "convert",
   "/pdf-to-xml": "convert",
   "/cbr-to-pdf": "convert",

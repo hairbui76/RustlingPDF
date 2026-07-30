@@ -171,7 +171,6 @@ The tests use realistic endpoint availability data based on your current server 
 - `html-to-pdf`: false
 - `pdf-to-html`: false
 - `pdf-to-markdown`: false
-- `pdf-to-pdfa`: false
 - `pdf-to-presentation`: false
 - `pdf-to-word`: false
 - `pdf-to-xml`: false

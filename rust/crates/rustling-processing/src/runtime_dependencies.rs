@@ -28,14 +28,6 @@ struct DependencySpec {
 
 const DEPENDENCY_SPECS: &[DependencySpec] = &[
     DependencySpec {
-        group: "Ghostscript",
-        environment: "RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND",
-        unix_candidates: &["gs"],
-        windows_candidates: &["gswin64c.exe", "gswin32c.exe", "gs.exe"],
-        minimum_version: None,
-        capability: None,
-    },
-    DependencySpec {
         group: "OCRmyPDF",
         environment: "RUSTLING_PROCESSING_OCRMYPDF_COMMAND",
         unix_candidates: &["ocrmypdf"],
@@ -425,7 +417,6 @@ mod tests {
             BTreeSet::from([
                 "Calibre",
                 "FFmpeg",
-                "Ghostscript",
                 "LibreOffice",
                 "OCRmyPDF",
                 "Pdftohtml",

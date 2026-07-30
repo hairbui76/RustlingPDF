@@ -1,5 +1,3 @@
-use std::process::Command;
-
 use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode, header},
@@ -129,20 +127,89 @@ async fn custom_color_mode_recolors_nested_form_text() -> Result<(), Box<dyn std
     Ok(())
 }
 
+/// `COLOR_SPACE_CONVERSION` is pure Rust: it must succeed with no external tool and
+/// must actually turn the page's device colours into `DeviceCMYK` operators.
 #[tokio::test]
-async fn color_space_conversion_follows_ghostscript_availability()
+async fn color_space_conversion_rewrites_device_colors_as_cmyk()
 -> Result<(), Box<dyn std::error::Error>> {
     let response = post_replace_invert(
-        &single_text_page()?,
+        &device_color_page()?,
         &[("replaceAndInvertOption", "COLOR_SPACE_CONVERSION")],
     )
     .await?;
-    if ghostscript_present() {
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.headers()[header::CONTENT_TYPE], "application/pdf");
-    } else {
-        assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
-    }
+    let response = require_status(response, StatusCode::OK).await?;
+    assert_eq!(response.headers()[header::CONTENT_TYPE], "application/pdf");
+    let document = Document::load_mem(&response_bytes(response).await?)?;
+    let page_id = first_page_id(&document)?;
+    let content = Content::decode(&document.get_page_content(page_id))?;
+    let operators = content
+        .operations
+        .iter()
+        .map(|operation| operation.operator.as_str())
+        .collect::<Vec<_>>();
+    assert!(!operators.contains(&"rg"), "{operators:?}");
+    assert!(!operators.contains(&"g"), "{operators:?}");
+    assert!(!operators.contains(&"RG"), "{operators:?}");
+    assert!(operators.contains(&"k"), "{operators:?}");
+    assert!(operators.contains(&"K"), "{operators:?}");
+    // Pure red becomes 0 1 1 0 under the ISO 32000-1 device conversion.
+    let red = content
+        .operations
+        .iter()
+        .find(|operation| operation.operator == "k")
+        .ok_or("no non-stroking CMYK operator")?;
+    assert_component(&red.operands, [0.0, 1.0, 1.0, 0.0])?;
+    Ok(())
+}
+
+/// A `DeviceRGB` image must come back as an 8-bit `DeviceCMYK` image with the
+/// converted samples, and its soft mask must keep its own gray colour space.
+#[tokio::test]
+async fn color_space_conversion_rewrites_rgb_images_and_keeps_soft_masks()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_replace_invert(
+        &rgb_image_page()?,
+        &[("replaceAndInvertOption", "COLOR_SPACE_CONVERSION")],
+    )
+    .await?;
+    let response = require_status(response, StatusCode::OK).await?;
+    let document = Document::load_mem(&response_bytes(response).await?)?;
+    let (image, mask) = image_and_mask(&document)?;
+    assert_eq!(image.dict.get(b"ColorSpace")?.as_name()?, b"DeviceCMYK");
+    assert_eq!(image.dict.get(b"BitsPerComponent")?.as_i64()?, 8);
+    // Red, green, blue, white -> CMYK bytes.
+    assert_eq!(
+        image.decompressed_content()?,
+        vec![
+            0, 255, 255, 0, // red
+            255, 0, 255, 0, // green
+            255, 255, 0, 0, // blue
+            0, 0, 0, 0, // white
+        ]
+    );
+    assert_eq!(mask.dict.get(b"ColorSpace")?.as_name()?, b"DeviceGray");
+    Ok(())
+}
+
+/// A page already in `DeviceCMYK` must round-trip unchanged.
+#[tokio::test]
+async fn color_space_conversion_leaves_existing_cmyk_alone()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_replace_invert(
+        &cmyk_color_page()?,
+        &[("replaceAndInvertOption", "COLOR_SPACE_CONVERSION")],
+    )
+    .await?;
+    let response = require_status(response, StatusCode::OK).await?;
+    let document = Document::load_mem(&response_bytes(response).await?)?;
+    let page_id = first_page_id(&document)?;
+    let content = Content::decode(&document.get_page_content(page_id))?;
+    let cmyk = content
+        .operations
+        .iter()
+        .find(|operation| operation.operator == "k")
+        .ok_or("no CMYK operator")?;
+    assert_component(&cmyk.operands, [0.1, 0.2, 0.3, 0.4])?;
     Ok(())
 }
 
@@ -163,23 +230,6 @@ async fn requires_the_option_field() -> Result<(), Box<dyn std::error::Error>> {
 
 fn native_pdfium_requested() -> bool {
     rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
-}
-
-fn ghostscript_present() -> bool {
-    let candidates: &[&str] = if cfg!(windows) {
-        &["gswin64c", "gswin32c", "gs"]
-    } else {
-        &["gs"]
-    };
-    if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND")
-        && !command.is_empty()
-    {
-        return Command::new(command).arg("--version").output().is_ok();
-    }
-    candidates
-        .iter()
-        .any(|command| Command::new(command).arg("--version").output().is_ok())
 }
 
 async fn response_bytes(response: Response) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -353,6 +403,170 @@ fn form_text_page() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         page_tree_id,
         Object::Dictionary(dictionary! {
             "Type" => "Pages", "Kids" => vec![Object::Reference(page_id)], "Count" => 1,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => page_tree_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
+fn assert_component(
+    operands: &[Object],
+    expected: [f32; 4],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let actual = operands
+        .iter()
+        .map(|operand| match operand {
+            Object::Real(value) => Ok(*value),
+            Object::Integer(value) => i16::try_from(*value)
+                .map(f32::from)
+                .map_err(|_| format!("CMYK operand out of range: {value}")),
+            other => Err(format!("non-numeric CMYK operand: {other:?}")),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(actual.len(), 4, "{actual:?}");
+    for (index, expected) in expected.into_iter().enumerate() {
+        assert!(
+            (actual[index] - expected).abs() < 1e-4,
+            "component {index}: {actual:?} != {expected:?}"
+        );
+    }
+    Ok(())
+}
+
+fn image_and_mask(document: &Document) -> Result<(Stream, Stream), Box<dyn std::error::Error>> {
+    let mut base = None;
+    let mut mask = None;
+    for object in document.objects.values() {
+        let Ok(stream) = object.as_stream() else {
+            continue;
+        };
+        if !stream
+            .dict
+            .get(b"Subtype")
+            .and_then(Object::as_name)
+            .is_ok_and(|subtype| subtype == b"Image")
+        {
+            continue;
+        }
+        if stream.dict.get(b"SMask").is_ok() {
+            base = Some(stream.clone());
+        } else {
+            mask = Some(stream.clone());
+        }
+    }
+    Ok((
+        base.ok_or("no base image in the converted PDF")?,
+        mask.ok_or("no soft mask in the converted PDF")?,
+    ))
+}
+
+fn single_page_document(
+    content: Vec<u8>,
+    resources: lopdf::Dictionary,
+    extra: impl FnOnce(&mut Document),
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let page_tree_id = document.new_object_id();
+    let content_id = document.add_object(Stream::new(dictionary! {}, content));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => page_tree_id,
+        "MediaBox" => vec![0.into(), 0.into(), 100.into(), 80.into()],
+        "Resources" => resources,
+        "Contents" => content_id,
+    });
+    document.objects.insert(
+        page_tree_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![Object::Reference(page_id)],
+            "Count" => 1,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => page_tree_id });
+    document.trailer.set("Root", catalog_id);
+    extra(&mut document);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
+fn device_color_page() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    single_page_document(
+        b"1 0 0 rg 0 0 10 10 re f 0.5 G 0 0 m 10 10 l S           /CS0 cs 0 0 1 sc 20 20 10 10 re f"
+            .to_vec(),
+        dictionary! {
+            "ColorSpace" => dictionary! { "CS0" => Object::Name(b"DeviceRGB".to_vec()) },
+        },
+        |_| {},
+    )
+}
+
+fn cmyk_color_page() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    single_page_document(
+        b"0.1 0.2 0.3 0.4 k 0 0 10 10 re f".to_vec(),
+        dictionary! {},
+        |_| {},
+    )
+}
+
+fn rgb_image_page() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let page_tree_id = document.new_object_id();
+    let mask = Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Image",
+            "Width" => 4,
+            "Height" => 1,
+            "ColorSpace" => Object::Name(b"DeviceGray".to_vec()),
+            "BitsPerComponent" => 8,
+        },
+        vec![255, 255, 255, 255],
+    );
+    let mask_id = document.add_object(mask);
+    let image = Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Image",
+            "Width" => 4,
+            "Height" => 1,
+            "ColorSpace" => Object::Name(b"DeviceRGB".to_vec()),
+            "BitsPerComponent" => 8,
+            "SMask" => Object::Reference(mask_id),
+        },
+        vec![
+            255, 0, 0, // red
+            0, 255, 0, // green
+            0, 0, 255, // blue
+            255, 255, 255, // white
+        ],
+    );
+    let image_id = document.add_object(image);
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"q 40 0 0 40 10 10 cm /Im0 Do Q".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => page_tree_id,
+        "MediaBox" => vec![0.into(), 0.into(), 100.into(), 80.into()],
+        "Resources" => dictionary! {
+            "XObject" => dictionary! { "Im0" => Object::Reference(image_id) },
+        },
+        "Contents" => content_id,
+    });
+    document.objects.insert(
+        page_tree_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![Object::Reference(page_id)],
+            "Count" => 1,
         }),
     );
     let catalog_id =

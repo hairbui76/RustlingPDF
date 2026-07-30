@@ -20,11 +20,7 @@ import ConvertToImageSettings from "@app/components/tools/convert/ConvertToImage
 import ConvertFromImageSettings from "@app/components/tools/convert/ConvertFromImageSettings";
 import ConvertFromWebSettings from "@app/components/tools/convert/ConvertFromWebSettings";
 import ConvertFromEmailSettings from "@app/components/tools/convert/ConvertFromEmailSettings";
-import ConvertFromCbzSettings from "@app/components/tools/convert/ConvertFromCbzSettings";
 import ConvertToCbzSettings from "@app/components/tools/convert/ConvertToCbzSettings";
-import ConvertToPdfaSettings from "@app/components/tools/convert/ConvertToPdfaSettings";
-import ConvertToPdfxSettings from "@app/components/tools/convert/ConvertToPdfxSettings";
-import ConvertFromCbrSettings from "@app/components/tools/convert/ConvertFromCbrSettings";
 import ConvertToCbrSettings from "@app/components/tools/convert/ConvertToCbrSettings";
 import ConvertFromEbookSettings from "@app/components/tools/convert/ConvertFromEbookSettings";
 import ConvertFromSvgSettings from "@app/components/tools/convert/ConvertFromSvgSettings";
@@ -48,7 +44,6 @@ interface ConvertSettingsProps {
   getAvailableToExtensions?: (
     fromExtension: string,
   ) => Array<{ value: string; label: string; group: string }>;
-  selectedFiles?: StirlingFile[];
   disabled?: boolean;
 }
 
@@ -56,7 +51,6 @@ const ConvertSettings = ({
   parameters,
   onParameterChange,
   getAvailableToExtensions = defaultGetAvailableToExtensions,
-  selectedFiles = [],
   disabled = false,
 }: ConvertSettingsProps) => {
   const { t } = useTranslation();
@@ -193,22 +187,11 @@ const ConvertSettings = ({
       downloadHtml: false,
       includeAllRecipients: false,
     });
-    onParameterChange("pdfaOptions", {
-      outputFormat: "pdfa-2b",
-      strict: false,
-    });
-    onParameterChange("pdfxOptions", {
-      outputFormat: "pdfx",
-    });
-    onParameterChange("cbrOptions", {
-      optimizeForEbook: false,
-    });
+    onParameterChange("cbrOptions", {});
     onParameterChange("pdfToCbrOptions", {
       dpi: 150,
     });
-    onParameterChange("cbzOptions", {
-      optimizeForEbook: false,
-    });
+    onParameterChange("cbzOptions", {});
     onParameterChange("cbzOutputOptions", {
       dpi: 150,
     });
@@ -216,7 +199,6 @@ const ConvertSettings = ({
       embedAllFonts: false,
       includeTableOfContents: false,
       includePageNumbers: false,
-      optimizeForEbook: false,
     });
     onParameterChange("epubOptions", {
       detectChapters: true,
@@ -285,22 +267,11 @@ const ConvertSettings = ({
       downloadHtml: false,
       includeAllRecipients: false,
     });
-    onParameterChange("pdfaOptions", {
-      outputFormat: "pdfa-2b",
-      strict: false,
-    });
-    onParameterChange("pdfxOptions", {
-      outputFormat: "pdfx",
-    });
-    onParameterChange("cbrOptions", {
-      optimizeForEbook: false,
-    });
+    onParameterChange("cbrOptions", {});
     onParameterChange("pdfToCbrOptions", {
       dpi: 150,
     });
-    onParameterChange("cbzOptions", {
-      optimizeForEbook: false,
-    });
+    onParameterChange("cbzOptions", {});
     onParameterChange("cbzOutputOptions", {
       dpi: 150,
     });
@@ -442,19 +413,6 @@ const ConvertSettings = ({
           </>
         )}
 
-      {/* CBZ to PDF options */}
-      {parameters.fromExtension === "cbz" &&
-        parameters.toExtension === "pdf" && (
-          <>
-            <Divider />
-            <ConvertFromCbzSettings
-              parameters={parameters}
-              onParameterChange={onParameterChange}
-              disabled={disabled}
-            />
-          </>
-        )}
-
       {/* PDF to CBZ options */}
       {parameters.fromExtension === "pdf" &&
         parameters.toExtension === "cbz" && (
@@ -468,53 +426,12 @@ const ConvertSettings = ({
           </>
         )}
 
-      {/* PDF to PDF/A options */}
-      {parameters.fromExtension === "pdf" &&
-        parameters.toExtension === "pdfa" && (
-          <>
-            <Divider />
-            <ConvertToPdfaSettings
-              parameters={parameters}
-              onParameterChange={onParameterChange}
-              selectedFiles={selectedFiles}
-              disabled={disabled}
-            />
-          </>
-        )}
-
-      {/* PDF to PDF/X options */}
-      {parameters.fromExtension === "pdf" &&
-        parameters.toExtension === "pdfx" && (
-          <>
-            <Divider />
-            <ConvertToPdfxSettings
-              parameters={parameters}
-              onParameterChange={onParameterChange}
-              selectedFiles={selectedFiles}
-              disabled={disabled}
-            />
-          </>
-        )}
-
       {/* eBook to PDF options */}
       {["epub", "mobi", "azw3", "fb2"].includes(parameters.fromExtension) &&
         parameters.toExtension === "pdf" && (
           <>
             <Divider />
             <ConvertFromEbookSettings
-              parameters={parameters}
-              onParameterChange={onParameterChange}
-              disabled={disabled}
-            />
-          </>
-        )}
-
-      {/* CBR to PDF options */}
-      {parameters.fromExtension === "cbr" &&
-        parameters.toExtension === "pdf" && (
-          <>
-            <Divider />
-            <ConvertFromCbrSettings
               parameters={parameters}
               onParameterChange={onParameterChange}
               disabled={disabled}

@@ -8,10 +8,6 @@ export interface AddAttachmentRequest {
    * The image file to be overlaid onto the PDF.
    */
   attachments: string[];
-  /**
-   * Convert the resulting PDF to PDF/A-3b format after adding attachments
-   */
-  convertToPdfA3b?: boolean;
 }
 export interface AddCommentsRequest {
   /**
@@ -754,17 +750,6 @@ export interface PDFWithPageNums {
    */
   pageNumbers?: string;
 }
-export interface PdfToPdfARequest {
-  /**
-   * The output format type (PDF/A or PDF/X)
-   */
-  outputFormat:
-    "pdfa" | "pdfa-1" | "pdfa-2" | "pdfa-2b" | "pdfa-3" | "pdfa-3b" | "pdfx";
-  /**
-   * If true, the conversion will fail if the output is not perfectly compliant
-   */
-  strict?: boolean;
-}
 export interface PdfToPresentationRequest {
   /**
    * The output Presentation format
@@ -782,16 +767,6 @@ export interface PdfToWordRequest {
    * The output Word document format
    */
   outputFormat: "doc" | "docx" | "odt";
-}
-export interface PdfVectorExportRequest {
-  /**
-   * Target vector format extension
-   */
-  outputFormat?: "eps" | "ps" | "pcl" | "xps";
-  /**
-   * Apply Ghostscript prepress settings
-   */
-  prepress?: true | false;
 }
 export interface Pkcs11CertificatesRequest {
   libraryPath?: string;
@@ -1321,19 +1296,16 @@ export type ToolEndpoint =
   | "/api/v1/convert/pdf/html"
   | "/api/v1/convert/pdf/img"
   | "/api/v1/convert/pdf/markdown"
-  | "/api/v1/convert/pdf/pdfa"
   | "/api/v1/convert/pdf/presentation"
   | "/api/v1/convert/pdf/text"
   | "/api/v1/convert/pdf/text-editor"
   | "/api/v1/convert/pdf/text-editor/metadata"
-  | "/api/v1/convert/pdf/vector"
   | "/api/v1/convert/pdf/word"
   | "/api/v1/convert/pdf/xlsx"
   | "/api/v1/convert/pdf/xml"
   | "/api/v1/convert/svg/pdf"
   | "/api/v1/convert/text-editor/pdf"
   | "/api/v1/convert/url/pdf"
-  | "/api/v1/convert/vector/pdf"
   | "/api/v1/general/booklet-imposition"
   | "/api/v1/general/crop"
   | "/api/v1/general/edit-table-of-contents"
@@ -1411,19 +1383,16 @@ export interface ToolApiParams {
   "/api/v1/convert/pdf/html": ConvertPdfHtmlRequest;
   "/api/v1/convert/pdf/img": ConvertToImageRequest;
   "/api/v1/convert/pdf/markdown": ConvertPdfMarkdownRequest;
-  "/api/v1/convert/pdf/pdfa": PdfToPdfARequest;
   "/api/v1/convert/pdf/presentation": PdfToPresentationRequest;
   "/api/v1/convert/pdf/text": PdfToTextOrRTFRequest;
   "/api/v1/convert/pdf/text-editor": ConvertPdfTextEditorRequest;
   "/api/v1/convert/pdf/text-editor/metadata": ConvertPdfTextEditorMetadataRequest;
-  "/api/v1/convert/pdf/vector": PdfVectorExportRequest;
   "/api/v1/convert/pdf/word": PdfToWordRequest;
   "/api/v1/convert/pdf/xlsx": PDFWithPageNums;
   "/api/v1/convert/pdf/xml": ConvertPdfXmlRequest;
   "/api/v1/convert/svg/pdf": SvgToPdfRequest;
   "/api/v1/convert/text-editor/pdf": GeneralFile;
   "/api/v1/convert/url/pdf": UrlToPdfRequest;
-  "/api/v1/convert/vector/pdf": PdfVectorExportRequest;
   "/api/v1/general/booklet-imposition": BookletImpositionRequest;
   "/api/v1/general/crop": CropPdfForm;
   "/api/v1/general/edit-table-of-contents": EditTableOfContentsRequest;
@@ -1502,19 +1471,16 @@ export const TOOL_ENDPOINTS = [
   "/api/v1/convert/pdf/html",
   "/api/v1/convert/pdf/img",
   "/api/v1/convert/pdf/markdown",
-  "/api/v1/convert/pdf/pdfa",
   "/api/v1/convert/pdf/presentation",
   "/api/v1/convert/pdf/text",
   "/api/v1/convert/pdf/text-editor",
   "/api/v1/convert/pdf/text-editor/metadata",
-  "/api/v1/convert/pdf/vector",
   "/api/v1/convert/pdf/word",
   "/api/v1/convert/pdf/xlsx",
   "/api/v1/convert/pdf/xml",
   "/api/v1/convert/svg/pdf",
   "/api/v1/convert/text-editor/pdf",
   "/api/v1/convert/url/pdf",
-  "/api/v1/convert/vector/pdf",
   "/api/v1/general/booklet-imposition",
   "/api/v1/general/crop",
   "/api/v1/general/edit-table-of-contents",

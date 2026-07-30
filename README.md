@@ -45,7 +45,7 @@ your settings live in the app. (Put it behind your own proxy or a trusted
 network if you want to limit who can reach the server build.)
 
 A **†** marks a tool that needs an external program installed (LibreOffice,
-Ghostscript, WeasyPrint, Calibre, Tesseract/OCRmyPDF, FFmpeg, `unrar`). A
+WeasyPrint, Calibre, Tesseract/OCRmyPDF, FFmpeg, `unrar`). A
 missing one never crashes anything — that one tool just shows as unavailable
 until you install it. Everything unmarked is pure Rust and always works.
 
@@ -59,13 +59,12 @@ join all pages into one long page · remove blank pages · stamp page numbers.
 ### Convert to PDF
 Images · Office & text documents † · HTML files or ZIP packages † · Markdown † ·
 web page URLs † · email (`.eml`/`.msg`) † · eBooks (EPUB/MOBI/AZW3/FB2/…) † ·
-SVG · PostScript/EPS † · comic archives (CBZ, and CBR †).
+SVG · comic archives (CBZ, and CBR †).
 
 ### Convert from PDF
 To images · Word/RTF, presentation, XML † · HTML · plain text · Markdown ·
 bordered tables to CSV or XLSX · EPUB/AZW3 † · comic archives · slideshow video † ·
-archival PDF/A and PDF/X † · EPS/PS/PCL/XPS † · extract embedded images · detect
-and crop photos out of scanned pages.
+extract embedded images · detect and crop photos out of scanned pages.
 
 ### Security & signing
 Password-encrypt / decrypt · text or image watermarks · sanitize (strip
@@ -119,11 +118,11 @@ PDF question-answering is deliberately **not** offered.
 
 **Optional tools, and what ships where.** The tools marked **†** are discovered on
 `PATH` at startup; a missing one only disables its own feature. The Docker image
-bundles LibreOffice, Ghostscript, qpdf, Poppler, Tesseract, OCRmyPDF and
-WeasyPrint, and omits Calibre, FFmpeg and the non-free RAR tools — so eBook, video
-and CBR conversion show as unavailable there until you add the tool. The AI engine
-and outbound email are off by default. Nothing hard-fails at startup and nothing
-silently produces wrong output.
+bundles LibreOffice, qpdf, Poppler, Tesseract, OCRmyPDF and WeasyPrint, and omits
+Calibre, FFmpeg and the non-free RAR tools — so eBook, video and CBR conversion
+show as unavailable there until you add the tool. The AI engine and outbound
+email are off by default. Nothing hard-fails at startup and nothing silently
+produces wrong output.
 
 The exhaustive per-endpoint reference — every REST route, HTTP verb and dependency —
 is in [`docs/product/features.md`](docs/product/features.md). Feature status and
@@ -165,7 +164,7 @@ task dev:all
 Smoke check: `curl http://127.0.0.1:8080/api/v1/info/status`
 
 Optional external tools (discovered at startup; missing ones simply disable
-their endpoints with reason `DEPENDENCY`): LibreOffice, Ghostscript, qpdf ≥ 12,
+their endpoints with reason `DEPENDENCY`): LibreOffice, qpdf ≥ 12,
 Tesseract/OCRmyPDF, WeasyPrint ≥ 58, Poppler `pdftohtml`, Calibre, unrar,
 FFmpeg. Full operator guide, ports/binding, configuration and environment
 reference: [`rust/RUNNING_WITH_RUST.md`](rust/RUNNING_WITH_RUST.md).

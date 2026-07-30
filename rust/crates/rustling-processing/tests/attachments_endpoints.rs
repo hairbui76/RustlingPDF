@@ -1,7 +1,4 @@
-use std::{
-    io::{Cursor, Read},
-    process::Command,
-};
+use std::io::{Cursor, Read};
 
 use axum::{
     body::{Body, to_bytes},
@@ -101,52 +98,44 @@ async fn add_list_extract_rename_and_delete_round_trip() -> Result<(), Box<dyn s
     Ok(())
 }
 
+/// PDF/A conversion was removed with Ghostscript. `convertToPdfA3b=true` must be
+/// refused outright rather than silently returning a non-archival PDF, and
+/// `convertToPdfA3b=false` must keep working.
 #[tokio::test]
-async fn validates_missing_attachments_and_optionally_creates_pdfa3b()
+async fn validates_missing_attachments_and_refuses_pdfa3b_conversion()
 -> Result<(), Box<dyn std::error::Error>> {
     let source = basic_pdf()?;
     let missing = post_pdf("/api/v1/misc/add-attachments", &source, &[], &[]).await?;
     assert_eq!(missing.status(), StatusCode::BAD_REQUEST);
 
-    let pdfa = post_pdf(
+    let refused = post_pdf(
         "/api/v1/misc/add-attachments",
         &source,
         &[("convertToPdfA3b", "true")],
         &[("alpha.txt", "text/plain", b"alpha")],
     )
     .await?;
-    if !ghostscript_present() {
-        assert_eq!(pdfa.status(), StatusCode::NOT_IMPLEMENTED);
-        let body = response_bytes(pdfa).await?;
-        assert!(String::from_utf8_lossy(&body).contains("Ghostscript"));
-        return Ok(());
-    }
-    let pdfa = require_status(pdfa, StatusCode::OK).await?;
-    assert!(
-        pdfa.headers()[header::CONTENT_DISPOSITION]
-            .to_str()?
-            .contains("source_with_attachments_PDFA-3b.pdf")
-    );
-    let document = Document::load_mem(&response_bytes(pdfa).await?)?;
-    assert_eq!(document.catalog()?.get(b"AF")?.as_array()?.len(), 1);
-    Ok(())
-}
+    assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
+    let body = response_bytes(refused).await?;
+    assert!(String::from_utf8_lossy(&body).contains("convertToPdfA3b is no longer supported"));
 
-fn ghostscript_present() -> bool {
-    let candidates: &[&str] = if cfg!(windows) {
-        &["gswin64c", "gswin32c", "gs"]
-    } else {
-        &["gs"]
-    };
-    if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND")
-        && !command.is_empty()
-    {
-        return Command::new(command).arg("--version").output().is_ok();
-    }
-    candidates
-        .iter()
-        .any(|command| Command::new(command).arg("--version").output().is_ok())
+    let accepted = post_pdf(
+        "/api/v1/misc/add-attachments",
+        &source,
+        &[("convertToPdfA3b", "false")],
+        &[("alpha.txt", "text/plain", b"alpha")],
+    )
+    .await?;
+    let accepted = require_status(accepted, StatusCode::OK).await?;
+    assert!(
+        accepted.headers()[header::CONTENT_DISPOSITION]
+            .to_str()?
+            .contains("source_with_attachments.pdf")
+    );
+    let document = Document::load_mem(&response_bytes(accepted).await?)?;
+    let names = document.catalog()?.get(b"Names")?.clone();
+    assert!(document.dereference(&names).is_ok());
+    Ok(())
 }
 
 async fn json_response(response: Response) -> Result<Value, Box<dyn std::error::Error>> {
