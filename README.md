@@ -21,112 +21,43 @@
 
 ---
 
-A locally hosted PDF toolbox with a **pure-Rust backend**: one `axum` service
-covering merge, split, convert, OCR, forms, redaction, signing, pipelines and
-async jobs, an optional Rust AI engine, and a React single-page UI. The server
-keeps **no accounts and no server-side state**: every request is
-self-contained, results are ephemeral (TTL-swept scratch space), and all user
-preferences live client-side.
+RustlingPDF is a self-contained PDF toolbox with a **pure-Rust backend**, a React
+web UI, and a Tauri desktop app. Run it on your desktop, or behind your own proxy
+on a trusted network.
 
-RustlingPDF is an independent tool **based on [Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF)**.
-It began as a full Java→Rust port of Stirling-PDF's Spring Boot backend, verified
-endpoint-by-endpoint against the original as a compatibility oracle (route census:
-zero unexplained gaps; during the port a live differential harness semantically
-diffed both backends' outputs). This repository carries that Rust backend forward as its own
-product — there is **no Java in this repo** and no dependency on a JVM at build
-or run time. See [LICENSE](LICENSE) for upstream attribution.
+It is an independent product **based on
+[Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF)** — originally a
+full Java→Rust port of its backend, now carried forward on its own. There is no
+Java, and no JVM at build or run time. See [LICENSE](LICENSE) for attribution.
 
-## What it can do
+## Features
 
-Every tool below runs **on your machine** — the backend takes a file, does the
-work, and hands it back. No account, no upload to anyone's cloud, no server-side
-storage: uploads land in a scratch directory that is swept on a timer, and all
-your settings live in the app. (Put it behind your own proxy or a trusted
-network if you want to limit who can reach the server build.)
+| Category | Capabilities |
+| :-- | :-- |
+| **Organise pages** | Merge; split by breaks, size, page count, chapters, tiles, or QR dividers; reorder, reverse, duplicate, odd/even split-and-merge; rotate, crop, rescale; N-up, booklet, and poster layouts; overlay; remove blank pages; page numbers |
+| **Convert to PDF** | Images, Office documents, HTML, Markdown, web pages, email, eBooks, SVG, and comic archives |
+| **Convert from PDF** | Images, Word, PowerPoint, XML, HTML, text, Markdown, tables to CSV/XLSX, EPUB, comic archives, slideshow video, and image extraction |
+| **Security & signing** | Passwords and permissions, watermarks, sanitisation, redaction; X.509 and hardware / smart-card signing; RFC 3161 timestamps; signature validation |
+| **OCR & repair** | Searchable-text OCR, repair of damaged files, compression |
+| **Edit** | Find-and-replace text, a full visual editor, stamps, images, comments, dark-mode recolouring, and flattening |
+| **Forms** | List, fill, rename, and delete fields; export values to CSV/XLSX; unlock read-only fields |
+| **Metadata & attachments** | Embedded files, document properties, and bookmark / table-of-contents editing |
+| **Inspect** | Page, font, annotation, and form inventories; encryption status; PDF/A, PDF/UA, and WTPDF conformance checks |
+| **Automation** | Multi-tool pipelines, asynchronous jobs, a phone-to-desktop scanner, and content filters |
+| **AI-assisted** | Edit planning, review comments, structured-document generation, maths auditing, and classification — optional, off by default |
 
-A **†** marks a tool that needs an external program installed (LibreOffice,
-WeasyPrint, Calibre, Tesseract/OCRmyPDF, FFmpeg, `unrar`). A
-missing one never crashes anything — that one tool just shows as unavailable
-until you install it. Everything unmarked is pure Rust and always works.
+**Privacy by design.** No login, no database, no server-side storage — and unless
+you deliberately enable the optional AI engine with your own API key, nothing
+ever leaves the machine.
 
-### Organise pages
-Merge PDFs · split (at chosen breaks, by size or page count, at chapters, into a
-grid of tiles, or automatically at QR divider pages) · reorder, reverse,
-duplicate, odd/even split-and-merge · delete, rotate, crop, rescale pages ·
-N-up layout · booklet imposition · poster tiling · overlay one PDF on another ·
-join all pages into one long page · remove blank pages · stamp page numbers.
+**Optional tools.** A handful of conversions call an external program
+(LibreOffice, WeasyPrint, Calibre, Tesseract or OCRmyPDF, FFmpeg, `unrar`); the
+Docker image bundles the common ones. A missing tool disables only its own
+feature and never crashes the service — everything else is pure Rust.
 
-### Convert to PDF
-Images · Office & text documents † · HTML files or ZIP packages † · Markdown † ·
-web page URLs † · email (`.eml`/`.msg`) † · eBooks (EPUB/MOBI/AZW3/FB2/…) † ·
-SVG · comic archives (CBZ, and CBR †).
-
-### Convert from PDF
-To images · Word/RTF, presentation, XML † · HTML · plain text · Markdown ·
-bordered tables to CSV or XLSX · EPUB/AZW3 † · comic archives · slideshow video † ·
-extract embedded images · detect and crop photos out of scanned pages.
-
-### Security & signing
-Password-encrypt / decrypt · text or image watermarks · sanitize (strip
-JavaScript, embedded files, metadata, links, fonts) · redaction — hand-drawn
-areas, whole pages, or search-and-redact by text/regex, rasterised so the
-content is truly gone · sign with an X.509 certificate, remove signatures,
-validate signatures · hardware / smart-card signing (Windows cert store and
-PKCS#11 tokens, desktop app) · RFC 3161 trusted timestamps.
-
-### OCR, repair & compress
-Make a scan searchable with OCR † · repair a damaged or malformed PDF · compress
-and optimise.
-
-### Edit content
-Find-and-replace visible text · a full visual editor (export the PDF to an
-editable model, change it, write only the edited pages back) · add text or image
-stamps · place images · add sticky-note comments · strip all images · invert or
-recolour pages for dark mode · make a clean PDF look scanned · flatten form
-fields and annotations into the page.
-
-### Forms
-List fields and values · fill fields · rename fields or change their properties ·
-delete fields · export field values to CSV or XLSX · unlock read-only fields so
-they can be filled again.
-
-### Attachments, metadata & bookmarks
-Attach, list, rename, delete and extract embedded files · edit document metadata
-(title, author, custom keys) · export or rewrite the bookmark outline / table of
-contents · rename the file from its detected title.
-
-### Inspect a PDF
-Page count and dimensions · document properties · font, annotation and form-field
-inventories · encryption status and permissions · a full read-only report in one
-call · check PDF/A, PDF/UA and WTPDF conformance · show embedded JavaScript.
-
-### Automation
-Chain several tools into one pipeline · run long jobs asynchronously and poll or
-cancel them · a phone-to-desktop **mobile scanner** transfer · content filters
-that pass a file through only if it matches (contains text or an image, a page
-count, a page or file size, a rotation).
-
-### AI-assisted — optional, off by default
-A **separate AI engine**, disabled unless you turn it on and supply your own key
-(Anthropic, OpenAI, or a self-hosted Ollama). No document content ever leaves the
-machine while it is off. When on: plan edits from a natural-language prompt,
-generate review comments as sticky notes, build a PDF from a structured document
-model, audit the maths and figures in a document, and classify-and-label a PDF.
-PDF question-answering is deliberately **not** offered.
-
----
-
-**Optional tools, and what ships where.** The tools marked **†** are discovered on
-`PATH` at startup; a missing one only disables its own feature. The Docker image
-bundles LibreOffice, qpdf, Poppler, Tesseract, OCRmyPDF and WeasyPrint, and omits
-Calibre, FFmpeg and the non-free RAR tools — so eBook, video and CBR conversion
-show as unavailable there until you add the tool. The AI engine and outbound
-email are off by default. Nothing hard-fails at startup and nothing silently
-produces wrong output.
-
-The exhaustive per-endpoint reference — every REST route, HTTP verb and dependency —
-is in [`docs/product/features.md`](docs/product/features.md). Feature status and
-documented differences from upstream Stirling-PDF live in
+The complete per-endpoint reference is in
+[`docs/product/features.md`](docs/product/features.md); feature status and
+documented differences from upstream are in
 [`rust/PORT_STATUS.md`](rust/PORT_STATUS.md).
 
 ## Layout
