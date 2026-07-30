@@ -571,6 +571,100 @@ async fn keeps_declarations_when_a_comment_truncates_the_content_parse()
     Ok(())
 }
 
+/// `d0` and `d1` are the only content operators carrying a digit, and every Type 3
+/// glyph procedure must open with one (ISO 32000-1 §9.6.5). `lopdf`'s `operator`
+/// parser matches `[A-Za-z*'"]+`, so it cannot represent them: `d1` tokenises as
+/// operator `d`, and the digit is left over as the **first operand of the next
+/// operation**.
+///
+/// A walk reading `operands.first()` therefore saw `1`, not `/Fglyph`, in
+/// `20 0 0 0 20 20 d1 /Fglyph Do`. The `Do` was invisible, `/Fglyph` was judged
+/// dead and pruned, and the glyph procedure reached the output still naming it —
+/// over-deletion plus a dangling name, the exact failure the strict decode was
+/// added to prevent, reached through a stream that decodes *successfully*.
+/// Resolving the last name-valued operand instead is immune to the shift.
+#[tokio::test]
+async fn resolves_a_name_shifted_by_the_unparsable_type3_metrics_operator()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "d1-shift.pdf",
+        &pdf_with_a_form_invoked_straight_after_a_type3_metrics_operator()?,
+        &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "200")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let response = require_status(response, StatusCode::OK).await?;
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    assert!(
+        document_contains(&bytes, b"D1GLYPHMARK")?,
+        "the form a Type 3 glyph invokes right after `d1` was pruned"
+    );
+    let document = Document::load_mem(&bytes)?;
+    assert!(
+        declared_resource_names(&document)
+            .get(b"XObject".as_slice())
+            .is_some_and(|declared| declared.contains(b"Fglyph".as_slice())),
+        "/XObject /Fglyph is no longer declared, so the surviving glyph procedure dangles"
+    );
+    assert_no_dangling_resource_names(&bytes)?;
+    Ok(())
+}
+
+/// A Type 3 glyph procedure whose `Do` immediately follows its `d1` metrics
+/// operator, so the operand `lopdf` leaves in front of the name is what a
+/// first-operand read would return.
+fn pdf_with_a_form_invoked_straight_after_a_type3_metrics_operator()
+-> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let form_id = document.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject", "Subtype" => "Form", "FormType" => 1,
+            "BBox" => vec![0.into(), 0.into(), 20.into(), 20.into()],
+        },
+        b"0 0 1 rg 0 0 20 20 re f % D1GLYPHMARK".to_vec(),
+    ));
+    let glyph_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"20 0 0 0 20 20 d1 /Fglyph Do".to_vec(),
+    ));
+    let char_procs_id = document.add_object(dictionary! { "S" => glyph_id });
+    let encoding_id = document.add_object(dictionary! {
+        "Type" => "Encoding",
+        "Differences" => vec![83.into(), Object::Name(b"S".to_vec())],
+    });
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font",
+        "Subtype" => "Type3",
+        "FontBBox" => vec![0.into(), 0.into(), 20.into(), 20.into()],
+        "FontMatrix" => vec![
+            Object::Real(0.05), 0.into(), 0.into(), Object::Real(0.05), 0.into(), 0.into(),
+        ],
+        "CharProcs" => char_procs_id,
+        "Encoding" => encoding_id,
+        "FirstChar" => 83,
+        "LastChar" => 83,
+        "Widths" => vec![20.into()],
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"BT /T3 20 Tf 20 20 Td (S) Tj ET".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 200.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "T3" => font_id },
+            "XObject" => dictionary! { "Fglyph" => form_id },
+        },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
 /// Preserving a scope is not enough when its category sub-dictionary is a shared
 /// object: the *other* holder must not filter it either.
 ///
@@ -1027,6 +1121,10 @@ fn every_fixture() -> Result<Vec<Fixture>, Box<dyn std::error::Error>> {
         (
             "comment_only_first_content_stream",
             pdf_with_comment_only_first_content_stream()?,
+        ),
+        (
+            "form_invoked_straight_after_a_type3_metrics_operator",
+            pdf_with_a_form_invoked_straight_after_a_type3_metrics_operator()?,
         ),
         (
             "shared_pattern_dictionary_and_one_unreadable_page",

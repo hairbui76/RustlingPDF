@@ -505,14 +505,14 @@ impl<'a> ResourceWalk<'a> {
         for operation in &decoded.operations {
             match operation.operator.as_str() {
                 "sh" => {
-                    if let Some(name) = operand_name(operation.operands.first()) {
+                    if let Some(name) = operand_name(&operation.operands) {
                         self.record(chain, ResourceCategory::Shading, name);
                     }
                 }
-                // Both `scn` and `SCN` name a pattern in their LAST operand; an
-                // uncolored pattern is preceded by its colour components.
+                // An uncolored pattern's name is preceded by its colour
+                // components; `operand_name` takes the last name either way.
                 "scn" | "SCN" => {
-                    if let Some(name) = operand_name(operation.operands.last())
+                    if let Some(name) = operand_name(&operation.operands)
                         && let Some(value) = self.record(chain, ResourceCategory::Pattern, name)
                     {
                         // A surviving pattern's own content can paint with further
@@ -524,7 +524,7 @@ impl<'a> ResourceWalk<'a> {
                 // must keep its declaration too — but only a Form has content to
                 // follow.
                 "Do" => {
-                    if let Some(name) = operand_name(operation.operands.first())
+                    if let Some(name) = operand_name(&operation.operands)
                         && let Some(value) = self.record(chain, ResourceCategory::XObject, name)
                     {
                         self.enqueue(chain, &value, Some(b"Form"));
@@ -535,7 +535,7 @@ impl<'a> ResourceWalk<'a> {
                 // the page (ISO 32000-1 §9.6.5). A glyph that paints with a
                 // page-level pattern keeps it alive just as a form would.
                 "Tf" => {
-                    if let Some(name) = operand_name(operation.operands.first())
+                    if let Some(name) = operand_name(&operation.operands)
                         && let Some(value) = self.record(chain, ResourceCategory::Font, name)
                     {
                         self.enqueue_type3_font(chain, &value);
@@ -546,7 +546,7 @@ impl<'a> ResourceWalk<'a> {
                 // font directly (ISO 32000-1 Table 58) — including a Type 3 font,
                 // whose glyph procedures `Tf` would never see.
                 "gs" => {
-                    if let Some(name) = operand_name(operation.operands.first())
+                    if let Some(name) = operand_name(&operation.operands)
                         && let Some(value) = self.record(chain, ResourceCategory::ExtGState, name)
                     {
                         self.enqueue_graphics_state(chain, &value);
@@ -722,8 +722,30 @@ impl<'a> ResourceWalk<'a> {
     }
 }
 
-fn operand_name(operand: Option<&Object>) -> Option<&[u8]> {
-    operand.and_then(|operand| operand.as_name().ok())
+/// The resource name an operator resolves, taken as the **last** name-valued
+/// operand.
+///
+/// Correct for every operator this walk reads — `Do`, `gs` and `sh` take a single
+/// name, `Tf` takes `/name size`, and `scn`/`SCN` put the pattern name last, after
+/// any colour components — and, unlike reading the first operand, immune to a
+/// stray operand left in front of it by a mis-tokenised operator.
+///
+/// That immunity is load-bearing, not theoretical. `lopdf`'s `operator` parser
+/// matches `[A-Za-z*'"]+`, so it cannot represent `d0` or `d1` — the only content
+/// operators carrying a digit, and required to open **every** Type 3 glyph
+/// procedure (ISO 32000-1 §9.6.5). They tokenise as operator `d`, leaving the
+/// digit behind as the *first* operand of the following operation. Reading
+/// `operands.first()` therefore saw `1` rather than `/Fglyph` in
+/// `20 0 0 0 20 20 d1 /Fglyph Do`, missed the `Do`, pruned `/Fglyph`, and left the
+/// surviving glyph procedure naming a resource nothing declared.
+///
+/// Taking the last name can only ever find more names than taking the first, so
+/// it can only mark more entries live — the safe direction for this walk.
+fn operand_name(operands: &[Object]) -> Option<&[u8]> {
+    operands
+        .iter()
+        .rev()
+        .find_map(|operand| operand.as_name().ok())
 }
 
 /// The identity of a `/Resources` value, when it has one.
