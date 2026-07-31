@@ -146,6 +146,184 @@ fn an_embedded_font_name_cannot_escape_the_engine_temp_dir()
     Ok(())
 }
 
+/// The evasion a filename-convention scan allowed: OOXML part paths come from
+/// relationship targets, so a standards-legal workbook can put its only
+/// worksheet outside `xl/worksheets/`. Matching on the conventional prefix made
+/// the row bound decorative — the counter saw zero rows and the engine read
+/// them all.
+#[test]
+fn a_relocated_worksheet_part_cannot_evade_the_row_bound() -> Result<(), Box<dyn std::error::Error>>
+{
+    let workspace = TempDir::new()?;
+    let input = workspace.path().join("relocated.xlsx");
+
+    let mut sheet = Vec::from(*b"<worksheet><sheetData>");
+    for _ in 0..25_000 {
+        sheet.extend_from_slice(b"<row/>");
+    }
+    sheet.extend_from_slice(b"</sheetData></worksheet>");
+
+    let file = fs::File::create(&input)?;
+    let mut archive = ZipWriter::new(file);
+    let options = SimpleFileOptions::default();
+    archive.start_file("xl/workbook.xml", options)?;
+    archive.write_all(
+        br#"<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>"#,
+    )?;
+    archive.start_file("xl/_rels/workbook.xml.rels", options)?;
+    archive.write_all(
+        br#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="data/s1.xml"/></Relationships>"#,
+    )?;
+    // Deliberately not under `xl/worksheets/`.
+    archive.start_file("xl/data/s1.xml", options)?;
+    archive.write_all(&sheet)?;
+    archive.finish()?;
+
+    let result = convert_with_worker(
+        &input,
+        "xlsx",
+        &workspace.path().join("relocated.pdf"),
+        Some(worker()),
+    );
+    assert!(
+        matches!(result, Err(BuiltinEngineError::TooManyRows { .. })),
+        "the row bound must follow the relationship, got {result:?}"
+    );
+    Ok(())
+}
+
+/// A hidden slide producing no page is a faithful conversion — `office2pdf`
+/// skips `show="0"` slides on purpose, as `PowerPoint`'s own PDF export does.
+/// Reporting that as lost content would fire the degraded signal on ordinary
+/// decks and teach callers to ignore it.
+#[test]
+fn a_hidden_slide_is_not_reported_as_dropped_content() -> Result<(), Box<dyn std::error::Error>> {
+    let Some(source) = corpus("sample.pptx") else {
+        return Ok(());
+    };
+    let workspace = TempDir::new()?;
+    let input = workspace.path().join("hidden.pptx");
+    rewrite_package(&source, &input, &|name, bytes| {
+        if name != "ppt/slides/slide2.xml" {
+            return Some((name.to_owned(), bytes.to_vec()));
+        }
+        let patched = String::from_utf8_lossy(bytes).replacen("<p:sld ", "<p:sld show=\"0\" ", 1);
+        Some((name.to_owned(), patched.into_bytes()))
+    })?;
+
+    let output = workspace.path().join("hidden.pdf");
+    let conversion = convert_with_worker(&input, "pptx", &output, Some(worker()))?;
+    assert!(
+        !conversion.dropped_content,
+        "a hidden slide is not lost content: {:?}",
+        conversion.warnings
+    );
+    assert!(
+        !conversion
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("produced no page")),
+        "no drop warning expected: {:?}",
+        conversion.warnings
+    );
+    // What makes this test meaningful: the deck has two slide parts and renders
+    // one page, so the reconciliation really is being exercised. If a future
+    // engine starts rendering hidden slides this assertion is where to notice —
+    // the test would then be passing for the wrong reason.
+    assert_eq!(
+        page_count(&output)?,
+        1,
+        "the hidden slide should be skipped"
+    );
+    Ok(())
+}
+
+/// The dangerous direction: slide parts are named by their relationship target,
+/// so a deck whose slides are not called `slideN.xml` used to yield an expected
+/// count of zero, which skipped reconciliation entirely and reported a dropped
+/// slide as a clean conversion.
+#[test]
+fn a_dropped_slide_is_detected_with_non_conventional_part_names()
+-> Result<(), Box<dyn std::error::Error>> {
+    let Some(source) = corpus("sample.pptx") else {
+        return Ok(());
+    };
+    let workspace = TempDir::new()?;
+    let input = workspace.path().join("renamed.pptx");
+    rewrite_package(&source, &input, &|name, bytes| {
+        match name {
+            // Rename the second slide part away from the convention, and break
+            // it so the engine really does drop it.
+            "ppt/slides/slide2.xml" => Some((
+                "ppt/slides/d2.xml".to_owned(),
+                b"<<<not xml at all >>> &&& <p:sld".to_vec(),
+            )),
+            "ppt/slides/_rels/slide2.xml.rels" => {
+                Some(("ppt/slides/_rels/d2.xml.rels".to_owned(), bytes.to_vec()))
+            }
+            "ppt/_rels/presentation.xml.rels" | "[Content_Types].xml" => Some((
+                name.to_owned(),
+                String::from_utf8_lossy(bytes)
+                    .replace("slides/slide2.xml", "slides/d2.xml")
+                    .into_bytes(),
+            )),
+            _ => Some((name.to_owned(), bytes.to_vec())),
+        }
+    })?;
+
+    let output = workspace.path().join("renamed.pdf");
+    let conversion = convert_with_worker(&input, "pptx", &output, Some(worker()))?;
+    assert_eq!(
+        page_count(&output)?,
+        1,
+        "the broken slide should be dropped"
+    );
+    assert!(
+        conversion.dropped_content,
+        "a dropped slide must be reported even when parts are not named by convention: {:?}",
+        conversion.warnings
+    );
+    assert!(
+        conversion
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("produced no page")),
+        "expected an explicit drop warning: {:?}",
+        conversion.warnings
+    );
+    Ok(())
+}
+
+/// What a rewrite rule returns for one entry: its new name and bytes, or
+/// `None` to drop it.
+type RewrittenEntry = Option<(String, Vec<u8>)>;
+
+/// Copies a ZIP package entry by entry, letting `rewrite` rename an entry,
+/// change its bytes, or drop it.
+fn rewrite_package(
+    source: &Path,
+    destination: &Path,
+    rewrite: &dyn Fn(&str, &[u8]) -> RewrittenEntry,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::io::Read;
+
+    let mut input = zip::ZipArchive::new(fs::File::open(source)?)?;
+    let mut output = ZipWriter::new(fs::File::create(destination)?);
+    let options = SimpleFileOptions::default();
+    for index in 0..input.len() {
+        let mut entry = input.by_index(index)?;
+        let name = entry.name().to_owned();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes)?;
+        if let Some((new_name, new_bytes)) = rewrite(&name, &bytes) {
+            output.start_file(new_name, options)?;
+            output.write_all(&new_bytes)?;
+        }
+    }
+    output.finish()?;
+    Ok(())
+}
+
 /// Runs the worker directly with no arguments to prove the mode exists and
 /// refuses malformed invocations instead of falling through into the service.
 #[test]

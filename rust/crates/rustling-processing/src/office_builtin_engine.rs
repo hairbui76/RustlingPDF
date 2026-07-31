@@ -27,6 +27,7 @@
 //! of a killed worker.
 
 use std::{
+    collections::BTreeMap,
     ffi::OsString,
     fs,
     io::Read,
@@ -211,16 +212,39 @@ pub fn convert_with_worker(
 /// Structural facts read from the input package before conversion.
 #[derive(Debug, Default, Clone, Copy)]
 struct ArchiveFacts {
-    /// Total `<row>` elements across every worksheet (XLSX only).
+    /// Total `<row>` elements across every worksheet the workbook references.
     sheet_rows: u64,
-    /// Number of `ppt/slides/slideN.xml` parts (PPTX only).
+    /// Slides the deck expects to render: every referenced slide part that is
+    /// not marked `show="0"`.
     slides: usize,
 }
+
+/// The OOXML relationships namespace, which carries the `r:id` attribute that
+/// binds a `<sheet>` or `<sldId>` element to a relationship.
+const RELATIONSHIPS_NAMESPACE: &str =
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+/// Read ceiling for the small directory parts (`workbook.xml`,
+/// `presentation.xml`) and their `.rels` siblings.
+const MAX_DIRECTORY_PART_BYTES: usize = 4 * 1024 * 1024;
+/// Read ceiling for the head of a slide part, which only has to contain the
+/// root element's start tag.
+const MAX_SLIDE_HEADER_BYTES: usize = 8 * 1024;
+
+type PackageArchive = zip::ZipArchive<std::io::BufReader<fs::File>>;
 
 /// Reads the cheap structural facts the bounds and the reconciliation need.
 ///
 /// A package that cannot be opened is not rejected here: the worker gives a
 /// better error for it, and this pass exists only to catch overload early.
+///
+/// Parts are located the way the engines locate them — by following the
+/// relationship from the directory part — never by the conventional filename.
+/// OOXML paths come from `.rels` targets, so a standards-legal workbook can put
+/// its only worksheet at `xl/data/s1.xml` and a legal deck can name its slides
+/// `ppt/slides/d1.xml`. Matching on `xl/worksheets/` or `ppt/slides/slide`
+/// would make the row bound trivially evadable and would make the slide
+/// reconciliation report a lossy conversion as clean.
 ///
 /// Row counting stops as soon as `max_rows` is exceeded: the caller only needs
 /// to know that the workbook is over the line, and decompressing the rest of a
@@ -237,27 +261,209 @@ fn inspect_archive(
         return Ok(facts);
     };
 
-    let names: Vec<String> = archive.file_names().map(ToOwned::to_owned).collect();
-    for name in names {
-        let lowered = name.to_ascii_lowercase();
-        if extension == "pptx" && lowered.starts_with("ppt/slides/slide") && is_xml_part(&lowered) {
-            facts.slides += 1;
-        }
-        if extension == "xlsx"
-            && lowered.starts_with("xl/worksheets/")
-            && is_xml_part(&lowered)
-            && let Ok(entry) = archive.by_name(&name)
-        {
-            let remaining = max_rows.saturating_sub(facts.sheet_rows);
-            facts.sheet_rows = facts
-                .sheet_rows
-                .saturating_add(count_rows(entry, remaining));
-            if facts.sheet_rows > max_rows {
-                return Ok(facts);
+    match extension {
+        "xlsx" => {
+            for name in worksheet_parts(&mut archive) {
+                let Ok(entry) = archive.by_name(&name) else {
+                    continue;
+                };
+                let remaining = max_rows.saturating_sub(facts.sheet_rows);
+                facts.sheet_rows = facts
+                    .sheet_rows
+                    .saturating_add(count_rows(entry, remaining));
+                if facts.sheet_rows > max_rows {
+                    break;
+                }
             }
         }
+        "pptx" => {
+            facts.slides = slide_parts(&mut archive)
+                .into_iter()
+                .filter(|name| !slide_is_hidden(&mut archive, name))
+                .count();
+        }
+        _ => {}
     }
     Ok(facts)
+}
+
+/// Every worksheet part `xl/workbook.xml` references, in declaration order.
+fn worksheet_parts(archive: &mut PackageArchive) -> Vec<String> {
+    related_parts(archive, "xl/workbook.xml", "sheets", "sheet")
+        .filter(|parts| !parts.is_empty())
+        .unwrap_or_else(|| conventional_parts(archive, "xl/worksheets/"))
+}
+
+/// Every slide part `ppt/presentation.xml` references, in presentation order.
+fn slide_parts(archive: &mut PackageArchive) -> Vec<String> {
+    related_parts(archive, "ppt/presentation.xml", "sldIdLst", "sldId")
+        .filter(|parts| !parts.is_empty())
+        .unwrap_or_else(|| conventional_parts(archive, "ppt/slides/"))
+}
+
+/// Resolves the parts referenced by `<{item}>` elements inside `<{list}>` in
+/// the directory part at `part_name`.
+///
+/// Returns `None` when the directory part or its `.rels` sibling is missing or
+/// unparseable, so the caller can fall back to the naming convention rather
+/// than silently reporting an empty package.
+fn related_parts(
+    archive: &mut PackageArchive,
+    part_name: &str,
+    list_local_name: &str,
+    item_local_name: &str,
+) -> Option<Vec<String>> {
+    let base_directory = part_name.rsplit_once('/').map_or("", |(head, _)| head);
+    let rels_name = relationship_part_name(part_name);
+
+    let part = read_text_part(archive, part_name, MAX_DIRECTORY_PART_BYTES)?;
+    let rels = read_text_part(archive, &rels_name, MAX_DIRECTORY_PART_BYTES)?;
+    let targets = relationship_targets(&rels)?;
+
+    let document = roxmltree::Document::parse(&part).ok()?;
+    let mut parts = Vec::new();
+    for node in document.descendants() {
+        if !node.is_element()
+            || node.tag_name().name() != item_local_name
+            || node.parent_element().map(|parent| parent.tag_name().name()) != Some(list_local_name)
+        {
+            continue;
+        }
+        let Some(relationship) = node.attribute((RELATIONSHIPS_NAMESPACE, "id")) else {
+            continue;
+        };
+        let Some(target) = targets.get(relationship) else {
+            continue;
+        };
+        let Some(resolved) = resolve_relationship_target(base_directory, target) else {
+            continue;
+        };
+        if !parts.contains(&resolved) {
+            parts.push(resolved);
+        }
+    }
+    Some(parts)
+}
+
+/// `xl/workbook.xml` → `xl/_rels/workbook.xml.rels`.
+fn relationship_part_name(part_name: &str) -> String {
+    match part_name.rsplit_once('/') {
+        Some((directory, file)) => format!("{directory}/_rels/{file}.rels"),
+        None => format!("_rels/{part_name}.rels"),
+    }
+}
+
+/// Maps relationship `Id` to `Target`, skipping external targets (which name a
+/// URI, not a part in this package).
+fn relationship_targets(rels_xml: &str) -> Option<BTreeMap<String, String>> {
+    let document = roxmltree::Document::parse(rels_xml).ok()?;
+    let mut targets = BTreeMap::new();
+    for node in document.descendants() {
+        if !node.is_element() || node.tag_name().name() != "Relationship" {
+            continue;
+        }
+        if node
+            .attribute("TargetMode")
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("External"))
+        {
+            continue;
+        }
+        if let (Some(id), Some(target)) = (node.attribute("Id"), node.attribute("Target")) {
+            targets.insert(id.to_owned(), target.to_owned());
+        }
+    }
+    Some(targets)
+}
+
+/// Resolves a relationship `Target` against the directory of the part that
+/// declared it, normalising `.` and `..`.
+///
+/// A leading `/` means "relative to the package root". A target that climbs
+/// above the root is refused: it names nothing inside the archive.
+fn resolve_relationship_target(base_directory: &str, target: &str) -> Option<String> {
+    let (base, relative) = match target.strip_prefix('/') {
+        Some(absolute) => ("", absolute),
+        None => (base_directory, target),
+    };
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in base.split('/').chain(relative.split('/')) {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                segments.pop()?;
+            }
+            other => segments.push(other),
+        }
+    }
+    (!segments.is_empty()).then(|| segments.join("/"))
+}
+
+/// Every XML part directly under `prefix`, used only when the directory part
+/// cannot be read.
+fn conventional_parts(archive: &PackageArchive, prefix: &str) -> Vec<String> {
+    archive
+        .file_names()
+        .filter(|name| {
+            let lowered = name.to_ascii_lowercase();
+            lowered.starts_with(prefix) && is_xml_part(&lowered)
+        })
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+/// Whether a slide is marked hidden.
+///
+/// `office2pdf` skips `show="0"` slides, as `PowerPoint`'s own PDF export does, so
+/// a hidden slide producing no page is a faithful conversion, not a loss.
+/// Counting it would make the degraded signal fire on ordinary decks, and a
+/// signal that cries wolf is worse than no signal.
+///
+/// Only the root element's start tag is read: it carries the attribute, and a
+/// slide part is otherwise unbounded input that this pass has no reason to
+/// parse.
+fn slide_is_hidden(archive: &mut PackageArchive, name: &str) -> bool {
+    let Some(head) = read_text_part(archive, name, MAX_SLIDE_HEADER_BYTES) else {
+        return false;
+    };
+    let Some(tag) = root_element_start_tag(&head) else {
+        return false;
+    };
+    ["show=\"0\"", "show='0'", "show=\"false\"", "show='false'"]
+        .iter()
+        .any(|marker| tag.contains(marker))
+}
+
+/// Returns the text of the first element start tag, skipping the XML
+/// declaration, comments, and doctype/processing instructions before it.
+fn root_element_start_tag(xml: &str) -> Option<&str> {
+    let mut rest = xml;
+    loop {
+        let start = rest.find('<')?;
+        rest = &rest[start..];
+        if let Some(after) = rest.strip_prefix("<!--") {
+            let end = after.find("-->")?;
+            rest = &after[end + 3..];
+            continue;
+        }
+        if rest.starts_with("<?") || rest.starts_with("<!") {
+            let end = rest.find('>')?;
+            rest = &rest[end + 1..];
+            continue;
+        }
+        let end = rest.find('>')?;
+        return Some(&rest[..=end]);
+    }
+}
+
+/// Reads at most `limit` bytes of an archive entry as lossy UTF-8.
+fn read_text_part(archive: &mut PackageArchive, name: &str, limit: usize) -> Option<String> {
+    let entry = archive.by_name(name).ok()?;
+    let mut bytes = Vec::new();
+    entry
+        .take(u64::try_from(limit).unwrap_or(u64::MAX))
+        .read_to_end(&mut bytes)
+        .ok()
+        .map(|_| String::from_utf8_lossy(&bytes).into_owned())
 }
 
 /// Returns whether an archive entry name is an XML part.
@@ -303,12 +509,14 @@ fn count_rows(mut entry: impl Read, budget: u64) -> u64 {
     }
 }
 
-/// Compares the produced page count against the slide count of a PPTX.
+/// Compares the produced page count against the number of slides the deck
+/// expects to render.
 ///
 /// `office2pdf` has been observed to drop whole slides from a malformed deck
 /// while reporting no warnings at all, so the engine's own silence is not
-/// evidence that nothing was lost. One slide renders to one page, which makes
-/// the page count a usable independent check.
+/// evidence that nothing was lost. One visible slide renders to one page, which
+/// makes the page count a usable independent check. `facts.slides` already
+/// excludes hidden slides, which the engine skips on purpose.
 fn reconcile_slides(facts: &ArchiveFacts, pdf_path: &Path, conversion: &mut BuiltinConversion) {
     if facts.slides == 0 {
         return;
@@ -323,7 +531,7 @@ fn reconcile_slides(facts: &ArchiveFacts, pdf_path: &Path, conversion: &mut Buil
     let missing = facts.slides - pages;
     conversion.dropped_content = true;
     conversion.warnings.push(format!(
-        "PPTX: {missing} of {} slides produced no page and were dropped",
+        "PPTX: {missing} of {} visible slides produced no page and were dropped",
         facts.slides
     ));
 }
@@ -538,10 +746,13 @@ fn limit(name: &str, default: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        ArchiveFacts, BuiltinConversion, BuiltinEngineError, DEFAULT_MAX_SHEET_ROWS, convert,
-        count_rows, inspect_archive, limit, reconcile_slides, supports_extension, truncate,
+        ArchiveFacts, BuiltinConversion, BuiltinEngineError, DEFAULT_MAX_SHEET_ROWS,
+        RELATIONSHIPS_NAMESPACE, convert, count_rows, inspect_archive, limit, reconcile_slides,
+        relationship_part_name, relationship_targets, resolve_relationship_target,
+        root_element_start_tag, supports_extension, truncate,
     };
-    use std::io::Write;
+    use std::fmt::Write as _;
+    use std::io::Write as _;
     use tempfile::tempdir;
     use zip::{ZipWriter, write::SimpleFileOptions};
 
@@ -590,32 +801,263 @@ mod tests {
         assert_eq!(count_rows(sheet.as_slice(), u64::MAX), 5_000);
     }
 
+    const RELS_NS: &str = "http://schemas.openxmlformats.org/package/2006/relationships";
+    const SHEET: &[u8] = b"<worksheet><sheetData><row/><row/><row/></sheetData></worksheet>";
+
+    fn rels(entries: &[(&str, &str)]) -> Vec<u8> {
+        let body = entries.iter().fold(String::new(), |mut xml, (id, target)| {
+            let _ = write!(xml, r#"<Relationship Id="{id}" Target="{target}"/>"#);
+            xml
+        });
+        format!(r#"<Relationships xmlns="{RELS_NS}">{body}</Relationships>"#).into_bytes()
+    }
+
+    fn workbook(sheets: &[&str]) -> Vec<u8> {
+        let body = sheets
+            .iter()
+            .enumerate()
+            .fold(String::new(), |mut xml, (index, name)| {
+                let _ = write!(
+                    xml,
+                    r#"<sheet name="{name}" sheetId="{}" r:id="rId{}"/>"#,
+                    index + 1,
+                    index + 1
+                );
+                xml
+            });
+        format!(
+            r#"<workbook xmlns:r="{RELATIONSHIPS_NAMESPACE}"><sheets>{body}</sheets></workbook>"#
+        )
+        .into_bytes()
+    }
+
+    fn presentation(slides: usize) -> Vec<u8> {
+        let body = (0..slides).fold(String::new(), |mut xml, index| {
+            let _ = write!(
+                xml,
+                r#"<sldId id="{}" r:id="rId{}"/>"#,
+                256 + index,
+                index + 1
+            );
+            xml
+        });
+        format!(
+            r#"<p:presentation xmlns:p="pml" xmlns:r="{RELATIONSHIPS_NAMESPACE}"><p:sldIdLst>{body}</p:sldIdLst></p:presentation>"#
+        )
+        .into_bytes()
+    }
+
+    /// The evasion the naming convention allowed: OOXML part paths come from
+    /// relationship targets, so a standards-legal workbook can put its only
+    /// worksheet outside `xl/worksheets/` and a prefix match sees zero rows.
     #[test]
-    fn counts_worksheet_rows_and_slides() -> Result<(), Box<dyn std::error::Error>> {
+    fn counts_rows_in_a_worksheet_the_workbook_relocated() -> Result<(), Box<dyn std::error::Error>>
+    {
         let directory = tempdir()?;
-        let workbook = directory.path().join("book.xlsx");
-        let sheet = b"<worksheet><sheetData><row/><row/><row/></sheetData></worksheet>";
+        let book = directory.path().join("relocated.xlsx");
         write_package(
-            &workbook,
+            &book,
             &[
-                ("xl/workbook.xml", b"<workbook/>"),
-                ("xl/worksheets/sheet1.xml", sheet),
-                ("xl/worksheets/sheet2.xml", sheet),
+                ("xl/workbook.xml", &workbook(&["Sheet1"])),
+                (
+                    "xl/_rels/workbook.xml.rels",
+                    &rels(&[("rId1", "data/s1.xml")]),
+                ),
+                ("xl/data/s1.xml", SHEET),
             ],
         )?;
-        assert_eq!(inspect_archive(&workbook, "xlsx", u64::MAX)?.sheet_rows, 6);
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_absolute_and_climbing_relationship_targets()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let book = directory.path().join("absolute.xlsx");
+        write_package(
+            &book,
+            &[
+                ("xl/workbook.xml", &workbook(&["A", "B"])),
+                (
+                    "xl/_rels/workbook.xml.rels",
+                    &rels(&[("rId1", "/sheets/a.xml"), ("rId2", "../shared/b.xml")]),
+                ),
+                ("sheets/a.xml", SHEET),
+                ("shared/b.xml", SHEET),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 6);
+        Ok(())
+    }
+
+    /// A part the workbook does not reference is not read by the engine either,
+    /// so counting it would reject a workbook for rows nothing will parse.
+    #[test]
+    fn ignores_a_worksheet_the_workbook_never_references() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempdir()?;
+        let book = directory.path().join("orphan.xlsx");
+        write_package(
+            &book,
+            &[
+                ("xl/workbook.xml", &workbook(&["Sheet1"])),
+                (
+                    "xl/_rels/workbook.xml.rels",
+                    &rels(&[("rId1", "worksheets/sheet1.xml")]),
+                ),
+                ("xl/worksheets/sheet1.xml", SHEET),
+                ("xl/worksheets/orphan.xml", SHEET),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 3);
+        Ok(())
+    }
+
+    /// Without a readable directory part there is nothing to resolve, so the
+    /// naming convention is the only thing left. It must still work.
+    #[test]
+    fn falls_back_to_the_naming_convention_without_relationships()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let book = directory.path().join("book.xlsx");
+        write_package(
+            &book,
+            &[
+                ("xl/workbook.xml", b"<workbook/>"),
+                ("xl/worksheets/sheet1.xml", SHEET),
+                ("xl/worksheets/sheet2.xml", SHEET),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 6);
 
         let deck = directory.path().join("deck.pptx");
         write_package(
             &deck,
             &[
                 ("ppt/presentation.xml", b"<p/>"),
-                ("ppt/slides/slide1.xml", b"<s/>"),
-                ("ppt/slides/slide2.xml", b"<s/>"),
+                ("ppt/slides/slide1.xml", b"<p:sld/>"),
+                ("ppt/slides/slide2.xml", b"<p:sld/>"),
             ],
         )?;
         assert_eq!(inspect_archive(&deck, "pptx", u64::MAX)?.slides, 2);
         Ok(())
+    }
+
+    /// Slide parts are named by their relationship target too, so a deck whose
+    /// slides are not called `slideN.xml` must still be reconciled — otherwise
+    /// a dropped slide is reported as a clean conversion.
+    #[test]
+    fn counts_slides_with_non_conventional_part_names() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let deck = directory.path().join("renamed.pptx");
+        write_package(
+            &deck,
+            &[
+                ("ppt/presentation.xml", &presentation(2)),
+                (
+                    "ppt/_rels/presentation.xml.rels",
+                    &rels(&[("rId1", "slides/d1.xml"), ("rId2", "slides/d2.xml")]),
+                ),
+                ("ppt/slides/d1.xml", b"<p:sld xmlns:p=\"pml\"/>"),
+                ("ppt/slides/d2.xml", b"<p:sld xmlns:p=\"pml\"/>"),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&deck, "pptx", u64::MAX)?.slides, 2);
+        Ok(())
+    }
+
+    /// `office2pdf` skips `show="0"` slides on purpose, as `PowerPoint`'s own PDF
+    /// export does, so counting them would make the degraded signal fire on
+    /// ordinary decks.
+    #[test]
+    fn excludes_hidden_slides_from_the_expected_page_count()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let deck = directory.path().join("hidden.pptx");
+        write_package(
+            &deck,
+            &[
+                ("ppt/presentation.xml", &presentation(3)),
+                (
+                    "ppt/_rels/presentation.xml.rels",
+                    &rels(&[
+                        ("rId1", "slides/slide1.xml"),
+                        ("rId2", "slides/slide2.xml"),
+                        ("rId3", "slides/slide3.xml"),
+                    ]),
+                ),
+                ("ppt/slides/slide1.xml", b"<p:sld xmlns:p=\"pml\"/>"),
+                (
+                    "ppt/slides/slide2.xml",
+                    b"<?xml version=\"1.0\"?><!-- hidden --><p:sld xmlns:p=\"pml\" show=\"0\"/>",
+                ),
+                (
+                    "ppt/slides/slide3.xml",
+                    b"<p:sld xmlns:p=\"pml\" show='false'/>",
+                ),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&deck, "pptx", u64::MAX)?.slides, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_relationship_targets_against_the_declaring_part() {
+        assert_eq!(
+            resolve_relationship_target("xl", "data/s1.xml").as_deref(),
+            Some("xl/data/s1.xml")
+        );
+        assert_eq!(
+            resolve_relationship_target("xl", "/ppt/slides/a.xml").as_deref(),
+            Some("ppt/slides/a.xml")
+        );
+        assert_eq!(
+            resolve_relationship_target("ppt", "./slides/./a.xml").as_deref(),
+            Some("ppt/slides/a.xml")
+        );
+        assert_eq!(
+            resolve_relationship_target("ppt/slides", "../media/a.xml").as_deref(),
+            Some("ppt/media/a.xml")
+        );
+        // Climbing above the package root names nothing in the archive.
+        assert_eq!(resolve_relationship_target("xl", "../../escape.xml"), None);
+        assert_eq!(resolve_relationship_target("", ""), None);
+    }
+
+    #[test]
+    fn finds_the_root_element_past_declarations_and_comments() {
+        assert_eq!(
+            root_element_start_tag("<?xml version=\"1.0\"?>\n<!-- c --><p:sld show=\"0\"/>"),
+            Some("<p:sld show=\"0\"/>")
+        );
+        assert_eq!(root_element_start_tag("no markup here"), None);
+    }
+
+    #[test]
+    fn derives_the_relationship_part_name() {
+        assert_eq!(
+            relationship_part_name("xl/workbook.xml"),
+            "xl/_rels/workbook.xml.rels"
+        );
+        assert_eq!(
+            relationship_part_name("ppt/presentation.xml"),
+            "ppt/_rels/presentation.xml.rels"
+        );
+        assert_eq!(relationship_part_name("root.xml"), "_rels/root.xml.rels");
+    }
+
+    #[test]
+    fn skips_external_relationship_targets() {
+        let external = format!(
+            r#"<Relationships xmlns="{RELS_NS}"><Relationship Id="rId1" Target="http://example.invalid/s.xml" TargetMode="External"/><Relationship Id="rId2" Target="worksheets/sheet1.xml"/></Relationships>"#
+        );
+        let targets = relationship_targets(&external).unwrap_or_default();
+        assert!(!targets.contains_key("rId1"));
+        assert_eq!(
+            targets.get("rId2").map(String::as_str),
+            Some("worksheets/sheet1.xml")
+        );
     }
 
     /// The row bound must trip before any worker is spawned, so this test also

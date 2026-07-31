@@ -88,6 +88,20 @@ row counting stops as soon as the limit is passed, so the reported figure is a
 lower bound ("at least N rows"). The time and memory bounds are enforced by
 polling the child every 10 ms and killing it (`SIGKILL` / `TerminateProcess`).
 
+**Parts are located the way the engines locate them — through relationships,
+never by filename convention.** OOXML part paths come from `.rels` targets, so a
+standards-legal workbook may put its only worksheet at `xl/data/s1.xml` and a
+legal deck may name its slides `ppt/slides/d1.xml`. The row bound therefore
+resolves `<sheet r:id>` through `xl/_rels/workbook.xml.rels`, and the slide
+reconciliation resolves `<p:sldId r:id>` through
+`ppt/_rels/presentation.xml.rels`, in both cases joining the target against the
+directory of the declaring part and normalising `.`/`..`. External relationship
+targets are skipped, and a target that climbs above the package root is refused.
+A part the directory part never references is not counted, because the engine
+will not read it either. Only when the directory part or its `.rels` sibling is
+missing or unparseable does the scan fall back to the `xl/worksheets/` and
+`ppt/slides/` naming convention.
+
 Failures caused by the document — an unparseable package, a timeout, a memory
 breach, a stack overflow that aborts the worker — are reported as `400` with a
 message naming what tripped. They are properties of the upload, not server
@@ -105,18 +119,31 @@ worker process, never by fixing the engine.
 | XLSX memory growth of roughly 77 MB per 1000 rows (100k rows ≈ 7.7 GB) | the row bound rejects the workbook up front; the memory bound catches whatever slips past. LibreOffice handles 500k rows in ~345 MB, so large spreadsheets are a reason to install it. |
 | Whitespace in a document body expanding by two orders of magnitude (25 MB → 4.4 GB) | not caught by any input rule — the package is structurally ordinary. The memory and time bounds stop it. Larger variants are rejected earlier by the office sanitizer's 200 MiB expansion cap. |
 | `comemo` memoisation and font-metric caches that are never evicted, so memory grows with attacker-controlled input across requests | the worker exits after each conversion, so every cache dies with it. `comemo::evict` is never called because nothing survives long enough to need it. |
-| Whole PPTX slides silently dropped while the engine reports zero warnings | the parent counts `ppt/slides/slideN.xml` parts before conversion and PDF pages after; a shortfall sets `X-Rustling-Conversion-Degraded` and adds an explicit warning. |
+| Whole PPTX slides silently dropped while the engine reports zero warnings | the parent counts the slide parts `ppt/presentation.xml` references — excluding those marked `show="0"` — before conversion, and PDF pages after; a shortfall sets `X-Rustling-Conversion-Degraded` and adds an explicit warning. |
 
 Residual risks, stated plainly:
 
 - A document that stays just under every bound can still occupy the single
   conversion slot for the full timeout. The worst case is a queue, not an outage.
+- **Loss instrumentation exists for PPTX only.** DOCX and XLSX have no
+  independent check at all: there is no per-page or per-sheet invariant to
+  reconcile against, so content dropped from a Word document or a workbook is
+  invisible unless the engine itself reports a warning — and its warnings have
+  been observed to be absent when content was lost.
 - Silent data loss *inside* a rendered slide or paragraph (wrong glyphs, lost
-  formatting, a dropped shape) is not detected; only whole missing PPTX pages
-  are. The absence of `X-Rustling-Conversion-Degraded` does not prove fidelity.
+  formatting, a dropped shape) is not detected either; only whole missing PPTX
+  pages are. The absence of `X-Rustling-Conversion-Degraded` does not prove
+  fidelity.
 - The row count matches `<row` textually rather than parsing the worksheet. It
   can overcount a file that embeds that string elsewhere; it is a bound, not a
   statistic.
+- The hidden-slide check reads only the root element's start tag of each slide
+  part, looking for `show="0"`/`show="false"`. It does not parse the slide.
+- The memory bound is a 10 ms poll of the worker's resident set, not a hard
+  allocation ceiling. It has been observed to fire reliably at the scales tested,
+  but a single allocation large enough to complete between two polls can overshoot
+  the limit before the kill lands. A hard ceiling would need `setrlimit`, which
+  the workspace's `unsafe_code = "forbid"` rules out.
 
 ## Supported inputs
 
@@ -184,9 +211,15 @@ profile-URI building, the built-in engine's format gate, its row bound, and its
 tolerance of an unopenable package. `tests/office_builtin_engine.rs` runs the real
 worker binary end to end: it converts a real DOCX, XLSX, and PPTX and asserts each
 produces a readable, non-empty PDF; it asserts a malformed package fails without
-taking the caller down; it asserts the row bound trips before a worker is spawned;
-and it asserts a document naming its embedded font with an absolute path cannot
-place a file there. HTTP tests assert unknown/unsafe input → `400` and real
+taking the caller down; it asserts the row bound trips before a worker is spawned
+and that it still trips when the workbook relocates its worksheet part outside
+`xl/worksheets/`; it asserts a deck with a `show="0"` slide is *not* reported as
+degraded; it asserts a dropped slide *is* reported as degraded even when the
+slide parts are not named `slideN.xml`; and it asserts a document naming its
+embedded font with an absolute path cannot place a file there. Unit tests cover
+relationship-target resolution (relative, package-absolute, `..`-climbing,
+escaping, external), unreferenced parts, and the naming-convention fallback.
+HTTP tests assert unknown/unsafe input → `400` and real
 text/HTML conversion when LibreOffice is present on the host (otherwise `501`).
 `runtime_config` tests assert `file-to-pdf` stays enabled with the `LibreOffice`
 group missing while `pdf-to-word` reports `DEPENDENCY`.
