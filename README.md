@@ -1,5 +1,11 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="RustlingPDF" width="260">
+  <img src="docs/assets/logo.png" alt="RustlingPDF" width="280">
+</p>
+
+<p align="center">
+  <strong>Own your PDFs.</strong><br>
+  A powerful, open-source PDF workbench for desktop, web, mobile, and CLI.<br>
+  Pure-Rust backend. No account. No database. No document storage.
 </p>
 
 <p align="center">
@@ -10,140 +16,246 @@
   <a href="https://github.com/hairbui76/RustlingPDF/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/hairbui76/RustlingPDF?color=60C948&label=release"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-60C948"></a>
   <img alt="Rust backend" src="https://img.shields.io/badge/backend-100%25%20Rust-60C948">
-  <img alt="No account required" src="https://img.shields.io/badge/accounts-none-60C948">
+  <img alt="No account required" src="https://img.shields.io/badge/account-not%20required-60C948">
+  <img alt="Local CLI" src="https://img.shields.io/badge/CLI-rustlingpdf-60C948">
 </p>
 
 <p align="center">
-  <b>A local, do-everything PDF toolbox.</b><br>
-  A pure-Rust backend, a React web UI, and a Tauri desktop app.<br>
-  No login, no database, no server-side state &mdash; your files stay yours.
+  <a href="https://github.com/hairbui76/RustlingPDF/releases/latest"><strong>Download desktop</strong></a>
+  ·
+  <a href="#run-with-docker"><strong>Run with Docker</strong></a>
+  ·
+  <a href="#cli-yes-it-is-built-in"><strong>Use the CLI</strong></a>
+  ·
+  <a href="docs/product/features.md"><strong>Explore every feature</strong></a>
 </p>
 
 ---
 
-RustlingPDF is a self-contained PDF toolbox with a **pure-Rust backend**, a React
-web UI, and a Tauri desktop app. Run it on your desktop, or behind your own proxy
-on a trusted network.
+RustlingPDF brings a broad PDF toolkit into one local-first application. Use the
+visual React interface, install the Tauri desktop app, self-host the web service,
+scan from a phone, call the REST API, or automate local files with the
+`rustlingpdf` CLI.
 
-It is an independent product **based on
-[Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF)** — originally a
-full Java→Rust port of its backend, now carried forward on its own. There is no
-Java, and no JVM at build or run time. See [LICENSE](LICENSE) for attribution.
+The processing service is written in Rust and exposes **166 `/api/v1/...`
+endpoints**. There is no Java or JVM at build or run time.
 
-## Features
+## Why RustlingPDF?
 
-| Category | Capabilities |
+| | |
 | :-- | :-- |
-| **Organise pages** | Merge; split by breaks, size, page count, chapters, tiles, or QR dividers; reorder, reverse, duplicate, odd/even split-and-merge; rotate, crop, rescale; N-up, booklet, and poster layouts; overlay; remove blank pages; page numbers |
-| **Convert to PDF** | Images, Office documents, HTML, Markdown, web pages, email, eBooks, SVG, and comic archives |
-| **Convert from PDF** | Images, Word, PowerPoint, XML, HTML, text, Markdown, tables to CSV/XLSX, EPUB, comic archives, slideshow video, and image extraction |
-| **Security & signing** | Passwords and permissions, watermarks, sanitisation, redaction; X.509 and hardware / smart-card signing; RFC 3161 timestamps; signature validation |
-| **OCR & repair** | Searchable-text OCR, repair of damaged files, compression |
-| **Edit** | Find-and-replace text, a full visual editor, stamps, images, comments, dark-mode recolouring, and flattening |
-| **Forms** | Visually create, align, duplicate, fill, rename, and delete accessible fields; batch-fill CSV/XLSX rows; export values; unlock read-only fields |
-| **Metadata & attachments** | Embedded files, document properties, and bookmark / table-of-contents editing |
-| **Inspect** | Page, font, annotation, and form inventories; encryption status; PDF/A, PDF/UA, and WTPDF conformance checks |
-| **Automation** | A catalog-validated local `rustlingpdf` CLI, multi-tool pipelines, asynchronous jobs, an installable local-first mobile scanner with optional phone-to-desktop transfer, and content filters |
-| **AI-assisted** | Page-cited summary, structured extraction, page/block-ordered translation, edit planning, review comments, document generation, maths auditing, and classification — optional, off by default |
+| **Private by design** | No login, account, database, or durable server-side document storage. Temporary request files are swept automatically. |
+| **One toolbox, many surfaces** | Desktop app, self-hosted web UI, Docker image, installable mobile scanner PWA, REST API, and local CLI. |
+| **Built for real workflows** | Go beyond merge and split: design forms, batch-fill records, check accessibility, OCR scans, sign documents, redact content, and compose pipelines. |
+| **Automation without a server** | The typed `rustlingpdf` CLI runs the same processing pipeline in-process against local files. |
+| **AI only when you choose it** | Summary, extraction, and translation are optional, stateless, disabled by default, and support BYOK or local Ollama. |
+| **Honest dependency handling** | Optional native tools are detected at startup. Missing tools disable only the features that require them. |
 
-**Privacy by design.** No login, no database, no server-side storage — and unless
-you deliberately enable the optional AI engine with your own API key, nothing
-ever leaves the machine.
+## Feature highlights
 
-**Optional tools.** A handful of conversions call an external program
-(LibreOffice, WeasyPrint, Calibre, Tesseract or OCRmyPDF, FFmpeg, `unrar`); the
-Docker image bundles the common ones. A missing tool disables only its own
-feature and never crashes the service — everything else is pure Rust.
+| Area | What you can do |
+| :-- | :-- |
+| **Page workshop** | Merge, reorder, rotate, crop, rescale, overlay, remove blanks, add page numbers, and split by page, size, count, chapter, section, tile, or QR divider |
+| **Visual editing** | Edit structured text, add images and stamps, replace text, annotate, recolor for dark mode, manage bookmarks, and flatten content |
+| **Forms at scale** | Visually draw and resize accessible fields, align or duplicate them, edit properties and tab order, fill forms, and batch-fill CSV/XLSX rows into PDFs |
+| **Accessibility** | Inspect language, tags, reading structure, figure alternative text, form labels, and tab order; apply bounded, user-reviewed remediation |
+| **Scan, OCR, and repair** | Capture and clean multi-page scans from a phone, correct perspective, reorder pages, add searchable OCR text, compress files, and repair damaged PDFs |
+| **Convert almost anything** | Convert images, Office files, HTML, Markdown, email, eBooks, SVG, and comic archives to PDF; export PDF to images, text, Word, PowerPoint, HTML, Markdown, CSV/XLSX, EPUB, video, and more |
+| **Protect and sign** | Set passwords and permissions, sanitize metadata, redact content, add watermarks, sign with X.509 or hardware/smart-card certificates, timestamp, and validate signatures |
+| **Inspect and manage** | Review fonts, pages, annotations, forms, encryption, attachments, metadata, and PDF/A, PDF/UA, or WTPDF conformance |
+| **Automate** | Discover typed operations, run one command, compose multi-step pipelines, use safe binary stdout, call the REST API, or submit asynchronous jobs |
+| **AI-assisted, optional** | Produce page-cited summaries, schema-driven extraction, ordered translation, edit plans, review comments, generated documents, math audits, and classification |
 
-The complete per-endpoint reference is in
-[`docs/product/features.md`](docs/product/features.md); feature status and
-documented differences from upstream are in
-[`rust/PORT_STATUS.md`](rust/PORT_STATUS.md).
+The detailed, code-derived reference lists every registered route and dependency
+requirement in [What RustlingPDF can do](docs/product/features.md). The
+authoritative parity ledger is [rust/PORT_STATUS.md](rust/PORT_STATUS.md).
 
-## Layout
+## Run it your way
 
-| Path | What it is |
-|---|---|
-| `rust/crates/rustling-processing` | The backend: axum HTTP service mirroring the `/api/v1/...` REST surface |
-| `rust/crates/rustling-ai-engine` | Optional stateless AI engine (summary, extraction, translation, classification, PDF edit/review/create agents, math audit, orchestration) |
-| `rust/crates/rustling-cli` | Local `rustlingpdf` automation CLI generated from the operation catalog |
-| `rust/crates/rustling-operation-catalog` | Generates the typed operation catalog from the OpenAPI snapshot |
-| `rust/contracts/` | Per-surface behavior contracts (routes, semantics, documented divergences) |
-| `frontend/editor` | Vite + React + TypeScript + Mantine SPA |
-| `SwaggerDoc.json` | Frozen OpenAPI snapshot used for catalog regeneration |
+| Surface | Best for | Notes |
+| :-- | :-- | :-- |
+| **Desktop app** | Private day-to-day use | Native Tauri shell; desktop packages bundle qpdf and Tesseract with English OCR data |
+| **Docker** | Home lab, team network, or server | Web UI and REST API in one container |
+| **From source** | Development and customization | Rust backend plus Vite/React frontend |
+| **CLI** | Shell scripts, CI, and batch jobs | Processes local files directly; no server or account |
+| **Mobile scanner PWA** | Capturing paper documents | Local multi-page capture and PDF export, with optional temporary phone-to-desktop transfer |
 
-The coordinated `Stirling` → `Rustling` rename has been executed: crates are
-`rustling-*` and `RUSTLING_*` is the primary env-var spelling (legacy
-`STIRLING_*` spellings keep working as deprecated aliases). A few identifiers
-deliberately keep the old spelling for continuity with shipped releases —
-the Tauri bundle identifier, desktop app-data directory, persisted storage
-keys, and `X-Stirling-*` wire headers.
-
-## Quick start
-
-Prerequisites: [Rust](https://rustup.rs), [Task](https://taskfile.dev), Node.js + npm.
+### Run with Docker
 
 ```bash
-task rust:install     # Cargo deps + pinned PDFium (rev 7543, SHA-256 verified)
-task backend:dev      # backend on http://127.0.0.1:8080
-task frontend:dev     # SPA on http://127.0.0.1:5173 (proxies /api → 8080)
-# or both at once:
-task dev
-# with the AI engine too:
+docker pull ghcr.io/hairbui76/rustlingpdf:latest
+docker run --rm -p 8080:8080 ghcr.io/hairbui76/rustlingpdf:latest
+```
+
+Open <http://localhost:8080>.
+
+For Compose, local builds, configuration mounts, and the optional AI sidecar,
+see [Running RustlingPDF](rust/RUNNING_WITH_RUST.md).
+
+### Run from source
+
+Prerequisites: [Rust](https://rustup.rs), [Task](https://taskfile.dev), and
+Node.js with npm.
+
+```bash
+task rust:install     # fetch Cargo dependencies and install pinned PDFium
+task dev              # start the Rust backend and web UI
+```
+
+The UI opens on the address printed by Task. To include the optional stateless
+AI engine, use:
+
+```bash
 task dev:all
 ```
 
-Smoke check: `curl http://127.0.0.1:8080/api/v1/info/status`
-
-Local automation needs no running server:
+You can also run each component separately:
 
 ```bash
-cargo run --manifest-path rust/Cargo.toml --locked -p rustling-cli -- \
-  run general-rotate-pdf -i report.pdf -o report-rotated.pdf -p angle=90
+task backend:dev      # http://127.0.0.1:8080
+task frontend:dev     # http://127.0.0.1:5173, proxies /api to the backend
 ```
 
-See the [CLI contract](rust/contracts/cli.md) for operation discovery,
-pipelines, JSON parameters, binary stdout, overwrite behavior, and stable exit
-codes.
+Smoke check:
 
-Optional external tools (discovered at startup; missing ones simply disable
-their endpoints with reason `DEPENDENCY`): LibreOffice, qpdf ≥ 12,
-Tesseract/OCRmyPDF, WeasyPrint ≥ 58, Poppler `pdftohtml`, Calibre, unrar,
-FFmpeg. Full operator guide, ports/binding, configuration and environment
-reference: [`rust/RUNNING_WITH_RUST.md`](rust/RUNNING_WITH_RUST.md).
+```bash
+curl http://127.0.0.1:8080/api/v1/info/status
+```
 
-## Status
+## CLI: yes, it is built in
 
-- **The product has no authentication and no server-side state — by design.**
-  The former opt-in secured mode (login/users/teams/OIDC/MFA/audit/durable
-  storage/policies/MCP) was removed entirely by maintainer decision on
-  2026-07-28; legacy `security.*`/`mcp.*`/`storage.*`/`policies.*` settings
-  keys are ignored with a one-line startup warning, never refused, so
-  existing configs and desktop installs keep booting. PDF *document* security
-  (password, redaction, sanitize, watermark, cert-sign + hardware signing,
-  timestamping, signature validation) is unaffected.
-- The locked Rust workspace test suite passes with PDFium bound, alongside the
-  frontend Vitest suite and desktop-shell gate. All three CI workflows above
-  run on every push.
-- The authoritative feature/parity ledger is
-  [`rust/PORT_STATUS.md`](rust/PORT_STATUS.md); per-surface details live in
-  [`rust/contracts/`](rust/contracts/).
+`rustlingpdf` is a first-class local automation CLI. It generates its operation
+bindings from the same catalog used by the HTTP pipeline, validates parameters
+against the catalog JSON Schemas, and invokes the processing runtime in-process.
+It does **not** start a listener, upload files to a RustlingPDF server, require
+an account, or create durable server state.
 
-## Roadmap
+Install it from a source checkout:
 
-The detailed, living plan — current batch, queue, deferred items with unblock
-conditions, and session hand-off instructions — is in [ROADMAP.md](ROADMAP.md).
-Headlines: GitHub CI, single-binary SPA serving, Docker packaging, the
-tag-driven GHCR release pipeline, and the Tauri Rust-sidecar desktop port have
-landed; the coordinated `Stirling` → `Rustling` product rename has been
-executed (crates, env-var spellings with back-compat aliases, UI branding,
-startup handshake); and the no-auth/stateless-server decision has been
-executed (auth subsystem, server-side state, MCP, and the AI PDF Q&A store
-all removed). Next up is desktop release completion (updater signing +
-Windows staging).
+```bash
+task rust:install
+cargo install --path rust/crates/rustling-cli --locked
+```
+
+Discover operations and inspect their parameters:
+
+```bash
+rustlingpdf operations
+rustlingpdf operations --json
+rustlingpdf describe general-rotate-pdf
+```
+
+Run one operation:
+
+```bash
+rustlingpdf run general-rotate-pdf \
+  --input report.pdf \
+  --output report-rotated.pdf \
+  --param angle=90
+```
+
+Compose repeatable workflows in `pipeline.json`:
+
+```json
+{
+  "pipeline": [
+    {
+      "operation": "general-rotate-pdf",
+      "parameters": { "angle": 90 }
+    },
+    {
+      "operation": "misc-compress-pdf",
+      "parameters": { "optimizeLevel": 2 }
+    }
+  ]
+}
+```
+
+```bash
+rustlingpdf pipeline \
+  --spec pipeline.json \
+  --input report.pdf \
+  --output report-ready.pdf
+```
+
+CLI behavior is designed for safe scripting:
+
+- explicit output paths are required;
+- existing files are preserved unless `--force` is supplied;
+- `--output -` is the only binary-stdout mode;
+- diagnostics go to stderr; and
+- stable exit codes distinguish usage, I/O, processing, dependency, and
+  internal failures.
+
+See the [CLI contract](rust/contracts/cli.md) for JSON parameters, repeated
+inputs, pipeline semantics, stdout rules, optional dependencies, and exit codes.
+
+## Privacy model
+
+RustlingPDF has one server mode: stateless and account-free.
+
+- No authentication, users, teams, database, audit log, or durable document
+  store exists in the application.
+- Requests use bounded temporary workspace and result storage that expires.
+- In-memory counters reset when the process restarts and are not external
+  analytics.
+- The optional AI engine is disabled by default. When enabled, dedicated
+  document-understanding requests keep PDF bytes in the processing service and
+  send only bounded extracted text to the configured provider.
+- Because the service has no built-in authentication, expose it only on a
+  trusted network or behind your own authenticated reverse proxy.
+
+## Optional native tools
+
+Most processing is implemented in the Rust workspace. Some conversions require
+specialized external programs:
+
+- LibreOffice for Office ↔ PDF;
+- WeasyPrint for HTML, Markdown, email, and URL → PDF;
+- Tesseract or OCRmyPDF for OCR;
+- Calibre for eBook conversion;
+- FFmpeg for PDF → video;
+- `unrar`/7-Zip and `rar` for CBR workflows; and
+- qpdf and Poppler for selected repair/conversion assistance.
+
+Each dependency is probed at startup. A missing tool reports its feature as
+unavailable instead of crashing the service or silently producing a different
+result. Desktop packages bundle qpdf and Tesseract; the Docker image includes
+the common conversion toolchain. See the
+[operator guide](rust/RUNNING_WITH_RUST.md#optional-external-tools) for versions
+and command overrides.
+
+## Project layout
+
+| Path | Purpose |
+| :-- | :-- |
+| `rust/crates/rustling-processing` | Axum processing service and in-process pipeline runtime |
+| `rust/crates/rustling-ai-engine` | Optional stateless AI document-understanding and orchestration engine |
+| `rust/crates/rustling-cli` | Local `rustlingpdf` automation binary |
+| `rust/crates/rustling-operation-catalog` | Typed operation-catalog generator |
+| `rust/contracts` | Behavior contracts for processing surfaces |
+| `frontend/editor` | Vite, React, TypeScript, and Mantine application |
+| `SwaggerDoc.json` | OpenAPI snapshot used for catalog and type generation |
+
+The coordinated `Stirling` → `Rustling` rename is complete. `rustling-*` crate
+names and `RUSTLING_*` environment variables are canonical; deprecated
+`STIRLING_*` aliases remain accepted for compatibility with existing installs.
+
+## Documentation
+
+- [Complete feature reference](docs/product/features.md)
+- [Installation and operator guide](rust/RUNNING_WITH_RUST.md)
+- [CLI contract](rust/contracts/cli.md)
+- [Behavior contracts](rust/contracts)
+- [Port and parity status](rust/PORT_STATUS.md)
+- [Roadmap](ROADMAP.md)
+- [Release process](RELEASING.md)
 
 ## Relationship to Stirling-PDF
 
-RustlingPDF is a separate, standalone repository — not a fork remote, not a
-submodule. Upstream Stirling-PDF remains the reference implementation its
-behavior contracts were verified against.
+RustlingPDF is an independent product based on
+[Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF). It began as a
+full Java-to-Rust backend port and now evolves as a standalone repository.
+Stirling-PDF remains an external behavior reference; it is not a fork remote or
+submodule, and RustlingPDF contains no Java/JVM runtime. See [LICENSE](LICENSE)
+for attribution.

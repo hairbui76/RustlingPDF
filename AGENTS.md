@@ -1,5 +1,10 @@
 # Agent Instructions
 
+## Communication
+
+- Users may write prompts in English, but agents must reply in Vietnamese
+  unless the user explicitly requests another language.
+
 <!-- HARNESS:BEGIN -->
 ## Harness
 
