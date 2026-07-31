@@ -25,7 +25,7 @@ async fn reports_legacy_status_and_tracks_request_metrics() -> Result<(), Box<dy
     assert_eq!(status.status(), StatusCode::OK);
     let status_json = response_json(status).await?;
     assert_eq!(status_json["status"], "UP");
-    assert_eq!(status_json["version"], "3.1.2");
+    assert_eq!(status_json["version"], "3.1.3");
 
     let operation = app
         .clone()
