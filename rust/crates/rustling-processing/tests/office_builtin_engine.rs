@@ -472,6 +472,137 @@ fn a_dropped_slide_is_detected_with_non_conventional_part_names()
 /// `None` to drop it.
 type RewrittenEntry = Option<(String, Vec<u8>)>;
 
+/// Rewrites the second slide of the sample deck: `attributes` is inserted into
+/// its root start tag, `prologue` is placed before that tag, and `break_body`
+/// replaces everything after it with unparseable text.
+fn deck_with_patched_slide(
+    destination: &Path,
+    prologue: &str,
+    attributes: &str,
+    break_body: bool,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let Some(source) = corpus("sample.pptx") else {
+        return Ok(false);
+    };
+    rewrite_package(&source, destination, &|name, bytes| {
+        if name != "ppt/slides/slide2.xml" {
+            return Some((name.to_owned(), bytes.to_vec()));
+        }
+        let text = String::from_utf8_lossy(bytes);
+        let open = text.find("<p:sld ")?;
+        let close = text[open..].find('>').map(|offset| open + offset + 1)?;
+        let tag = text[open..close].replacen("<p:sld ", &format!("<p:sld {attributes} "), 1);
+        let mut patched = String::from(prologue);
+        patched.push_str(&tag);
+        if break_body {
+            patched.push_str("<<<not xml at all >>> &&&");
+        } else {
+            patched.push_str(&text[close..]);
+        }
+        Some((name.to_owned(), patched.into_bytes()))
+    })?;
+    Ok(true)
+}
+
+/// The scanner disagreeing with the engine is a wrong verdict in one direction
+/// or the other, so these assert against what the engine actually produced
+/// rather than against this crate's own expectation.
+///
+/// Each fixture leaves slide 2's body intact, so the only reason it can fail to
+/// render is that the engine decided it was hidden — which is a faithful
+/// conversion. Whatever the engine decides, nothing here may be reported as
+/// lost content.
+///
+/// Measured engine behaviour, so a future reader knows which fixtures bite
+/// here: `quoted-gt`, `bad-attribute`, and `unquoted-attribute` render one page
+/// (the engine hides the slide) and used to be reported degraded.
+/// `doctype-subset` and `signed-charref` render two, so they pass this test
+/// either way — their sharp assertion is in
+/// [`a_misread_start_tag_cannot_mask_a_dropped_slide`].
+#[test]
+fn awkward_start_tags_never_produce_a_false_degraded_verdict()
+-> Result<(), Box<dyn std::error::Error>> {
+    let workspace = TempDir::new()?;
+    let cases: &[(&str, &str, &str)] = &[
+        // A `>` inside an attribute value used to truncate the tag before
+        // `show`, so the engine hid the slide while this pass counted it.
+        ("quoted-gt", "", r#"foo="a>b" show="0""#),
+        // A malformed attribute used to abandon the whole tag; quick-xml skips
+        // it and finds `show`.
+        ("bad-attribute", "", r#"bad show="0""#),
+        ("unquoted-attribute", "", r#"bad=unquoted show="0""#),
+        // A doctype whose internal subset contains a decoy root element.
+        (
+            "doctype-subset",
+            r#"<!DOCTYPE p:sld [<!ENTITY e "A>B<p:sld show='0'/>">]>"#,
+            "",
+        ),
+        // A signed character reference is not a character reference, so the
+        // engine renders this slide.
+        ("signed-charref", "", r#"show="&#+48;""#),
+    ];
+
+    for (label, prologue, attributes) in cases {
+        let input = workspace.path().join(format!("{label}.pptx"));
+        if !deck_with_patched_slide(&input, prologue, attributes, false)? {
+            return Ok(());
+        }
+        let output = workspace.path().join(format!("{label}.pdf"));
+        let conversion = convert_with_worker(&input, "pptx", &output, Some(worker()))?;
+        let pages = page_count(&output)?;
+        assert!(
+            pages == 1 || pages == 2,
+            "{label}: unexpected page count {pages}"
+        );
+        assert!(
+            !conversion.dropped_content,
+            "{label}: engine rendered {pages} page(s) with the slide body intact, \
+             so nothing was lost, but the conversion was reported degraded: {:?}",
+            conversion.warnings
+        );
+    }
+    Ok(())
+}
+
+/// The dangerous direction. Both fixtures make this pass believe slide 2 is
+/// hidden when the engine does not, which lowers the expected page count until
+/// `pages >= expected` holds and a genuinely dropped slide goes unreported.
+#[test]
+fn a_misread_start_tag_cannot_mask_a_dropped_slide() -> Result<(), Box<dyn std::error::Error>> {
+    let workspace = TempDir::new()?;
+    let cases: &[(&str, &str, &str)] = &[
+        // `&#+48;` resolved to `0` here but is rejected by the engine.
+        ("masking-signed-charref", "", r#"show="&#+48;""#),
+        // A decoy `<p:sld show='0'/>` inside a doctype internal subset used to
+        // be mistaken for the root element.
+        (
+            "masking-doctype-subset",
+            r#"<!DOCTYPE p:sld [<!ENTITY e "A>B<p:sld show='0'/>">]>"#,
+            "",
+        ),
+    ];
+
+    for (label, prologue, attributes) in cases {
+        let input = workspace.path().join(format!("{label}.pptx"));
+        if !deck_with_patched_slide(&input, prologue, attributes, true)? {
+            return Ok(());
+        }
+        let output = workspace.path().join(format!("{label}.pdf"));
+        let conversion = convert_with_worker(&input, "pptx", &output, Some(worker()))?;
+        assert_eq!(
+            page_count(&output)?,
+            1,
+            "{label}: the broken slide should not have rendered"
+        );
+        assert!(
+            conversion.dropped_content,
+            "{label}: a slide was dropped and the conversion was reported clean: {:?}",
+            conversion.warnings
+        );
+    }
+    Ok(())
+}
+
 /// Copies a ZIP package entry by entry, letting `rewrite` rename an entry,
 /// change its bytes, or drop it.
 fn rewrite_package(

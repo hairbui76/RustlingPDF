@@ -130,12 +130,17 @@ used to make the row bound vanish. The cap matches the office sanitizer's own
 16 MiB per-XML-part limit, so a `.rels` that trips it cannot have arrived
 through the sanitizer in the first place.
 
-The undeterminable branch is a backstop, not a routine path. Measured on the
-real endpoint: a deck with an unparseable `.rels` is rejected by the office
-sanitizer (`400`) before any engine sees it, and a deck with an unparseable
-`presentation.xml` defeats the engine too, so the conversion fails with the
-engine's own message rather than reaching reconciliation. It exists because
-"this cannot happen" is not a safety argument.
+The undeterminable branch is reachable, and an earlier version of this contract
+was wrong to imply otherwise. It claimed the office sanitizer rejects such a
+package first; it does not. `is_targeted_xml_part` covers `.rels` files and the
+ODF parts, so `xl/workbook.xml`, `ppt/presentation.xml`, and
+`[Content_Types].xml` are neither parsed nor size-capped by the sanitizer, and
+packages that make all of them unreadable pass it cleanly. The behaviour was
+right regardless — an oversized `presentation.xml` is rescued by the
+content-type source, an opaque deck reports the unverified-slides warning, and
+an opaque workbook counts rows across the whole package and rejects — but the
+justification was false, which is worse than no justification. "This cannot
+happen" was not a safety argument even when it looked true.
 
 Failures caused by the document — an unparseable package, a timeout, a memory
 breach, a stack overflow that aborts the worker — are reported as `400` with a
@@ -173,14 +178,31 @@ Residual risks, stated plainly:
   can overcount a file that embeds that string elsewhere; it is a bound, not a
   statistic.
 - The hidden-slide check reads only the root element's start tag of each slide
-  part; it does not parse the slide. Within that tag it mirrors the engine
-  exactly — the element's local name must be `sld`, the `show` attribute is
-  matched by qualified or local name, its value is XML-unescaped, and only the
-  literal `0` and `false` count as hidden. (Substring-matching the raw tag was
-  wrong in both directions: `show = "0"` with spaces is legal XML that the
-  engine hides, and a decoy `show="0"` inside an unrelated attribute value is
-  not a `show` attribute at all.) A start tag that cannot be read is treated as
-  visible, which can only over-count and never hide a dropped slide.
+  part; it does not parse the slide. A start tag that cannot be read is treated
+  as visible, which can only over-count and never hide a dropped slide.
+
+  Within that tag it **mirrors `quick-xml` 0.38, the parser the engine uses**,
+  because any disagreement is a wrong verdict in one direction or the other:
+  a slide wrongly called visible produces a degraded verdict on an honest deck,
+  and one wrongly called hidden lowers the expected page count until
+  `pages >= expected` holds, which can hide a slide dropped elsewhere. So:
+  the element's local name must be `sld`; the tag ends at the first `>` outside
+  a quoted value (`ElementParser`); a processing instruction ends at `?>`, a
+  comment at `>` after `--`, a CDATA section at `>` after `]]`, and a doctype at
+  the first `>` outside a nested `<...>` counted by `<`/`>` balance
+  (`PiParser`, `BangType`) — including its internal subset, and, like
+  `quick-xml`, not quote-aware there; a malformed attribute is skipped and
+  parsing continues rather than abandoning the tag (`Attributes` in XML mode,
+  which the engine drives with `.flatten()`); `show` is matched by qualified or
+  local name; its value is XML-unescaped, with lowercase `x` only for
+  hexadecimal, a leading `+` or `-` refused, and `&#0;` rejected; and only the
+  literal `0` and `false` count as hidden.
+
+  This is a deliberate coupling to a specific parser's behaviour, quirks
+  included, pinned alongside the pinned engine revision. The end-to-end tests
+  assert against the engine's real page count rather than against this crate's
+  expectation, so a `quick-xml` bump that changes any of the above shows up as a
+  test failure instead of as a silently wrong verdict.
 - The memory bound is a 10 ms poll of the worker's resident set, not a hard
   allocation ceiling. It has been observed to fire reliably at the scales tested,
   but a single allocation large enough to complete between two polls can overshoot
@@ -262,8 +284,13 @@ embedded font with an absolute path cannot place a file there. Unit tests cover
 relationship-target resolution (relative, package-absolute, `..`-climbing,
 escaping, external), unreferenced parts, the content-type fallback, the
 fail-closed paths (oversized `.rels`, extra nesting level, wholly opaque
-package, undeterminable deck), and `show`-attribute reading (spaced, decoy in
-another attribute, numeric character reference, non-`sld` root). HTTP tests
+package, undeterminable deck), and start-tag scanning against `quick-xml`'s
+behaviour (spaced `show`, decoy `show` in another attribute, `>` inside a quoted
+value, malformed and unquoted attributes, doctype internal subset, signed and
+uppercase-`X` character references, non-`sld` root). Two end-to-end tests assert
+the scanner against the engine's **real page count** in both directions: no
+degraded verdict when the engine rendered everything it meant to, and a degraded
+verdict whenever a slide was genuinely dropped. HTTP tests
 assert unknown/unsafe input → `400` and real
 text/HTML conversion when LibreOffice is present on the host (otherwise `501`).
 `runtime_config` tests assert `file-to-pdf` stays enabled with the `LibreOffice`

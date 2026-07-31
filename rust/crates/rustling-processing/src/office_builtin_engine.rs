@@ -568,51 +568,16 @@ fn element_local_name(tag: &str) -> Option<&str> {
 /// A hand-written scan rather than an XML parse: the tag is a fragment, and the
 /// namespace prefixes it uses may be declared on the tag itself, so handing it
 /// to a namespace-aware parser would reject exactly the documents the engine
-/// accepts. Values are XML-unescaped, which is what the engine's reader does
-/// before comparing them.
+/// accepts.
+///
+/// This deliberately mirrors `quick_xml::events::attributes::Attributes` in XML
+/// mode, which the engine drives with `.flatten()`: a malformed attribute is an
+/// error the iterator *recovers* from and skips, not the end of the tag. Bailing
+/// out at the first bad attribute meant `<p:sld bad show="0">` looked like a
+/// slide with no `show`, so the engine hid it while this pass counted it — a
+/// degraded verdict on an honest deck.
 fn attribute_value(tag: &str, wanted: &str) -> Option<String> {
-    // Drop the leading `<name` and the trailing `>` / `/>`.
-    let mut rest = tag.trim_start_matches('<');
-    let name_end = rest.find(|character: char| {
-        character.is_whitespace() || character == '>' || character == '/'
-    })?;
-    rest = &rest[name_end..];
-    rest = rest.trim_end_matches('>').trim_end_matches('/');
-
-    let bytes = rest.as_bytes();
-    let mut index = 0;
-    while index < bytes.len() {
-        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
-            index += 1;
-        }
-        let key_start = index;
-        while index < bytes.len() && !bytes[index].is_ascii_whitespace() && bytes[index] != b'=' {
-            index += 1;
-        }
-        let key = rest.get(key_start..index)?;
-        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
-            index += 1;
-        }
-        if index >= bytes.len() || bytes[index] != b'=' {
-            // A name with no value: not well-formed, and nothing more can be
-            // trusted in this tag.
-            return None;
-        }
-        index += 1;
-        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
-            index += 1;
-        }
-        let quote = *bytes.get(index)?;
-        if quote != b'"' && quote != b'\'' {
-            return None;
-        }
-        index += 1;
-        let value_start = index;
-        while index < bytes.len() && bytes[index] != quote {
-            index += 1;
-        }
-        let value = rest.get(value_start..index)?;
-        index += 1;
+    for (key, value) in tag_attributes(tag) {
         if key == wanted || key.rsplit(':').next() == Some(wanted) {
             return Some(unescape_xml(value));
         }
@@ -620,10 +585,106 @@ fn attribute_value(tag: &str, wanted: &str) -> Option<String> {
     None
 }
 
+/// Yields the `name`/raw-value pairs of an element start tag, skipping
+/// attributes that are malformed and resuming where `quick-xml` resumes.
+fn tag_attributes(tag: &str) -> Vec<(&str, &str)> {
+    // Drop the leading `<name` and the trailing `>` / `/>`.
+    let mut rest = tag.trim_start_matches('<');
+    let Some(name_end) = rest
+        .find(|character: char| character.is_whitespace() || character == '>' || character == '/')
+    else {
+        return Vec::new();
+    };
+    rest = &rest[name_end..];
+    // Exactly one trailing `>` and at most one `/`: trimming repeatedly would
+    // eat `>` characters that belong inside a quoted attribute value.
+    rest = rest.strip_suffix('>').unwrap_or(rest);
+    rest = rest.strip_suffix('/').unwrap_or(rest);
+
+    let bytes = rest.as_bytes();
+    let mut attributes = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        if index >= bytes.len() {
+            break;
+        }
+        let key_start = index;
+        while index < bytes.len() && !bytes[index].is_ascii_whitespace() && bytes[index] != b'=' {
+            index += 1;
+        }
+        let Some(key) = rest.get(key_start..index) else {
+            break;
+        };
+        let after_key = index;
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        if index >= bytes.len() || bytes[index] != b'=' {
+            // A name with no value. `quick-xml` reports `ExpectedEq` and
+            // recovers at the token that followed, so carry on from there.
+            index = after_key.max(index).max(key_start + 1);
+            continue;
+        }
+        index += 1;
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        let quote = bytes.get(index).copied();
+        if quote != Some(b'"') && quote != Some(b'\'') {
+            // An unquoted or absent value. `quick-xml` reports `UnquotedValue`
+            // / `ExpectedValue` and recovers at the next whitespace.
+            while index < bytes.len() && !bytes[index].is_ascii_whitespace() {
+                index += 1;
+            }
+            continue;
+        }
+        index += 1;
+        let value_start = index;
+        while index < bytes.len() && Some(bytes[index]) != quote {
+            index += 1;
+        }
+        if index >= bytes.len() {
+            // Unterminated value: there is no further attribute to find.
+            break;
+        }
+        if let Some(value) = rest.get(value_start..index) {
+            attributes.push((key, value));
+        }
+        index += 1;
+    }
+    attributes
+}
+
+/// Parses the body of a numeric character reference, exactly as `quick-xml`
+/// does.
+///
+/// Lowercase `x` only marks hexadecimal, per the XML grammar, and a leading
+/// sign is refused: `u32::from_str_radix` accepts `+48`, the specification does
+/// not, and `quick-xml` rejects it explicitly. Accepting it made `&#+48;`
+/// resolve to `0` here while the engine rendered the slide — an expectation
+/// that reads low, which makes `pages >= expected` trivially true and can hide
+/// a slide dropped somewhere else in the deck.
+fn parse_character_reference(number: &str) -> Option<u32> {
+    let (digits, radix) = match number.strip_prefix('x') {
+        Some(hexadecimal) => (hexadecimal, 16),
+        None => (number, 10),
+    };
+    if digits.starts_with(['+', '-']) {
+        return None;
+    }
+    u32::from_str_radix(digits, radix).ok()
+}
+
 /// Expands the five predefined XML entities and numeric character references.
 ///
 /// The engine compares the *unescaped* value, so `show="&#48;"` hides a slide
-/// there and has to hide one here too.
+/// there and has to hide one here too. A reference this expander refuses is
+/// left verbatim, which can never make a value become `0` or `false`; the
+/// engine's own reader gives up on the whole attribute in that case, and both
+/// roads lead to "not hidden".
 fn unescape_xml(value: &str) -> String {
     if !value.contains('&') {
         return value.to_owned();
@@ -647,11 +708,9 @@ fn unescape_xml(value: &str) -> String {
             _ => {
                 let decoded = entity
                     .strip_prefix('#')
-                    .and_then(|number| match number.strip_prefix(['x', 'X']) {
-                        Some(hexadecimal) => u32::from_str_radix(hexadecimal, 16).ok(),
-                        None => number.parse::<u32>().ok(),
-                    })
-                    .and_then(char::from_u32);
+                    .and_then(parse_character_reference)
+                    .and_then(char::from_u32)
+                    .filter(|character| *character != '\0');
                 match decoded {
                     Some(character) => out.push(character),
                     // An entity this expander does not know is left verbatim,
@@ -667,25 +726,87 @@ fn unescape_xml(value: &str) -> String {
 }
 
 /// Returns the text of the first element start tag, skipping the XML
-/// declaration, comments, and doctype/processing instructions before it.
+/// declaration, comments, CDATA, and the doctype before it.
+///
+/// Every step mirrors `quick-xml`, because the only useful property here is
+/// agreeing with the engine about which tag is the root and where it ends:
+///
+/// - the tag ends at the first `>` **outside** a quoted attribute value, as
+///   `quick_xml::parser::ElementParser` does. Taking the first `>` outright
+///   truncated `<p:sld foo="a>b" show="0">` before its `show`, so the engine
+///   hid the slide while this pass counted it;
+/// - a processing instruction ends at `?>`, as `PiParser` does;
+/// - a comment ends at a `>` preceded by `--`, and a CDATA section at a `>`
+///   preceded by `]]`, as `BangType` does;
+/// - a doctype ends at the first `>` that is not inside a nested `<...>`,
+///   counted by the same `<`/`>` balance `BangType::DocType` keeps — which is
+///   how an internal subset is stepped over. `quick-xml` is not quote-aware
+///   here and neither is this, deliberately: matching the engine matters more
+///   than being right about XML, because a disagreement in either direction is
+///   a wrong verdict.
+///
+/// Anything else after `<!` is markup `quick-xml` rejects outright; this gives
+/// up too, and a slide whose root tag cannot be found is treated as visible.
 fn root_element_start_tag(xml: &str) -> Option<&str> {
     let mut rest = xml;
     loop {
         let start = rest.find('<')?;
         rest = &rest[start..];
-        if let Some(after) = rest.strip_prefix("<!--") {
-            let end = after.find("-->")?;
-            rest = &after[end + 3..];
+        let after = &rest[1..];
+        if let Some(body) = after.strip_prefix('?') {
+            rest = &body[body.find("?>")? + 2..];
             continue;
         }
-        if rest.starts_with("<?") || rest.starts_with("<!") {
-            let end = rest.find('>')?;
-            rest = &rest[end + 1..];
+        if let Some(body) = after.strip_prefix('!') {
+            let consumed = match body.as_bytes().first() {
+                Some(b'-') => body.find("-->")? + 3,
+                Some(b'[') => body.find("]]>")? + 3,
+                Some(b'D' | b'd') => doctype_length(body)?,
+                _ => return None,
+            };
+            rest = &body[consumed..];
             continue;
         }
-        let end = rest.find('>')?;
-        return Some(&rest[..=end]);
+        let end = element_tag_length(rest)?;
+        return Some(&rest[..end]);
     }
+}
+
+/// The byte length of an element start tag, ignoring `>` inside quoted values.
+fn element_tag_length(tag: &str) -> Option<usize> {
+    #[derive(Clone, Copy)]
+    enum Quoting {
+        Outside,
+        Single,
+        Double,
+    }
+
+    let mut quoting = Quoting::Outside;
+    for (offset, byte) in tag.bytes().enumerate() {
+        quoting = match (quoting, byte) {
+            (Quoting::Outside, b'>') => return Some(offset + 1),
+            (Quoting::Outside, b'\'') => Quoting::Single,
+            (Quoting::Outside, b'"') => Quoting::Double,
+            (Quoting::Single, b'\'') | (Quoting::Double, b'"') => Quoting::Outside,
+            (state, _) => state,
+        };
+    }
+    None
+}
+
+/// The byte length of a doctype declaration, counting `<`/`>` balance so an
+/// internal subset is stepped over rather than ended at its first `>`.
+fn doctype_length(body: &str) -> Option<usize> {
+    let mut balance = 0_i32;
+    for (offset, byte) in body.bytes().enumerate() {
+        match byte {
+            b'<' => balance += 1,
+            b'>' if balance == 0 => return Some(offset + 1),
+            b'>' => balance -= 1,
+            _ => {}
+        }
+    }
+    None
 }
 
 /// The result of a bounded read of an archive entry.
@@ -1518,6 +1639,65 @@ mod tests {
         Ok(())
     }
 
+    /// Four ways the hand-written scanner disagreed with `quick-xml`, each
+    /// producing a wrong hidden/visible verdict. The engine's own answer is the
+    /// only correct one, so each is pinned here and again end to end against a
+    /// real page count.
+    #[test]
+    fn agrees_with_the_engine_on_awkward_start_tags() {
+        // A `>` inside an attribute value does not end the tag.
+        let quoted = root_element_start_tag(r#"<p:sld foo="a>b" show="0"/>"#);
+        assert_eq!(quoted, Some(r#"<p:sld foo="a>b" show="0"/>"#));
+        assert_eq!(
+            attribute_value(quoted.unwrap_or_default(), "show").as_deref(),
+            Some("0")
+        );
+
+        // A malformed attribute is skipped, not fatal.
+        assert_eq!(
+            attribute_value(r#"<p:sld bad show="0"/>"#, "show").as_deref(),
+            Some("0")
+        );
+        assert_eq!(
+            attribute_value(r"<p:sld bad=unquoted show='0'>", "show").as_deref(),
+            Some("0")
+        );
+
+        // A signed character reference is not a character reference.
+        assert_eq!(unescape_xml("&#+48;"), "&#+48;");
+        assert_eq!(unescape_xml("&#-48;"), "&#-48;");
+        // Uppercase `X` does not introduce hexadecimal, per the XML grammar.
+        assert_eq!(unescape_xml("&#X30;"), "&#X30;");
+        assert_eq!(unescape_xml("&#x30;"), "0");
+
+        // A doctype with an internal subset is stepped over by `<`/`>` balance,
+        // so a `<p:sld>` written inside it is not mistaken for the root.
+        let doctyped =
+            root_element_start_tag(r#"<!DOCTYPE p:sld [<!ELEMENT p:sld ANY>]><p:sld show="0"/>"#);
+        assert_eq!(doctyped, Some(r#"<p:sld show="0"/>"#));
+    }
+
+    #[test]
+    fn steps_over_prologue_markup_the_way_the_engine_does() {
+        assert_eq!(
+            root_element_start_tag(r#"<?xml version="1.0" other="a>b"?><p:sld/>"#),
+            Some("<p:sld/>")
+        );
+        assert_eq!(
+            root_element_start_tag("<!--a > b--><p:sld/>"),
+            Some("<p:sld/>")
+        );
+        assert_eq!(
+            root_element_start_tag("<![CDATA[a > b]]><p:sld/>"),
+            Some("<p:sld/>")
+        );
+        // Markup `quick-xml` refuses after `<!`; this refuses too, and a slide
+        // with no findable root tag counts as visible.
+        assert_eq!(root_element_start_tag("<!bogus><p:sld/>"), None);
+        // An unterminated tag is not a tag.
+        assert_eq!(root_element_start_tag(r#"<p:sld show="0"#), None);
+    }
+
     #[test]
     fn reads_attributes_out_of_an_element_start_tag() {
         let tag = r#"<p:sld xmlns:p="pml" show = '0' descr="a show=&quot;1&quot; b"/>"#;
@@ -1550,6 +1730,9 @@ mod tests {
         // something else.
         assert_eq!(unescape_xml("&nbsp;"), "&nbsp;");
         assert_eq!(unescape_xml("&unterminated"), "&unterminated");
+        // `quick-xml` rejects a NUL character reference outright.
+        assert_eq!(unescape_xml("&#0;"), "&#0;");
+        assert_eq!(unescape_xml("&#xFFFFFFFF;"), "&#xFFFFFFFF;");
     }
 
     #[test]
