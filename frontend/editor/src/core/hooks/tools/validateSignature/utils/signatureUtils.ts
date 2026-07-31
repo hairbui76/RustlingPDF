@@ -2,7 +2,7 @@ import {
   SignatureValidationBackendResult,
   SignatureValidationSignature,
 } from "@app/types/validateSignature";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 
 export const RESULT_JSON_FILENAME = "signature-validation.json";
 export const CSV_FILENAME = "signature-validation.csv";
@@ -58,10 +58,10 @@ export const keyUsagesToString = (keyUsages: string[] | undefined): string => {
 
 export const normalizeBackendResult = (
   item: SignatureValidationBackendResult,
-  stirlingFile: StirlingFile,
+  rustlingFile: RustlingFile,
   index: number,
 ): SignatureValidationSignature => ({
-  id: `${stirlingFile.fileId}-${index}`,
+  id: `${rustlingFile.fileId}-${index}`,
   valid: Boolean(item.valid),
   chainValid: Boolean(item.chainValid),
   trustValid: Boolean(item.trustValid),

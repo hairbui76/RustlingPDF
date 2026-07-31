@@ -21,7 +21,7 @@ async fn returns_comprehensive_java_shaped_report() -> Result<(), Box<dyn std::e
     let report: Value = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await?)?;
 
     assert_eq!(report["Metadata"]["Title"], "Information fixture");
-    assert_eq!(report["Metadata"]["StirlingPDFClassification"], "Internal");
+    assert_eq!(report["Metadata"]["RustlingPDFClassification"], "Internal");
     assert_eq!(report["BasicInfo"]["Number of pages"], 2);
     assert_eq!(report["BasicInfo"]["TotalImages"], 1);
     assert_eq!(report["BasicInfo"]["UniqueImages"], 1);
@@ -100,7 +100,7 @@ async fn clean_document_is_sec_compliant() -> Result<(), Box<dyn std::error::Err
 }
 
 async fn post_pdf(pdf: Option<&[u8]>) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-info-boundary";
+    let boundary = "rustlingpdf-info-boundary";
     let mut body = Vec::new();
     if let Some(pdf) = pdf {
         body.extend_from_slice(
@@ -251,7 +251,7 @@ fn information_pdf() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         "Author" => Object::string_literal("RustlingPDF"),
         "CreationDate" => Object::string_literal("D:20260715123456+07'00'"),
         "ModDate" => Object::string_literal("D:20260715130000+07'00'"),
-        "StirlingPDFClassification" => Object::string_literal("Internal"),
+        "RustlingPDFClassification" => Object::string_literal("Internal"),
     });
     document.trailer.set("Root", catalog_id);
     document.trailer.set("Info", info_id);

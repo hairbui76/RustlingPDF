@@ -1,6 +1,6 @@
 # `POST /api/v1/security/remove-cert-sign`
 
-Rust compatibility contract for `RemoveCertSignController.removeCertSignPDF()`.
+Current contract for removing certificate signatures.
 
 - Multipart request: required `fileInput` PDF.
 - Success: `200 OK`, `application/pdf`, download name `<base>_unsigned.pdf`.

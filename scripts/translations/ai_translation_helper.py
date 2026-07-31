@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Translation Helper for Stirling PDF Frontend
+AI Translation Helper for RustlingPDF Frontend
 Provides utilities for AI-assisted translation workflows including
 batch processing, quality checks, and integration helpers.
 TOML format only.

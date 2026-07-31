@@ -1,5 +1,5 @@
 import { lazy, type ComponentType } from "react";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 import type { ResponseHandler } from "@app/utils/toolResponseProcessor";
 import { ToolId } from "@app/types/toolId";
 import type { ProcessingProgress } from "@app/hooks/tools/shared/useToolState";
@@ -315,12 +315,10 @@ export interface ToolOperationHook<TParams = void> {
   status: string;
   errorMessage: string | null;
   progress: ProcessingProgress | null;
-  willUseCloud?: boolean;
-
   // Actions
   executeOperation: (
     params: TParams,
-    selectedFiles: StirlingFile[],
+    selectedFiles: RustlingFile[],
   ) => Promise<void>;
   resetResults: () => void;
   clearError: () => void;

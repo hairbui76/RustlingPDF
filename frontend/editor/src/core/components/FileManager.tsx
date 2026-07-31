@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Modal } from "@mantine/core";
 import { Dropzone } from "@mantine/dropzone";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import type { FileId } from "@app/types/file";
 import { useFileManager } from "@app/hooks/useFileManager";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
@@ -17,7 +17,6 @@ import {
 } from "@app/services/googleDrivePickerService";
 import { loadScript } from "@app/utils/scriptLoader";
 import { useAllFiles } from "@app/contexts/FileContext";
-import { useFileActions } from "@app/contexts/file/fileHooks";
 
 /**
  * Structural prop: anything that exposes an optional `supportedFormats`
@@ -38,12 +37,11 @@ const FileManager: React.FC<FileManagerProps> = ({ selectedTool }) => {
     maxSelectable,
   } = useFilesModalContext();
   const { config } = useAppConfig();
-  const [recentFiles, setRecentFiles] = useState<StirlingFileStub[]>([]);
+  const [recentFiles, setRecentFiles] = useState<RustlingFileStub[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  const { loadRecentFiles, handleRemoveFile, loading } = useFileManager();
-  const { actions: fileActions } = useFileActions();
+  const { loadRecentFiles, loading } = useFileManager();
 
   // Get active file IDs from FileContext to show which files are already loaded
   const { fileIds: activeFileIds } = useAllFiles();
@@ -64,9 +62,9 @@ const FileManager: React.FC<FileManagerProps> = ({ selectedTool }) => {
   }, [loadRecentFiles]);
 
   const handleRecentFilesSelected = useCallback(
-    async (files: StirlingFileStub[]) => {
+    async (files: RustlingFileStub[]) => {
       try {
-        // Use StirlingFileStubs directly - preserves all metadata!
+        // Use RustlingFileStubs directly - preserves all metadata!
         onRecentFileSelect(files);
       } catch (error) {
         console.error("Failed to process selected files:", error);
@@ -88,21 +86,6 @@ const FileManager: React.FC<FileManagerProps> = ({ selectedTool }) => {
       }
     },
     [onFileUpload, refreshRecentFiles],
-  );
-
-  const handleRemoveFileByIndex = useCallback(
-    async (index: number) => {
-      await handleRemoveFile(
-        index,
-        recentFiles,
-        setRecentFiles,
-        (fileId) => {
-          fileActions.removeFiles([fileId], false);
-        },
-        refreshRecentFiles,
-      );
-    },
-    [handleRemoveFile, recentFiles, fileActions, refreshRecentFiles],
   );
 
   const handleBulkRemove = useCallback((fileIds: FileId[]) => {
@@ -235,7 +218,6 @@ const FileManager: React.FC<FileManagerProps> = ({ selectedTool }) => {
             isFileSupported={isFileSupported}
             isOpen={isFilesModalOpen}
             maxSelectable={maxSelectable}
-            onFileRemove={handleRemoveFileByIndex}
             onBulkRemove={handleBulkRemove}
             modalHeight={modalHeight}
             refreshRecentFiles={refreshRecentFiles}

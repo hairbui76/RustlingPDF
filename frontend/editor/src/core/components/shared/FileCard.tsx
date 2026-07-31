@@ -7,14 +7,14 @@ import StorageIcon from "@mui/icons-material/Storage";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { getFileSize, getFileDate } from "@app/utils/fileUtils";
 import { useFileThumbnail } from "@app/hooks/useFileThumbnail";
 import DocumentThumbnail from "@app/components/shared/filePreview/DocumentThumbnail";
 
 interface FileCardProps {
   file: File;
-  fileStub?: StirlingFileStub;
+  fileStub?: RustlingFileStub;
   onRemove: () => void;
   onDoubleClick?: () => void;
   onView?: () => void;

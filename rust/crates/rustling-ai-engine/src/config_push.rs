@@ -1,6 +1,6 @@
 //! Wire contract for the admin config push (`POST /api/v1/config`).
 //!
-//! Mirrors the Python oracle's `stirling.contracts.config`: the Java processor
+//! Mirrors the Python oracle's `rustling.contracts.config`: the Java processor
 //! sends camelCase fields, Python-native `snake_case` names are also accepted,
 //! and — unlike every other contract in this crate — unknown fields are
 //! deliberately *ignored* rather than rejected so a newer processor can push

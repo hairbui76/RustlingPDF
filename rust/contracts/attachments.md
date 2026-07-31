@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/*attachment*`
 
-Rust compatibility contract for the five routes in `AttachmentController`.
+Current contract for the five attachment routes.
 
 ## Routes
 

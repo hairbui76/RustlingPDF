@@ -11,7 +11,7 @@
  * that synchronises bidirectionally with FormFillContext values.
  *
  * Coordinate handling:
- * Both providers (PdfLibFormProvider and PdfBoxFormProvider) output widget
+ * Both providers (PdfLibFormProvider and BackendFormProvider) output widget
  * coordinates in un-rotated PDF space (y-flipped to CSS upper-left origin).
  * The <Rotate> component (which wraps this overlay along with page tiles)
  * handles visual rotation via CSS transforms — same as TilingLayer,

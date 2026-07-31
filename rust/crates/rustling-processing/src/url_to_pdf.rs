@@ -53,7 +53,7 @@ pub enum UrlToPdfError {
 #[must_use]
 pub fn url_to_pdf_enabled() -> bool {
     ENABLE_URL_TO_PDF_ENV.iter().any(|name| {
-        crate::env_compat::var(name).is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
+        crate::environment::var(name).is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
     })
 }
 

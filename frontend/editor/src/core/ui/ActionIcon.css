@@ -11,7 +11,7 @@
 
 /* ---- gradient accents: brighten on hover instead of a hard bg swap ---- */
 .sui-acc-ai.sui-ai--primary:not([data-disabled]):hover,
-.sui-acc-premium.sui-ai--primary:not([data-disabled]):hover {
+.sui-acc-highlight.sui-ai--primary:not([data-disabled]):hover {
   filter: brightness(1.06);
 }
 

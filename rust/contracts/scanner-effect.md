@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/scanner-effect`
 
-Rust compatibility contract for `ScannerEffectController`.
+Current contract for the scanner-effect operation.
 
 ## Request and response
 
@@ -20,13 +20,12 @@ Rust compatibility contract for `ScannerEffectController`.
 
 When `advancedEnabled` is false the quality preset overrides `blur`, `noise`,
 `brightness`, `contrast`, and `resolution` (high → 150 DPI, medium → 100, low →
-75), exactly as the Java `applyHigh/Medium/LowQualityPreset` methods. The
+75). The
 rotation preset always folds into the base rotation (`none`→0, `slight`→2,
 `moderate`→5, `severe`→8) added to `rotate`.
 
 Each page is rendered with `PDFium` at a DPI clamped so the raster stays within
-8192×8192 and 16,777,216 pixels, then run through a pipeline that mirrors the
-Java `ScannerEffectController`:
+8192×8192 and 16,777,216 pixels, then run through this pipeline:
 
 1. optional grayscale conversion (average of the three channels),
 2. a random grey gradient border (`border` px on every side),
@@ -39,7 +38,7 @@ Java `ScannerEffectController`:
 
 The processed image is placed on a new page the same size as the source page,
 scaled to cover it and centered. Output is intentionally non-deterministic
-(random gradient, rotation, and noise), matching Java.
+(random gradient, rotation, and noise).
 
 `resolution` greater than `SYSTEM_MAXDPI` (default 500) is rejected with
 `400 Bad Request`. An empty document is rejected. `PDFium` is required: a
@@ -47,11 +46,10 @@ development runtime without a configured library returns `501 Not Implemented`;
 an explicitly configured but broken runtime or a processing failure returns a
 server error.
 
-## Parity gaps
+## Determinism and concurrency
 
-The per-page random values cannot match Java bit-for-bit. Java renders pages in
-parallel across a `ForkJoinPool`; the Rust path renders serially under the shared
-`PDFium` lock. Structural properties (page count, page size, image-only content,
+Pages render serially under the shared `PDFium` lock, and per-page random values
+are not reproducible bit-for-bit. Structural properties (page count, page size, image-only content,
 DPI limit, preset resolution) are covered by tests; exact pixels are not.
 
 ## Verification

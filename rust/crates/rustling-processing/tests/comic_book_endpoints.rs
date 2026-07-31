@@ -244,7 +244,7 @@ async fn pdf_to_cbz_applies_dpi_fallback_and_validates_inputs()
 }
 
 fn native_pdfium_available() -> bool {
-    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 fn comic_archive(entries: &[ComicEntry<'_>]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -285,7 +285,7 @@ async fn post_file(
     bytes: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-comic-book-boundary";
+    let boundary = "rustling-comic-book-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: {content_type}\r\n\r\n"
     )
@@ -315,7 +315,7 @@ async fn post_file(
 }
 
 async fn post_without_file(path: &str) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-comic-book-empty-boundary";
+    let boundary = "rustling-comic-book-empty-boundary";
     Ok(app(1024)
         .oneshot(
             Request::builder()

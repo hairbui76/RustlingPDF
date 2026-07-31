@@ -1,10 +1,8 @@
-//! Public compatibility configuration for the Rust HTTP service.
+//! Public configuration for the Rust HTTP service.
 //!
-//! The Java application loads `configs/settings.yml` and then
-//! `configs/custom_settings.yml` below `RUSTLING_BASE_PATH`; the latter overrides
-//! the former. This module mirrors the public runtime configuration surface and the
-//! anonymous analytics-onboarding mutation. Authentication and administrator mutation remain separate
-//! migration tracks and are intentionally not claimed here.
+//! `configs/settings.yml` is loaded before `configs/custom_settings.yml` below
+//! `RUSTLING_BASE_PATH`; the latter overrides the former. This module owns the
+//! public runtime configuration surface and analytics-onboarding mutation.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -19,21 +17,15 @@ use serde_json::{Map, Value, json};
 use zeroize::Zeroizing;
 
 use crate::job_queue::JobQueueConfig;
-use crate::license::LicenseConfig;
 use crate::runtime_dependencies::discover_dependencies;
 
-// Retained functional groups and real Rust dependency groups. Values are whitespace-separated
-// endpoint keys to keep the compatibility table readable.
+// Functional groups and runtime dependency groups. Values are whitespace-separated
+// endpoint keys to keep the table readable.
 //
 // Keys must match what `endpoint_key_for_uri` derives from the registered route, not the tool's
-// display name. Upstream registers the overlay tool as `overlay-pdf`
-// (EndpointConfiguration.java:348 and :427) while its controller serves `/overlay-pdfs`
-// (PdfOverlayController.java:45), and its `normalizeEndpoint` only strips a leading slash — so
-// upstream silently cannot disable that endpoint through the PageOps or Advance group, and its own
-// allEndpointsRemovedSettings.yml works around it by naming `overlay-pdfs` outright. We spell the
-// derived key instead: an administrator who disables a group expects every endpoint in it to stop
-// answering. A key here that no route yields is inert, which is why the entries mirroring
-// upstream-only tools are harmless to keep.
+// display name. The overlay route derives `overlay-pdfs`, while the tool registry
+// uses `overlay-pdf`, so both keys are retained: one gates the route and the other
+// lets the UI discover that the tool is disabled.
 //
 // The table serves a second consumer, which is why a display-name key is kept *beside* the derived
 // key rather than replaced by it. `endpoint_availability` answers
@@ -262,7 +254,7 @@ pub(crate) enum SmtpHostnameVerification {
 impl RuntimeConfig {
     #[must_use]
     pub fn from_environment() -> Self {
-        let base_path = crate::env_compat::var_os("RUSTLING_BASE_PATH")
+        let base_path = crate::environment::var_os("RUSTLING_BASE_PATH")
             .filter(|value| !value.is_empty())
             .map_or_else(|| PathBuf::from("."), PathBuf::from);
         let mut config = Self::from_files(
@@ -332,7 +324,7 @@ impl RuntimeConfig {
         )
     }
 
-    /// Resolves the legacy `mail.*` SMTP relay settings without opening a
+    /// Resolves the `mail.*` SMTP relay settings without opening a
     /// network connection. The route is mounted only when `mail.enabled` is
     /// true.
     #[must_use]
@@ -383,27 +375,26 @@ impl RuntimeConfig {
 
     /// Resolves the backend-to-engine connection settings shared by AI tools.
     ///
-    /// The environment names mirror Spring's relaxed binding for
-    /// `aiEngine.*`; YAML values keep the same compatibility when no override
-    /// is set.
+    /// Environment variables take precedence over the corresponding
+    /// `aiEngine.*` YAML values.
     #[must_use]
     pub fn ai_engine_settings(&self) -> (bool, String, u64) {
         let enabled = env_bool("AIENGINE_ENABLED")
             .or_else(|| env_bool("RUSTLING_AI_ENGINE_ENABLED"))
             .or_else(|| value_at(&self.settings, &["aiEngine", "enabled"]).and_then(yaml_bool))
             .unwrap_or(false);
-        let url = crate::env_compat::var("AIENGINE_URL")
+        let url = crate::environment::var("AIENGINE_URL")
             .ok()
-            .or_else(|| crate::env_compat::var("RUSTLING_AI_ENGINE_URL").ok())
+            .or_else(|| crate::environment::var("RUSTLING_AI_ENGINE_URL").ok())
             .or_else(|| {
                 value_at(&self.settings, &["aiEngine", "url"])
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
             })
             .unwrap_or_else(|| "http://localhost:5001".to_owned());
-        let timeout_seconds = crate::env_compat::var("AIENGINE_TIMEOUTSECONDS")
+        let timeout_seconds = crate::environment::var("AIENGINE_TIMEOUTSECONDS")
             .ok()
-            .or_else(|| crate::env_compat::var("AIENGINE_TIMEOUT_SECONDS").ok())
+            .or_else(|| crate::environment::var("AIENGINE_TIMEOUT_SECONDS").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 value_at(&self.settings, &["aiEngine", "timeoutSeconds"]).and_then(Value::as_u64)
@@ -415,9 +406,9 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn ai_engine_long_running_timeout(&self) -> Duration {
-        let seconds = crate::env_compat::var("AIENGINE_LONGRUNNINGTIMEOUTSECONDS")
+        let seconds = crate::environment::var("AIENGINE_LONGRUNNINGTIMEOUTSECONDS")
             .ok()
-            .or_else(|| crate::env_compat::var("AIENGINE_LONG_RUNNING_TIMEOUT_SECONDS").ok())
+            .or_else(|| crate::environment::var("AIENGINE_LONG_RUNNING_TIMEOUT_SECONDS").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 value_at(&self.settings, &["aiEngine", "longRunningTimeoutSeconds"])
@@ -429,12 +420,7 @@ impl RuntimeConfig {
     }
 
     /// Resolves the engine-relevant `aiEngine.*` configuration pushed to the
-    /// engine's `POST /api/v1/config` on startup and after admin saves.
-    ///
-    /// Environment names mirror Spring's relaxed binding for `aiEngine.*`
-    /// (e.g. `AIENGINE_MODELS_SMARTMODEL`); YAML values keep the same
-    /// compatibility when no override is set, and defaults match Java's
-    /// `ApplicationProperties.AiEngine`.
+    /// engine's `POST /api/v1/config` on startup.
     #[must_use]
     pub fn ai_engine_push_settings(&self) -> AiEnginePushSettings {
         let (enabled, _, _) = self.ai_engine_settings();
@@ -504,9 +490,9 @@ impl RuntimeConfig {
 
     #[must_use]
     pub(crate) fn ai_workflow_stream_timeout(&self) -> Duration {
-        let milliseconds = crate::env_compat::var("RUSTLING_AI_STREAMTIMEOUTMS")
+        let milliseconds = crate::environment::var("RUSTLING_AI_STREAMTIMEOUTMS")
             .ok()
-            .or_else(|| crate::env_compat::var("RUSTLING_AI_STREAM_TIMEOUT_MS").ok())
+            .or_else(|| crate::environment::var("RUSTLING_AI_STREAM_TIMEOUT_MS").ok())
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 product_value_at(&self.settings, &["ai", "streamTimeoutMs"]).and_then(Value::as_u64)
@@ -516,9 +502,8 @@ impl RuntimeConfig {
         Duration::from_millis(milliseconds)
     }
 
-    /// Resolves bounded asynchronous job admission. Values mirror the Java
-    /// queue property names while adding an explicit weighted execution budget
-    /// for the Rust scheduler.
+    /// Resolves bounded asynchronous job admission, including an explicit
+    /// weighted execution budget for the scheduler.
     pub(crate) fn job_queue_config(&self) -> JobQueueConfig {
         let queue_capacity = self
             .product_u64(
@@ -605,62 +590,6 @@ impl RuntimeConfig {
         )
     }
 
-    /// Resolves the Java-compatible premium license settings, including the
-    /// temporary `enterpriseEdition` migration fallback.
-    #[must_use]
-    pub(crate) fn license_config(&self) -> LicenseConfig {
-        self.license_config_with_environment(|name| crate::env_compat::var(name).ok())
-    }
-
-    fn license_config_with_environment(
-        &self,
-        environment: impl Fn(&str) -> Option<String>,
-    ) -> LicenseConfig {
-        const EMPTY_KEY: &str = "00000000-0000-0000-0000-000000000000";
-        let configured_bool = |path: &[&str], name: &str| {
-            environment(name)
-                .as_deref()
-                .and_then(parse_boolean)
-                .or_else(|| value_at(&self.settings, path).and_then(yaml_bool))
-                .unwrap_or(false)
-        };
-        let configured_string = |path: &[&str], name: &str, default: &str| {
-            environment(name)
-                .or_else(|| {
-                    value_at(&self.settings, path)
-                        .and_then(Value::as_str)
-                        .map(ToOwned::to_owned)
-                })
-                .unwrap_or_else(|| default.to_owned())
-        };
-        let premium_enabled = configured_bool(&["premium", "enabled"], "PREMIUM_ENABLED");
-        let legacy_enabled = configured_bool(
-            &["enterpriseEdition", "enabled"],
-            "ENTERPRISEEDITION_ENABLED",
-        );
-        let mut key = configured_string(&["premium", "key"], "PREMIUM_KEY", EMPTY_KEY);
-        if key == EMPTY_KEY {
-            let legacy_key = configured_string(
-                &["enterpriseEdition", "key"],
-                "ENTERPRISEEDITION_KEY",
-                EMPTY_KEY,
-            );
-            if legacy_key != EMPTY_KEY {
-                key = legacy_key;
-            }
-        }
-        let initial_max_users = environment("PREMIUM_MAXUSERS")
-            .and_then(|value| value.parse::<i64>().ok())
-            .or_else(|| value_at(&self.settings, &["premium", "maxUsers"]).and_then(Value::as_i64))
-            .and_then(|value| i32::try_from(value).ok())
-            .unwrap_or(0);
-        LicenseConfig {
-            enabled: premium_enabled || legacy_enabled,
-            key: Zeroizing::new(key),
-            initial_max_users,
-        }
-    }
-
     /// Resolves the directory containing the preloaded pipeline templates for
     /// the unchanged client. This is separate from watched-folder pipelines.
     #[must_use]
@@ -684,7 +613,7 @@ impl RuntimeConfig {
         )
     }
 
-    /// Returns the Tesseract language-data directory using Java's precedence:
+    /// Returns the Tesseract language-data directory using this precedence:
     /// explicit settings, `TESSDATA_PREFIX`, then the packaged Linux default.
     #[must_use]
     pub fn tessdata_dir(&self) -> PathBuf {
@@ -692,7 +621,7 @@ impl RuntimeConfig {
         if !configured.trim().is_empty() {
             return PathBuf::from(configured);
         }
-        crate::env_compat::var_os("TESSDATA_PREFIX")
+        crate::environment::var_os("TESSDATA_PREFIX")
             .filter(|value| !value.is_empty())
             .map_or_else(
                 || PathBuf::from("/usr/share/tesseract-ocr/5/tessdata"),
@@ -700,14 +629,14 @@ impl RuntimeConfig {
             )
     }
 
-    /// Returns the maximum page-rendering DPI used by Java's OCR fallback.
+    /// Returns the maximum page-rendering DPI used by the OCR fallback.
     #[must_use]
     pub fn max_render_dpi(&self) -> i32 {
         let configured = self.signed_integer(&["system", "maxDPI"], "SYSTEM_MAXDPI", 500);
         i32::try_from(configured.clamp(1, i64::from(i32::MAX))).unwrap_or(500)
     }
 
-    /// Returns the two Java `ProcessExecutor` pools used by the OCR controller.
+    /// Returns the process limits used by the OCR controller.
     #[must_use]
     pub(crate) fn ocr_process_settings(&self) -> OcrProcessSettings {
         let positive = |path: &[&str], environment: &str, default: u64| {
@@ -753,7 +682,7 @@ impl RuntimeConfig {
         }
     }
 
-    /// Returns the Java `ProcessExecutor` pools used by the repair controller.
+    /// Returns the process limits used by the repair controller.
     #[must_use]
     pub(crate) fn repair_process_settings(&self) -> RepairProcessSettings {
         let positive = |path: &[&str], environment: &str, default: u64| {
@@ -805,8 +734,7 @@ impl RuntimeConfig {
     }
 
     /// Returns the administrator-provided static override directory
-    /// (`customFiles/static/`), the Rust spelling of upstream
-    /// `InstallationPathConfig.getStaticPath()`.
+    /// (`customFiles/static/`).
     #[must_use]
     pub(crate) fn custom_static_dir(&self) -> PathBuf {
         self.custom_files_dir.join("static")
@@ -814,10 +742,8 @@ impl RuntimeConfig {
 
     /// Returns the built SPA `dist/` directory to serve from the binary, when
     /// single-binary UI serving is enabled via `RUSTLING_FRONTEND_DIST` (env)
-    /// or `system.frontendDist` (settings). Upstream has no equivalent
-    /// property: the Java build bakes the dist onto the servlet classpath, so
-    /// this key is owned by the Rust runtime. Unset means SPA serving stays
-    /// fully disabled (the Vite dev-proxy workflow).
+    /// or `system.frontendDist` (settings). Unset means SPA serving stays fully
+    /// disabled for the Vite development-proxy workflow.
     #[must_use]
     pub fn frontend_dist_dir(&self) -> Option<PathBuf> {
         let configured = self.string(&["system", "frontendDist"], "RUSTLING_FRONTEND_DIST", "");
@@ -830,17 +756,14 @@ impl RuntimeConfig {
         &self.settings_path
     }
 
-    /// Ensures the persisted install identity, mirroring Java `InitialSetup`:
-    /// on first boot a random UUID and machine key are generated and written
+    /// Ensures the persisted install identity. On first boot, a random UUID
+    /// and machine key are generated and written
     /// into `AutomaticallyGenerated.*` in the settings file, and the current
     /// application version is persisted (its previous absence — empty or the
     /// `0.0.0` placeholder — marks a new server). Identity supplied through the
-    /// environment (relaxed-binding `AUTOMATICALLYGENERATED_*`) is honored
-    /// without being written back, exactly like Java's property binding.
-    ///
-    /// Unlike Java, an unchanged boot writes nothing (Java rewrites the same
-    /// values every start); the at-rest result is identical and the settings
-    /// file stays byte-stable, preserving template-merge idempotence.
+    /// environment (`AUTOMATICALLYGENERATED_*`) is honored without being
+    /// written back. An unchanged boot writes nothing, keeping the settings
+    /// file byte-stable and preserving template-merge idempotence.
     ///
     /// # Errors
     ///
@@ -853,9 +776,7 @@ impl RuntimeConfig {
             self.generated_setting("appVersion", "AUTOMATICALLYGENERATED_APPVERSION");
         let is_new_server =
             existing_version.trim().is_empty() || existing_version.trim() == "0.0.0";
-        // Java persists the application version from `version.properties`; the
-        // Rust equivalent is `application_version()` (backed by the repo VERSION
-        // file), NOT the crate version.
+        // Persist the repository application version, not the crate version.
         let app_version = crate::runtime_metrics::application_version().to_owned();
 
         let mut writes: Vec<(&str, serde_yaml::Value)> = Vec::new();
@@ -918,145 +839,8 @@ impl RuntimeConfig {
         }
     }
 
-    /// Logs a one-line warning for every notable legacy setting that the
-    /// stateless, no-login runtime now ignores.
-    ///
-    /// The removal of authentication and server-side state left behind
-    /// configuration keys in existing installs — the bundled desktop template
-    /// even ships `security.enableLogin: true`. Those keys must be IGNORED,
-    /// never refused: a hard failure would brick every existing install on
-    /// upgrade. Only the keys worth an operator's attention warn; everything
-    /// else is silently skipped.
-    #[allow(clippy::too_many_lines)] // a flat checklist of legacy keys
-    pub fn warn_on_ignored_legacy_settings(&self) {
-        let yaml_present = |path: &[&str]| value_at(&self.settings, path).is_some();
-        let yaml_true = |path: &[&str]| {
-            value_at(&self.settings, path)
-                .and_then(yaml_bool)
-                .unwrap_or(false)
-        };
-        let env_present = |names: &[&str]| {
-            names
-                .iter()
-                .any(|name| crate::env_compat::var_os(name).is_some())
-        };
-        let mut ignored: Vec<&str> = Vec::new();
-        if yaml_true(&["security", "enableLogin"])
-            || env_present(&["SECURITY_ENABLELOGIN", "SECURITY_ENABLE_LOGIN"])
-        {
-            ignored.push("security.enableLogin / SECURITY_ENABLELOGIN");
-        }
-        if env_present(&["DOCKER_ENABLE_SECURITY"]) {
-            ignored.push("DOCKER_ENABLE_SECURITY");
-        }
-        if yaml_present(&["security", "initialLogin"])
-            || env_present(&[
-                "SECURITY_INITIALLOGIN_USERNAME",
-                "SECURITY_INITIALLOGIN_PASSWORD",
-            ])
-        {
-            ignored.push("security.initialLogin.*");
-        }
-        if yaml_present(&["security", "oauth2"]) || env_present(&["SECURITY_OAUTH2_ENABLED"]) {
-            ignored.push("security.oauth2.*");
-        }
-        if yaml_present(&["security", "saml2"]) {
-            ignored.push("security.saml2.*");
-        }
-        if yaml_present(&["security", "jwt"]) {
-            ignored.push("security.jwt.*");
-        }
-        if yaml_present(&["security", "loginMethod"]) || env_present(&["SECURITY_LOGINMETHOD"]) {
-            ignored.push("security.loginMethod");
-        }
-        if yaml_present(&["security", "databasePath"])
-            || env_present(&[
-                "RUSTLING_SECURITY_DATABASE_PATH",
-                "STIRLING_SECURITY_DATABASE_PATH",
-            ])
-        {
-            ignored.push("security.databasePath");
-        }
-        if yaml_present(&["security", "credentialEncryptionKey"])
-            || yaml_present(&["security", "credentialEncryptionKeyPath"])
-            || env_present(&[
-                "RUSTLING_CREDENTIAL_ENCRYPTION_KEY",
-                "RUSTLING_CREDENTIAL_ENCRYPTION_KEY_PATH",
-                "STIRLING_CREDENTIAL_ENCRYPTION_KEY",
-                "STIRLING_CREDENTIAL_ENCRYPTION_KEY_PATH",
-            ])
-        {
-            ignored.push("security.credentialEncryptionKey[Path]");
-        }
-        if yaml_true(&["mcp", "enabled"]) || env_present(&["MCP_ENABLED", "MCP_AUTH_MODE"]) {
-            ignored.push("mcp.*");
-        }
-        if yaml_true(&["storage", "enabled"]) || env_present(&["STORAGE_ENABLED"]) {
-            ignored.push("storage.*");
-        }
-        if yaml_true(&["policies", "enabled"]) || env_present(&["POLICIES_ENABLED"]) {
-            ignored.push("policies.*");
-        }
-        if yaml_present(&["premium", "enterpriseFeatures", "audit"]) {
-            ignored.push("premium.enterpriseFeatures.audit.*");
-        }
-        if yaml_true(&["mail", "enableInvites"]) || env_present(&["MAIL_ENABLEINVITES"]) {
-            ignored.push("mail.enableInvites");
-        }
-        // The document store / PDF question-answer feature was removed;
-        // retrieval settings are no longer pushed to the AI engine.
-        if yaml_present(&["aiEngine", "rag"])
-            || env_present(&[
-                "AIENGINE_RAG_EMBEDDINGPROVIDER",
-                "AIENGINE_RAG_EMBEDDINGMODEL",
-                "AIENGINE_RAG_EMBEDDINGAPIKEY",
-                "AIENGINE_RAG_EMBEDDINGBASEURL",
-                "AIENGINE_RAG_TOPK",
-                "AIENGINE_RAG_MAXSEARCHES",
-            ])
-        {
-            ignored.push("aiEngine.rag.*");
-        }
-        if yaml_present(&["app", "supabase"])
-            || env_present(&[
-                "SAAS_DB_PROJECT_REF",
-                "RUSTLING_SUPABASE_ISSUER",
-                "APP_SUPABASE_ISSUER",
-            ])
-        {
-            ignored.push("app.supabase.*");
-        }
-        // Ghostscript was removed from the product (AGPL-3.0-or-commercial). Its
-        // settings keys and command override must keep being accepted and ignored,
-        // because existing settings.yml files still carry them.
-        if yaml_present(&["processExecutor", "sessionLimit", "ghostscriptSessionLimit"])
-            || yaml_present(&[
-                "processExecutor",
-                "timeoutMinutes",
-                "ghostscriptTimeoutMinutes",
-            ])
-            || env_present(&[
-                "RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND",
-                "STIRLING_PROCESSING_GHOSTSCRIPT_COMMAND",
-                "PROCESS_EXECUTOR_SESSION_LIMIT_GHOSTSCRIPT_SESSION_LIMIT",
-                "PROCESS_EXECUTOR_TIMEOUT_MINUTES_GHOSTSCRIPT_TIMEOUT_MINUTES",
-            ])
-        {
-            ignored
-                .push("processExecutor.*.ghostscript* / RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND");
-        }
-        for key in ignored {
-            tracing::warn!(
-                key,
-                "this setting belongs to a removed feature (login/auth, MCP, server-side \
-                 state, or Ghostscript) and is ignored; the server always runs in open, \
-                 stateless mode"
-            );
-        }
-    }
-
     fn generated_setting(&self, field: &str, environment: &str) -> String {
-        crate::env_compat::var(environment)
+        crate::environment::var(environment)
             .ok()
             .filter(|value| !value.trim().is_empty())
             .or_else(|| {
@@ -1113,24 +897,6 @@ impl RuntimeConfig {
             "defaultLocale",
             self.string(&["system", "defaultLocale"], "SYSTEM_DEFAULTLOCALE", ""),
         );
-        // The existing Rust binary has no authentication middleware yet. Reporting a configured
-        // login flag here would make the unchanged UI render a login flow it cannot complete.
-        insert(config, "enableLogin", false);
-        insert(
-            config,
-            "showSettingsWhenNoLogin",
-            self.boolean(
-                &["system", "showSettingsWhenNoLogin"],
-                "SYSTEM_SHOWSETTINGSWHENNOLOGIN",
-                true,
-            ),
-        );
-        insert(config, "enableEmailInvites", false);
-        insert(config, "enableOAuth", false);
-        insert(config, "enableSaml", false);
-        insert(config, "isAdmin", false);
-        insert(config, "isNewUser", false);
-        insert(config, "isNewServer", false);
         insert(
             config,
             "shouldShowUpdate",
@@ -1253,23 +1019,13 @@ impl RuntimeConfig {
                 false,
             ),
         );
-        insert(config, "premiumEnabled", self.license_config().enabled);
-        insert(config, "runningProOrHigher", false);
-        insert(config, "runningEE", false);
-        insert(config, "license", "NORMAL");
         insert(
             config,
             "aiEngineEnabled",
             self.boolean(&["aiEngine", "enabled"], "AIENGINE_ENABLED", false),
         );
-        insert(config, "storageEnabled", false);
-        insert(config, "storageSharingEnabled", false);
-        insert(config, "storageShareLinksEnabled", false);
-        insert(config, "storageShareEmailEnabled", false);
-        insert(config, "storageGroupSigningEnabled", false);
         insert(config, "serverCertificateEnabled", false);
         insert(config, "hardwareSigningAvailable", false);
-        insert(config, "activeSecurity", false);
     }
 
     fn insert_timestamp_and_legal_config(&self, config: &mut Map<String, Value>) {
@@ -1297,17 +1053,13 @@ impl RuntimeConfig {
             self.string(
                 &["legal", "termsAndConditions"],
                 "LEGAL_TERMSANDCONDITIONS",
-                "https://www.stirling.com/legal/terms-of-service",
+                "",
             ),
         );
         insert(
             config,
             "privacyPolicy",
-            self.string(
-                &["legal", "privacyPolicy"],
-                "LEGAL_PRIVACYPOLICY",
-                "https://www.stirling.com/legal/privacy-policy",
-            ),
+            self.string(&["legal", "privacyPolicy"], "LEGAL_PRIVACYPOLICY", ""),
         );
         insert(
             config,
@@ -1587,8 +1339,8 @@ impl RuntimeConfig {
             }
         }
 
-        crate::env_compat::var("LEGAL_LOGINAGREEMENT_FALLBACKTEXT")
-            .or_else(|_| crate::env_compat::var("LEGAL_LOGIN_AGREEMENT_FALLBACK_TEXT"))
+        crate::environment::var("LEGAL_LOGINAGREEMENT_FALLBACKTEXT")
+            .or_else(|_| crate::environment::var("LEGAL_LOGIN_AGREEMENT_FALLBACK_TEXT"))
             .ok()
             .or_else(|| {
                 value_at(&self.settings, &["legal", "loginAgreement", "fallbackText"])
@@ -1634,7 +1386,7 @@ impl RuntimeConfig {
     }
 
     fn string(&self, path: &[&str], environment: &str, default: &str) -> String {
-        crate::env_compat::var(environment)
+        crate::environment::var(environment)
             .ok()
             .or_else(|| {
                 value_at(&self.settings, path)
@@ -1645,7 +1397,7 @@ impl RuntimeConfig {
     }
 
     fn strings(&self, path: &[&str], environment: &str) -> Vec<String> {
-        if let Ok(value) = crate::env_compat::var(environment) {
+        if let Ok(value) = crate::environment::var(environment) {
             return split_strings(&value);
         }
         value_at(&self.settings, path)
@@ -1660,11 +1412,9 @@ impl RuntimeConfig {
             .unwrap_or_default()
     }
 
-    /// [`Self::u64`] against the product-rooted settings keys: `rustling.*`
-    /// is the primary root and the pre-rename `stirling.*` root keeps working
-    /// as a legacy alias (`rustling.*` wins when both are present).
+    /// [`Self::u64`] against the `rustling.*` product settings root.
     fn product_u64(&self, path_below_root: &[&str], environment: &str, default: u64) -> u64 {
-        crate::env_compat::var(environment)
+        crate::environment::var(environment)
             .ok()
             .and_then(|value| value.parse().ok())
             .or_else(|| product_value_at(&self.settings, path_below_root).and_then(Value::as_u64))
@@ -1672,7 +1422,7 @@ impl RuntimeConfig {
     }
 
     fn u64(&self, path: &[&str], environment: &str, default: u64) -> u64 {
-        crate::env_compat::var(environment)
+        crate::environment::var(environment)
             .ok()
             .and_then(|value| value.parse().ok())
             .or_else(|| value_at(&self.settings, path).and_then(Value::as_u64))
@@ -1680,7 +1430,7 @@ impl RuntimeConfig {
     }
 
     fn signed_integer(&self, path: &[&str], environment: &str, default: i64) -> i64 {
-        crate::env_compat::var(environment)
+        crate::environment::var(environment)
             .ok()
             .and_then(|value| value.parse().ok())
             .or_else(|| value_at(&self.settings, path).and_then(Value::as_i64))
@@ -1688,7 +1438,7 @@ impl RuntimeConfig {
     }
 
     fn usize(environment: &str, default: usize) -> usize {
-        crate::env_compat::var(environment)
+        crate::environment::var(environment)
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(default)
@@ -1711,13 +1461,12 @@ impl RuntimeConfig {
     }
 }
 
-// Java `ApplicationProperties.AiEngine` model identity defaults, shared with
-// the config-push "was this section configured?" detection.
+// Model identity defaults shared with config-push detection.
 pub(crate) const DEFAULT_AI_MODEL_PROVIDER: &str = "anthropic";
 pub(crate) const DEFAULT_AI_SMART_MODEL: &str = "claude-haiku-4-5";
 pub(crate) const DEFAULT_AI_FAST_MODEL: &str = "claude-haiku-4-5";
 
-/// Model + provider selection pushed to the engine (Java `AiEngine.Models`).
+/// Model and provider selection pushed to the engine.
 #[derive(Clone, Debug)]
 pub struct AiEngineModelsPush {
     pub provider: String,
@@ -1729,7 +1478,7 @@ pub struct AiEngineModelsPush {
     pub base_url: String,
 }
 
-/// Request size / cost guardrails pushed to the engine (Java `AiEngine.Limits`).
+/// Request-size and cost guardrails pushed to the engine.
 #[derive(Clone, Debug)]
 pub struct AiEngineLimitsPush {
     pub max_pages: i64,
@@ -1737,14 +1486,13 @@ pub struct AiEngineLimitsPush {
     pub model_max_concurrency: i64,
 }
 
-/// The engine-relevant `aiEngine.*` configuration slice, with Java's built-in
-/// defaults as the `Default` value.
+/// The engine-relevant `aiEngine.*` configuration slice.
 #[derive(Clone, Debug)]
 pub struct AiEnginePushSettings {
     pub enabled: bool,
     /// Whether the processor pushes settings-derived AI config to the engine on
     /// startup/save. Pinned false for env-driven deployments so the engine
-    /// stays env-controlled (Java `aiEngine.pushConfigToEngine`).
+    /// stays environment-controlled.
     pub push_config_to_engine: bool,
     pub models: AiEngineModelsPush,
     pub limits: AiEngineLimitsPush,
@@ -1773,8 +1521,7 @@ impl Default for AiEnginePushSettings {
     }
 }
 
-/// Persisted install identity mirroring Java's
-/// `ApplicationProperties.AutomaticallyGenerated` section.
+/// Persisted installation identity.
 #[derive(Clone, Debug)]
 pub struct GeneratedIdentity {
     /// Stable installation UUID (`AutomaticallyGenerated.UUID`).
@@ -1783,22 +1530,20 @@ pub struct GeneratedIdentity {
     pub key: String,
     /// The version persisted for this boot (`AutomaticallyGenerated.appVersion`).
     pub app_version: String,
-    /// Whether the settings file carried no prior version (Java
-    /// `InitialSetup.isNewServer`): empty or the `0.0.0` placeholder.
+    /// Whether the settings file carried no prior version: empty or the
+    /// `0.0.0` placeholder.
     pub is_new_server: bool,
 }
 
 /// Read-modify-write of `section.key` values in `settings.yml` that preserves
 /// every other byte of the file — comments, blank lines, key order and
 /// formatting — by rewriting only the targeted value lines through the shared
-/// comment-preserving editor ([`crate::settings_yaml`]). This matches Java's
-/// writer (`GeneralUtils.saveKeyToSettings` via `YamlHelper`, whose snakeyaml
-/// round-trips comments): a first boot rewrites just the value portion of the
-/// template's `AutomaticallyGenerated` lines and keeps the banner and every
-/// comment intact. An existing section or key whose spelling differs only by
-/// ASCII case is reused rather than duplicated, matching Java's relaxed
-/// binding reading either spelling back; keys the file lacks are inserted into
-/// the section, and a missing section (or file) is created. Hostile
+/// comment-preserving editor ([`crate::settings_yaml`]). A first boot rewrites
+/// just the value portion of the template's `AutomaticallyGenerated` lines and
+/// keeps the banner and every comment intact. An existing section or key whose
+/// spelling differs only by ASCII case is reused rather than duplicated; keys
+/// the file lacks are inserted into the section, and a missing section (or
+/// file) is created. Hostile
 /// hand-edited shapes the editor cannot extend (flow-collection roots or
 /// sections, block-scalar values, block-sequence sections) are refused with
 /// the file untouched, and the edited text must reparse as a YAML mapping
@@ -1859,22 +1604,16 @@ fn update_settings_file_values(
         .map_err(|error| format!("could not write {}: {error}", settings_path.display()))
 }
 
-/// Whether a persisted identity value passes Java's `GeneralUtils.isValidUUID`
-/// (`UUID.fromString`): five non-empty hyphen-separated hex groups within the
-/// canonical length. Java additionally tolerates over-long groups up to a
-/// signed-long overflow; those exotic spellings are regenerated once here into
-/// canonical form and stay stable afterwards.
+/// Whether a persisted identity is a canonical hyphenated UUID.
 fn is_valid_settings_uuid(value: &str) -> bool {
     let value = value.trim();
-    if value.is_empty() || value.len() > 36 {
+    if value.len() != 36 {
         return false;
     }
     let groups: Vec<&str> = value.split('-').collect();
     groups.len() == 5
-        && groups.iter().all(|group| {
-            !group.is_empty()
-                && group.len() <= 12
-                && group.bytes().all(|byte| byte.is_ascii_hexdigit())
+        && groups.iter().zip([8, 4, 4, 4, 12]).all(|(group, length)| {
+            group.len() == length && group.bytes().all(|byte| byte.is_ascii_hexdigit())
         })
 }
 
@@ -1916,8 +1655,7 @@ fn read_yaml_file(path: &Path) -> Result<Option<Value>, String> {
     // startup always creates a zero-byte `custom_settings.yml`, and merging a
     // `Null` overlay would replace the ENTIRE settings snapshot, blanking every
     // configured value (and re-rolling the install identity) on every boot.
-    // Java parity: Spring's YAML loader yields no properties for an empty
-    // document, so `settings.yml` keeps full effect.
+    // This keeps `settings.yml` in full effect.
     serde_yaml::from_str(&contents)
         .map(|value| match value {
             Value::Null => None,
@@ -2002,16 +1740,12 @@ fn merge_json(target: &mut Value, overlay: Value) {
     }
 }
 
-/// Product-rooted settings lookup: `rustling.*` is the primary key root and
-/// the pre-rename `stirling.*` root is honoured as a legacy alias.
+/// Product-rooted settings lookup below `rustling.*`.
 fn product_value_at<'a>(value: &'a Value, path_below_root: &[&str]) -> Option<&'a Value> {
-    let lookup = |root: &'static str| {
-        let mut path = Vec::with_capacity(path_below_root.len() + 1);
-        path.push(root);
-        path.extend_from_slice(path_below_root);
-        value_at(value, &path)
-    };
-    lookup("rustling").or_else(|| lookup("stirling"))
+    let mut path = Vec::with_capacity(path_below_root.len() + 1);
+    path.push("rustling");
+    path.extend_from_slice(path_below_root);
+    value_at(value, &path)
 }
 
 fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
@@ -2020,18 +1754,12 @@ fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
 }
 
 fn env_bool(name: &str) -> Option<bool> {
-    crate::env_compat::var(name)
+    crate::environment::var(name)
         .ok()
         .and_then(|value| parse_boolean(&value))
 }
 
-/// Parses a configuration boolean with Spring's relaxed vocabulary.
-///
-/// Java binds environment and YAML values through spring-core's
-/// `StringToBooleanConverter`, which accepts `true`/`on`/`yes`/`1` and
-/// `false`/`off`/`no`/`0` (trimmed, case-insensitive). Anything narrower here
-/// would make the Rust binary read the same deployment configuration
-/// differently from Java — in the security guard's case, fail-open.
+/// Parses a configuration boolean using common environment-variable forms.
 fn parse_boolean(value: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
         "true" | "on" | "yes" | "1" => Some(true),
@@ -2040,16 +1768,8 @@ fn parse_boolean(value: &str) -> Option<bool> {
     }
 }
 
-/// Reads a YAML setting as a boolean with Java's SnakeYAML/Spring semantics.
-///
-/// `serde_yaml` implements YAML 1.2, so unquoted `yes`/`on`/`no`/`off` arrive
-/// here as *strings*, while `SnakeYAML` (YAML 1.1) hands Java a real `Boolean`.
-/// Falling back to [`parse_boolean`] keeps `enableLogin: yes` and
-/// `enabled: on` meaning the same thing in both runtimes; genuine YAML
-/// booleans still take the direct path. An unquoted numeric `1`/`0` reaches
-/// Java as an `Integer` that Spring's binder coerces truthily, so the numeric
-/// arm keeps `enableLogin: 1` requesting secured mode instead of silently
-/// reading as unset (which would fail open in the security guard).
+/// Reads a YAML setting as a boolean, accepting string and numeric forms used
+/// by environment-backed configuration.
 fn yaml_bool(value: &Value) -> Option<bool> {
     value
         .as_bool()
@@ -2194,7 +1914,7 @@ mod tests {
     }
 
     #[test]
-    fn repair_process_limits_and_timeouts_match_java_defaults_and_yaml()
+    fn repair_process_limits_and_timeouts_use_defaults_and_yaml()
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let settings = directory.path().join("settings.yml");
@@ -2204,11 +1924,9 @@ mod tests {
         assert_eq!(defaults.qpdf_session_limit, 2);
         assert_eq!(defaults.qpdf_timeout.as_secs(), 30 * 60);
 
-        // The legacy Ghostscript keys stay in the file and must be accepted and ignored,
-        // never refused: existing installs still carry them.
         fs::write(
             &settings,
-            "processExecutor:\n  sessionLimit:\n    qpdfSessionLimit: 5\n    ghostscriptSessionLimit: 6\n  timeoutMinutes:\n    qpdfTimeoutMinutes: 11\n    ghostscriptTimeoutMinutes: 13\n",
+            "processExecutor:\n  sessionLimit:\n    qpdfSessionLimit: 5\n  timeoutMinutes:\n    qpdfTimeoutMinutes: 11\n",
         )?;
         let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
         let configured = config.repair_process_settings();
@@ -2251,32 +1969,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[test]
-    fn java_era_phantom_groups_are_inert_but_legacy_keys_remain_accepted()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "endpoints:\n  groupsToRemove: [Java, Python, OpenCV, ImageMagick, Javascript, CLI, Unoconvert]\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        for group in [
-            "Java",
-            "Python",
-            "OpenCV",
-            "ImageMagick",
-            "Javascript",
-            "CLI",
-            "Unoconvert",
-        ] {
-            assert!(!config.is_group_enabled(group), "{group} must stay inert");
-        }
-        assert!(config.is_endpoint_enabled("merge-pdfs"));
-        assert!(config.is_endpoint_enabled("pdf-to-markdown"));
-        Ok(())
     }
 
     #[test]
@@ -2383,50 +2075,6 @@ mod tests {
     }
 
     #[test]
-    fn license_config_migrates_legacy_enterprise_settings_and_environment_overrides()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(
-            &settings,
-            "premium:\n  enabled: false\n  key: 00000000-0000-0000-0000-000000000000\n  maxUsers: 6\nenterpriseEdition:\n  enabled: true\n  key: legacy-key\n",
-        )?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        let license = config.license_config_with_environment(|_| None);
-        assert!(license.enabled);
-        assert_eq!(license.key.as_str(), "legacy-key");
-        assert_eq!(license.initial_max_users, 6);
-
-        let environment = BTreeMap::from([
-            ("PREMIUM_ENABLED", "true"),
-            ("PREMIUM_KEY", "current-key"),
-            ("PREMIUM_MAXUSERS", "13"),
-        ]);
-        let license = config.license_config_with_environment(|name| {
-            environment.get(name).map(|value| (*value).to_owned())
-        });
-        assert!(license.enabled);
-        assert_eq!(license.key.as_str(), "current-key");
-        assert_eq!(license.initial_max_users, 13);
-        Ok(())
-    }
-
-    #[test]
-    fn app_config_defaults_to_unverified_normal_license_fields()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempdir()?;
-        let settings = directory.path().join("settings.yml");
-        fs::write(&settings, "premium:\n  enabled: true\n  key: opaque-key\n")?;
-        let config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
-        let app_config = config.app_config(None, None);
-        assert_eq!(app_config["premiumEnabled"], true);
-        assert_eq!(app_config["runningProOrHigher"], false);
-        assert_eq!(app_config["runningEE"], false);
-        assert_eq!(app_config["license"], "NORMAL");
-        Ok(())
-    }
-
-    #[test]
     fn endpoint_statuses_use_the_configured_disabled_endpoint_list()
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
@@ -2483,7 +2131,7 @@ mod tests {
             ("value: off", Some(false)),
             ("value: \"1\"", Some(true)),
             ("value: \"0\"", Some(false)),
-            // Unquoted numerics reach Java as Integers that Spring coerces.
+            // Unquoted numeric scalars are also accepted.
             ("value: 1", Some(true)),
             ("value: 0", Some(false)),
             ("value: banana", None),
@@ -2511,7 +2159,7 @@ mod tests {
                 "googlevisibility: {spelling}"
             );
         }
-        // Malformed values fall back to the Java default (false here).
+        // Malformed values fall back to the default (false here).
         fs::write(&settings, "system:\n  googlevisibility: banana\n")?;
         let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
         assert!(!config.google_visibility());
@@ -2907,9 +2555,8 @@ mod tests {
         assert!(group_keys.contains("text-editor-to-pdf"));
         assert!(group_keys.contains("pdf-to-text-editor"));
 
-        // A group key that matches no route is normally inert: it mirrors an upstream-only tool
-        // that was never ported, or is the SPA tool-registry spelling kept so the UI can read the
-        // tool's availability, and is harmless either way.
+        // A group key that matches no route is normally inert: it can be an SPA
+        // tool-registry spelling kept so the UI can read the tool's availability.
         //
         // The defect is narrower than "a key matches no route". It is a *registered route that no
         // group can disable* sitting next to a group key a reader would take for that route — the
@@ -3033,8 +2680,17 @@ mod tests {
         // metrics, the UI-data payloads, job and file plumbing, and the mobile-scanner session
         // handshake. `health` covers `/api/v1/info/health` and `/api/v1/ai/health` alike, since
         // both derive the same key.
+        //
+        // `stats`, `queue` and `cleanup` are the job-observation routes
+        // (`/api/v1/jobs/stats`, `/api/v1/jobs/queue/stats`, `/api/v1/jobs/cleanup`). They
+        // report on and expire the job plumbing that `job` itself exposes, so gating them
+        // apart from `job` would leave the SPA able to submit work it cannot observe. Per
+        // `contracts/job-stats.md` they are part of the open route set; `cleanup` removes only
+        // jobs already past the 30-minute retention window that the background sweeper enforces
+        // anyway, so an anonymous caller cannot destroy live work with it.
         const INFRASTRUCTURE_ROUTES: &[&str] = &[
             "app-config",
+            "cleanup",
             "create-session",
             "download",
             "endpoint-enabled",
@@ -3050,8 +2706,10 @@ mod tests {
             "licenses",
             "load",
             "login-disclaimer",
+            "queue",
             "requests",
             "session",
+            "stats",
             "status",
             "upload",
             "uptime",
@@ -3120,11 +2778,9 @@ mod tests {
         assert_eq!(push.limits.max_characters, 200_000);
         assert_eq!(push.limits.model_max_concurrency, 32);
 
-        // A legacy `aiEngine.rag` block from an existing install is ignored
-        // (the retrieval pipeline was removed), never a startup failure.
         fs::write(
             &settings,
-            "aiEngine:\n  enabled: true\n  pushConfigToEngine: false\n  models:\n    provider: ollama\n    smartModel: qwen3\n    apiKey: sk-yaml\n  rag:\n    topK: 7\n  limits:\n    maxPages: 42\n",
+            "aiEngine:\n  enabled: true\n  pushConfigToEngine: false\n  models:\n    provider: ollama\n    smartModel: qwen3\n    apiKey: sk-yaml\n  limits:\n    maxPages: 42\n",
         )?;
         let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
         let push = config.ai_engine_push_settings();
@@ -3132,7 +2788,7 @@ mod tests {
         assert!(!push.push_config_to_engine);
         assert_eq!(push.models.provider, "ollama");
         assert_eq!(push.models.smart_model, "qwen3");
-        // Unset keys inside a configured section keep their Java defaults.
+        // Unset keys inside a configured section keep their defaults.
         assert_eq!(push.models.fast_model, "claude-haiku-4-5");
         assert_eq!(push.models.api_key, "sk-yaml");
         assert_eq!(push.limits.max_pages, 42);
@@ -3161,8 +2817,8 @@ mod tests {
             identity.app_version,
             crate::runtime_metrics::application_version()
         );
-        // Java parity: any pre-existing non-placeholder version (the template
-        // ships one) means this is not a brand-new server.
+        // Any pre-existing non-placeholder version means this is not a
+        // brand-new server.
         assert!(!identity.is_new_server);
 
         let persisted: serde_json::Value = serde_yaml::from_str(&fs::read_to_string(&settings)?)?;
@@ -3237,14 +2893,13 @@ mod tests {
     /// Regression for the comment-destruction defect: the identity write must
     /// preserve every non-identity byte of the settings file — banner comments,
     /// inline comments, blank lines, unrelated sections — changing ONLY the
-    /// three `AutomaticallyGenerated` value lines (Java's snakeyaml writer
-    /// keeps comments via `parseComments`/`dumpComments`).
+    /// three `AutomaticallyGenerated` value lines.
     #[test]
     fn generated_identity_write_preserves_comments_and_every_other_byte()
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let settings = directory.path().join("settings.yml");
-        let original = "# banner line one\n# banner line two\nsecurity:\n  enableLogin: false # keep me\n\n# Automatically Generated Settings (Do Not Edit Directly)\nAutomaticallyGenerated:\n  key: example # inline key comment\n  UUID: example\n  appVersion: 0.35.0\n\nsystem:\n  defaultLocale: en-GB # locale comment\n";
+        let original = "# banner line one\n# banner line two\nui:\n  logoStyle: classic # keep me\n\n# Automatically Generated Settings (Do Not Edit Directly)\nAutomaticallyGenerated:\n  key: example # inline key comment\n  UUID: example\n  appVersion: 0.35.0\n\nsystem:\n  defaultLocale: en-GB # locale comment\n";
         fs::write(&settings, original)?;
 
         let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
@@ -3265,8 +2920,8 @@ mod tests {
     }
 
     /// Regression for the wrong-version-source defect: the persisted
-    /// `appVersion` is the canonical application version (Java writes its
-    /// `version.properties` version), never the Rust crate version.
+    /// `appVersion` is the canonical application version, never the crate
+    /// version.
     #[test]
     fn generated_identity_persists_the_application_version_not_the_crate_version()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -3309,7 +2964,7 @@ mod tests {
             json!(identity.uuid)
         );
 
-        // A '0.0.0' placeholder version also marks a new server (Java rule).
+        // A '0.0.0' placeholder version also marks a new server.
         let placeholder = directory.path().join("placeholder.yml");
         fs::write(
             &placeholder,
@@ -3424,15 +3079,14 @@ mod tests {
     }
 
     #[test]
-    fn settings_uuid_validation_matches_java_shapes() {
+    fn settings_uuid_validation_requires_canonical_shapes() {
         assert!(super::is_valid_settings_uuid(
             "123e4567-e89b-12d3-a456-426614174000"
         ));
-        // Java's UUID.fromString accepts short hex groups.
-        assert!(super::is_valid_settings_uuid("1-1-1-1-1"));
         for invalid in [
             "",
             "example",
+            "1-1-1-1-1",
             "123e4567e89b12d3a456426614174000",
             "123e4567-e89b-12d3-a456",
             "123e4567-e89b-12d3-a456-42661417400g",
@@ -3443,23 +3097,13 @@ mod tests {
     }
 
     #[test]
-    fn product_rooted_keys_prefer_rustling_and_accept_legacy_stirling() {
-        let both = json!({
-            "rustling": {"jobResultExpiryMinutes": 5},
-            "stirling": {"jobResultExpiryMinutes": 9}
-        });
+    fn product_rooted_keys_use_the_rustling_root() {
+        let settings = json!({"rustling": {"jobResultExpiryMinutes": 5}});
         assert_eq!(
-            super::product_value_at(&both, &["jobResultExpiryMinutes"])
+            super::product_value_at(&settings, &["jobResultExpiryMinutes"])
                 .and_then(serde_json::Value::as_u64),
             Some(5),
-            "rustling.* must win when both roots are present"
-        );
-        let legacy = json!({"stirling": {"job": {"queue": {"baseCapacity": 7}}}});
-        assert_eq!(
-            super::product_value_at(&legacy, &["job", "queue", "baseCapacity"])
-                .and_then(serde_json::Value::as_u64),
-            Some(7),
-            "pre-rename stirling.* keys must keep working"
+            "rustling.* must be the canonical product settings root"
         );
         assert!(super::product_value_at(&json!({}), &["jobResultExpiryMinutes"]).is_none());
     }

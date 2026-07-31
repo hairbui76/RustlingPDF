@@ -220,7 +220,7 @@ async fn post_svgs_body(
     files: &[SvgUpload<'_>],
     combine: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-svg-to-pdf-boundary";
+    let boundary = "rustling-svg-to-pdf-boundary";
     let mut body = Vec::new();
     for file in files {
         body.extend_from_slice(

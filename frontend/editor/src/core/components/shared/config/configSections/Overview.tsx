@@ -47,22 +47,10 @@ const Overview: React.FC = () => {
       }
     : null;
 
-  const securityConfig = config
-    ? {
-        enableLogin: config.enableLogin,
-      }
-    : null;
-
   const systemConfig = config
     ? {
         enableAlphaFunctionality: config.enableAlphaFunctionality,
         enableAnalytics: config.enableAnalytics,
-      }
-    : null;
-
-  const integrationConfig = config
-    ? {
-        SSOAutoLogin: config.SSOAutoLogin,
       }
     : null;
 
@@ -96,19 +84,8 @@ const Overview: React.FC = () => {
             basicConfig,
           )}
           {renderConfigSection(
-            t("config.overview.sections.security", "Security Configuration"),
-            securityConfig,
-          )}
-          {renderConfigSection(
             t("config.overview.sections.system", "System Configuration"),
             systemConfig,
-          )}
-          {renderConfigSection(
-            t(
-              "config.overview.sections.integration",
-              "Integration Configuration",
-            ),
-            integrationConfig,
           )}
 
           {config.error && (

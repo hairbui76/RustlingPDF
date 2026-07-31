@@ -1,6 +1,6 @@
 # `POST /api/v1/general/multi-page-layout`
 
-Rust compatibility contract for `MultiPageLayoutController.mergeMultiplePagesIntoOne()`.
+Current contract for multi-page layouts.
 
 ## Request
 

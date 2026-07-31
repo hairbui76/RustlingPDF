@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { type StepType } from "@reactour/tour";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useLocation } from "react-router-dom";
-import { isAuthRoute } from "@app/constants/routes";
-import { withBasePath } from "@app/constants/app";
+import { useNavigate } from "react-router-dom";
 import { dispatchTourState } from "@app/constants/events";
 import { useOnboardingOrchestrator } from "@app/components/onboarding/orchestrator/useOnboardingOrchestrator";
 import { useBypassOnboarding } from "@app/components/onboarding/useBypassOnboarding";
@@ -13,10 +11,7 @@ import OnboardingTour, {
 } from "@app/components/onboarding/OnboardingTour";
 import OnboardingModalSlide from "@app/components/onboarding/OnboardingModalSlide";
 import StaticOnboardingSlide from "@app/components/onboarding/StaticOnboardingSlide";
-import {
-  useServerLicenseRequest,
-  useTourRequest,
-} from "@app/components/onboarding/useOnboardingEffects";
+import { useTourRequest } from "@app/components/onboarding/useOnboardingEffects";
 import { useOnboardingDownload } from "@app/components/onboarding/useOnboardingDownload";
 import {
   SLIDE_DEFINITIONS,
@@ -25,34 +20,22 @@ import {
 } from "@app/components/onboarding/onboardingFlowConfig";
 import ToolPanelModePrompt from "@app/components/tools/ToolPanelModePrompt";
 import { useTourOrchestration } from "@app/contexts/TourOrchestrationContext";
-import { useAdminTourOrchestration } from "@app/contexts/AdminTourOrchestrationContext";
 import { getTourSteps } from "@app/components/onboarding/tourRegistry";
 import { removeAllGlows } from "@app/components/onboarding/tourGlow";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
-import { useServerExperience } from "@app/hooks/useServerExperience";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
 import apiClient from "@app/services/apiClient";
 import "@app/components/onboarding/OnboardingTour.css";
-import { useAccountLogout } from "@app/extensions/accountLogout";
-import { useAuth } from "@app/auth/UseSession";
 
 export default function Onboarding() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
   const bypassOnboarding = useBypassOnboarding();
   const { state, actions } = useOnboardingOrchestrator();
-  const serverExperience = useServerExperience();
-  const onAuthRoute = isAuthRoute(location.pathname);
   const { currentStep, isActive, isLoading, runtimeState, activeFlow } = state;
 
   const { osInfo, osOptions, setSelectedDownloadUrl, handleDownloadSelected } =
     useOnboardingDownload();
-  const {
-    showLicenseSlide,
-    licenseNotice: externalLicenseNotice,
-    closeLicenseSlide,
-  } = useServerLicenseRequest();
   const {
     tourRequested: externalTourRequested,
     requestedTourType,
@@ -63,51 +46,17 @@ export default function Onboarding() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [analyticsModalDismissed, setAnalyticsModalDismissed] = useState(false);
-  const [firstLoginModalOpen, setFirstLoginModalOpen] = useState(false);
-  const [mfaModalOpen, setMfaModalOpen] = useState(false);
-  const accountLogout = useAccountLogout();
-  const { signOut } = useAuth();
-
-  const handleRoleSelect = useCallback(
-    (role: "admin" | "user" | null) => {
-      actions.updateRuntimeState({ selectedRole: role });
-      serverExperience.setSelfReportedAdmin(role === "admin");
-    },
-    [actions, serverExperience],
-  );
-
-  const redirectToLogin = useCallback(() => {
-    window.location.assign(withBasePath("/login"));
-  }, []);
-
-  const handlePasswordChanged = useCallback(async () => {
-    actions.updateRuntimeState({ requiresPasswordChange: false });
-    // delete session and redirect to login page
-    await accountLogout({ signOut, redirectToLogin });
-  }, [actions, accountLogout, redirectToLogin, signOut]);
-
-  const handleMfaSetupComplete = useCallback(() => {
-    actions.updateRuntimeState({ requiresMfaSetup: false });
-    setMfaModalOpen(false);
-    actions.complete();
-  }, [actions]);
 
   // Check if we should show analytics modal before onboarding
   useEffect(() => {
     if (
       !isLoading &&
       !analyticsModalDismissed &&
-      serverExperience.effectiveIsAdmin &&
       config?.enableAnalytics == null
     ) {
       setShowAnalyticsModal(true);
     }
-  }, [
-    isLoading,
-    analyticsModalDismissed,
-    serverExperience.effectiveIsAdmin,
-    config?.enableAnalytics,
-  ]);
+  }, [isLoading, analyticsModalDismissed, config?.enableAnalytics]);
 
   const handleAnalyticsChoice = useCallback(
     async (enableAnalytics: boolean) => {
@@ -154,45 +103,12 @@ export default function Onboarding() {
           handleDownloadSelected();
           actions.complete();
           break;
-        case "security-next":
-          if (!runtimeState.selectedRole) return;
-          if (runtimeState.selectedRole !== "admin") {
-            actions.updateRuntimeState({ tourType: "whatsnew" });
-            setIsTourOpen(true);
-          }
-          actions.complete();
-          break;
-        case "launch-admin":
-          actions.updateRuntimeState({ tourType: "admin" });
-          setIsTourOpen(true);
-          break;
         case "launch-tools":
           actions.updateRuntimeState({ tourType: "whatsnew" });
           setIsTourOpen(true);
           break;
-        case "launch-auto": {
-          const tourType =
-            serverExperience.effectiveIsAdmin ||
-            runtimeState.selectedRole === "admin"
-              ? "admin"
-              : "whatsnew";
-          actions.updateRuntimeState({ tourType });
-          setIsTourOpen(true);
-          break;
-        }
-        case "open-processor":
-          actions.complete();
-          navigate("/portal");
-          break;
-        case "skip-to-license":
-          actions.complete();
-          break;
         case "skip-tour":
           actions.complete();
-          break;
-        case "see-plans":
-          actions.complete();
-          navigate("/settings/adminPlan");
           break;
         case "enable-analytics":
           await handleAnalyticsChoice(true);
@@ -202,14 +118,7 @@ export default function Onboarding() {
           break;
       }
     },
-    [
-      actions,
-      handleAnalyticsChoice,
-      handleDownloadSelected,
-      navigate,
-      runtimeState.selectedRole,
-      serverExperience.effectiveIsAdmin,
-    ],
+    [actions, handleAnalyticsChoice, handleDownloadSelected],
   );
 
   const isRTL =
@@ -222,14 +131,13 @@ export default function Onboarding() {
 
   const { openFilesModal, closeFilesModal } = useFilesModalContext();
   const tourOrch = useTourOrchestration();
-  const adminTourOrch = useAdminTourOrchestration();
 
   const tourSteps = useMemo<StepType[]>(
     () =>
       getTourSteps(runtimeState.tourType, {
         t,
         workbench: tourOrch,
-        admin: adminTourOrch,
+        openSettingsHelpSection: () => navigate("/settings/help"),
         openFilesModal,
         closeFilesModal,
       }),
@@ -237,7 +145,7 @@ export default function Onboarding() {
       runtimeState.tourType,
       t,
       tourOrch,
-      adminTourOrch,
+      navigate,
       openFilesModal,
       closeFilesModal,
     ],
@@ -256,37 +164,12 @@ export default function Onboarding() {
     return () => removeAllGlows();
   }, [isTourOpen]);
 
-  // Handle first-login password change modal
-  useEffect(() => {
-    if (runtimeState.requiresPasswordChange === true) {
-      console.log("[Onboarding] User requires password change on first login.");
-      setFirstLoginModalOpen(true);
-    } else {
-      setFirstLoginModalOpen(false);
-    }
-  }, [runtimeState.requiresPasswordChange]);
-
-  // Handle MFA setup modal
-  useEffect(() => {
-    if (runtimeState.requiresMfaSetup === true) {
-      console.log("[Onboarding] User requires MFA setup.");
-      setMfaModalOpen(true);
-    } else {
-      console.log("[Onboarding] User does not require MFA setup.");
-      setMfaModalOpen(false);
-    }
-  }, [runtimeState.requiresMfaSetup]);
-
   const finishTour = useCallback(() => {
     setIsTourOpen(false);
-    if (runtimeState.tourType === "admin") {
-      adminTourOrch.restoreAdminState();
-    } else {
-      tourOrch.restoreWorkbenchState();
-    }
+    tourOrch.restoreWorkbenchState();
     // Advance to next onboarding step after tour completes
     actions.complete();
-  }, [actions, adminTourOrch, runtimeState.tourType, tourOrch]);
+  }, [actions, tourOrch]);
 
   const handleAdvanceTour = useCallback(
     (args: AdvanceArgs) => {
@@ -332,16 +215,8 @@ export default function Onboarding() {
       osUrl: osInfo.url,
       osOptions,
       onDownloadUrlChange: setSelectedDownloadUrl,
-      selectedRole: runtimeState.selectedRole,
-      onRoleSelect: handleRoleSelect,
-      licenseNotice: runtimeState.licenseNotice,
-      loginEnabled: serverExperience.loginEnabled,
-      firstLoginUsername: runtimeState.firstLoginUsername,
-      onPasswordChanged: handlePasswordChanged,
-      usingDefaultCredentials: runtimeState.usingDefaultCredentials,
       analyticsError,
       analyticsLoading,
-      onMfaSetupComplete: handleMfaSetupComplete,
     });
   }, [
     analyticsError,
@@ -349,14 +224,7 @@ export default function Onboarding() {
     currentSlideDefinition,
     osInfo,
     osOptions,
-    runtimeState.selectedRole,
-    runtimeState.licenseNotice,
-    handleRoleSelect,
-    serverExperience.loginEnabled,
     setSelectedDownloadUrl,
-    runtimeState.firstLoginUsername,
-    handlePasswordChanged,
-    handleMfaSetupComplete,
   ]);
 
   const modalSlideCount = useMemo(() => {
@@ -375,13 +243,7 @@ export default function Onboarding() {
     return null;
   }
 
-  if (onAuthRoute) {
-    return null;
-  }
-
-  // Interrupt slides shown outside the normal step flow. Precedence is
-  // preserved by evaluation order: analytics consent → first login → MFA →
-  // external license notice.
+  // Analytics consent is shown before the optional product tour.
   if (showAnalyticsModal) {
     return (
       <StaticOnboardingSlide
@@ -396,81 +258,6 @@ export default function Onboarding() {
             await handleAnalyticsChoice(true);
           } else if (action === "disable-analytics") {
             await handleAnalyticsChoice(false);
-          }
-        }}
-      />
-    );
-  }
-
-  if (firstLoginModalOpen) {
-    return (
-      <StaticOnboardingSlide
-        key="first-login"
-        slideId="first-login"
-        runtimeState={runtimeState}
-        params={{
-          firstLoginUsername: runtimeState.firstLoginUsername,
-          onPasswordChanged: handlePasswordChanged,
-          usingDefaultCredentials: runtimeState.usingDefaultCredentials,
-        }}
-        onSkip={() => {}}
-        allowDismiss={false}
-        onAction={(action) => {
-          if (action === "complete-close") {
-            handlePasswordChanged();
-          }
-        }}
-      />
-    );
-  }
-
-  if (mfaModalOpen) {
-    console.log("[Onboarding] Rendering MFA setup modal slide.");
-    return (
-      <StaticOnboardingSlide
-        key="mfa-setup"
-        slideId="mfa-setup"
-        runtimeState={runtimeState}
-        params={{ onMfaSetupComplete: handleMfaSetupComplete }}
-        onSkip={() => {}}
-        allowDismiss={false}
-        onAction={(action) => {
-          if (action === "complete-close") {
-            handleMfaSetupComplete();
-          }
-        }}
-      />
-    );
-  }
-
-  if (showLicenseSlide) {
-    const effectiveLicenseNotice =
-      externalLicenseNotice || runtimeState.licenseNotice;
-    return (
-      <StaticOnboardingSlide
-        key="server-license"
-        slideId="server-license"
-        // Remove back button for the external license notice.
-        transformButtons={(buttons) =>
-          buttons.filter((btn) => btn.key !== "license-back")
-        }
-        runtimeState={{
-          ...runtimeState,
-          licenseNotice: effectiveLicenseNotice,
-        }}
-        params={{
-          osOptions: [],
-          onDownloadUrlChange: () => {},
-          licenseNotice: effectiveLicenseNotice,
-          loginEnabled: serverExperience.loginEnabled,
-        }}
-        onSkip={closeLicenseSlide}
-        onAction={(action) => {
-          if (action === "see-plans") {
-            closeLicenseSlide();
-            navigate("/settings/adminPlan");
-          } else {
-            closeLicenseSlide();
           }
         }}
       />

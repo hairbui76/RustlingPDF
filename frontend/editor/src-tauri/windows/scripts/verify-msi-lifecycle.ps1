@@ -20,7 +20,7 @@
          MSI reclaims them legitimately, which is exactly the false failure the
          first real CI run produced;
       2. installs it silently *with* provisioning properties, so the
-         CustomAction-written stirling-provisioning.json actually exists;
+         CustomAction-written rustling-provisioning.json actually exists;
       3. drops sentinel files next to that provisioning file, standing in for
          the user state (settings.yml, custom_settings.yml, logs/) that an
          uninstall must NOT touch;
@@ -446,9 +446,9 @@ trap {
     break
 }
 
-$SystemProvisioningDir = Join-Path $env:ProgramData 'Stirling-PDF'
-$UserProvisioningDir = Join-Path $env:APPDATA 'Stirling-PDF'
-$ProvisioningFileName = 'stirling-provisioning.json'
+$SystemProvisioningDir = Join-Path $env:ProgramData 'RustlingPDF'
+$UserProvisioningDir = Join-Path $env:APPDATA 'RustlingPDF'
+$ProvisioningFileName = 'rustling-provisioning.json'
 $SentinelName = 'lifecycle-user-state-sentinel.txt'
 
 # ---------------------------------------------------------------------------
@@ -523,8 +523,8 @@ Write-Phase 'Install (silent, with provisioning properties)'
 Invoke-MsiExec -Label 'install' -Arguments @(
     '/i', "`"$MsiPath`"",
     '/qn', '/norestart',
-    'STIRLING_SERVER_URL=https://provisioning.example.invalid',
-    'STIRLING_UPDATE_MODE=disabled',
+    'RUSTLING_SERVER_URL=https://provisioning.example.invalid',
+    'RUSTLING_UPDATE_MODE=disabled',
     '/l*v', "`"$installLog`""
 )
 
@@ -790,8 +790,8 @@ Write-Phase 'Deliberate leftovers (reported, not asserted)'
 foreach ($path in @(
         $SystemProvisioningDir,
         $UserProvisioningDir,
-        (Join-Path $env:LOCALAPPDATA 'stirling.pdf.dev'),
-        (Join-Path $env:APPDATA 'stirling.pdf.dev'),
+        (Join-Path $env:LOCALAPPDATA 'io.github.hairbui76.rustlingpdf'),
+        (Join-Path $env:APPDATA 'io.github.hairbui76.rustlingpdf'),
         (Join-Path $env:TEMP 'MicrosoftEdgeWebview2Setup.exe')
     )) {
     if (Test-Path -LiteralPath $path) { Write-Info ("kept by design: {0}" -f $path) }

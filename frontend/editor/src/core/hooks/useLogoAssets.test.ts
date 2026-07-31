@@ -16,16 +16,17 @@ describe("useLogoAssets - Logo Asset Files", () => {
   // referencing them by their public-URL path. Validate them at source.
   const brandDir = path.resolve(__dirname, "../assets/brand");
 
-  // All asset files that useLogoAssets references
+  // All asset files that useLogoAssets / useLogoPath reference. The brand shows
+  // the mark only, so the stacked lockups (…Logo{Black,Grey,White}Text.svg) are
+  // no longer referenced by either hook and are not required here.
   const requiredAssets = [
     "logo-tooltip.svg",
     "Firstpage.png",
     "favicon.ico",
     "logo192.png",
     "logo512.png",
-    "StirlingPDFLogoWhiteText.svg",
-    "StirlingPDFLogoBlackText.svg",
-    "StirlingPDFLogoGreyText.svg",
+    "RustlingPDFLogoNoTextDark.svg",
+    "RustlingPDFLogoNoTextLight.svg",
   ];
 
   const logoVariants: LogoVariant[] = ["modern", "classic"];

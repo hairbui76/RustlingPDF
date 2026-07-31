@@ -1,9 +1,7 @@
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { fileStorage } from "@app/services/fileStorage";
 import { zipFileService } from "@app/services/zipFileService";
 import { downloadFile } from "@app/services/downloadService";
-import { downloadFileWithPolicy } from "@app/services/exportWithPolicy";
-import { enforceExportPolicies } from "@app/services/policyExport";
 
 /**
  * Downloads a blob as a file using browser download API
@@ -20,18 +18,18 @@ export function downloadBlob(blob: Blob, filename: string): void {
  * @throws Error if file cannot be retrieved from storage
  */
 export async function downloadFileFromStorage(
-  file: StirlingFileStub,
+  file: RustlingFileStub,
 ): Promise<void> {
   const lookupKey = file.id;
-  const stirlingFile = await fileStorage.getStirlingFile(lookupKey);
+  const rustlingFile = await fileStorage.getRustlingFile(lookupKey);
 
-  if (!stirlingFile) {
+  if (!rustlingFile) {
     throw new Error(`File "${file.name}" not found in storage`);
   }
 
-  await downloadFileWithPolicy({
-    data: stirlingFile,
-    filename: stirlingFile.name,
+  await downloadFile({
+    data: rustlingFile,
+    filename: rustlingFile.name,
     localPath: file.localFilePath,
     fileId: file.id,
   });
@@ -42,7 +40,7 @@ export async function downloadFileFromStorage(
  * @param files - Array of files to download
  */
 export async function downloadMultipleFiles(
-  files: StirlingFileStub[],
+  files: RustlingFileStub[],
 ): Promise<void> {
   for (const file of files) {
     await downloadFileFromStorage(file);
@@ -55,31 +53,25 @@ export async function downloadMultipleFiles(
  * @param zipFilename - Optional custom ZIP filename (defaults to timestamped name)
  */
 export async function downloadFilesAsZip(
-  files: StirlingFileStub[],
+  files: RustlingFileStub[],
   zipFilename?: string,
 ): Promise<void> {
   if (files.length === 0) {
     throw new Error("No files provided for ZIP download");
   }
 
-  // Convert stored files to File objects (tracking ids so export policies can
-  // version the in-editor file).
+  // Convert stored files to File objects.
   const filesToZip: File[] = [];
-  const fileIds: (string | undefined)[] = [];
   for (const fileWithUrl of files) {
-    const stirlingFile = await fileStorage.getStirlingFile(fileWithUrl.id);
-    if (stirlingFile) {
-      filesToZip.push(stirlingFile);
-      fileIds.push(fileWithUrl.id);
+    const rustlingFile = await fileStorage.getRustlingFile(fileWithUrl.id);
+    if (rustlingFile) {
+      filesToZip.push(rustlingFile);
     }
   }
 
   if (filesToZip.length === 0) {
     throw new Error("No valid files found in storage for ZIP download");
   }
-
-  // Enforce any export-triggered policy on each PDF before they're zipped.
-  const enforced = await enforceExportPolicies(filesToZip, fileIds);
 
   // Generate default filename if not provided
   const finalZipFilename =
@@ -88,7 +80,7 @@ export async function downloadFilesAsZip(
 
   // Create and download ZIP
   const { zipFile } = await zipFileService.createZipFromFiles(
-    enforced,
+    filesToZip,
     finalZipFilename,
   );
   await downloadFile({ data: zipFile, filename: finalZipFilename });
@@ -102,7 +94,7 @@ export async function downloadFilesAsZip(
  * @param options - Download options
  */
 export async function downloadFiles(
-  files: StirlingFileStub[],
+  files: RustlingFileStub[],
   options: {
     forceZip?: boolean;
     zipFilename?: string;
@@ -131,7 +123,7 @@ export async function downloadFiles(
  * @param filename - Optional custom filename
  */
 export function downloadFileObject(file: File, filename?: string): void {
-  void downloadFileWithPolicy({ data: file, filename: filename || file.name });
+  void downloadFile({ data: file, filename: filename || file.name });
 }
 
 /**

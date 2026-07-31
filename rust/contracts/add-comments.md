@@ -1,7 +1,6 @@
 # `POST /api/v1/misc/add-comments`
 
-Rust compatibility contract for `AddCommentsController`,
-`PdfAnnotationService`, and the text-anchor placement seam.
+Current contract for comment creation and text-anchor placement.
 
 ## Request
 

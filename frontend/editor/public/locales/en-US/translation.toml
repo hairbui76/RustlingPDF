@@ -17,12 +17,7 @@ confirmCloseConfirm = "Close File"
 confirmCloseDiscard = "Discard changes and close"
 confirmCloseMessage = "Are you sure you want to close this file?"
 confirmCloseSave = "Save and close"
-confirmCloseSaveFailed_one = "Saved with errors. {{count}} file could not be saved."
-confirmCloseSaveFailed_other = "Saved with errors. {{count}} files could not be saved."
-confirmCloseSaveFailedTitle = "Save Failed"
 confirmCloseUnsaved = "This file has unsaved changes."
-confirmCloseUnsavedList_one = "You have {{count}} file with unsaved changes.\n\n{{fileList}}"
-confirmCloseUnsavedList_other = "You have {{count}} files with unsaved changes.\n\n{{fileList}}"
 custom = "Custom..."
 customPosition = "Custom Position"
 customTextTooltip = "Optional custom format for page numbers. Use {n} as placeholder for the number. Example: \"Page {n}\" will show \"Page 1\", \"Page 2\", etc."
@@ -39,8 +34,6 @@ encryptedFilesBlocked_one = "File is password-protected. Unlock it first."
 encryptedFilesBlocked_other = "{{count}} files are password-protected. Unlock them first."
 exportAndContinue = "Export & Continue"
 false = "False"
-fileNotSavedToDisk = "Not saved to disk"
-fileSavedToDisk = "File saved to disk"
 fileSelected = "{{filename}}"
 filesSelected = "{{count}} files"
 font = "Font"
@@ -82,8 +75,6 @@ password = "Password"
 pdfPrompt = "Select PDF(s)"
 pin = "Pin File (keep active after tool run)"
 pro = "Pro"
-processingComplete = "Your file is ready."
-processingCompleteMultiple = "{{count}} files are ready."
 property = "Property"
 quickPosition = "Quick Position"
 red = "Red"
@@ -124,9 +115,6 @@ remediated = "Repairs applied and the result was checked again"
 remediating = "Applying repairs and re-checking..."
 results = "Accessibility report"
 submit = "Check accessibility"
-
-[account]
-title = "Account Settings"
 
 [add-page-numbers]
 tags = "paginate,label,organize,index"
@@ -537,10 +525,6 @@ success = "Settings saved successfully"
 title = "Admin Settings"
 workspace = "Workspace"
 
-[admin.settings.enterpriseRequired]
-message = "An Enterprise license is required to access {{featureName}}. You are viewing demo data for reference."
-title = "Enterprise License Required"
-
 [admin.settings.restart]
 later = "Restart Later"
 message = "Settings have been saved successfully. A server restart is required for the changes to take effect."
@@ -554,24 +538,6 @@ discard = "Discard Changes"
 hint = "You have unsaved changes"
 message = "You have unsaved changes. Do you want to discard them?"
 title = "Unsaved Changes"
-
-[adminOnboarding]
-adminTools = "Finally, we have advanced administration tools like <strong>Auditing</strong> to track system activity and <strong>Usage Analytics</strong> to monitor how your users interact with the platform."
-configButton = "Open <strong>Settings</strong> to access all system configuration and administrative controls."
-connectionsSection = "The <strong>Connections</strong> section supports various login methods including custom SSO and SAML providers like Google and GitHub, plus email integrations for notifications and communications."
-databaseSection = "For advanced production environments, we have settings to allow <strong>external database hookups</strong> so you can integrate with your existing infrastructure."
-settingsOverview = "This is the <strong>Settings Panel</strong>. Admin settings are organized by category for easy navigation."
-systemCustomization = "We have extensive ways to customize the UI: <strong>System Settings</strong> let you change the app name and languages, <strong>Features</strong> allows server certificate management, and <strong>Endpoints</strong> lets you enable or disable specific tools for your users."
-teamsAndUsers = "Manage <strong>Teams</strong> and individual users here. You can invite new users via email, shareable links, or create custom accounts for them yourself."
-welcome = "Welcome to the <strong>Admin Tour</strong>! Let's explore the powerful enterprise features and settings available to system administrators."
-wrapUp = "That's the admin tour! You've seen the enterprise features that make RustlingPDF a powerful, customizable solution for organizations. You can replay it anytime - just open <strong>Settings</strong> and find it here in the <strong>Tours</strong> section under Help."
-
-[adminUserSettings]
-admin = "Admin"
-title = "User Control Settings"
-
-[agents]
-stirling_name = "RustlingPDF"
 
 [analytics]
 learnMore = "Learn more about our analytics"
@@ -659,9 +625,6 @@ description = "The Free Adobe Acrobat alternative (10M+ Downloads)"
 [attachments]
 tags = "attachments,add,remove,embed,file"
 title = "Add Attachments"
-
-[auth.displayName]
-user = "User"
 
 [auto-rename]
 description = "Automatically finds the title from your PDF content and uses it as the filename."
@@ -816,14 +779,6 @@ title = "Auto Split PDF"
 [backendHealth]
 checking = "Checking backend status..."
 offline = "Backend Offline"
-online = "Backend Online"
-starting = "Backend starting up..."
-wait = "Please wait for the backend to finish launching and try again."
-
-[backendStartup]
-notFoundTitle = "Backend not found"
-retry = "Retry"
-unreachable = "The application cannot currently connect to the backend. Verify the backend status and network connectivity, then try again."
 
 [bookletImposition]
 paperSizeNote = "Paper size is automatically derived from your first page."
@@ -1272,9 +1227,6 @@ bullet4 = "Can use custom certificates for verification"
 text = "When you check signatures, the tool tells you if they're valid, who signed the document, when it was signed, and whether the document has been changed since signing."
 title = "Checking Signatures"
 
-[changeCreds]
-title = "Change Credentials"
-
 [changeMetadata]
 filenamePrefix = "metadata"
 submit = "Change"
@@ -1427,70 +1379,6 @@ title = "Change Permissions"
 
 [changePermissions.tooltip.warning]
 text = "To make these permissions unchangeable, use the Add Password tool to set an owner password."
-
-[chat.actions]
-copy = "Copy message"
-
-[chat.fab]
-close = "Close chat"
-open = "Open RustlingPDF AI assistant"
-
-[chat.header]
-agentMenu = "RustlingPDF agent options"
-clearChat = "Clear chat"
-
-[chat.input]
-disclaimer = "AI can make mistakes. Be sure to verify the output before sharing."
-placeholder = "What do you want to do?"
-send = "Send message"
-
-[chat.progress]
-analyzing = "Analyzing your request..."
-calling_engine = "AI is thinking..."
-executing_tool_generic = "Running tool..."
-executing_tool_generic_step = "Running tool (step {{step}} of {{total}})..."
-executing_tool_single = "Running {{tool}}..."
-executing_tool_step = "Running {{tool}} (step {{step}} of {{total}})..."
-extracting_content = "Extracting content from your documents..."
-processing = "Processing extracted content..."
-ranForMinutes_one = "Ran for 1 minute"
-ranForMinutes_other = "Ran for {{count}} minutes"
-ranForMinutesSeconds = "Ran for {{minutes}} min, {{seconds}} sec"
-ranForSeconds_one = "Ran for 1 second"
-ranForSeconds_other = "Ran for {{count}} seconds"
-thinking = "Thinking..."
-whole_doc_compression_round = "Consolidating notes..."
-whole_doc_read_done = "Finished reading the document..."
-whole_doc_read_started = "Reading the document..."
-whole_doc_slice_done = "Reading the document... ({{percent}}% complete)"
-
-[chat.quickActions]
-browseYourFiles = "Browse your files"
-compressMany = "Compress these documents"
-compressOne = "Compress this document"
-convertMany = "Convert these documents to PDF"
-convertOne = "Convert this document to PDF"
-heading = "Get started"
-mergeMany = "Merge these {{count}} documents into 1"
-moreFiles = "+{{count}} more"
-openFromComputer = "Open from computer"
-removeFile = "Remove {{name}}"
-splitOne = "Split this document"
-
-[chat.responses]
-cannot_continue = "Something went wrong and I can't continue."
-cannot_do = "I'm unable to do that."
-done = "Done."
-need_clarification = "Could you clarify your request?"
-not_found = "I couldn't find the requested information."
-processing = "Processing ({{outcome}})..."
-unsupported_capability = "Unsupported capability: {{capability}}"
-usage_limit_reached = "You've reached your usage limit. Check your plan options to keep going."
-
-[chat.toolsUsed]
-summary_one = "Ran 1 tool"
-summary_other = "Ran {{count}} tools"
-unknownTool = "Unknown tool"
 
 [color.eyeDropper]
 tooltip = "Pick color from screen"
@@ -1706,8 +1594,6 @@ warning = "Configuration Warning"
 
 [config.overview.sections]
 basic = "Basic Configuration"
-integration = "Integration Configuration"
-security = "Security Configuration"
 system = "System Configuration"
 
 [convert]
@@ -1824,24 +1710,6 @@ description = "These cookies are essential for the website to function properly.
 posthog = "PostHog Analytics"
 scarf = "Scarf Pixel"
 
-[credits.modal]
-advancedMonitoring = "Advanced monitoring"
-allInOneWorkspace = "All-in-one PDF workspace (viewer, tools & agent)"
-apiSandbox = "API sandbox"
-dedicatedSupportSlas = "Dedicated support & SLAs"
-fasterThroughput = "10x faster throughput"
-fullyPrivateFiles = "Fully private files"
-largeFileProcessing = "Large file processing"
-orgWideAccess = "Org-wide access controls"
-premiumAiModels = "Premium AI models"
-prioritySupport = "Priority support"
-privateDocCloud = "Private Document Cloud"
-ragFineTuning = "RAG + fine-tuning"
-secureApiAccess = "Secure API access"
-standardThroughput = "Standard throughput"
-unlimitedApiAccess = "Unlimited API access"
-unlimitedSeats = "Unlimited seats"
-
 [crop]
 autoCrop = "Auto-crop whitespace"
 noFileSelected = "Add a PDF file to begin cropping"
@@ -1892,27 +1760,8 @@ precision = "Use coordinate inputs for precise positioning"
 resize = "Drag the corner and edge handles to resize"
 title = "How to Crop PDFs"
 
-[database]
-title = "Database Import/Export"
-
 [defaultApp]
-setDefault = "Set Default"
 title = "Set as Default PDF App"
-
-[defaultApp.error]
-message = "Failed to set default PDF handler"
-title = "Error"
-
-[defaultApp.prompt]
-message = "Make RustlingPDF your default application for opening PDF files."
-
-[defaultApp.settingsOpened]
-message = "In Windows Settings, search for 'PDF' and select RustlingPDF as your default app"
-title = "Settings Opened"
-
-[defaultApp.success]
-message = "RustlingPDF is now your default PDF editor"
-title = "Default App Set"
 
 [desktopUpdate]
 downloading = "Downloading update..."
@@ -1938,9 +1787,6 @@ tags = "API,development,documentation,developer,REST,integration,endpoints,progr
 
 [devFolderScanning]
 tags = "automation,folder,scanning,watch folder,hot folder,automatic processing,batch,monitor folder,auto process,folder monitoring"
-
-[devSsoGuide]
-tags = "SSO,single sign-on,authentication,SAML,OAuth,OIDC,login,enterprise,identity provider,IdP"
 
 [dropdownList]
 searchPlaceholder = "Search..."
@@ -2127,14 +1973,10 @@ addFiles = "Add Files"
 [fileManager]
 active = "Active"
 addToUpload = "Add to Upload"
-changesNotUploaded = "Changes not uploaded"
 clearAll = "Clear All"
 clearSelection = "Clear"
 closeAllFiles = "Close all files"
 closeFile = "Close File"
-cloudFile = "Cloud file"
-copyCreated = "Copy saved to this device."
-copyFailed = "Could not create a copy."
 delete = "Delete"
 deleteAll = "Delete All"
 deleteSelected = "Delete Files"
@@ -2150,22 +1992,12 @@ fileSize = "Size"
 filesSelected = "files"
 filesStored = "files stored"
 fileVersion = "Version"
-filterAll = "All"
-filterLocal = "Local"
-filterSharedByMe = "Shared by me"
-filterSharedWithMe = "Shared with me"
 googleDrive = "Google Drive"
 googleDriveNotAvailable = "Google Drive integration not available"
 googleDriveShort = "Drive"
 hideHistory = "Hide History"
 lastModified = "Last Modified"
-lastSynced = "Last synced"
-leaveShare = "Remove from my list"
-leaveShareFailed = "Could not remove the shared file."
-leaveShareSuccess = "Removed from your shared list."
 loadingFiles = "Loading files..."
-localOnly = "Local only"
-makeCopy = "Make a copy"
 mobileShort = "Mobile"
 mobileUpload = "Mobile Upload"
 mobileUploadNotAvailable = "Mobile upload not enabled"
@@ -2175,39 +2007,17 @@ nextFile = "Next file"
 noFiles = "No files available"
 noFilesFound = "No files found matching your search"
 noRecentFiles = "No recent files found"
+onDevice = "On this device"
 openFile = "Open File"
 openFiles = "Open Files"
 openInFileEditor = "Open in File Editor"
 openInPageEditor = "Open in Page Editor"
-owner = "Owner"
-ownerUnknown = "Unknown"
 previousFile = "Previous file"
 recent = "Recent"
-removeBoth = "Remove from both"
-removeFilePrompt = "This file is saved on this device and on your server. Where would you like to remove it from?"
-removeFileTitle = "Remove file"
-removeLocalOnly = "This device only"
-removeServerFailed = "Could not remove the file from the server."
-removeServerOnly = "Server only"
-removeServerOnlyPrompt = "This file is stored only on your server. Would you like to remove it from the server?"
-removeServerSuccess = "Removed from server."
-removeSharedPrompt = "This file is shared with you. You can remove it from this device or your shared list."
-removeSharedServerOnlyBlockedPrompt = "This file is shared with you and stored only on the server."
-removeSharedServerOnlyPrompt = "This file is shared with you and stored only on the server. Remove it from your list?"
 restore = "Restore"
-saveSelected = "Save Files"
 searchFiles = "Search files..."
 selectAll = "Check All"
 selectedCount = "{{count}} checked"
-share = "Share"
-shared = "Shared"
-sharedByYou = "Shared by you"
-sharedEditNoticeBody = "You do not have edit rights to the server version of this file. Any edits you make will be saved as a local copy."
-sharedEditNoticeConfirm = "Got it"
-sharedEditNoticeTitle = "Read-only server copy"
-sharedWithYou = "Shared with you"
-shareSelected = "Share Files"
-sharing = "Sharing"
 showAll = "Show All"
 showHistory = "Show History"
 sortByDate = "Sort by Date"
@@ -2215,14 +2025,10 @@ sortByName = "Sort by Name"
 sortBySize = "Sort by Size"
 storage = "Storage"
 storageState = "Storage"
-synced = "Synced"
 title = "Upload PDF Files"
 toolChain = "Tools Applied"
 unsupported = "Unsupported"
 unzip = "Unzip"
-updateOnServer = "Update on Server"
-uploadSelected = "Upload Files"
-uploadToServer = "Upload to Server"
 versionHistory = "Version history"
 
 [files]
@@ -2259,7 +2065,6 @@ workbench = "Workbench"
 addFiles = "Add files"
 addingFiles = "Adding files…"
 collapse = "Collapse sidebar"
-customizeGroups = "Customize groups"
 dropHint = "Open files to get started"
 dropToAdd = "Drop files to add"
 expand = "Expand sidebar"
@@ -2272,27 +2077,15 @@ noFiles = "No files yet"
 openFileManager = "Browse all files & folders"
 openFromComputer = "Open from computer"
 openSettings = "Open settings"
-other = "Other"
-recent = "Recent"
 search = "Search"
 searchPlaceholder = "Search files..."
-viewAll = "View all {{count}} files"
 
 [fileSidebar.fileItem]
 closeViewer = "Close viewer"
 delete = "Delete"
 moreActions = "More actions"
 openInViewer = "Open in viewer"
-savedToServer = "Saved to server"
-updateOnServer = "Update on server"
-uploadToServer = "Upload to server"
 versionHistory = "Version history"
-
-[fileSidebar.groupsModal]
-done = "Done"
-reset = "Show all"
-subtitle = "Show or hide categories in the files sidebar."
-title = "Sidebar categories"
 
 [filesPage]
 addToWorkspace = "Add to workspace"
@@ -2303,16 +2096,12 @@ backToFolder = "Back to {{folder}}"
 backToMyFiles = "Back to My Files"
 breadcrumbs = "Folder path"
 cancel = "Cancel"
-classification = "Classification"
 clearSearch = "Clear search"
 clearSelection = "Clear selection"
 closeDetails = "Close details"
 create = "Create"
 cycleBlocked = "Can't move a folder into one of its own subfolders."
 delete = "Delete"
-deleteFilesChoiceBody = "Some of these files are saved both on this device and in the cloud. Where should they be deleted from?"
-deleteFilesCloudBody_one = "Delete 1 file from the cloud? This cannot be undone."
-deleteFilesCloudBody_other = "Delete {{count}} files from the cloud? This cannot be undone."
 deleteFilesError = "Could not delete. Try again."
 deleteFilesLocalBody_one = "Delete 1 file from this device? This cannot be undone."
 deleteFilesLocalBody_other = "Delete {{count}} files from this device? This cannot be undone."
@@ -2335,7 +2124,7 @@ download = "Download"
 downloadAll = "Download all"
 downloadVersion = "Download this version"
 dropOverlay = "Drop files to upload"
-dropOverlaySub = "Files start in Local. Use 'Move to' or 'Save to cloud' to organize them into a folder."
+dropOverlaySub = "Use Move to organise files into a folder."
 file = "File"
 fileInfo = "File info"
 fileMenu = "File actions"
@@ -2347,42 +2136,30 @@ inPath = "in {{path}}"
 inWorkspace = "Open"
 inWorkspaceAria = "Already in workspace"
 loading = "Loading…"
-localFoldersUnavailable = "Folders are cloud-only - save a file to the cloud to organize it."
-moveSkippedRemote_one = "{{count}} file couldn't be moved on the server (no permission or already deleted)."
-moveSkippedRemote_other = "{{count}} files couldn't be moved on the server (no permission or already deleted)."
 moveTo = "Move to…"
 myFiles = "My Files"
 newFolder = "New folder"
-newFolderStorageDisabled = "Server folder storage isn't enabled. Ask your admin to turn it on."
-newFolderTabUnavailable = "Switch to All or Cloud to create folders."
-offlineNoFolderEdits = "Server folder sync unavailable - folder changes are disabled. Check sign-in and storage configuration."
+newFolderTabUnavailable = "Switch to All to create folders."
 open = "Open"
 openVersionInWorkspace = "Open in workspace"
-originFilter = "Filter by source"
-refresh = "Refresh from server"
 remove = "Delete"
 removeVersion = "Remove this version"
 rename = "Rename"
 renameFolder = "Rename folder"
+refresh = "Refresh files"
 resizeFolderTree = "Resize folder tree (arrow keys, Shift for bigger steps; double-click to auto-fit)"
 save = "Save"
-saveToServer = "Save to server"
-saveToServerDisabledHint = "Saving to the server isn't enabled on this server. Ask your admin to enable it."
 search = "Search"
 searchPlaceholder = "Search this folder & subfolders"
 selectAll = "Select all"
 selectAllHint = "Click to select all. Tip: hold Ctrl (or Cmd) to add files one at a time, Shift to select a range."
 selectedCount = "{{count}} selected"
 selectFile = "Select file {{name}}"
-shareDisabledHint = "File sharing isn't enabled on this server. Ask your admin to enable it."
-shareManage = "Manage sharing"
 showDetails = "Show details"
-signInRequired = "Sign in to use cloud storage."
 summary_one = "{{count}} item"
 summary_other = "{{count}} items"
 tree = "Folders"
 upload = "Upload"
-uploadedToLocal = "Uploaded files start in Local. Use 'Save to cloud' to put them in a folder."
 uploadFromMobile = "Upload from Mobile"
 versionActions = "Version actions"
 versionCollapse = "Collapse middle versions"
@@ -2405,47 +2182,19 @@ name = "Name"
 size = "Size"
 type = "Type"
 
-[filesPage.deleteScope]
-cloud = "Cloud only"
-cloudHint = "Deletes from the server. A copy stays on this device."
-device = "This device only"
-deviceHint = "Removes the local copy. The cloud copy is kept."
-everywhere = "Everywhere"
-everywhereHint = "Deletes the file from this device and the cloud."
-
 [filesPage.empty]
 hint = "Drop PDFs anywhere on this page to upload, or use the New folder button to organize your files."
 newFolderCta = "Create folder"
 title = "This folder is empty"
 uploadCta = "Upload files"
 
-[filesPage.empty.cloud]
-hint = "Upload a file to start, or create a folder to organize."
-offlineHint = "Reconnect to load your cloud library."
-offlineTitle = "No cached cloud files"
-title = "No cloud files yet"
-
-[filesPage.empty.local]
-hint = "Files saved without uploading stay here. Drop a file to add one."
-title = "No local-only files"
-
 [filesPage.empty.recent]
 hint = "Files you open or edit will appear here."
 title = "Nothing modified yet"
 
-[filesPage.empty.shared]
-hint = "When someone shares a file via link, it appears here."
-title = "Nothing shared with you"
-
-[filesPage.empty.sharedByMe]
-hint = "Create a share link or invite a teammate from any of your files to see it here."
-title = "You haven't shared any files yet"
-
 [filesPage.error]
 actionFailed = "Could not {{action}}."
 actionFailedDetail = "Could not {{action}}: {{message}}"
-cloudDeleteFailed_one = "Couldn't delete 1 file from the cloud."
-cloudDeleteFailed_other = "Couldn't delete {{count}} files from the cloud."
 deleteFolderFailed = "Could not delete folder."
 deleteFolderFailedDetail = "Could not delete folder: {{message}}"
 folderAppearanceFailed = "Could not update folder appearance."
@@ -2463,7 +2212,6 @@ uploadFilesFailedDetail = "Could not upload files: {{message}}"
 added = "Added"
 count = "Files"
 folder = "Folder"
-labels = "Labels"
 modified = "Modified"
 name = "Name"
 size = "Size"
@@ -2491,15 +2239,6 @@ newFolderPlaceholder = "Folder name"
 newFolderToggle = "Create new folder…"
 title = "Move to folder"
 
-[filesPage.origin]
-all = "All sources"
-cloud = "Cloud"
-cloudHint = "Stored on the RustlingPDF server"
-local = "Local"
-localHint = "Only stored in this browser"
-shared = "Shared"
-sharedHint = "Shared with you via link"
-
 [filesPage.sort]
 modifiedAsc = "Oldest first"
 modifiedDesc = "Recent first"
@@ -2508,23 +2247,13 @@ nameDesc = "Name Z→A"
 sizeAsc = "Smallest first"
 sizeDesc = "Largest first"
 
-[filesPage.syncError]
-client = "Folder sync failed."
-network = "Could not reach the server."
-server = "Server error during folder sync."
-
 [filesPage.tabName]
-local = "Local"
 recent = "Recent"
-shared = "Shared with me"
-sharedByMe = "Shared by me"
 
 [filesPage.tabs]
 all = "All"
 ariaLabel = "File views"
 recent = "Recent"
-shared = "Shared with me"
-sharedByMe = "Shared by me"
 
 [filesPage.treeMenu]
 actions = "Folder actions for {{name}}"
@@ -2547,38 +2276,13 @@ title = "File to PDF"
 
 [fileUpload]
 dropFilesHere = "Drop files here or click the upload button"
-dropFilesHereOpen = "Drop files here or click the open button"
 filesAvailable = "files available"
 loadFromStorage = "Load from Storage"
 noFilesInStorage = "No files available in storage. Upload some files first."
-noFilesInStorageOpen = "No files available in storage. Open some files first."
-open = "Open"
-openFile = "Open File"
-openFiles = "Open Files"
 selectFromStorage = "Select from Storage"
 upload = "Upload"
 uploadFile = "Upload File"
 uploadFiles = "Upload Files"
-
-[firstLogin]
-allFieldsRequired = "All fields are required"
-changePassword = "Change Password"
-confirmPassword = "Confirm New Password"
-currentPassword = "Current Password"
-enterCurrentPassword = "Enter your current password"
-enterNewPassword = "Enter new password (min 8 characters)"
-error = "Error"
-loggedInAs = "Logged in as"
-newPassword = "New Password"
-passwordChangedSuccess = "Password changed successfully! Please log in again."
-passwordChangeFailed = "Failed to change password. Please check your current password."
-passwordMustBeDifferent = "New password must be different from current password"
-passwordsDoNotMatch = "New passwords do not match"
-passwordTooShort = "Password must be at least 8 characters"
-reEnterNewPassword = "Re-enter new password"
-title = "First Time Login"
-welcomeMessage = "For security reasons, you must change your password on your first login."
-welcomeTitle = "Welcome!"
 
 [flatten]
 submit = "Flatten"
@@ -2623,7 +2327,6 @@ title = "What does 'Flatten only forms' mean?"
 title = "About Flattening PDFs"
 
 [footer]
-discord = "Discord"
 issues = "GitHub"
 
 [formFill]
@@ -2741,33 +2444,6 @@ images = "Images"
 javaScript = "JavaScript"
 layers = "Layers"
 multimedia = "Multimedia"
-
-[groupSigning.tooltip]
-header = "About Group Signing"
-
-[groupSigning.tooltip.finalization]
-bullet1 = "All signatures are applied in the participant order you specified"
-bullet2 = "You can finalize with partial signatures if needed"
-bullet3 = "Once finalized, the session cannot be modified"
-description = "Once all participants have signed (or you choose to finalize early), you can generate the final signed PDF."
-title = "Finalization Process"
-
-[groupSigning.tooltip.roles]
-bullet1 = "Owner (you): Creates session, configures signature defaults, finalizes document"
-bullet2 = "Participants: Create their signature, choose certificate, place on PDF"
-bullet3 = "Participants cannot modify signature visibility, reason, or location settings"
-description = "You control the signature appearance settings for all participants."
-title = "Participant Roles"
-
-[groupSigning.tooltip.sequential]
-bullet1 = "First participant must sign before the second can access the document"
-bullet2 = "Ensures proper signing order for legal compliance"
-bullet3 = "You can reorder participants by dragging them in the list"
-description = "Participants sign documents in the order you specify. Each signer receives a notification when it is their turn."
-title = "Sequential Signing"
-
-[guestBanner]
-title = "You're using RustlingPDF as a guest!"
 
 [home.addAttachments]
 desc = "Add or remove embedded files (attachments) to/from a PDF"
@@ -2890,11 +2566,6 @@ desc = "Link to automated folder scanning guide"
 tags = "automation,folder,scanning,watch folder,hot folder,automatic processing,batch,monitor folder,auto process,folder monitoring"
 title = "Automated Folder Scanning"
 
-[home.devSsoGuide]
-desc = "Link to SSO guide"
-tags = "SSO,single sign-on,authentication,SAML,OAuth,OIDC,login,enterprise,identity provider,IdP"
-title = "SSO Guide"
-
 [home.editTableOfContents]
 desc = "Add or edit bookmarks and table of contents in PDF documents"
 tags = "bookmarks,contents,edit,table of contents,TOC,outline,navigation,chapters,sections,add bookmarks,edit bookmarks,PDF outline"
@@ -2964,7 +2635,6 @@ tags = "layout,arrange,combine,N-up,2-up,4-up,multiple per page,pages per sheet,
 title = "Multi-Page Layout"
 
 [home.pdfCommentAgent]
-desc = "Ask AI to annotate a PDF with sticky-note comments based on your prompt"
 tags = "AI,agent,comment,annotate,sticky note,review,feedback,notes"
 title = "Add AI comments"
 
@@ -3062,9 +2732,6 @@ desc = "Detect and split scanned photos into separate pages"
 tags = "detect,split,photos,auto detect,detect photos,split photos,separate photos,split scanned images,multiple photos,auto split,photo detection,image detection,scan separation"
 title = "Detect & Split Scanned Photos"
 
-[home.sharedSign]
-title = "Shared Signing"
-
 [home.showJS]
 desc = "Searches and displays any JS injected into a PDF"
 tags = "javascript,code,script,show javascript,show JS,find javascript,detect javascript,view javascript,embedded scripts,malware,security,inspect,debug"
@@ -3138,7 +2805,6 @@ dismiss = "Dismiss"
 [landing]
 addFiles = "Add Files"
 mobileUpload = "Upload from Mobile"
-openFromComputer = "Open from computer"
 uploadFromComputer = "Upload from computer"
 workbenchEmptyStateHero = "Drop a PDF anywhere"
 
@@ -3155,9 +2821,6 @@ terms = "Terms and Conditions"
 
 [licenses]
 title = "3rd Party Licenses"
-
-[login]
-title = "Sign in"
 
 [margin]
 large = "Large"
@@ -3280,9 +2943,6 @@ title = "PDF Multi Tool"
 [navbar]
 search = "Search"
 
-[oauthConsent]
-title = "Authorize access"
-
 [ocr]
 desc = "Cleanup scans and detects text from images within a PDF and re-adds it as text."
 tags = "recognition,text,image,scan,read,identify,detection,editable"
@@ -3392,61 +3052,15 @@ wrapUp = "You're all set! You can replay this tour anytime - just open <strong>S
 [onboarding.buttons]
 back = "Back"
 download = "Download →"
-getStarted = "Get started"
 next = "Next →"
 showMeAround = "Show me around"
 skipForNow = "Skip for now"
-skipTheTour = "Skip the tour"
 
 [onboarding.desktopInstall]
 body = "RustlingPDF works best as a desktop app. You can use it offline, access documents faster, and make edits locally on your computer."
 selectOs = "Select operating system"
 title = "Download"
 titleWithOs = "Download for {{osLabel}}"
-
-[onboarding.mfa]
-authenticationCode = "Authentication code"
-description = "Secure your account by linking an authenticator app. Scan the QR code or enter the setup key, then confirm the 6-digit code to finish."
-enable = "Enable MFA"
-enableError = "Unable to enable two-factor authentication. Check the code and try again."
-enterCode = "Enter the 6-digit code from your app."
-enterCodeError = "Enter the authentication code to continue."
-logout = "Logout"
-openAuthenticator = "Open Google Authenticator, Authy, or 1Password."
-qrCodeLoading = "Generating your QR code…"
-regenerateQrCode = "Regenerate QR code"
-scanQrCode = "Scan the QR code or enter the setup key below."
-setupError = "Unable to start two-factor setup. Please try again."
-setupKey = "Setup key (manual entry)"
-stepByStep = "Step-by-step"
-success = "MFA has been enabled. You can now continue."
-title = "Multi-Factor Authentication Setup"
-
-[onboarding.planOverview]
-adminBodyLoginDisabled = "Once you enable login mode, you can manage users, configure settings, and monitor server health. The first <strong>{{freeTierLimit}}</strong> people on your server get to use RustlingPDF free of charge."
-adminBodyLoginEnabled = "As an admin, you can manage users, configure settings, and monitor server health. The first <strong>{{freeTierLimit}}</strong> people on your server get to use RustlingPDF free of charge."
-adminTitle = "Admin Overview"
-userBody = "Invite teammates, assign roles, and keep your documents organized in one secure workspace. Enable login mode whenever you're ready to grow beyond solo use."
-userTitle = "Plan Overview"
-
-[onboarding.processorIntro]
-body = "RustlingPDF now runs <strong>Policies</strong> — automated rules that classify, secure, and process every document as it arrives. Set them up and monitor runs in the <strong>Processor</strong>."
-cta = "Check out the Processor"
-title = "Check out the RustlingPDF Processor"
-
-[onboarding.securityCheck]
-message = "The application has undergone significant changes recently. Your server admin's attention may be required. Please confirm your role to continue."
-roleAdmin = "Admin"
-rolePlaceholder = "Confirm your role"
-roleUser = "User"
-
-[onboarding.serverLicense]
-freeBody = "Our <strong>Open-Core</strong> licensing permits up to <strong>{{freeTierLimit}}</strong> users for free per server. To scale uninterrupted, we recommend the RustlingPDF Server plan - <strong>unlimited seats</strong> and <strong>SSO support</strong> for $99/server/mo."
-freeTitle = "Server License"
-overLimitBody = "Our licensing permits up to <strong>{{freeTierLimit}}</strong> users for free per server. You have <strong>{{overLimitUserCopy}}</strong> RustlingPDF users. To continue uninterrupted, upgrade to the RustlingPDF Server plan - <strong>unlimited seats</strong>, PDF text editing, and full admin control for $99/server/mo."
-overLimitTitle = "Server License Needed"
-seePlans = "See Plans →"
-upgrade = "Upgrade now →"
 
 [onboarding.tourOverview]
 body = "RustlingPDF V2 ships with dozens of tools and a refreshed layout. Take a quick tour to see what changed and where to find the features you need."
@@ -3704,24 +3318,6 @@ title = "Page Ranges"
 bullet1 = "<strong>all</strong> → selects all pages"
 title = "Special Keywords"
 
-[pdfCommentAgent]
-submit = "Generate comments"
-
-[pdfCommentAgent.error]
-emptyPrompt = "Please describe what the AI should comment on"
-failed = "Failed to generate comments"
-tooLong = "Prompt is too long (maximum {{max}} characters)"
-
-[pdfCommentAgent.prompt]
-label = "What should the AI comment on?"
-placeholder = "e.g. Flag any ambiguous dates and suggest clarifications"
-
-[pdfCommentAgent.results]
-title = "Commented PDF"
-
-[pdfCommentAgent.settings]
-title = "Comment instructions"
-
 [pdfOrganiser]
 placeholder = "(e.g. 1,3,2 or 4-8,2,10-12 or 2n-1)"
 tags = "duplex,even,odd,sort,move"
@@ -3963,62 +3559,6 @@ title = "Change Permissions"
 [pipeline]
 tags = "automate,sequence,scripted,batch-process"
 title = "Pipeline"
-
-[plan.features]
-allPdfOperations = "All PDF operations"
-auditing = "Auditing"
-communitySupport = "Community support"
-customPdfMetadata = "Custom PDF metadata"
-editingTextInPdfs = "Editing text in pdfs"
-externalDatabase = "External Database"
-googleDriveIntegration = "Google drive integration"
-prometheusSupport = "Prometheus Support"
-regularUpdates = "Regular updates"
-saml = "SAML"
-secureLoginSupport = "Secure Login Support"
-selfHostedDeployment = "Self-hosted deployment"
-sso = "SSO"
-unlimitedUsers = "Unlimited users"
-upToFiveUsers = "Up to 5 users"
-upToFiveUsersLowercase = "up to 5 users"
-usageTracking = "Usage tracking"
-usersLimitedToSeats = "Users limited to seats"
-
-[plan.highlights]
-advancedIntegrations = "Advanced integrations"
-allBasicFeatures = "All basic features"
-cancelAnytime = "Cancel anytime"
-customPdfMetadata = "Custom PDF metadata"
-editingTextInPdfsCaps = "Editing text in PDFs"
-enterpriseFeatures = "Enterprise features (SAML, Auditing)"
-perSeatLicensing = "Per-seat licensing"
-saveWithAnnualBilling = "Save with annual billing"
-selfHosted = "Self-hosted"
-selfHostedOnInfrastructure = "Self-hosted on your infrastructure"
-ssoOAuth = "SSO (OAuth2/OIDC)"
-unlimitedUsers = "Unlimited users"
-upToFiveUsers = "Up to 5 users"
-usageTrackingPrometheus = "Usage tracking & Prometheus"
-
-[policies.enforcement]
-exportFailureBody = "Security policies couldn't be applied. Files were exported as-is."
-exportFailureTitle = "Exported without enforcement"
-printPolicyAppliedBody = "This PDF was updated to meet a policy. Review the changes, then print again."
-printPolicyAppliedTitle = "Policy applied before printing"
-
-[policies.labels]
-hideCategory = "Hide category"
-showCategory = "Show category"
-
-[policy]
-badgeEnforcing = "{{name}} enforcing..."
-badgeRan = "{{name}} policy ran on this file"
-blockingAction = "{{action}} blocked while enforcing policy, please wait..."
-
-[portal.shell.sidebar]
-appEditor = "Editor"
-appProcessor = "Processor"
-switchApp = "Switch app"
 
 [printFile]
 title = "Print File"
@@ -4503,75 +4043,8 @@ placeholder = "Enter search term..."
 searching = "Searching..."
 title = "Search PDF"
 
-[sessionManagement.tooltip]
-header = "Managing Signing Sessions"
-
-[sessionManagement.tooltip.addParticipants]
-bullet1 = "New participants added to the end of signing order"
-bullet2 = "Cannot add participants after session is finalized"
-bullet3 = "Each participant receives a notification when it's their turn"
-description = "You can add more participants to an active session at any time before finalization."
-title = "Adding Participants"
-
-[sessionManagement.tooltip.finalization]
-bullet1 = "<b>Full finalization</b>: All participants have signed"
-bullet2 = "<b>Partial finalization</b>: Some participants haven't signed yet"
-bullet3 = "Unsigned participants will be excluded from the final document"
-bullet4 = "Once finalized, you can load the signed PDF into active files"
-description = "Finalization combines all signatures into a single signed PDF. This action cannot be undone."
-title = "Session Finalization"
-
-[sessionManagement.tooltip.participantRemoval]
-bullet1 = "Cannot remove participants who have already signed"
-bullet2 = "Removed participants no longer receive notifications"
-bullet3 = "Signing order adjusts automatically"
-description = "Participants can be removed from sessions before they sign."
-title = "Removing Participants"
-
-[sessionManagement.tooltip.signatureOrder]
-bullet1 = "Each signature is applied sequentially to the PDF"
-bullet2 = "Later signers can see earlier signatures"
-bullet3 = "Critical for approval workflows and legal chains of custody"
-description = "The order you specify when creating the session determines who signs first."
-title = "Signature Order"
-
 [settings]
 close = "Close"
-
-[settings.ai]
-documents = "Documents & RAG"
-general = "General"
-limits = "Limits & Performance"
-models = "Models & Providers"
-title = "AI"
-
-[settings.configuration]
-advanced = "Advanced"
-database = "Database"
-endpoints = "Endpoints"
-features = "Features"
-folderAccess = "Folder Access"
-mcp = "MCP Server"
-storageSharing = "File Storage & Sharing"
-systemSettings = "System Settings"
-title = "Configuration"
-
-[settings.connection]
-localDescription = "You are using the local backend without an account. Some tools requiring cloud processing or a self-hosted server are unavailable."
-logout = "Log Out"
-server = "Server"
-signIn = "Sign In"
-title = "Connection Mode"
-user = "Logged in as"
-
-[settings.connection.mode]
-local = "Local Only"
-saas = "RustlingPDF Cloud"
-selfhosted = "Self-Hosted"
-
-[settings.developer]
-apiKeys = "API Keys"
-title = "Developer"
 
 [settings.general]
 autoUnzip = "Auto-unzip API responses"
@@ -4580,11 +4053,6 @@ autoUnzipFileLimit = "Auto-unzip file limit"
 autoUnzipFileLimitDescription = "Maximum number of files to extract from ZIP"
 autoUnzipFileLimitTooltip = "Only unzip if the ZIP contains this many files or fewer. Set higher to extract larger ZIPs."
 autoUnzipTooltip = "Automatically extract ZIP files returned from API operations. Disable to keep ZIP files intact. This does not affect automation workflows."
-defaultPdfEditor = "Default PDF editor"
-defaultPdfEditorActive = "RustlingPDF is your default PDF editor"
-defaultPdfEditorChecking = "Checking..."
-defaultPdfEditorInactive = "Another application is set as default"
-defaultPdfEditorSet = "Already Default"
 defaultStartupView = "Default view on launch"
 defaultStartupViewDescription = "Choose which view is active when the app starts"
 defaultToolPickerMode = "Default tool picker mode"
@@ -4598,24 +4066,12 @@ hideUnavailableTools = "Hide unavailable tools"
 hideUnavailableToolsDescription = "Remove tools that have been disabled by your server instead of showing them grayed out."
 language = "Language"
 languageDescription = "Choose the display language"
-logout = "Log out"
-setAsDefault = "Set as Default"
 theme = "Theme"
-themeAccent = "Accent colour"
-themeAccentCustom = "Custom colour"
-themeAccentCustomHint = "Custom (defaults recommended)"
-themeAccentDark = "Dark mode accent colour"
-themeAccentDefault = "Default"
-themeAccentDefaultHint = "Default theme (recommended)"
-themeAccentDescription = "Buttons, links and highlights follow it, and it subtly tints the app. Light and dark each have their own. System uses whichever is active."
-themeAccentLight = "Light mode accent colour"
 themeDark = "Dark"
 themeDescription = "Choose light, dark, or follow your system so it switches automatically."
 themeLight = "Light"
-themeReset = "Restore theme to default"
 themeSystem = "System"
 title = "General"
-user = "User"
 
 [settings.general.mode]
 fullscreen = "Fullscreen"
@@ -4636,22 +4092,12 @@ managedByAdmin = "Managed by administrator"
 modeAuto = "Install updates automatically"
 modeDisabled = "Don't check for updates"
 modePrompt = "Ask me before installing updates"
-serverNeedsUpdate = "Server needs to be updated by administrator"
 title = "Software Updates"
 updateBehavior = "Update behavior"
 updateBehaviorDescription = "Choose whether to prompt before installing updates, install them automatically, or skip update checks entirely."
-updateBehaviorError = "Could not change update behavior"
-updateBehaviorErrorLocked = "This setting is locked by your administrator."
 updateBehaviorLockedDescription = "Your administrator has configured how RustlingPDF handles updates on this machine. Contact them to change this."
-updateBehaviorSaved = "Update behavior saved."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
 viewDetails = "View Details"
-
-[settings.general.versionInfo]
-description = "Desktop and server version details"
-desktop = "Desktop Version"
-server = "Server Version"
-title = "Version Information"
 
 [settings.general.zoomLevel]
 auto = "Auto"
@@ -4661,11 +4107,6 @@ fitWidth = "Fit width"
 [settings.help]
 label = "Tours"
 title = "Help"
-
-[settings.help.adminTour]
-description = "Explore team management, system settings, and enterprise features."
-start = "Start"
-title = "Admin Tour"
 
 [settings.help.toolsTour]
 description = "Walk through uploading files, picking a tool, and reviewing results."
@@ -4717,129 +4158,11 @@ loadError = "Failed to load third-party licenses"
 module = "Module"
 version = "Version"
 
-[settings.licensingAnalytics]
-audit = "Audit"
-plan = "Plan"
-title = "Licensing & Analytics"
-usageAnalytics = "Usage Analytics"
-
-[settings.planBilling]
-currentPlan = "Current Plan"
-loading = "Loading billing information..."
-notAvailable = "Plan & Billing is only available when connected to RustlingPDF Cloud (SaaS mode)."
-title = "Plan & Billing"
-
-[settings.planBilling.billing]
-manageBilling = "Manage Billing"
-nextBillingDate = "Next billing date"
-overageCost = "Current overage cost: {{amount}} ({{credits}} credits)"
-
-[settings.planBilling.credits]
-estimatedCost = "Estimated cost: {{amount}}"
-freeTierInfo = "Free plan includes {{freeCredits}} credits per month. Upgrade to Team for {{teamCredits}} credits/month and pay-as-you-go overage billing."
-included = "{{count}} credits/month (included)"
-noOverage = "No overage charges this month. You're using your included {{count}} credits."
-overage = "+ {{count}} overage"
-overageInfo = "Overage credits are billed at {{price}} per credit. You'll only pay for what you use beyond your monthly allowance."
-title = "Credit Usage"
-
-[settings.planBilling.errors]
-fetchFailed = "Unable to fetch billing data"
-retry = "Retry"
-
-[settings.planBilling.status]
-active = "Active"
-canceled = "Canceled"
-pastDue = "Past Due"
-trial = "Trial"
-
-[settings.planBilling.team]
-managedByTeam = "Managed by team"
-memberCount_one = "{{count}} team member"
-memberCount_other = "{{count}} team members"
-memberCount_zero = "no team members"
-
-[settings.planBilling.tier]
-enterprise = "Enterprise"
-enterpriseDescription = "Custom enterprise features and support"
-free = "Free"
-freeDescription = "50 credits per month"
-team = "Team"
-teamBadge = "Team"
-teamDescription = "500 credits/month included, automatic overage billing for uninterrupted service"
-teamTooltipCredits = "Team plan includes {{credits}} credits/month."
-teamTooltipFineprint = "Only pay for what you use beyond included credits."
-teamTooltipOverage = "Automatic overage billing at {{price}}/credit ensures uninterrupted service."
-
-[settings.planBilling.trial]
-daysRemaining = "{{days}} days remaining"
-daysRemainingFull = "Your trial ends in {{days}} days"
-endDate = "Expires: {{date}}"
-endsOn = "Trial ends"
-title = "Free Trial Active"
-
-[settings.planBilling.upgrade]
-cta = "Upgrade to Team"
-featureApi = "API access for automation"
-featureCredits = "{{teamCredits}} credits per month (vs {{freeCredits}} on Free)"
-featureMembers = "Unlimited team members"
-featureSupport = "Priority support"
-featureThroughput = "Faster processing throughput"
-opensInBrowser = "Opens in browser to complete upgrade"
-subtitle = "Upgrade to Team for:"
-title = "Upgrade Your Plan"
-
-[settings.policiesPrivacy]
-legal = "Legal"
-privacy = "Privacy"
-title = "Policies & Privacy"
-
 [settings.preferences]
 title = "Preferences"
 
 [settings.search]
 placeholder = "Search settings pages..."
-
-[settings.security]
-description = "Update your password to keep your account secure."
-title = "Security"
-
-[settings.security.password]
-confirm = "Confirm new password"
-confirmPlaceholder = "Re-enter your new password"
-current = "Current password"
-currentPlaceholder = "Enter your current password"
-error = "Unable to update password. Please verify your current password and try again."
-mismatch = "New passwords do not match."
-new = "New password"
-newPlaceholder = "Enter a new password"
-required = "All fields are required."
-ssoDisabled = "Password changes are managed by your identity provider."
-subtitle = "Change your password. You will be logged out after updating."
-success = "Password updated successfully. Please sign in again."
-update = "Update password"
-
-[settings.securityAuth]
-connections = "Connections"
-security = "Security"
-telegram = "Telegram"
-title = "Security & Authentication"
-
-[settings.signOut]
-confirm = "Are you sure you want to sign out?"
-submit = "Sign out"
-title = "Sign out"
-
-[settings.team]
-title = "Team"
-
-[settings.tooltips]
-requiresEnterprise = "Requires Enterprise license"
-
-[settings.workspace]
-people = "People"
-teams = "Teams"
-title = "Workspace"
 
 [showJS]
 done = "JavaScript extracted"
@@ -4870,10 +4193,6 @@ personalSigs = "Personal Signatures"
 previous = "Previous page"
 redo = "Redo"
 save = "Save Signature"
-sharedSigningOpen = "Open shared signing"
-sharedSigningRequest = "Request signatures"
-sharedSigningStepDesc = "Send this document to others to sign instead of signing it yourself."
-sharedSigs = "Shared Signatures"
 submit = "Sign Document"
 tags = "signature,autograph,e-sign,electronic signature,digital signature,sign document,approval,signoff,authorize,endorse,ink signature,handwriting"
 title = "Sign"
@@ -5017,9 +4336,6 @@ bullet2 = "<b>Invisible</b>: Certificate embedded without visual mark"
 bullet3 = "Invisible signatures still provide cryptographic validation"
 description = "Controls whether the signature is visible on the document or embedded invisibly."
 title = "Signature Visibility"
-
-[signup]
-title = "Create an account"
 
 [sizes]
 large = "Large"
@@ -5221,91 +4537,6 @@ title = "Split PDF by Chapters"
 [splitPdfByChapters]
 tags = "split,chapters,bookmarks,organize"
 
-[storageShare]
-accessed = "Accessed"
-accessFailed = "Unable to load activity."
-addUser = "Add"
-bulkDescription = "Create one link to share all checked files with signed-in users."
-bulkTitle = "Share checked files"
-commenterHint = "Commenting is coming soon."
-copied = "Link copied to clipboard"
-copy = "Copy"
-copyFailed = "Copy failed"
-copyLink = "Copy share link"
-description = "Create a share link for this file. Signed-in users with the link can access it."
-download = "Download"
-downloaded = "Downloaded"
-downloadsCount = "Downloads: {{count}}"
-emailWarningBody = "This looks like an email address. If this person is not already a RustlingPDF user, they will not be able to access the file."
-emailWarningConfirm = "Share anyway"
-emailWarningTitle = "Email address"
-errorTitle = "Share failed"
-failure = "Unable to generate a share link. Please try again."
-fileCount_one = "{{count}} file"
-fileCount_other = "{{count}} files"
-fileLabel = "File"
-generate = "Generate Link"
-generated = "Share link generated"
-hideActivity = "Hide activity"
-invalidUsername = "Enter a valid username or email address."
-lastAccessed = "Last accessed"
-linkAccessTitle = "Share link access"
-linkLabel = "Share link"
-linksDisabled = "Share links are disabled."
-linksDisabledBody = "Share links are disabled by your server settings."
-manage = "Manage sharing"
-manageDescription = "Create and manage links to share this file."
-manageLoadFailed = "Unable to load share links."
-manageTitle = "Manage Sharing"
-noActivity = "No activity yet."
-noLinks = "No active share links yet."
-noSharedUsers = "No users have access yet."
-removeLink = "Remove link"
-removeUser = "Remove"
-revoked = "Share link removed"
-revokeFailed = "Unable to remove the share link."
-roleCommenter = "Commenter"
-roleEditor = "Editor"
-roleLabel = "Role"
-roleViewer = "Viewer"
-saveAndShare = "Save to server & share"
-saveFailed = "Failed to save the file to the server. Please try again."
-saveFailedTitle = "Couldn't save to server"
-saveFirstBody = "Sharing works on files saved to the server. We'll save it to your files, then continue to sharing."
-saveFirstHeading = "Save this file to the server to share it"
-saveFirstTitle = "Share file"
-sharedUsersTitle = "Shared users"
-sharingDisabled = "Sharing is disabled."
-sharingDisabledBody = "Sharing has been disabled by your server settings."
-title = "Share File"
-unknownUser = "Unknown user"
-userAdded = "User added to shared list."
-userAddFailed = "Unable to share with that user."
-usernameLabel = "Username or email"
-usernamePlaceholder = "Enter a username or email"
-userRemoved = "User removed from shared list."
-userRemoveFailed = "Unable to remove that user."
-viewActivity = "View activity"
-viewed = "Viewed"
-viewsCount = "Views: {{count}}"
-
-[storageUpload]
-bulkDescription = "This uploads the checked files to your server storage."
-bulkTitle = "Upload checked files"
-description = "This uploads the current file to server storage for your own access."
-errorTitle = "Upload failed"
-failure = "Upload failed. Please check your login and storage settings."
-featureDisabled = "Saving to the server isn't enabled on this server."
-fileCount_one = "{{count}} file"
-fileCount_other = "{{count}} files"
-fileLabel = "File"
-hint = "Public links and access modes are controlled by your server settings."
-more = " +{{count}} more"
-success = "Uploaded to server"
-title = "Upload to Server"
-updateButton = "Update on Server"
-uploadButton = "Upload to Server"
-
 [survey]
 title = "RustlingPDF Survey"
 
@@ -5378,7 +4609,6 @@ collapse = "Collapse panel"
 expand = "Expand panel"
 goBack = "Go back"
 placeholder = "Choose a tool to get started"
-premiumFeature = "Premium feature:"
 toolsHeader = "Tools"
 viewAllTools = "View all tools"
 
@@ -5389,7 +4619,6 @@ favorites = "Favorites"
 heading = "All tools (fullscreen view)"
 noResults = "Try adjusting your search or toggle descriptions to find what you need."
 recommended = "Recommended"
-selfHostedOffline = "Requires your RustlingPDF server (currently offline):"
 showDetails = "Show Details"
 unavailable = "Disabled by server administrator:"
 unavailableDependency = "Unavailable - required tool missing on server:"
@@ -5486,15 +4715,9 @@ minor = "Minor"
 normal = "Normal"
 urgent = "Urgent"
 
-[upgradeBanner]
-title = "Upgrade to Server Plan"
-
 [URLToPDF]
 tags = "web-capture,save-page,web-to-doc,archive"
 title = "URL To PDF"
-
-[users]
-title = "Users"
 
 [validateSignature]
 date = "Date"
@@ -5727,167 +4950,7 @@ title = "View/Edit PDF"
 tooltipTitle = "Warning"
 
 [watchedFolders]
-alreadyInFolder = "Already in this folder"
-defaultFolderWarning = "This is a default folder and will be recreated on next reload."
-deleteConfirmBody = "This will remove the folder and its run history. Files already downloaded are not affected."
-deleteConfirmTitle = "Delete folder?"
-folderNotFound = "Folder not found"
-newFolder = "New folder"
-noFolders = "No watched folders yet"
-sidebarTitle = "Watched Folders"
 title = "Watched Folders"
-
-[watchedFolders.actions]
-back = "Back"
-collapse = "Collapse"
-dismiss = "Dismiss"
-download = "Download"
-downloadInput = "Download input"
-downloadOutput = "Download output"
-expand = "Expand"
-retry = "Retry"
-
-[watchedFolders.card]
-delete = "Delete folder"
-edit = "Edit folder"
-
-[watchedFolders.home]
-addAnother = "Add another Watched Folder"
-addAnotherDesc = "Automatically process files with a new pipeline"
-create = "Create your first Watched Folder"
-deleteFolder = "Delete folder"
-editFolder = "Edit folder"
-empty = "No watched folders yet"
-emptyDesc = "Set up a Watched Folder once. Drop PDFs in and they're automatically compressed, OCR'd, split, merged — whatever your pipeline does."
-emptyTitle = "Automate your PDF workflows"
-file = "file"
-files = "files"
-pause = "Pause"
-resume = "Resume"
-
-[watchedFolders.howItWorks]
-step1Desc = "Drag PDFs onto any Watched Folder card — or send them from your file list"
-step1Title = "Drop files"
-step2Desc = "Your configured tools process each file automatically"
-step2Title = "Pipeline runs"
-step3Desc = "Download processed files from inside the folder"
-step3Title = "Output ready"
-title = "How Watched Folders work"
-
-[watchedFolders.modal]
-advanced = "Advanced"
-automation = "Automation"
-automationNameFallback = "Watched Folder automation"
-automationRequired = "Add at least one configured step before saving."
-autoNumber = "Auto-number"
-autoNumberExample = "e.g. document.pdf → document (1).pdf"
-autoScanHelp = "New PDF files in this folder are processed automatically every 10 seconds."
-changeFolder = "Change"
-chooseFolder = "Choose"
-clearFolder = "Clear"
-color = "Accent color"
-createFolder = "Create Folder"
-createTitle = "New Watched Folder"
-editTitle = "Edit Watched Folder"
-inputFolder = "Input folder"
-inputFolderNotChosen = "No folder chosen — required for auto-scan"
-inputSource = "Input source"
-inputSourceBrowser = "Browser — drop files here"
-inputSourceLocal = "Local folder (auto-scan)"
-inputSourceLocalUnsupported = "Local folder (auto-scan) — Chrome/Edge only"
-localOutputFolder = "Local output folder"
-maxRetries = "Max retries"
-name = "Folder name"
-namePlaceholder = "My Watched Folder"
-nameRequired = "Folder name is required"
-nameTooLong = "Folder name must be 50 characters or less"
-outputFolderNotSet = "Not set — outputs stay in app"
-outputFolderUnsupported = "Not supported in this browser"
-outputModeNewDesc = "Output is saved as a new separate file"
-outputModeVersion = "Replace original?"
-outputModeVersionDesc = "Output becomes a new version of the input file rather than a separate file"
-outputName = "Output filename prefix"
-outputNamePrefix = "Filename prefix"
-outputNameSuffix = "Suffix"
-positionPrefix = "Prefix"
-positionSuffix = "Suffix"
-replaceOriginal = "Replace original file"
-retryDelay = "Delay (minutes)"
-saveChanges = "Save Changes"
-saveFailed = "Failed to save folder. Please try again."
-sectionFolder = "Folder"
-sectionSourceOutput = "Source & Output"
-sectionSteps = "Steps"
-
-[watchedFolders.status]
-active = "Active"
-done = "Done"
-paused = "Paused"
-processing = "Processing"
-
-[watchedFolders.time]
-daysAgo = "{{count}}d ago"
-hoursAgo = "{{count}}h ago"
-justNow = "just now"
-minutesAgo = "{{count}}m ago"
-
-[watchedFolders.workbench]
-activity = "Activity"
-addFiles = "Add files"
-allTime = "All time"
-cancel = "Cancel"
-chartTooltipComplete = "{{count}} complete"
-chartTooltipFailed = "{{count}} failed"
-clearSelection = "Clear selection"
-countProcessing = "{{count}} processing"
-countQueued = "{{count}} queued"
-countSelected = "{{count}} selected"
-dataSaved = "Saved"
-dayRunning = "day running"
-daysRunning = "days running"
-delete = "Delete"
-deleteConfirmBody = "Remove notifications only clears the activity log. Delete outputs also removes the processed files from storage. Your original input files are never touched."
-deleteOutputs = "Delete outputs"
-directionIn = "in"
-directionOut = "out"
-dropToProcess = "Drop to process"
-export = "Export"
-exportSeparately = "Export separately"
-exportZip = "Export zip"
-failed = "Failed"
-filesProcessedOverTime = "Files processed over time"
-filterAll = "All"
-filterPending = "Pending"
-inputs = "Inputs"
-inputSize = "Input size"
-legendComplete = "Complete"
-noActivity = "No activity yet — drop a PDF to start"
-noActivityMatch = "No matching activity"
-noInputFolder = "No input folder — edit to configure"
-outputs = "Outputs"
-pause = "Pause"
-preview = "Preview"
-previewInput = "Preview input"
-previewLoadFailed = "Could not load file preview."
-previewOutput = "Preview output"
-queued = "Queued"
-queuedWaiting = "Queued — waiting to run"
-removeEntries = "Remove {{count}} entries"
-removeEntry = "Remove entry"
-removeNotificationsOnly = "Remove notifications only"
-resume = "Resume"
-retryAll = "Retry all"
-retryIn = "retry in {{count}}m"
-retryingSoon = "retrying…"
-retryMixedConfirm = "Some selected files have already completed and will be skipped. Only failed files will be retried. Continue?"
-running = "Running"
-search = "Search…"
-selectAll = "Select all {{count}}"
-sortNameAsc = "A → Z"
-sortNameDesc = "Z → A"
-sortNewest = "Newest"
-sortOldest = "Oldest"
-watching = "Watching: {{name}}"
 
 [watermark]
 desc = "Add text or image watermarks to PDF files"
@@ -6076,14 +5139,12 @@ rotateLeft = "Rotate Left"
 rotateRight = "Rotate Right"
 ruler = "Ruler / Measure"
 save = "Save"
-saveAll = "Save All"
 saveAs = "Save As"
 saveChanges = "Save Changes"
 search = "Search PDF"
 selectAll = "Select All"
 selectByNumber = "Select by Page Numbers"
 selectLanguage = "Select language"
-share = "Share"
 toggleAnnotations = "Toggle Annotations Visibility"
 toggleAttachments = "Toggle Attachments"
 toggleBookmarks = "Toggle Bookmarks"
@@ -6091,9 +5152,6 @@ toggleComments = "Comments"
 toggleLayers = "Toggle Layers"
 toggleSidebar = "Toggle Sidebar"
 viewer = "Viewer"
-
-[workspace]
-title = "Workspace"
 
 [zipWarning]
 cancel = "Cancel"

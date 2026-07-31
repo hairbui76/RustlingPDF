@@ -10,4 +10,3 @@
  */
 // Annotated as `boolean` (not the literal `false`) so call sites aren't treated
 // as constant/unreachable conditions by the type checker and linter.
-export const WATCHED_FOLDERS_ENABLED: boolean = false;

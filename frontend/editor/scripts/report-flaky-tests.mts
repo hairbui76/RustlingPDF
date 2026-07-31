@@ -13,7 +13,7 @@
 // Run: `npx tsx editor/scripts/report-flaky-tests.mts <results.json> [more.json...]`
 //      (a single path is also read from PLAYWRIGHT_JSON_OUTPUT_FILE). Multiple
 //      reports are merged + de-duplicated, so a job that runs Playwright in
-//      several segments (e.g. the enterprise OAuth/SAML/license phases) can
+//      several segments can
 //      pass one report per phase. A missing report or zero flaky tests is a
 //      silent no-op, so it is safe to run with `if: always()` after any
 //      Playwright step.
@@ -69,8 +69,7 @@ function collectFlaky(
 // the report is missing or clean.
 function main(): void {
   // Accept one or more report paths: a job may run Playwright in several
-  // segments, each writing its own report (the enterprise job does this for
-  // OAuth / SAML / license phases). Fall back to the env var when no paths are
+  // segments, each writing its own report. Fall back to the env var when no paths are
   // passed. Missing files are skipped, not fatal.
   const reportPaths = process.argv.slice(2);
   const envPath = process.env.PLAYWRIGHT_JSON_OUTPUT_FILE;

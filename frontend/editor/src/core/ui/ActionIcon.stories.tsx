@@ -28,7 +28,7 @@ const ACCENTS = [
   "neutral",
   "brand",
   "ai",
-  "premium",
+  "highlight",
   "danger",
   "success",
   "warning",

@@ -5,9 +5,7 @@ import { openSettings, closeSettings } from "@app/tests/helpers/ui-helpers";
  * Consolidated settings-dialog coverage. Was previously three files
  * (`settings.spec.ts`, `settings-configuration.spec.ts`,
  * `settings-toggle-behavior.spec.ts`) generated from a numbered test
- * plan; merged here to cut bloat. Logout flow lives in
- * `live/authentication-login.spec.ts` since it requires real session
- * invalidation.
+ * plan; merged here to cut bloat.
  */
 
 test.describe("Settings dialog", () => {
@@ -24,29 +22,6 @@ test.describe("Settings dialog", () => {
     await expect(page.getByText(/version/i).first()).toBeVisible({
       timeout: 5_000,
     });
-  });
-
-  test("Account section shows the user and management buttons", async ({
-    page,
-  }) => {
-    await openSettings(page);
-
-    const accountNav = page.getByText(/^Account( Settings)?$/i).first();
-    if (!(await accountNav.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip(true, "Account section not visible on this build");
-      return;
-    }
-    await accountNav.click();
-
-    await expect(page.getByText(/admin/).first()).toBeVisible({
-      timeout: 5_000,
-    });
-    await expect(page.getByText(/update password/i).first()).toBeVisible();
-    await expect(page.getByText(/change username/i).first()).toBeVisible();
-    await expect(page.getByText(/log out/i).first()).toBeVisible();
-    await expect(
-      page.getByText(/two-factor authentication/i).first(),
-    ).toBeVisible();
   });
 
   test("Close button dismisses dialog and restores main UI", async ({

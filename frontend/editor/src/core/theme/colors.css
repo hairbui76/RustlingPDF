@@ -1,4 +1,5 @@
-/* COLORS — canonical semantic core (~21 --c-* tokens) mapped from primitives.css per theme; compat.css aliases legacy names onto these. Editor: always data-app-theme="custom" + data-mantine-color-scheme=light|dark. Portal/Storybook: data-theme=light|dark → LIGHT/MIDNIGHT. */
+/* COLORS — canonical semantic tokens mapped from primitives.css per theme.
+   The editor uses data-app-theme="custom"; Storybook may use data-theme. */
 /* Surface elevation: --c-bg (canvas) < --c-bg-raised (sidebars) < --c-surface (cards) < --c-surface-raised < --c-surface-sunken; plus --c-input-bg, --c-hover, --c-active, --c-overlay. */
 
 /* ── LIGHT ───────────────────────────────────────────────────────────────── */
@@ -33,7 +34,7 @@ html[data-app-theme="light"] {
   --c-warning: var(--p-amber-600);
   /* Highlight/flash (search hits, compare jump-to) — same in both themes. */
   --c-highlight: var(--p-flash-yellow);
-  /* Stirling brand red (auth CTAs) — a fixed brand colour, same in both themes. */
+  /* Rustling brand red — a fixed brand colour, same in both themes. */
   --c-brand: var(--p-brand-red);
   --c-brand-hover: var(--p-brand-red-600);
 
@@ -55,7 +56,7 @@ html[data-app-theme="light"] {
      marks, vendor colours, categorical avatar dots, static illustrations,
      and the multi-hue gradients on feature/upgrade/onboarding surfaces.
      Named here so components reference a --c-* token, never a raw --p-*. */
-  --c-brand-mark: var(--p-brand-red-650); /* Stirling logo mark fill */
+  --c-brand-mark: var(--p-brand-red-650); /* Rustling logo mark fill */
   --c-accent-stripe: var(--p-periwinkle-500); /* Stripe "connect" CTA */
 
   /* Feature-accent hues (fixed) used as stops in multi-hue gradients. */
@@ -80,7 +81,7 @@ html[data-app-theme="light"] {
   --c-conn-notify: var(--p-art-amber-muted);
   --c-conn-neutral: var(--p-gray-mid);
 
-  /* Always-dark marketing/product hero strip (portal). Same in both themes. */
+  /* Always-dark product hero strip. Same in both themes. */
   --c-hero-dark: var(--p-zinc-950);
   --c-hero-dark-cta-text: var(--p-navy-700);
 
@@ -107,7 +108,7 @@ html[data-app-theme="light"] {
   --c-onboarding-hero-tile: var(--p-white);
 }
 
-/* ── MIDNIGHT (original navy) — also the default portal/Storybook dark ────── */
+/* ── MIDNIGHT (navy) — Storybook dark ───────────────────────────────────── */
 [data-theme="dark"],
 html[data-app-theme="midnight"] {
   --c-bg: var(--p-zinc-900);

@@ -106,7 +106,6 @@ export const URL_TO_TOOL_MAP: Record<string, ToolId> = {
   // Developer tools
   "/dev-api": "devApi",
   "/dev-folder-scanning": "devFolderScanning",
-  "/dev-sso-guide": "devSsoGuide",
   "/dev-airgapped": "devAirgapped",
 
   // Legacy URL mappings from sitemap

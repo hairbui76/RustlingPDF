@@ -10,7 +10,6 @@ import type { PluginRegistry } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
 import { usePdfiumEngine } from "@embedpdf/engines/react";
 import { PrivateContent } from "@app/components/shared/PrivateContent";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
 
 // Import the essential plugins
 import {
@@ -105,7 +104,6 @@ import { ButtonAppearanceOverlay } from "@app/tools/formFill/ButtonAppearanceOve
 import SignatureFieldOverlay from "@app/components/viewer/SignatureFieldOverlay";
 import { CommentsSidebar } from "@app/components/viewer/CommentsSidebar";
 import { CommentAuthorProvider } from "@app/contexts/CommentAuthorContext";
-import { accountService } from "@app/services/accountService";
 
 interface LocalEmbedPDFProps {
   file?: File | Blob;
@@ -175,12 +173,11 @@ export function LocalEmbedPDF({
   signatureOverlayApiRef,
 }: LocalEmbedPDFProps) {
   const { t } = useTranslation();
-  const { config } = useAppConfig();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [, setAnnotations] = useState<
     Array<{ id: string; pageIndex: number; rect: Rect }>
   >([]);
-  const [commentAuthorName, setCommentAuthorName] = useState<string>("Guest");
+  const [commentAuthorName] = useState<string>("Guest");
 
   const [localSignaturePreviews, setLocalSignaturePreviews] = useState<
     SignaturePreview[]
@@ -233,18 +230,6 @@ export function LocalEmbedPDF({
     }),
     [localSignaturePreviews, selectedSignatureId, onSignaturePreviewsChange],
   );
-
-  useEffect(() => {
-    if (!config?.enableLogin) return;
-    accountService
-      .getAccountData()
-      .then((data) => {
-        if (data?.username) setCommentAuthorName(data.username);
-      })
-      .catch(() => {
-        /* not logged in or security disabled */
-      });
-  }, [config?.enableLogin]);
 
   // Stable key — avoids recreating the blob URL (and crashing ViewportPlugin) when
   // FileContext produces new File object references for the same file content.

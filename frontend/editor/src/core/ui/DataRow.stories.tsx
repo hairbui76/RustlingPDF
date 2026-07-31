@@ -20,7 +20,7 @@ export default meta;
 type Story = StoryObj<typeof DataRow>;
 
 export const Single: Story = {
-  args: { label: "Reviewer", children: "matt@stirlingpdf.com" },
+  args: { label: "Reviewer", children: "matt@rustlingpdf.com" },
 };
 
 export const Summary: Story = {
@@ -31,7 +31,7 @@ export const Summary: Story = {
           <ChipFlow items={["Classify", "Extract", "Name"]} />
         </DataRow>
         <DataRow label="Sources">3 selected</DataRow>
-        <DataRow label="Reviewer">matt@stirlingpdf.com</DataRow>
+        <DataRow label="Reviewer">matt@rustlingpdf.com</DataRow>
       </div>
     </Card>
   ),

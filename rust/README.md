@@ -1,117 +1,65 @@
 # RustlingPDF Rust Workspace
 
-This workspace is the backend of RustlingPDF: a pure-Rust port of the upstream
-Stirling-PDF Java backend, retaining the existing browser UI and its REST
-contract. It contains four crates:
+The Rust workspace contains the complete processing runtime, optional AI
+runtime, local automation CLI, and operation-catalog generator.
 
-- **`rustling-processing`** — the axum HTTP service mirroring the upstream
-  `/api/v1/...` surface: the PDF-operation routes (merge/split/convert/security/
-  forms/redaction/…), configuration and UI-data endpoints, HTTP pipelines,
-  and async jobs. The service is deliberately **stateless and unauthenticated**:
-  no accounts, no database, no durable server-side storage (the former secured
-  router — accounts, storage, collaborative signing, audit, policies, MCP —
-  was removed by maintainer decision on 2026-07-28).
-- **`rustling-ai-engine`** — the Rust port of upstream Stirling-PDF's Python AI
-  engine (classification, PDF edit/review/create agents, math audit,
-  orchestration). Stateless: the former document/RAG store and PDF
-  question-answer capability were removed in the same decision.
-- **`rustling-cli`** — the local `rustlingpdf` automation binary. It validates
-  operation parameters against generated catalog bindings and executes the
-  existing pipeline router in-process without starting a server.
-- **`rustling-operation-catalog`** — generates the typed operation catalog from
-  the frozen `SwaggerDoc.json` OpenAPI snapshot at the repo root
-  (`task engine:tool-models`).
+## Crates
 
-**Where to look things up:**
+- **`rustling-processing`** — the Axum HTTP service and in-process PDF
+  processing pipeline. It provides document operations, configuration and
+  UI-data endpoints, asynchronous jobs, temporary result handling, and static
+  SPA serving.
+- **`rustling-ai-engine`** — optional, stateless document understanding and
+  orchestration. It supports classification, page-cited summaries, structured
+  extraction, ordered translation, review/edit planning, document generation,
+  and math auditing.
+- **`rustling-cli`** — the `rustlingpdf` executable. It validates parameters
+  against generated catalog schemas and runs local files through the processing
+  pipeline without starting an HTTP server.
+- **`rustling-operation-catalog`** — generates typed operation metadata from
+  the committed OpenAPI snapshot.
 
-- **How to run this repository** — see
-  [`RUNNING_WITH_RUST.md`](RUNNING_WITH_RUST.md) (prerequisites, external tools,
-  ports, configuration, AI engine, limitations).
-- **What is ported, and how faithfully** — see [`PORT_STATUS.md`](PORT_STATUS.md)
-  (the authoritative ledger) and the per-surface compatibility contracts in
-  [`contracts/`](contracts/) (routes, upstream Java counterparts, parity notes,
-  explicit gaps).
-
-The route surface is deliberately **not** enumerated here — an earlier hand-kept
-list in this file drifted dozens of routes behind reality. A fixed route total is
-likewise deferred to the versioned baseline-to-Rust manifest so conditional
-endpoints are counted by method and path rather than inferred from source
-literals. Illustrative examples of the breadth:
-`POST /api/v1/general/merge-pdfs`, `POST /api/v1/convert/pdf/img`,
-`POST /api/v1/security/redact-execute`, `POST /api/v1/pipeline/handleData`,
-`GET /api/v1/config/app-config`, and the single-shot
-`POST /api/v1/security/cert-sign` + hardware-signing discovery family.
-
-For local scripts, `cargo run -p rustling-cli -- operations` lists the generated
-operation surface and `cargo run -p rustling-cli -- run ...` processes files
-without a running HTTP service. See [`contracts/cli.md`](contracts/cli.md).
+The processing service has no accounts, database, or durable document store.
+The optional AI engine is disabled by default.
 
 ## Quick start
 
-Install the pinned PDFium runtime and run locally from the repository root:
+From the repository root:
 
 ```bash
 task rust:install
 task backend:dev
 ```
 
-`task backend:dev`, `task dev`, and `task dev:all` all run the Rust processing
-service — it is the only backend in this repository. `backend:dev` listens
-on `127.0.0.1:8080` by default; `task rust:run` provides the same direct Rust
-entry point. Set `PORT` on either Task command, or set `RUSTLING_PORT` (or the
-Spring-compatible `SERVER_PORT`) when invoking the binary directly. Port `0`
-requests an OS-assigned ephemeral port, and startup reports the bound port in
-the desktop-compatible `RustlingPDF running on port: <port>` format. The
-upstream Java implementation lives in the separate Stirling-PDF repository
-and remains the behavior reference the contracts were verified against.
+The service listens on `127.0.0.1:8080` by default. Set `PORT` on Task commands,
+or set `RUSTLING_PORT` when running the binary directly. Port `0` requests an
+OS-assigned port.
 
-The binary remains loopback-only unless `RUSTLING_HOST` or the Spring-compatible
-`SERVER_ADDRESS` is set to an explicit IP address. Container-shaped runs use
-`RUSTLING_HOST=0.0.0.0`; malformed or non-Unicode host/port values fail startup.
+Run the CLI without a server:
 
-The Tauri desktop app launches this Rust processing binary as its bundled
-sidecar by default: `task desktop:stage-sidecar` builds the release binary plus
-the pinned PDFium runtime and stages both into the desktop bundle. The launcher
-starts the sidecar with an ephemeral port and explicit desktop/base-path
-settings, migrates the legacy workspace, accepts the stable startup handshake
-from either output stream, and fails a bounded startup on early process exit.
-The processing binary prints that handshake even when `RUST_LOG` is unset,
-exits when the PID/start-time identity of its Tauri parent disappears, and
-atomically initializes the packaged settings template plus empty override only
-on a fresh install. The launcher points `RUSTLING_PDFIUM_LIBRARY_PATH` at the
-bundled PDFium resource directory unless the environment already provides one.
-`RUSTLING_NATIVE_BACKEND_PATH` is a development-only override that swaps the
-bundled sidecar for any locally built processing executable; there is no other
-launch fallback (the upstream Java JRE/JAR path has been removed).
-Cross-platform signed-bundle upgrade proof is a tracked roadmap item. See
-`contracts/desktop-native-startup.md`.
+```bash
+task rust:cli -- operations
+task rust:cli -- run general-rotate-pdf \
+  --input report.pdf \
+  --output report-rotated.pdf \
+  --param angle=90
+```
 
-`task rust:install` downloads PDFium revision 7543 for the current platform, verifies
-its pinned SHA-256 digest, and keeps the runtime under the ignored `rust/.pdfium`
-directory. Deployments may instead set `RUSTLING_PDFIUM_LIBRARY_PATH` to an absolute
-PDFium shared-library path or its containing directory. A configured runtime is treated
-as required; a bad path fails the request instead of silently switching engines.
+The Tauri shell packages `rustling-processing` as a sidecar. It starts the
+sidecar on an ephemeral loopback port and connects the open-source frontend to
+that local runtime.
 
-## Implementation notes
+See [RUNNING_WITH_RUST.md](RUNNING_WITH_RUST.md) for configuration, Docker,
+native dependencies, AI setup, and deployment details. Behavior contracts live
+under [contracts](contracts).
 
-The merge slice uses PDFium page import and a bounded-memory incremental bookmark/TOC
-writer. The rotate slice uses PDFium's intrinsic page rotation. `lopdf` remains as the
-no-PDFium development fallback, for sequential metadata inspection during title/date
-sorting, and for the targeted PDFBox-compatible signature-field flattening pass when
-PDFium detects signatures. It is not used to build the combined document on the
-configured native merge path.
-
-The UI-data dependency-notice manifest is generated from the Rust lockfile during
-build; `UNKNOWN` entries and native-tool notices remain release-compliance gates.
-
-## Validate the workspace
+## Validation
 
 ```bash
 cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 ```
 
-The direct Cargo commands use the compatibility implementation when PDFium is not on
-the system library path. `task rust:check` installs and configures PDFium so the native
-processing paths are exercised by the endpoint tests.
+`task rust:check` installs and binds the pinned PDFium runtime before running the
+workspace gate.

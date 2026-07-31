@@ -1,6 +1,6 @@
 import type { TokenBoundingBox, WordHighlightEntry } from "@app/types/compare";
 import type { FileId } from "@app/types/file";
-import type { StirlingFile, StirlingFileStub } from "@app/types/fileContext";
+import type { RustlingFile, RustlingFileStub } from "@app/types/fileContext";
 import type { PagePreview } from "@app/types/compare";
 
 /** Convert hex color (#rrggbb) to rgba() string with alpha; falls back to input if invalid. */
@@ -190,23 +190,23 @@ export const mapChangesForDropdown = (
 
 /** File selection helpers */
 export const getFileFromSelection = (
-  explicit: StirlingFile | null | undefined,
+  explicit: RustlingFile | null | undefined,
   fileId: FileId | null,
-  selectors: { getFile: (id: FileId) => StirlingFile | undefined | null },
-): StirlingFile | null => {
+  selectors: { getFile: (id: FileId) => RustlingFile | undefined | null },
+): RustlingFile | null => {
   if (explicit) return explicit;
   if (!fileId) return null;
-  return (selectors.getFile(fileId) as StirlingFile | undefined | null) ?? null;
+  return (selectors.getFile(fileId) as RustlingFile | undefined | null) ?? null;
 };
 
 export const getStubFromSelection = (
   fileId: FileId | null,
   selectors: {
-    getStirlingFileStub: (id: FileId) => StirlingFileStub | undefined;
+    getRustlingFileStub: (id: FileId) => RustlingFileStub | undefined;
   },
-): StirlingFileStub | null => {
+): RustlingFileStub | null => {
   if (!fileId) return null;
-  const stub = selectors.getStirlingFileStub(fileId);
+  const stub = selectors.getRustlingFileStub(fileId);
   return stub ?? null;
 };
 

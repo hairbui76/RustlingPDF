@@ -3,11 +3,10 @@
  * of their parameters can be edited in a UI, and conversion between a tool's frontend parameter
  * shape and the backend step contract (endpoint + backend parameters).
  *
- * This is core behaviour shared by every surface that composes or replays tool operations against
- * the backend engine (portal pipelines today; backend-executed automations and AI plans later),
- * so the "is this tool usable, and how" decision lives with the tools rather than in any one
- * feature. It builds on each tool's `operationConfig` mappers (`toApiParams` / `fromApiParams`),
- * keeping the frontend<->backend parameter mapping single-sourced in the tools.
+ * This is core behaviour for composing or replaying tool operations against
+ * the backend engine. It builds on each tool's `operationConfig` mappers
+ * (`toApiParams` / `fromApiParams`), keeping frontend-to-backend parameter
+ * mapping single-sourced in the tools.
  */
 
 import { type ReactNode } from "react";
@@ -51,7 +50,7 @@ export interface ExecutableTool {
 /**
  * The backend step contract: an endpoint path plus its backend-shaped parameters. `operation` is a
  * plain string, not a {@link ToolEndpoint}, because this is the raw backend boundary (it mirrors
- * the stored policy step) and a pipeline may reference endpoints the frontend does not model.
+ * a stored pipeline step) and a pipeline may reference endpoints the frontend does not model.
  */
 export interface ToolApiStep {
   operation: string;
@@ -130,8 +129,8 @@ function isFileValue(value: unknown): boolean {
 
 /**
  * True if any of a step's parameters is an uploaded file (or list of files). Such a step cannot be
- * saved into a stored pipeline yet: the file bytes are not persisted with the policy, so a later
- * (e.g. scheduled) run would have nothing to send for that named file field.
+ * saved into a stored pipeline yet: file bytes are not persisted with its
+ * configuration, so a later run would have nothing to send for that field.
  */
 export function stepRequiresUpload(step: WorkingToolStep): boolean {
   return Object.values(step.params).some(isFileValue);

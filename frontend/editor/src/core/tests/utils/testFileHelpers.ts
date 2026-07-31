@@ -1,29 +1,29 @@
 /**
- * Test utilities for creating StirlingFile objects in tests
+ * Test utilities for creating RustlingFile objects in tests
  */
 
-import { StirlingFile, createStirlingFile } from "@app/types/fileContext";
+import { RustlingFile, createRustlingFile } from "@app/types/fileContext";
 
 /**
- * Create a StirlingFile object for testing purposes
+ * Create a RustlingFile object for testing purposes
  */
-export function createTestStirlingFile(
+export function createTestRustlingFile(
   name: string,
   content: string = "test content",
   type: string = "application/pdf",
-): StirlingFile {
+): RustlingFile {
   const file = new File([content], name, { type });
-  return createStirlingFile(file);
+  return createRustlingFile(file);
 }
 
 /**
- * Create multiple StirlingFile objects for testing
+ * Create multiple RustlingFile objects for testing
  */
 export function createTestFilesWithId(
   files: Array<{ name: string; content?: string; type?: string }>,
-): StirlingFile[] {
+): RustlingFile[] {
   return files.map(
     ({ name, content = "test content", type = "application/pdf" }) =>
-      createTestStirlingFile(name, content, type),
+      createTestRustlingFile(name, content, type),
   );
 }

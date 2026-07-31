@@ -44,7 +44,7 @@ async fn returns_one_document_when_no_divider_is_present() -> Result<(), Box<dyn
 #[tokio::test]
 async fn native_qr_detection_splits_and_duplex_skips_the_divider_back()
 -> Result<(), Box<dyn std::error::Error>> {
-    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
+    if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
         return Ok(());
     }
     let directory = tempdir()?;
@@ -128,7 +128,7 @@ fn unavailable_without_configuration(
     if response.status() != StatusCode::NOT_IMPLEMENTED {
         return Ok(false);
     }
-    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+    if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
         return Err(
             std::io::Error::other("configured PDFium runtime did not execute auto split").into(),
         );
@@ -174,7 +174,7 @@ async fn post_auto_split(
     filename: &str,
     duplex_mode: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-auto-split-boundary";
+    let boundary = "rustling-auto-split-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

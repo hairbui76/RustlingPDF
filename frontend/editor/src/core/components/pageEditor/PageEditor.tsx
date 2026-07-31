@@ -116,7 +116,7 @@ const PageEditor = ({ onFunctionsReady }: PageEditorProps) => {
     const newFiles: any[] = [];
 
     fileOrder.forEach((fileId) => {
-      const stub = selectors.getStirlingFileStub(fileId);
+      const stub = selectors.getRustlingFileStub(fileId);
       const isSelected = state.ui.selectedFileIds.includes(fileId);
       const isPdf = stub?.name?.toLowerCase().endsWith(".pdf") ?? false;
 
@@ -174,7 +174,7 @@ const PageEditor = ({ onFunctionsReady }: PageEditorProps) => {
   // "No PDF files loaded" when PageEditor first mounts after files are added.
   const hasPdfFiles = useMemo(() => {
     return state.files.ids.some((id) => {
-      const stub = selectors.getStirlingFileStub(id);
+      const stub = selectors.getRustlingFileStub(id);
       return stub?.name?.toLowerCase().endsWith(".pdf") ?? false;
     });
   }, [state.files.ids, selectors]);

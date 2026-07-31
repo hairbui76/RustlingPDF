@@ -92,17 +92,6 @@ async fn reports_wau_only_when_no_login_is_configured() -> Result<(), Box<dyn st
             .is_some_and(|value| value.ends_with('Z'))
     );
 
-    // The removed login feature's key is ignored: a legacy settings file that
-    // still says `security.enableLogin: true` must not change WAU availability.
-    let legacy_app = test_app("security:\n  enableLogin: true\n")?;
-    let still_available = legacy_app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/info/wau")
-                .body(Body::empty())?,
-        )
-        .await?;
-    assert_eq!(still_available.status(), StatusCode::OK);
     Ok(())
 }
 

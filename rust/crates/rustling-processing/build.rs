@@ -31,7 +31,7 @@ fn main() {
         .collect::<Vec<_>>();
     dependencies.push(DependencyMetadata {
         name: "rustling-processing".to_owned(),
-        url: "https://github.com/Stirling-Tools/Stirling-PDF".to_owned(),
+        url: "https://github.com/hairbui76/RustlingPDF".to_owned(),
         version: env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_owned()),
         license: "MIT".to_owned(),
         license_url: "https://spdx.org/licenses/MIT.html".to_owned(),

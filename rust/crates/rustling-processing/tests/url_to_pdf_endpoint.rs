@@ -55,7 +55,7 @@ async fn post_url(
     app: Router,
     fields: &[(&str, &str)],
 ) -> Result<axum::response::Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-url-to-pdf-boundary";
+    let boundary = "rustling-url-to-pdf-boundary";
     let mut body = Vec::new();
     for (name, value) in fields {
         body.extend_from_slice(

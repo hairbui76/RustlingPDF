@@ -19,7 +19,7 @@ const STARTUP_DELAY_MS = 15_000;
  * Shared with the desktop popup so snoozing in either context suppresses
  * both popups for the same 24h window.
  */
-const SNOOZE_KEY = "stirling-pdf-updater:snoozedUntil";
+const SNOOZE_KEY = "rustlingpdf-updater:snoozedUntil";
 const SNOOZE_DURATION_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -58,8 +58,6 @@ export function UpdateStartupPopup() {
       try {
         const machineInfo = {
           machineType: config?.machineType ?? "unknown",
-          activeSecurity: config?.activeSecurity ?? false,
-          licenseType: config?.license ?? "NORMAL",
         };
         const summary = await updateService.getUpdateSummary(
           currentVersion,
@@ -83,21 +81,13 @@ export function UpdateStartupPopup() {
     }, STARTUP_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [
-    allowed,
-    currentVersion,
-    config?.machineType,
-    config?.activeSecurity,
-    config?.license,
-  ]);
+  }, [allowed, currentVersion, config?.machineType]);
 
   if (!allowed) return null;
   if (!updateSummary || !currentVersion) return null;
 
   const machineInfo = {
     machineType: config?.machineType ?? "unknown",
-    activeSecurity: config?.activeSecurity ?? false,
-    licenseType: config?.license ?? "NORMAL",
   };
 
   return (

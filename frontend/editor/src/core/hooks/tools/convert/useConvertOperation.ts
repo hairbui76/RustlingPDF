@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import apiClient from "@app/services/apiClient";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,12 +13,10 @@ import {
 } from "@app/hooks/tools/shared/useToolOperation";
 import {
   getEndpointUrl,
-  getEndpointName,
   isImageFormat,
   isWebFormat,
   isOfficeFormat,
 } from "@app/utils/convertUtils";
-import { useToolCloudStatus } from "@app/hooks/useToolCloudStatus";
 
 // Static function that can be used by both the hook and automation executor
 export const shouldProcessFilesSeparately = (
@@ -281,19 +279,8 @@ export const convertOperationConfig = defineCustomTool({
   },
 });
 
-export const useConvertOperation = (parameters?: ConvertParameters) => {
+export const useConvertOperation = (_parameters?: ConvertParameters) => {
   const { t } = useTranslation();
-
-  // Calculate current endpoint name for cloud detection
-  const currentEndpointName = useMemo(() => {
-    if (!parameters?.fromExtension || !parameters?.toExtension)
-      return undefined;
-
-    return getEndpointName(parameters.fromExtension, parameters.toExtension);
-  }, [parameters?.fromExtension, parameters?.toExtension]);
-
-  // Check if current conversion will use cloud
-  const willUseCloud = useToolCloudStatus(currentEndpointName);
 
   const customConvertProcessor = useCallback(
     async (
@@ -322,9 +309,5 @@ export const useConvertOperation = (parameters?: ConvertParameters) => {
     },
   });
 
-  // Override willUseCloud with our calculated value
-  return {
-    ...operation,
-    willUseCloud,
-  };
+  return operation;
 };

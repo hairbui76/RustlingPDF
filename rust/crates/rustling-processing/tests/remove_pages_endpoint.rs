@@ -10,7 +10,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn removes_ranges_and_n_expressions_without_a_browser_change()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-remove-pages-boundary";
+    let boundary = "rustling-remove-pages-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -35,7 +35,7 @@ async fn removes_ranges_and_n_expressions_without_a_browser_change()
 
 #[tokio::test]
 async fn prunes_fields_from_pages_that_were_removed() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-remove-form-page-boundary";
+    let boundary = "rustling-remove-form-page-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "form.pdf", &pdf_with_two_page_form()?);
     add_text_part(&mut body, boundary, "pageNumbers", "1");
@@ -61,7 +61,7 @@ async fn prunes_fields_from_pages_that_were_removed() -> Result<(), Box<dyn std:
 #[tokio::test]
 async fn rejects_unsafe_page_expressions_with_the_remove_path()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-invalid-remove-boundary";
+    let boundary = "rustling-invalid-remove-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,

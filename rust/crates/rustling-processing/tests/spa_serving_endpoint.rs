@@ -2,7 +2,7 @@
 //!
 //! A synthetic Vite dist directory exercises the full fallback pipeline:
 //! index transformation, deep links, API precedence, static assets with
-//! upstream cache tiers, precompressed negotiation, traversal/symlink
+//! cache tiers, precompressed negotiation, traversal/symlink
 //! hardening, and the config-unset inertness guarantee.
 
 use std::fs;
@@ -159,12 +159,7 @@ async fn serves_transformed_index_at_root_and_index_html() -> Result<(), Box<dyn
 async fn spa_deep_links_and_client_routes_serve_index() -> Result<(), Box<dyn std::error::Error>> {
     let dist = SyntheticDist::new()?;
     for uri in [
-        "/auth/callback",
-        "/share/some-token",
-        "/share/token.with.dots",
-        "/audit",
         "/compress-pdf",
-        "/login",
         "/files",
         "/files/8b3f1f9e-uuid",
         "/some-route?query=1",
@@ -176,24 +171,6 @@ async fn spa_deep_links_and_client_routes_serve_index() -> Result<(), Box<dyn st
             "uri: {uri}"
         );
     }
-    Ok(())
-}
-
-#[tokio::test]
-async fn tauri_auth_callback_serves_standalone_completion_page()
--> Result<(), Box<dyn std::error::Error>> {
-    let dist = SyntheticDist::new()?;
-    let response = get(dist.runtime_config()?, "/auth/callback/tauri").await?;
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        header(&response, "content-type"),
-        Some("text/html; charset=utf-8")
-    );
-    // Upstream sets no cache-control header on this page.
-    assert_eq!(header(&response, "cache-control"), None);
-    let body = body_string(response).await?;
-    assert!(body.contains("Authentication complete"));
-    assert!(body.contains("stirlingpdf://auth/sso-complete"));
     Ok(())
 }
 
@@ -397,7 +374,7 @@ async fn directories_are_never_listed_or_served() -> Result<(), Box<dyn std::err
 }
 
 #[tokio::test]
-async fn upstream_forward_exclusions_hold() -> Result<(), Box<dyn std::error::Error>> {
+async fn reserved_forward_exclusions_hold() -> Result<(), Box<dyn std::error::Error>> {
     let dist = SyntheticDist::new()?;
     // Excluded prefixes (including the prefix-match quirk) 404 when no file
     // exists rather than serving the SPA index.
@@ -442,8 +419,8 @@ async fn missing_index_serves_the_fallback_page() -> Result<(), Box<dyn std::err
     let response = get(dist.runtime_config()?, "/").await?;
     assert_index_response(&response);
     let body = body_string(response).await?;
-    assert!(body.contains("RustlingPDF is running."));
-    assert!(body.contains("window.RUSTLING_PDF_API_BASE_URL"));
+    assert!(body.contains("RustlingPDF is running"));
+    assert!(body.contains("The web frontend is not configured"));
     Ok(())
 }
 

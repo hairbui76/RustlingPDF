@@ -58,7 +58,7 @@ The route returns `application/json` containing the existing
 
 Failed veraPDF checks are expanded into issue entries with their rule metadata
 and object context. veraPDF currently reports conformance failures rather than
-warnings for these profiles, matching the Java service's empty warnings list.
+warnings for these profiles, so the warnings list is empty.
 
 ## Compatibility limits
 

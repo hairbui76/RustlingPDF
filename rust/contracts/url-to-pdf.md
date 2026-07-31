@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/url/pdf`
 
-Rust compatibility contract for `ConvertWebsiteToPDF`.
+Current contract for URL-to-PDF conversion.
 
 ## Request and response
 
@@ -36,15 +36,14 @@ body to 20 MiB. The downloaded HTML goes through the shared parser sanitizer and
 WeasyPrint renderer. Remote assets, stylesheets, and renderer fetches are removed;
 only the initial safe HTTP request is permitted.
 
-## Availability and parity
+## Availability and security
 
 Missing WeasyPrint returns `501 Not Implemented` after a page has been safely fetched.
 Unexpected renderer or filesystem failure returns `500`.
 
-The Java implementation performs a reachability `HEAD` request and then an unpinned
-`GET`, and allows WeasyPrint to resolve page-relative resources. Rust makes one pinned
-`GET`, strips all renderer-fetchable remote resources, and rejects credential-bearing
-URLs. These are deliberate SSRF hardening changes. Java also returns a redirect for
+RustlingPDF makes one pinned `GET`, strips all renderer-fetchable remote
+resources, and rejects credential-bearing URLs as SSRF hardening measures. It
+returns a redirect for
 most preflight failures; Rust preserves that browser-facing behavior.
 
 ## Verification

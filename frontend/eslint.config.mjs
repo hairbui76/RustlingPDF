@@ -33,7 +33,7 @@ const mantineComponentImportRestrictions = [
     selector:
       "ImportDeclaration[source.value='@mantine/core'] > ImportSpecifier[imported.name=/^(Button|ActionIcon|UnstyledButton|CloseButton|FileButton)$/]",
     message:
-      'Use the shared Button (@app/ui/Button) instead of the Mantine button family. variant=primary|secondary|tertiary, accent=default|neutral|brand|ai|premium|danger|success|warning; an icon-only button is `<Button leftSection={…} aria-label="…" />`. If no variant fits, extend the shared Button rather than importing Mantine.',
+      'Use the shared Button (@app/ui/Button) instead of the Mantine button family. variant=primary|secondary|tertiary, accent=default|neutral|brand|ai|highlight|danger|success|warning; an icon-only button is `<Button leftSection={…} aria-label="…" />`. If no variant fits, extend the shared Button rather than importing Mantine.',
   },
   {
     selector:
@@ -110,11 +110,9 @@ export default defineConfig(
       ],
     },
   },
-  // Desktop-only packages must not be imported from core or proprietary code.
-  // Use the stub/shadow pattern instead: define a stub in editor/src/core/ and override in editor/src/desktop/.
+  // The web application must not import native Tauri APIs.
   {
     files: srcGlobs,
-    ignores: ["editor/src/desktop/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -138,7 +136,6 @@ export default defineConfig(
       "editor/src/core/ui/**/*.{js,mjs,jsx,ts,tsx}", // the shared DS itself — wraps Mantine/raw elements
       "**/*.stories.{js,mjs,jsx,ts,tsx}", // stories may demo Mantine directly
       "**/*.test.{js,mjs,jsx,ts,tsx}", // tests may use raw elements as fixtures
-      "editor/src/prototypes/**/*.{js,mjs,jsx,ts,tsx}", // not shipped
     ],
     rules: {
       "no-restricted-syntax": ["error", ...sharedComponentSyntaxRestrictions],

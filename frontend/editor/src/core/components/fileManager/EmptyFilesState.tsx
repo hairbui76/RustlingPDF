@@ -5,7 +5,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import { useTranslation } from "react-i18next";
 import { useFileManagerContext } from "@app/contexts/FileManagerContext";
 import LocalIcon from "@app/components/shared/LocalIcon";
-import { Wordmark } from "@app/components/shared/Wordmark";
+import { LogoIcon } from "@app/components/shared/LogoIcon";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
 
@@ -58,10 +58,10 @@ const EmptyFilesState: React.FC = () => {
 
         {/* RustlingPDF Logo */}
         <Group gap="xs" align="center">
-          <Wordmark
-            alt="RustlingPDF"
-            muted
-            style={{ height: "2.2rem", width: "auto" }}
+          <LogoIcon
+            alt={t("home.mobile.brandAlt", "RustlingPDF logo")}
+            className="brand-mark--muted"
+            style={{ height: "2.75rem", width: "auto" }}
           />
         </Group>
 

@@ -1609,7 +1609,7 @@ fn strip_to_pdfbox_lines(raw: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// java.util.regex.Pattern.split parity
+// Regex split behavior used by the public response
 // ---------------------------------------------------------------------------
 
 /// Length of the separator starting at `at`, if one starts there.
@@ -1678,7 +1678,7 @@ fn java_split_len(text: &str, separator: Separator) -> usize {
 }
 
 // ---------------------------------------------------------------------------
-// Java value formatting parity
+// Stable value formatting used by the public response
 // ---------------------------------------------------------------------------
 
 /// One field of a Java `ObjectNode`, retained in insertion order so the node's

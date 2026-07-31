@@ -164,7 +164,7 @@ fn configured_or_platform_candidates(
     windows_candidates: &[&str],
 ) -> Vec<OsString> {
     configured_or_platform_candidates_with(
-        crate::env_compat::var_os(environment),
+        crate::environment::var_os(environment),
         unix_candidates,
         windows_candidates,
     )
@@ -301,7 +301,7 @@ fn resolve_command(command: &OsStr) -> Option<PathBuf> {
     if path.is_absolute() || path.components().count() > 1 {
         return path.is_file().then(|| path.to_owned());
     }
-    let search_path = crate::env_compat::var_os("PATH")?;
+    let search_path = crate::environment::var_os("PATH")?;
     let extensions = executable_extensions(command);
     for directory in env::split_paths(&search_path) {
         for extension in &extensions {
@@ -322,7 +322,7 @@ fn executable_extensions(command: &OsStr) -> Vec<OsString> {
     }
     let mut extensions = vec![OsString::new()];
     extensions.extend(
-        crate::env_compat::var_os("PATHEXT")
+        crate::environment::var_os("PATHEXT")
             .unwrap_or_else(|| OsString::from(".COM;.EXE;.BAT;.CMD"))
             .to_string_lossy()
             .split(';')

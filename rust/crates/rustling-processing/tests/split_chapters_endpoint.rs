@@ -120,7 +120,7 @@ async fn post_chapters(
     include_metadata: bool,
     allow_duplicates: bool,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-split-chapters-boundary";
+    let boundary = "rustling-split-chapters-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "bookmarked.pdf", pdf);
     add_text_part(&mut body, boundary, "bookmarkLevel", &level.to_string());

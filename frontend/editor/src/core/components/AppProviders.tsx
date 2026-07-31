@@ -20,10 +20,8 @@ import {
 import { WorkbenchBarProvider } from "@app/contexts/WorkbenchBarContext";
 import { ViewerProvider } from "@app/contexts/ViewerContext";
 import { SignatureProvider } from "@app/contexts/SignatureContext";
-import { SigningOverlayProvider } from "@app/contexts/SigningOverlayContext";
 import { AnnotationProvider } from "@app/contexts/AnnotationContext";
 import { TourOrchestrationProvider } from "@app/contexts/TourOrchestrationContext";
-import { AdminTourOrchestrationProvider } from "@app/contexts/AdminTourOrchestrationContext";
 import { PageEditorProvider } from "@app/contexts/PageEditorContext";
 import { BannerProvider } from "@app/contexts/BannerContext";
 import ErrorBoundary from "@app/components/shared/ErrorBoundary";
@@ -36,7 +34,6 @@ import { UpdateStartupPopup } from "@app/components/shared/UpdateStartupPopup";
 import { RedactionProvider } from "@app/contexts/RedactionContext";
 import { FormFillProvider } from "@app/tools/formFill/FormFillContext";
 import { FormDesignerProvider } from "@app/tools/formFill/FormDesignerContext";
-import { FolderFileContextProvider } from "@app/contexts/FolderFileContext";
 import { FolderProvider } from "@app/contexts/FolderContext";
 
 // Component to initialize scarf tracking (must be inside AppConfigProvider)
@@ -152,25 +149,19 @@ export function AppProviders({
                               <ViewerProvider>
                                 <PageEditorProvider>
                                   <SignatureProvider>
-                                    <SigningOverlayProvider>
-                                      <RedactionProvider>
-                                        <FormFillProvider>
-                                          <FormDesignerProvider>
-                                            <AnnotationProvider>
-                                              <WorkbenchBarProvider>
-                                                <TourOrchestrationProvider>
-                                                  <AdminTourOrchestrationProvider>
-                                                    <FolderFileContextProvider>
-                                                      {children}
-                                                    </FolderFileContextProvider>
-                                                  </AdminTourOrchestrationProvider>
-                                                </TourOrchestrationProvider>
-                                              </WorkbenchBarProvider>
-                                            </AnnotationProvider>
-                                          </FormDesignerProvider>
-                                        </FormFillProvider>
-                                      </RedactionProvider>
-                                    </SigningOverlayProvider>
+                                    <RedactionProvider>
+                                      <FormFillProvider>
+                                        <FormDesignerProvider>
+                                          <AnnotationProvider>
+                                            <WorkbenchBarProvider>
+                                              <TourOrchestrationProvider>
+                                                {children}
+                                              </TourOrchestrationProvider>
+                                            </WorkbenchBarProvider>
+                                          </AnnotationProvider>
+                                        </FormDesignerProvider>
+                                      </FormFillProvider>
+                                    </RedactionProvider>
                                   </SignatureProvider>
                                 </PageEditorProvider>
                               </ViewerProvider>

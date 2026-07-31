@@ -23,8 +23,6 @@ const summary: UpdateSummary = {
 
 const machine = (): MachineInfo => ({
   machineType: "Client-win",
-  activeSecurity: false,
-  licenseType: "NORMAL",
 });
 
 function wrap(machineInfo: MachineInfo) {

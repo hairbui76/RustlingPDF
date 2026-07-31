@@ -7,8 +7,8 @@
  * (matches user mental model - Cmd+R shouldn't lose the breadcrumb).
  */
 
-const SESSION_KEY = "stirling.filesPage.returnRoute";
-const SESSION_LABEL_KEY = "stirling.filesPage.returnLabel";
+const SESSION_KEY = "rustling.filesPage.returnRoute";
+const SESSION_LABEL_KEY = "rustling.filesPage.returnLabel";
 
 export interface FilesPageReturnRoute {
   route: string;
@@ -49,7 +49,7 @@ export function setFilesPageReturnRoute(route: string, label?: string): void {
     if (label) sessionStorage.setItem(SESSION_LABEL_KEY, label);
     else sessionStorage.removeItem(SESSION_LABEL_KEY);
     refreshSnapshot();
-    window.dispatchEvent(new CustomEvent("stirling-filespage-return-changed"));
+    window.dispatchEvent(new CustomEvent("rustling-filespage-return-changed"));
   } catch {
     /* ignore */
   }
@@ -60,7 +60,7 @@ export function clearFilesPageReturnRoute(): void {
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(SESSION_LABEL_KEY);
     refreshSnapshot();
-    window.dispatchEvent(new CustomEvent("stirling-filespage-return-changed"));
+    window.dispatchEvent(new CustomEvent("rustling-filespage-return-changed"));
   } catch {
     /* ignore */
   }
@@ -79,10 +79,10 @@ export function subscribeFilesPageReturnRoute(
     listener();
   };
   window.addEventListener("storage", handler);
-  window.addEventListener("stirling-filespage-return-changed", handler);
+  window.addEventListener("rustling-filespage-return-changed", handler);
   return () => {
     window.removeEventListener("storage", handler);
-    window.removeEventListener("stirling-filespage-return-changed", handler);
+    window.removeEventListener("rustling-filespage-return-changed", handler);
   };
 }
 

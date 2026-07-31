@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/file/pdf`
 
-Rust compatibility contract for `ConvertOfficeController`.
+Current contract for office-to-PDF conversion.
 
 ## Request and response
 
@@ -11,8 +11,7 @@ Rust compatibility contract for `ConvertOfficeController`.
 
 ## Behavior
 
-The document is converted by shelling out to LibreOffice, the same tool the Java
-controller uses:
+The document is converted by shelling out to LibreOffice:
 
 ```
 soffice -env:UserInstallation=file://<profile> --headless --nologo \
@@ -45,15 +44,14 @@ does not expand the package onto disk, and rejects traversal paths, symbolic lin
 case-insensitive duplicate names, unsupported compression, DTD-bearing or malformed
 target XML, more than 100,000 entries, more than 200 MiB expanded data, or a targeted
 XML part larger than 16 MiB. Macro-enabled package extensions are accepted, but this
-pass matches Java by neutralizing external references rather than deleting VBA payloads.
+pass neutralizes external references without deleting VBA payloads.
 
-## Parity gaps
+## Limitations
 
-- Java can preserve external office-package targets that match an explicitly configured
-  SSRF allowlist and can disable sanitization globally. Rust deliberately strips every
-  external target and has no unsafe bypass.
-- Java tries `unoconvert` (a persistent LibreOffice server) before falling back to
-  `soffice`; the Rust port uses `soffice` directly.
+- Every external office-package target is stripped; there is no unsafe
+  sanitization bypass.
+- Conversion invokes `soffice` directly; it does not use a persistent
+  `unoconvert` server.
 
 ## Availability
 

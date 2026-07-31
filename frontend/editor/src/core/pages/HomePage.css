@@ -29,16 +29,12 @@
   min-width: 0;
 }
 
+/* Mark-only brand: sized a little larger than the old lockup's 1.5rem so the
+   header still reads as branded now that the wordmark no longer sits beside it. */
 .mobile-brand-icon {
-  height: 1.5rem;
+  height: 1.75rem;
   width: auto;
   flex-shrink: 0;
-}
-
-.mobile-brand-text {
-  height: 1.5rem;
-  width: auto;
-  max-width: 100%;
 }
 
 .mobile-toggle-buttons {

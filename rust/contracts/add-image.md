@@ -12,9 +12,8 @@ The route accepts `multipart/form-data` with:
 - `y`: optional finite PDF user-space coordinate, default `0`;
 - `everyPage`: optional boolean, default `false`.
 
-As in the Java implementation, the actual coordinates are measured from the
-PDF page's lower-left origin even though the legacy schema describes a
-top-left corner.
+Coordinates are measured from the PDF page's lower-left origin even though the
+older schema description says top-left.
 
 ## Processing
 

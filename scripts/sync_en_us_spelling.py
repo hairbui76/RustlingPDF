@@ -5,7 +5,7 @@ Two jobs, one pass:
 
 1. Copy every key that exists in en-GB but is missing from en-US into en-US,
    converting British spellings to American on the way in. Keys that only exist
-   in en-US (e.g. SaaS-only strings) are left untouched.
+   in en-US are left untouched.
 
 2. Fix any American spellings that have leaked into the en-GB *values* by
    converting them back to British.

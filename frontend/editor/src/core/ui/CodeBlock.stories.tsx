@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { CodeBlock } from "@app/ui/CodeBlock";
 
-const CURL_EXAMPLE = `curl https://api.stirling.com/v1/coi \\
+const CURL_EXAMPLE = `curl https://api.rustling.com/v1/coi \\
   -H "Authorization: Bearer sk_live_a3f8..." \\
   -F "file=@certificate.pdf"`;
 
@@ -18,9 +18,9 @@ const JSON_RESULT = `{
   "confidence_avg": 0.96
 }`;
 
-const PYTHON_EXAMPLE = `import stirling
+const PYTHON_EXAMPLE = `import rustling
 
-client = stirling.Client(api_key="sk_live_a3f8...")
+client = rustling.Client(api_key="sk_live_a3f8...")
 result = client.extract(file="certificate.pdf", schema="coi.v2")
 print(result.fields)`;
 

@@ -26,8 +26,6 @@ describe("isUpdatePopupAllowed", () => {
   });
 
   it("fails closed when the backend omits the decision (e.g. 401 fallback)", () => {
-    expect(
-      isUpdatePopupAllowed({ enableLogin: true } as AppConfig, false),
-    ).toBe(false);
+    expect(isUpdatePopupAllowed({} as AppConfig, false)).toBe(false);
   });
 });

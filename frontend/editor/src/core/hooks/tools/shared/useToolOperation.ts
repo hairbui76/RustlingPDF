@@ -15,10 +15,10 @@ import {
   handle422Error,
 } from "@app/utils/toolErrorHandler";
 import {
-  StirlingFile,
+  RustlingFile,
   extractFiles,
   FileId,
-  StirlingFileStub,
+  RustlingFileStub,
 } from "@app/types/fileContext";
 import { FILE_EVENTS } from "@app/services/errorUtils";
 import { zipFileService } from "@app/services/zipFileService";
@@ -27,12 +27,10 @@ import {
   createChildStub,
   generateProcessedFileMetadata,
 } from "@app/contexts/file/fileActions";
-import { createNewStirlingFileStub } from "@app/types/fileContext";
+import { createNewRustlingFileStub } from "@app/types/fileContext";
 import { ToolOperation } from "@app/types/file";
 import { ensureBackendReady } from "@app/services/backendReadinessGuard";
 import { trackEditorOperation } from "@app/services/analytics";
-import { useWillUseCloud } from "@app/hooks/useWillUseCloud";
-import { useCreditCheck } from "@app/hooks/useCreditCheck";
 import { notifyPdfProcessingComplete } from "@app/services/desktopNotificationService";
 import {
   buildInputTracking,
@@ -107,28 +105,15 @@ export const useToolOperation = <TParams>(
     extractZipFiles,
   } = useToolResources();
 
-  // Determine endpoint for cloud usage check and credit routing.
-  // For function endpoints, use defaultParameters to get a representative static value.
-  const endpointString = config.endpoint
-    ? typeof config.endpoint === "function"
-      ? config.defaultParameters
-        ? (config.endpoint(config.defaultParameters) ?? undefined)
-        : undefined
-      : config.endpoint
-    : undefined;
-
-  const { checkCredits } = useCreditCheck(config.operationType, endpointString);
-  const willUseCloud = useWillUseCloud(endpointString);
-
   // Track last operation for undo functionality
   const lastOperationRef = useRef<{
     inputFiles: File[];
-    inputStirlingFileStubs: StirlingFileStub[];
+    inputRustlingFileStubs: RustlingFileStub[];
     outputFileIds: FileId[];
   } | null>(null);
 
   const executeOperation = useCallback(
-    async (params: TParams, selectedFiles: StirlingFile[]): Promise<void> => {
+    async (params: TParams, selectedFiles: RustlingFile[]): Promise<void> => {
       // Validation
       if (selectedFiles.length === 0) {
         actions.setError(t("noFileSelected", "No file loaded"));
@@ -146,7 +131,7 @@ export const useToolOperation = <TParams>(
           console.log("markFileError", e);
         }
       }
-      const validFiles: StirlingFile[] = selectedFiles.filter(
+      const validFiles: RustlingFile[] = selectedFiles.filter(
         (file) => file.size > 0,
       );
       if (validFiles.length === 0) {
@@ -156,7 +141,7 @@ export const useToolOperation = <TParams>(
 
       // Block encrypted files from being sent to backend tools
       const encryptedFiles = validFiles.filter((f) => {
-        const stub = selectors.getStirlingFileStub(f.fileId);
+        const stub = selectors.getRustlingFileStub(f.fileId);
         return stub?.processedFile?.isEncrypted === true;
       });
       if (encryptedFiles.length > 0) {
@@ -183,15 +168,7 @@ export const useToolOperation = <TParams>(
           : config.endpoint
         : undefined;
 
-      // Credit check — no-op in core builds, real check in desktop/SaaS versions.
-      // Pass runtime endpoint so the check can determine if this routes locally (no credits needed).
-      const creditError = await checkCredits(runtimeEndpoint);
-      if (creditError !== null) {
-        actions.setError(creditError);
-        return;
-      }
-
-      // Backend readiness check (will skip for SaaS-routed endpoints).
+      // Check the backend before starting a server-backed operation.
       // Custom processors without an endpoint skip this — they manage their own backend calls.
       const endpointForReadyCheck =
         config.toolType !== ToolType.custom ? runtimeEndpoint : undefined;
@@ -438,7 +415,7 @@ export const useToolOperation = <TParams>(
             processedFiles.map((file) => generateProcessedFileMetadata(file)),
           );
 
-          const { inputFileIds, inputStirlingFileStubs } = buildInputTracking(
+          const { inputFileIds, inputRustlingFileStubs } = buildInputTracking(
             validFiles,
             selectors,
           );
@@ -447,7 +424,7 @@ export const useToolOperation = <TParams>(
             // Output is a modified version of the input — link it to the input's version chain.
             // The input is removed from the workbench and replaced in-place by the output.
             const downloadLocalPath =
-              selectors.getStirlingFileStub(validFiles[0].fileId)
+              selectors.getRustlingFileStub(validFiles[0].fileId)
                 ?.localFilePath ?? null;
 
             const newToolOperation: ToolOperation = {
@@ -456,8 +433,8 @@ export const useToolOperation = <TParams>(
             };
 
             const successInputStubs = successSourceIds
-              .map((id) => selectors.getStirlingFileStub(id))
-              .filter(Boolean) as StirlingFileStub[];
+              .map((id) => selectors.getRustlingFileStub(id))
+              .filter(Boolean) as RustlingFileStub[];
 
             if (successInputStubs.length !== processedFiles.length) {
               console.warn(
@@ -469,7 +446,7 @@ export const useToolOperation = <TParams>(
               );
             }
 
-            const { outputStirlingFileStubs, outputStirlingFiles } =
+            const { outputRustlingFileStubs, outputRustlingFiles } =
               buildOutputPairs(
                 processedFiles,
                 thumbnails,
@@ -477,8 +454,8 @@ export const useToolOperation = <TParams>(
                 (file, thumbnail, metadata, index) =>
                   createChildStub(
                     successInputStubs[index] ||
-                      inputStirlingFileStubs[index] ||
-                      inputStirlingFileStubs[0],
+                      inputRustlingFileStubs[index] ||
+                      inputRustlingFileStubs[0],
                     newToolOperation,
                     file,
                     metadata?.thumbnailUrl || thumbnail,
@@ -496,8 +473,8 @@ export const useToolOperation = <TParams>(
             });
             const outputFileIds = await consumeFiles(
               toConsumeInputIds,
-              outputStirlingFiles,
-              outputStirlingFileStubs,
+              outputRustlingFiles,
+              outputRustlingFileStubs,
             );
             // Tell the viewer to follow the replacement file — consumeFiles prepends the new file
             // to the list, so activeFileIndex would point to the wrong file without this.
@@ -508,11 +485,11 @@ export const useToolOperation = <TParams>(
 
             // Carry the desktop save path forward so the output can be saved back to the same file
             if (toConsumeInputIds.length === 1 && outputFileIds.length === 1) {
-              const inputStub = selectors.getStirlingFileStub(
+              const inputStub = selectors.getRustlingFileStub(
                 toConsumeInputIds[0],
               );
               if (inputStub?.localFilePath) {
-                fileActions.updateStirlingFileStub(outputFileIds[0], {
+                fileActions.updateRustlingFileStub(outputFileIds[0], {
                   localFilePath: inputStub.localFilePath,
                 });
               }
@@ -527,7 +504,7 @@ export const useToolOperation = <TParams>(
 
             lastOperationRef.current = {
               inputFiles: extractFiles(validFiles),
-              inputStirlingFileStubs: inputStirlingFileStubs.map((record) => ({
+              inputRustlingFileStubs: inputRustlingFileStubs.map((record) => ({
                 ...record,
               })),
               outputFileIds,
@@ -536,13 +513,13 @@ export const useToolOperation = <TParams>(
             // Outputs are independent artifacts (format conversion, merge, split).
             // Create fresh root stubs with no parent chain, then swap out only the inputs
             // that successfully produced outputs — other workbench files are untouched.
-            const { outputStirlingFileStubs, outputStirlingFiles } =
+            const { outputRustlingFileStubs, outputRustlingFiles } =
               buildOutputPairs(
                 processedFiles,
                 thumbnails,
                 processedFileMetadataArray,
                 (file, thumbnail, metadata) =>
-                  createNewStirlingFileStub(
+                  createNewRustlingFileStub(
                     file,
                     undefined,
                     metadata?.thumbnailUrl || thumbnail,
@@ -559,8 +536,8 @@ export const useToolOperation = <TParams>(
             });
             const outputFileIds = await consumeFiles(
               toConsumeInputIds,
-              outputStirlingFiles,
-              outputStirlingFileStubs,
+              outputRustlingFiles,
+              outputRustlingFileStubs,
             );
 
             // Notify on desktop when processing completes
@@ -581,7 +558,7 @@ export const useToolOperation = <TParams>(
 
             lastOperationRef.current = {
               inputFiles: extractFiles(validFiles),
-              inputStirlingFileStubs: inputStirlingFileStubs.map((record) => ({
+              inputRustlingFileStubs: inputRustlingFileStubs.map((record) => ({
                 ...record,
               })),
               outputFileIds,
@@ -628,8 +605,6 @@ export const useToolOperation = <TParams>(
       createDownloadInfo,
       cleanupBlobUrls,
       extractZipFiles,
-      willUseCloud,
-      checkCredits,
     ],
   );
 
@@ -660,11 +635,11 @@ export const useToolOperation = <TParams>(
       return;
     }
 
-    const { inputFiles, inputStirlingFileStubs, outputFileIds } =
+    const { inputFiles, inputRustlingFileStubs, outputFileIds } =
       lastOperationRef.current;
 
     // Validate that we have data to undo
-    if (inputFiles.length === 0 || inputStirlingFileStubs.length === 0) {
+    if (inputFiles.length === 0 || inputRustlingFileStubs.length === 0) {
       actions.setError(
         t("invalidUndoData", "Cannot undo: invalid operation data"),
       );
@@ -683,7 +658,7 @@ export const useToolOperation = <TParams>(
 
     try {
       // Undo the consume operation
-      await undoConsumeFiles(inputFiles, inputStirlingFileStubs, outputFileIds);
+      await undoConsumeFiles(inputFiles, inputRustlingFileStubs, outputFileIds);
 
       // Clear results and operation tracking
       resetResults();
@@ -733,8 +708,6 @@ export const useToolOperation = <TParams>(
     status: state.status,
     errorMessage: state.errorMessage,
     progress: state.progress,
-    willUseCloud,
-
     // Actions
     executeOperation,
     resetResults,

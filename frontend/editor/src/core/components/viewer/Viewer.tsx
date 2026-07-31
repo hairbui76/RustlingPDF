@@ -7,7 +7,7 @@ import {
 } from "@app/components/viewer/NonPdfViewer";
 import { useFileState } from "@app/contexts/FileContext";
 import { useViewer } from "@app/contexts/ViewerContext";
-import { isStirlingFile } from "@app/types/fileContext";
+import { isRustlingFile } from "@app/types/fileContext";
 import { isPdfFile } from "@app/utils/fileUtils";
 
 export type { ViewerProps };
@@ -34,7 +34,7 @@ const Viewer = (props: ViewerProps & SignatureOverlayPassThrough) => {
   const activeFile = useMemo(() => {
     if (props.previewFile) return props.previewFile;
     const byId = activeFileId
-      ? activeFiles.find((f) => isStirlingFile(f) && f.fileId === activeFileId)
+      ? activeFiles.find((f) => isRustlingFile(f) && f.fileId === activeFileId)
       : null;
     return byId ?? activeFiles[0] ?? null;
   }, [props.previewFile, activeFiles, activeFileId]);

@@ -61,7 +61,7 @@ async fn post_ebook(
     filename: &str,
     options: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-ebook-to-pdf-boundary";
+    let boundary = "rustling-ebook-to-pdf-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
     )
@@ -92,7 +92,7 @@ async fn post_ebook(
 
 fn calibre_present() -> bool {
     if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND")
+        rustling_processing::environment::var_os("RUSTLING_PROCESSING_EBOOK_CONVERT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

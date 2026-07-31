@@ -69,7 +69,7 @@
   --p-gray-b0: #b0b0b0;
   --p-gray-mid: #808080;
 
-  /* Brand red (login/auth CTAs) — base + hover, complementing the -200..-900 scale above. */
+  /* Brand red — base + hover, complementing the -200..-900 scale above. */
   --p-brand-red: #af3434;
   --p-brand-red-600: #9a2e2e;
 
@@ -84,29 +84,6 @@
   --p-tint-blue: #eef1fb;
   --p-tint-violet: #f6f4fc;
   --p-tint-pink: #fbf4f7;
-
-  /* Notion-style procurement view palette. */
-  --p-notion-blue: #2383e2;
-  --p-notion-blue-strong: #1b6ec2;
-  --p-notion-blue-border: #b8d5f2;
-  --p-notion-ink: #37352f;
-  --p-notion-gray: #9b9a97;
-  --p-notion-gray-strong: #787774;
-  --p-notion-paper: #f5f4f1;
-  --p-notion-paper-2: #f0eee9;
-  --p-notion-border: #e3e1dc;
-  --p-notion-border-2: #eae8e3;
-  --p-notion-border-cool: #d3d1cb;
-
-  /* Vendor status chips (procurement / auth callback). */
-  --p-vendor-red: #ef5350;
-  --p-vendor-red-text: #c62828;
-  --p-vendor-red-soft: #ef9a9a;
-  --p-vendor-red-bg: #ffebee;
-  --p-vendor-red-border: #ffcdd2;
-  --p-vendor-red-bg-dark: #3d2020;
-  --p-vendor-red-border-dark: #5d3030;
-  --p-vendor-green: #66bb6a;
 
   /* Palette entries migrated from literals in consuming files. */
   --p-c-0550ae: #0550ae;

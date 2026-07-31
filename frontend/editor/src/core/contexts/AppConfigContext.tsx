@@ -8,9 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import apiClient from "@app/services/apiClient";
-import { getSimulatedAppConfig } from "@app/testing/serverExperienceSimulations";
 import type { AppConfig, AppConfigBootstrapMode } from "@app/types/appConfig";
-import { useJwtConfigSync } from "@app/hooks/useJwtConfigSync";
 
 /**
  * Sleep utility for delays
@@ -97,14 +95,6 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({
       const startTime = performance.now();
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const testConfig = getSimulatedAppConfig();
-          if (testConfig) {
-            setConfig(testConfig);
-            setHasResolvedConfig(true);
-            setLoading(false);
-            return;
-          }
-
           if (attempt > 0) {
             const delay = initialDelay * Math.pow(2, attempt - 1);
             console.debug(
@@ -113,8 +103,6 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({
             await sleep(delay);
           }
 
-          // apiClient automatically adds JWT header if available via interceptors
-          // Always suppress error toast - we handle 401 errors locally
           console.debug("[AppConfig] Fetching app config", {
             attempt,
             force,
@@ -124,7 +112,6 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({
             "/api/v1/config/app-config",
             {
               suppressErrorToast: true,
-              skipAuthRedirect: true,
             } as any,
           );
           const data = response.data;
@@ -141,22 +128,6 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({
           return; // Success - exit function
         } catch (err: any) {
           const status = err?.response?.status;
-
-          // On 401 (not authenticated), use default config with login enabled
-          // This allows the app to work even without authentication
-          if (status === 401) {
-            console.debug(
-              "[AppConfig] 401 error - using default config (login enabled)",
-            );
-            console.debug(
-              "[AppConfig] Fetch duration ms:",
-              (performance.now() - startTime).toFixed(2),
-            );
-            setConfig({ enableLogin: true });
-            setHasResolvedConfig(true);
-            setLoading(false);
-            return;
-          }
 
           // Check if we should retry (network errors or 5xx errors)
           const shouldRetry =
@@ -185,8 +156,8 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({
             "[AppConfig] Fetch duration ms:",
             (performance.now() - startTime).toFixed(2),
           );
-          // Preserve existing config (initial default or previous fetch). If nothing is set, assume login enabled.
-          setConfig((current) => current ?? { enableLogin: true });
+          // Preserve an initial or previously fetched configuration.
+          setConfig((current) => current ?? {});
           setHasResolvedConfig(true);
           break;
         }
@@ -197,24 +168,11 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({
     [hasResolvedConfig, isBlockingMode, maxRetries, initialDelay],
   );
 
-  const { isAuthPage } = useJwtConfigSync(fetchConfig);
-
   useEffect(() => {
-    if (isAuthPage) {
-      console.debug(
-        "[AppConfig] On auth page - using default config, skipping fetch",
-        { path: window.location.pathname },
-      );
-      setConfig({ enableLogin: true });
-      setHasResolvedConfig(true);
-      setLoading(false);
-      return;
-    }
-
     if (autoFetch) {
       fetchConfig();
     }
-  }, [autoFetch, fetchConfig, isAuthPage]);
+  }, [autoFetch, fetchConfig]);
 
   const refetch = useCallback(() => fetchConfig(true), [fetchConfig]);
 

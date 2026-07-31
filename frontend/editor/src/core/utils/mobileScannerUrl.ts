@@ -12,7 +12,7 @@
  * reach (desktop / LAN / reverse proxy):
  *   - origin only (no subpath): apply the app's base path. The backend's
  *     `resolveFrontendUrl` advertises a bare origin with no subpath, so this is
- *     the common SaaS web case (frontend served under e.g. `/app`).
+ *     the common legacy web build web case (frontend served under e.g. `/app`).
  *   - already carries a subpath: it points at the target SPA's base directly,
  *     so use it verbatim and do not add the base path again (no doubled base).
  *

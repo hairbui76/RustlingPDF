@@ -21,4 +21,4 @@ export type {
 } from "@app/tools/formFill/types";
 export type { IFormDataProvider } from "@app/tools/formFill/providers/types";
 export { PdfiumFormProvider } from "@app/tools/formFill/providers/PdfiumFormProvider";
-export { PdfBoxFormProvider } from "@app/tools/formFill/providers/PdfBoxFormProvider";
+export { BackendFormProvider } from "@app/tools/formFill/providers/BackendFormProvider";

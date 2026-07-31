@@ -10,14 +10,12 @@ import {
 import { isBaseWorkbench } from "@app/types/workbench";
 import { VIEWER_SUPPORTED_EXTENSIONS } from "@app/utils/fileUtils";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
-import { useSigningOverlay } from "@app/contexts/SigningOverlayContext";
 import { useCookieConsent } from "@app/hooks/useCookieConsent";
 import styles from "@app/components/layout/Workbench.module.css";
 
 import WorkbenchBar from "@app/components/shared/WorkbenchBar";
 import LandingPage from "@app/components/shared/LandingPage";
 import DismissAllErrorsButton from "@app/components/shared/DismissAllErrorsButton";
-import { ChatFAB } from "@app/components/chat/ChatFAB";
 
 // Workbench panels are loaded on demand. Viewer pulls in pdfjs-dist and the
 // full @embedpdf plugin set; FileEditor/PageEditor are only needed once a file
@@ -57,7 +55,6 @@ export default function Workbench() {
   } = useToolWorkflow();
 
   const { handleToolSelect } = useToolWorkflow();
-  const { overlay: signingOverlay } = useSigningOverlay();
 
   // Get navigation state - this is the source of truth
   const { selectedTool: selectedToolId } = useNavigationState();
@@ -115,25 +112,6 @@ export default function Workbench() {
     // currently loaded into the workbench - it lives on top of the IDB store.
     if (currentView === "myFiles") {
       return <FileManagerView />;
-    }
-
-    // Shared Signing drives the main viewer from the sidebar (document + overlays
-    // via context), ahead of the empty-state landing page.
-    if (currentView === "viewer" && signingOverlay?.file) {
-      return (
-        <Viewer
-          sidebarsVisible={sidebarsVisible}
-          setSidebarsVisible={setSidebarsVisible}
-          previewFile={signingOverlay.file}
-          signaturePreviews={signingOverlay.signaturePreviews}
-          signaturePreviewsReadOnly={signingOverlay.signaturePreviewsReadOnly}
-          signaturePlacementMode={signingOverlay.signaturePlacementMode}
-          signaturePlacementData={signingOverlay.signaturePlacementData}
-          signaturePlacementType={signingOverlay.signaturePlacementType}
-          onSignaturePreviewsChange={signingOverlay.onSignaturePreviewsChange}
-          signatureOverlayApiRef={signingOverlay.signatureOverlayApiRef}
-        />
-      );
     }
 
     if (activeFiles.length === 0) {
@@ -241,9 +219,6 @@ export default function Workbench() {
 
       {/* Dismiss All Errors Button */}
       <DismissAllErrorsButton />
-
-      {/* Floating AI chat button + panel */}
-      <ChatFAB />
 
       {/* Main content area */}
       <Box

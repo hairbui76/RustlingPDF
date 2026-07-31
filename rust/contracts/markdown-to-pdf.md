@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/markdown/pdf`
 
-Rust compatibility contract for `ConvertMarkdownToPdf`.
+Current contract for Markdown-to-PDF conversion.
 
 ## Request and response
 
@@ -28,7 +28,7 @@ embedded content, event handlers, URL-bearing styles, remote image URLs, and uns
 package paths are removed or rejected before rendering. Only safe package-relative
 images and bounded PNG/JPEG/GIF/WebP base64 data URLs can reach the renderer.
 
-## Availability and parity
+## Availability and security
 
 If WeasyPrint is absent the route returns `501 Not Implemented`. Bad extensions,
 unsafe archives, and ZIPs without Markdown return `400`; a renderer failure or invalid

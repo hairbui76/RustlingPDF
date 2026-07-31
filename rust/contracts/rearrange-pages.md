@@ -1,6 +1,6 @@
 # `POST /api/v1/general/rearrange-pages`
 
-Rust compatibility contract for `RearrangePagesPDFController.rearrangePages()`.
+Current contract for rearranging PDF pages.
 
 ## Request
 
@@ -20,9 +20,9 @@ Rust compatibility contract for `RearrangePagesPDFController.rearrangePages()`.
 - Download name: the input extension is removed and `_rearranged.pdf` is appended
 - Existing page dictionaries are reused for their first occurrence
 - Repeated occurrences are cloned into distinct page nodes while sharing their
-  underlying content/resources, matching the Java controller
-- Booklet padding and odd-page behavior follow the Java implementation, including
-  repeated last-page slots in side-stitch mode
+  underlying content/resources
+- Booklet padding and odd-page behavior include repeated last-page slots in
+  side-stitch mode
 
 The implementation rewrites the existing page tree in place with `lopdf`; it does
 not create a separate document or copy resources between documents.

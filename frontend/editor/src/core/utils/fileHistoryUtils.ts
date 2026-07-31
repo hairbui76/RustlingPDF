@@ -4,30 +4,30 @@
  * Helper functions for IndexedDB-based file history management.
  * Handles file history operations and lineage tracking.
  */
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 
 /**
  * Group files by processing branches - each branch ends in a leaf file
  * Returns Map<fileId, lineagePath[]> where fileId is the leaf and lineagePath is the path back to original
  */
 export function groupFilesByOriginal(
-  StirlingFileStubs: StirlingFileStub[],
-): Map<string, StirlingFileStub[]> {
-  const groups = new Map<string, StirlingFileStub[]>();
+  RustlingFileStubs: RustlingFileStub[],
+): Map<string, RustlingFileStub[]> {
+  const groups = new Map<string, RustlingFileStub[]>();
 
   // Create a map for quick lookups
-  const fileMap = new Map<string, StirlingFileStub>();
-  for (const record of StirlingFileStubs) {
+  const fileMap = new Map<string, RustlingFileStub>();
+  for (const record of RustlingFileStubs) {
     fileMap.set(record.id, record);
   }
 
   // Find leaf files (files that are not parents of any other files AND have version history)
   // Original files (v0) should only be leaves if they have no processed versions at all
-  const leafFiles = StirlingFileStubs.filter((stub) => {
-    const isParentOfOthers = StirlingFileStubs.some(
+  const leafFiles = RustlingFileStubs.filter((stub) => {
+    const isParentOfOthers = RustlingFileStubs.some(
       (otherStub) => otherStub.parentFileId === stub.id,
     );
-    const isOriginalOfOthers = StirlingFileStubs.some(
+    const isOriginalOfOthers = RustlingFileStubs.some(
       (otherStub) => otherStub.originalFileId === stub.id,
     );
 
@@ -42,15 +42,15 @@ export function groupFilesByOriginal(
 
   // For each leaf file, build its complete lineage path back to original
   for (const leafFile of leafFiles) {
-    const lineagePath: StirlingFileStub[] = [];
-    let currentFile: StirlingFileStub | undefined = leafFile;
+    const lineagePath: RustlingFileStub[] = [];
+    let currentFile: RustlingFileStub | undefined = leafFile;
 
     // Trace back through parentFileId chain to build this specific branch
     while (currentFile) {
       lineagePath.push(currentFile);
 
       // Move to parent file in this branch
-      let nextFile: StirlingFileStub | undefined = undefined;
+      let nextFile: RustlingFileStub | undefined = undefined;
 
       if (currentFile.parentFileId) {
         nextFile = fileMap.get(currentFile.parentFileId);
@@ -83,7 +83,7 @@ export function groupFilesByOriginal(
 /**
  * Check if a file has version history
  */
-export function hasVersionHistory(fileStub: StirlingFileStub): boolean {
+export function hasVersionHistory(fileStub: RustlingFileStub): boolean {
   return !!(
     fileStub.originalFileId &&
     fileStub.versionNumber &&

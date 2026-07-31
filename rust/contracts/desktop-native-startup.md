@@ -1,141 +1,97 @@
 # Native desktop processing startup
 
-Launch arguments: bare paths are opened as files; the Windows Explorer
-context-menu `--tool <action>` intent flag and its multi-select aggregation
-are specified in `desktop-explorer-context-menu.md`. How the Windows MSI puts
-this app on a machine, what re-running the installer offers, and exactly what
-uninstalling does and does not remove are specified in
-`desktop-windows-installer.md` — including the removal of the
-`stirling-provisioning.json` file read below, and the fact that
-`%APPDATA%\Stirling-PDF` (the desktop `RUSTLING_BASE_PATH`, holding
-`settings.yml`, `custom_settings.yml` and `logs/`) is deliberately left in
-place.
+The Tauri desktop launcher starts the bundled `rustling-processing` sidecar.
+Bare launch arguments open files; Windows Explorer tool intents are specified
+in `desktop-explorer-context-menu.md`, and MSI lifecycle behavior is specified
+in `desktop-windows-installer.md`.
 
-The Tauri desktop launcher starts the Rust processing backend as its bundled
-sidecar by default. `task desktop:stage-sidecar` builds the release
-`rustling-processing` binary plus the pinned PDFium, qpdf, and Tesseract
-runtimes and stages them
-into `src-tauri/` (`bundle.externalBin` entry `binaries/rustling-processing`,
-`bundle.resources` entries `resources/pdfium` and `resources/tools`); the
-bundler installs the sidecar
-next to the app executable, where the launcher resolves it via the shell
-plugin's sidecar API. `RUSTLING_NATIVE_BACKEND_PATH` (legacy alias
-`RUSTLING_NATIVE_BACKEND_PATH`) is a development-only override that points the
-launcher at an arbitrary processing executable instead. There is no further fallback: the upstream Java JRE/JAR launch path
-has been removed, and a bundle without the sidecar fails startup with a
-reported error.
+## Staging
 
-The native path provides:
+`task desktop:stage-sidecar`:
 
-- an unconditional `RustlingPDF running on port: <port>` handshake even without
-  `RUST_LOG` (the launcher's parser splits on the name-agnostic
-  `running on port: ` suffix, so a pre-rename `Stirling-PDF`-spelled backend
-  still parses);
-- an ephemeral loopback port, bounded 90-second launcher wait, stderr/stdout handshake parsing,
-  early-exit reporting, stale-process protection, and stale-port cleanup;
-- desktop/base/config/log/work environment parity and legacy-workspace migration
-  (the backend itself reads only `RUSTLING_BASE_PATH` and
-  `RUSTLING_PDF_TAURI_MODE` from this set — each also honoured under its
-  legacy `STIRLING_*` alias, with `RUSTLING_*` winning when both are set; the
-  Java-era `RUSTLING_PDF_CONFIG_DIR`/`LOG_DIR`/`WORK_DIR` variables are still
-  passed for contract parity and are harmless);
-- PDFium wiring: when the launcher's own environment does not already carry
-  `RUSTLING_PDFIUM_LIBRARY_PATH` (either spelling; an operator-set value is
-  inherited untouched) and the bundle ships `resources/pdfium`, the launcher
-  sets `RUSTLING_PDFIUM_LIBRARY_PATH` to that directory — the backend resolves the
-  platform library filename inside it. In unpackaged development runs the
-  variable stays unset (logged) and the backend falls back to a system PDFium;
-- bundled-tools wiring: qpdf 12.3.2 and Tesseract 5.5.3 are staged under
-  `resources/tools/{qpdf,tesseract}` with their private runtime libraries,
-  Tesseract's Apache-2.0 English `eng.traineddata` 4.1.0, required PDF renderer
-  support files, and applicable notices. For
-  `RUSTLING_PROCESSING_QPDF_COMMAND`,
-  `RUSTLING_PROCESSING_TESSERACT_COMMAND`, and `TESSDATA_PREFIX`, an
-  operator-set launcher value is inherited untouched. Otherwise, when the
-  corresponding bundled file or directory exists, the launcher points the
-  variable at it. An unpackaged development run leaves missing values unset
-  and logs them, allowing normal backend discovery to continue;
-- PID-plus-start-time parent monitoring through `TAURI_PARENT_PID`, with orphan shutdown normally
-  observed within one 250 ms poll interval;
-- fresh-install configuration initialization in Tauri mode: the packaged Java
-  `settings.yml.template` is atomically persisted only when `configs/settings.yml` is absent, and
-  an empty `custom_settings.yml` is created only when absent;
-- short-file backup recovery: a `settings.yml` shorter than `MIN_SETTINGS_FILE_LINES` (31) is
-  treated as truncated/corrupted, moved aside to `settings.yml.<epoch-millis>.bak`, and recreated
-  from the template (`custom_settings.yml` is never subject to this);
-- upgrade-time template merge: when `settings.yml` already exists and is long enough, any keys the
-  bundled template has gained across app versions are folded into the user's file while their
-  customized values are preserved.
+1. builds the release processing binary;
+2. installs the pinned PDFium runtime;
+3. installs pinned qpdf and Tesseract runtimes with English OCR data; and
+4. stages binaries, resources, notices, and licenses below `src-tauri`.
 
-## Linux support floor for the bundled tools
+Tauri bundles `binaries/rustling-processing`, `resources/pdfium`, and
+`resources/tools`. A bundle missing its sidecar fails startup with a visible
+error. `RUSTLING_NATIVE_BACKEND_PATH` is a development-only override for an
+explicit processing executable.
 
-The Linux Tesseract command is static. Bundled qpdf retains four deliberate
-host dependencies: `libgmp.so.10`, `libstdc++.so.6`, `libgcc_s.so.1`, and
-`libz.so.1`. The measured floor is glibc 2.34 and
-`libstdc++.so.6` with `GLIBCXX_3.4.29` (GCC 11 or newer), plus those four
-libraries—equivalent to Ubuntu 22.04, Debian 12, or Fedora 36 and newer.
+## Launch contract
 
-These libraries are already transitive dependencies of a functioning
-GTK/WebKitGTK desktop except that `libgmp` can be absent on unusually minimal
-systems. If any is unavailable, qpdf discovery marks repair support
-unavailable; the desktop process does not crash. The full measured import
-closure and redistribution decision are recorded in
+- The launcher requests an ephemeral loopback port and waits at most 90
+  seconds.
+- The backend prints `RustlingPDF running on port: <port>` independently of
+  log filtering. The launcher parses the stable `running on port: ` suffix.
+- Early exit, malformed handshakes, and timeouts are reported to the UI.
+- PID plus start-time parent monitoring stops orphaned sidecars.
+- Stale processes and stale port records are removed defensively.
+- The desktop workspace is rooted below the RustlingPDF application-data
+  directory and contains configuration, logs, and temporary working data.
+
+The sidecar receives `RUSTLING_BASE_PATH` and `RUSTLING_PDF_TAURI_MODE`. When
+the environment does not already define `RUSTLING_PDFIUM_LIBRARY_PATH`, the
+launcher points it at the bundled PDFium directory.
+
+For bundled tools, explicit operator values take precedence. Otherwise the
+launcher sets:
+
+- `RUSTLING_PROCESSING_QPDF_COMMAND`;
+- `RUSTLING_PROCESSING_TESSERACT_COMMAND`; and
+- `TESSDATA_PREFIX`.
+
+Unpackaged development runs leave an unavailable bundle path unset so normal
+runtime discovery can continue.
+
+## Configuration initialization
+
+On a fresh Tauri workspace, the processing service writes the bundled
+`settings.yml.template` only when `configs/settings.yml` is absent and creates
+an empty `custom_settings.yml` only when absent.
+
+A `settings.yml` shorter than `MIN_SETTINGS_FILE_LINES` is treated as
+truncated, moved to `settings.yml.<epoch-millis>.bak`, and replaced from the
+template. `custom_settings.yml` is never subject to this recovery.
+
+On upgrade, the merge is template-shaped:
+
+- template structure, comments, blank lines, and inline comments are retained;
+- values for leaf keys present in both files come from the user file;
+- new template keys keep their defaults;
+- keys absent from the template are omitted;
+- the file is rewritten only when the merged result differs.
+
+Carried values preserve the template leaf's quoting style where safe.
+Plain values that would change meaning or become invalid YAML are quoted by the
+YAML emitter. Inline scalars and flow sequences are supported; block mappings
+or block sequences at a leaf fall back to the template default. An existing
+long file that no longer parses is left untouched and logged rather than
+preventing desktop startup.
+
+## Bundled-tool platform floor
+
+The Linux Tesseract command is static. Bundled qpdf expects
+`libgmp.so.10`, `libstdc++.so.6`, `libgcc_s.so.1`, and `libz.so.1`; the measured
+floor is glibc 2.34 and `GLIBCXX_3.4.29`. If a required library is unavailable,
+qpdf discovery marks repair support unavailable without crashing the desktop
+process.
+
+Provenance, import closures, checksums, and redistribution decisions live in
 `rust/scripts/desktop-tools/SOURCES.md`.
 
-## Upgrade-time template merge
+## Updates
 
-Matches Java's `ConfigInitializer` upgrade path (and the `YamlHelper` it drives):
+Packaged apps poll:
 
-- the output is **template-shaped** — the template's structure, comments, blank lines and inline
-  comments are kept verbatim, not the user's;
-- for each leaf key present in **both** files, the template's default value is replaced by the
-  **user's** value, keeping the template's inline comment;
-- brand-new template keys absent from the user file keep their template **default**;
-- user keys **absent from the template are dropped** (the merge walks the template, so unmatched
-  user keys are never carried);
-- the file is rewritten **only when the merged result differs** from what is on disk, so re-running
-  on an already-current file is a no-op (idempotent).
+`https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`
 
-**Value rendering (quoting).** A carried-over value is re-emitted in the template leaf's own quoting
-style: a double- or single-quoted template value keeps that style, and a **plain-styled** value is
-emitted as an inline scalar that reparses to **exactly** the user's value. A plain value that is not
-plain-safe — one carrying `#`, `:`, `*`, `!`, `@` or another leading/embedded indicator, a
-leading/trailing space, an empty string, or text that would otherwise reparse as a bool/number/null
-(`true`, `123`, `null`) — is **automatically quoted** (the decision is delegated to serde_yaml's own
-scalar emitter, not a hand-maintained character list). So a real database password or secret is never
-silently truncated at an inline `#` comment and the file always reparses; a plain-safe value
-(`postgres`) still renders bare, with no quoting churn. This matches Java's snakeyaml, which likewise
-quotes such values on write — there is no plain-scalar corruption on carry-forward.
+The committed updater public key has minisign id `9ADA2DC8FC4FAF0B`. Its private
+counterpart is stored outside the repository and provided to release CI through
+`TAURI_SIGNING_PRIVATE_KEY`. Installed applications accept only artifacts
+signed by the configured key.
 
-`custom_settings.yml` is never merged. Java's two historical `migrate*` key renames
-(`migrateEnterpriseEditionToPremium`, `migrateProFeaturesKeyCasing`) are intentionally **not**
-ported — they are Java-schema-specific migrations, out of scope.
-
-**Documented scope limitation (follow-up):** the merge carries across only values that live inline
-on their key's line — scalars and inline flow sequences (`[]`, `[a, b]`). The template currently has
-**no block sequences**, so this covers effectively the whole file; but a user override expressed as a
-nested mapping (or a block sequence) under a key is not carried, and that key falls back to the
-template default. A `settings.yml` that is long enough to reach the merge path but no longer parses
-as YAML is left untouched (a warning is logged) rather than failing desktop startup — Java throws
-here; the Rust port prefers not to regress a previously-tolerated file into a hard boot failure.
-
-The desktop updater endpoint points at RustlingPDF's own releases
-(`https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`). The committed
-`updater.pubkey` is a repo-controlled key (minisign id `9ADA2DC8FC4FAF0B`); the private key is held
-outside the repository (maintainer machine) and as the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions
-secret (empty `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). If the key is ever lost, installed apps only
-accept updates signed by the committed pubkey — generate a new pair and ship it in a manually
-distributed build.
-
-**Signed-bundle upgrade proof — Linux leg proven** (2026-07-28, via a containerized e2e harness
-that was subsequently removed by maintainer decision — the harness and its runs are preserved in
-git history before commit `9f42a3d`): a release v0.0.1 AppImage
-carrying the Rust sidecar, built against a throwaway dev signing key and a localhost update
-endpoint, detected a served signed v99.0.0 update (`check_for_update` → 99.0.0), **rejected** a
-manifest signed by a different valid key ("signature was created with a different key") and a
-byte-tampered artifact under the good signature ("signature verification failed") — both leaving
-the installed AppImage untouched — then downloaded, signature-verified, and installed the good
-update (on-disk AppImage byte-identical to the served artifact, sha256-asserted) and reported
-99.0.0 after relaunch. The verifying key was cryptographically confirmed to be the dev throwaway
-key (minisign id match between the served signature and the pubkey pinned in the app config).
-macOS and Windows legs remain — they are release-runner work, not runnable on this host.
+The Linux signed-update path has executable proof for valid, wrong-key, and
+tampered artifacts. Windows and macOS update proofs run on their native release
+runners.

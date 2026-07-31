@@ -64,7 +64,7 @@ async fn validates_format_upload_and_pdf_data() -> Result<(), Box<dyn std::error
         StatusCode::BAD_REQUEST
     );
 
-    let boundary = "stirling-pdf-text-missing";
+    let boundary = "rustlingpdf-text-missing";
     let response = app(1024)
         .oneshot(
             Request::builder()
@@ -87,7 +87,7 @@ async fn post_pdf(
     pdf: &[u8],
     output_format: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-text-boundary";
+    let boundary = "rustlingpdf-text-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

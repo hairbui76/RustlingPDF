@@ -20,7 +20,7 @@ which this repository extends through one fragment:
 | Fragment | `frontend/editor/src-tauri/windows/wix/provisioning.wxs` (`wix.fragmentPaths` + `wix.componentGroupRefs`) |
 
 Identifiers that must never be renamed (existing installs key off them): the
-bundle identifier `stirling.pdf.dev`, the `Stirling-PDF` app-data directory, and
+bundle identifier `rustling.pdf.dev`, the `RustlingPDF` app-data directory, and
 the pinned WiX `upgradeCode` `3305fba9-7e5e-5c09-bc71-eca0a65f4fee`.
 
 **Fragments are NOT Handlebars-rendered.** The bundler renders `main.wxs` and
@@ -28,7 +28,7 @@ writes it out, but for fragment files it renders only into a throwaway string
 used to sniff `xmlns` extension namespaces, then hands candle the **original
 file** (`msi/mod.rs`: the loop that builds `candle_inputs` pushes `input_path`,
 not the rendered text; `run_candle` compiles that path). The fragment's use of
-`$(sys.SOURCEFILEDIR)` to locate `stirling-provision.exe` corroborates this — it
+`$(sys.SOURCEFILEDIR)` to locate `rustling-provision.exe` corroborates this — it
 resolves to the fragment's own directory in the repo, which is where
 `task desktop:provisioner` puts those binaries. Consequences are recorded under
 [Known divergences](#known-divergences).
@@ -39,16 +39,16 @@ resolves to the fragment's own directory in the repo, which is where
 InstallScope="perMachine">`; WiX therefore also sets `ALLUSERS=1`).
 
 Optional properties for unattended / MDM deploys, consumed by the deferred
-`WriteProvisioningFile*` CustomActions: `STIRLING_SERVER_URL`,
-`STIRLING_LOCK_CONNECTION`, `STIRLING_LOGIN_AGREEMENT`, `STIRLING_UPDATE_MODE`.
-When any of them is set, `stirling-provision.exe` writes
-`%PROGRAMDATA%\Stirling-PDF\stirling-provisioning.json`.
+`WriteProvisioningFile*` CustomActions: `RUSTLING_SERVER_URL`,
+`RUSTLING_LOCK_CONNECTION`, `RUSTLING_LOGIN_AGREEMENT`, `RUSTLING_UPDATE_MODE`.
+When any of them is set, `rustling-provision.exe` writes
+`%PROGRAMDATA%\RustlingPDF\rustling-provisioning.json`.
 
 Installed surface:
 
 - `[INSTALLDIR]` (default `%ProgramFiles%\RustlingPDF`): the app executable, the
-  `rustling-processing` sidecar, `resources\pdfium\`, `stirling-provision.exe`,
-  `stirling_thumbnail_handler.dll`;
+  `rustling-processing` sidecar, `resources\pdfium\`, `rustling-provision.exe`,
+  `rustling_thumbnail_handler.dll`;
 - Start Menu folder + shortcut, Desktop shortcut, an "Uninstall RustlingPDF"
   shortcut;
 - advertised `.pdf` ProgId / Extension / Verb (the "Open with" association);
@@ -124,7 +124,7 @@ still naming a DLL that no longer existed):
 | `HKCU\Software\RustlingPDF\RustlingPDF` (the bundler template's own key, which the template only ever empties) | `ForceDeleteOnUninstall="yes"` on the dedicated per-user `TemplateRegistryCleanupComponent` — see [Per-user data must live in its own component](#per-user-data-must-live-in-its-own-component-ice57) |
 | `HKLM\SOFTWARE\Classes\RustlingPDF.pdf` — our own PDF ProgId, whole subtree | `ForceDeleteOnUninstall="yes"` on `PdfProgIdComponent` |
 | The `RustlingPDF.pdf` **value** under the shared `HKLM\SOFTWARE\Classes\.pdf\OpenWithProgIds` | ordinary Registry-table value removal; the key is never force-deleted |
-| `%PROGRAMDATA%\Stirling-PDF\stirling-provisioning.json` (and the `%APPDATA%` path if the install scope ever becomes per-user) | deferred `RemoveProvisioningFile*` CustomActions |
+| `%PROGRAMDATA%\RustlingPDF\rustling-provisioning.json` (and the `%APPDATA%` path if the install scope ever becomes per-user) | deferred `RemoveProvisioningFile*` CustomActions |
 
 `ForceDeleteOnUninstall="yes"` compiles (WiX 3.14.1 `Compiler.cs`) to a Registry
 row with `Name="-"` and a null value — MSI's "delete this key, with all its
@@ -263,7 +263,7 @@ explained the second dry-run, where every unseeded shared key vanished.
 >
 > 1. **"Set as default PDF app" stops working on Windows between A and C.**
 >    `commands/default_app.rs` resolves the effective `.pdf` handler and matches
->    the ProgId against `rustling`/`stirling`. With no ProgId registered, that
+>    the ProgId against `rustling`/`rustling`. With no ProgId registered, that
 >    check can never succeed and RustlingPDF will not appear in the Windows
 >    Settings default-apps list. **Step C restores it** — registering our own
 >    `HKLM\SOFTWARE\Classes\RustlingPDF.pdf` with a `shell\open\command` and
@@ -309,7 +309,7 @@ explained the second dry-run, where every unseeded shared key vanished.
 > advertised association never delivered that either. Both components are
 > HKLM-only with an HKLM registry KeyPath, so neither trips ICE57.
 >
-> Not included, and beyond parity with what was removed: a
+> Not included in the current installer: a
 > `HKLM\SOFTWARE\RegisteredApplications` + `Capabilities` registration, which is
 > what surfaces an app in the Settings "Default apps" by-application view. The
 > advertised association did not provide it either, so its absence is not a
@@ -398,25 +398,25 @@ RustlingPDF's thumbnails.
 
 ### Why the provisioning file is removed, but only the file
 
-`stirling-provisioning.json` is **administrative configuration pushed at install
+`rustling-provisioning.json` is **administrative configuration pushed at install
 time, not user data**. Leaving it means a later reinstall silently inherits a
 server URL, login-agreement flag and update policy that nobody in the new
 installation chose — a stale admin policy is worse than no policy. So it goes.
 
-Nothing else in that directory goes. `%APPDATA%\Stirling-PDF` is the desktop
+Nothing else in that directory goes. `%APPDATA%\RustlingPDF` is the desktop
 app's `RUSTLING_BASE_PATH` (`utils/paths.rs`): it holds `settings.yml`,
 `custom_settings.yml` and `logs/`. RustlingPDF keeps all user state client-side,
 so this directory is precisely the thing a user would be upset to lose, and
 standard Windows behaviour is to leave user data behind on uninstall.
 
 Implementation choice: **a deferred CustomAction calling
-`stirling-provision.exe` in removal mode, not an MSI `<RemoveFile>`**.
+`rustling-provision.exe` in removal mode, not an MSI `<RemoveFile>`**.
 `<RemoveFile>` would be simpler and MSI-native, but a RemoveFile row cannot
 carry a condition — it fires whenever its component is removed. That is fatal
 here, because `<MajorUpgrade Schedule="afterInstallInitialize"/>` makes **every
 update a full uninstall of the old product followed by an install of the new
 one**, and the tauri updater runs the new MSI with `installMode: "passive"`
-(`tauri.conf.json` → `plugins.updater.windows`) passing none of the `STIRLING_*`
+(`tauri.conf.json` → `plugins.updater.windows`) passing none of the `RUSTLING_*`
 properties. An unconditional removal would therefore delete the administrator's
 provisioning file on every app update, with nothing to write it back. The
 CustomActions carry `REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE`, the same idiom
@@ -425,7 +425,7 @@ CustomActions carry `REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE`, the same idiom
 Supporting details:
 
 - scheduled `After="RemoveShortcuts"` (sequence 3200), well before `RemoveFiles`
-  (3500) deletes `stirling-provision.exe` — a `FileKey` CustomAction cannot run
+  (3500) deletes `rustling-provision.exe` — a `FileKey` CustomAction cannot run
   once its own executable is gone;
 - `Impersonate="yes"` for the per-user path and `Impersonate="no"` for the
   all-users path, mirroring the write actions;
@@ -433,7 +433,7 @@ Supporting details:
   uninstall. A failure lands in the MSI verbose log, and the lifecycle check
   asserts the file is actually gone;
 - the binary refuses any `--output` whose file name is not exactly
-  `stirling-provisioning.json` and never touches the containing directory
+  `rustling-provisioning.json` and never touches the containing directory
   (unit-tested in `provisioner/src/main.rs`). It runs elevated — as LocalSystem
   on the all-users branch — so a widened scope would be a privileged arbitrary
   delete. A symlink planted at the target path is deleted as a link, not
@@ -448,8 +448,8 @@ Supporting details:
 
 | Left behind | Why |
 | --- | --- |
-| `%APPDATA%\Stirling-PDF\` (`settings.yml`, `custom_settings.yml`, `logs/`) | User data. Standard Windows behaviour; a reinstall picks it back up. |
-| `%PROGRAMDATA%\Stirling-PDF\` (the directory, now without the provisioning file) | May hold other operator state; MSI cannot express "remove if empty". |
+| `%APPDATA%\RustlingPDF\` (`settings.yml`, `custom_settings.yml`, `logs/`) | User data. Standard Windows behaviour; a reinstall picks it back up. |
+| `%PROGRAMDATA%\RustlingPDF\` (the directory, now without the provisioning file) | May hold other operator state; MSI cannot express "remove if empty". |
 | The app's WebView2 profile/cache under the user's local app data | Browser profile — user data. |
 | WebView2 Runtime | Shared, machine-wide, refcounted, has its own ARP entry. Removing it would break every other WebView2 app. |
 | `%TEMP%\MicrosoftEdgeWebview2Setup.exe` | Downloaded by the bundler template's bootstrapper CustomAction into TEMP; not MSI-tracked. Windows/Storage Sense reclaims it. |
@@ -538,7 +538,7 @@ skeletons v3.1.0 left, at the next uninstall.
    path, valid only in the Registry/IniFile `Value` column, which is where it is
    used), `[INSTALLDIR]` / `[AppDataFolder]` / `[CommonAppDataFolder]`
    (Directory properties — the latter two are declared in this fragment's
-   `<DirectoryRef Id="TARGETDIR">` precisely so they resolve), `[STIRLING_*]`
+   `<DirectoryRef Id="TARGETDIR">` precisely so they resolve), `[RUSTLING_*]`
    (the `Secure="yes"` public properties), `[WriteProvisioningFile*]` /
    `[RemoveProvisioningFile*]` (the deferred-CustomAction-data convention: a
    property named identically to its action), `$(sys.SOURCEFILEDIR)` (candle
@@ -609,7 +609,7 @@ candle's `-arch x64` — decides which view the keys land in.
 ```bat
 :: 1. install with a provisioning policy
 msiexec /i RustlingPDF_3.1.0_x64_en-US.msi /qn /l*v %TEMP%\rpdf-install.log ^
-    STIRLING_SERVER_URL=https://example.invalid STIRLING_UPDATE_MODE=disabled
+    RUSTLING_SERVER_URL=https://example.invalid RUSTLING_UPDATE_MODE=disabled
 
 :: 2. these must all EXIST now. The cascade root's MUIVerb must read
 ::    "RustlingPDF" -- a raw {{product_name}} token there is the v3.1.0 defect.
@@ -617,7 +617,7 @@ reg query "HKLM\SOFTWARE\Classes\CLSID\{2D2FBE3A-9A88-4308-A52E-7EF63CA7CF48}" /
 reg query "HKLM\SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154E96}" /reg:64
 reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF" /s /reg:64
 reg query "HKCU\Software\RustlingPDF\RustlingPDF"
-dir "%ProgramData%\Stirling-PDF\stirling-provisioning.json"
+dir "%ProgramData%\RustlingPDF\rustling-provisioning.json"
 
 :: 2a. and the v3.1.0 leftover must be GONE, removed at install time.
 ::     To rehearse the upgrade on a machine that never had v3.1.0, create it
@@ -629,7 +629,7 @@ reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\{{product_nam
 reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s /f RustlingPDF
 
 :: 4. drop a sentinel that uninstall must NOT delete
-echo user state > "%ProgramData%\Stirling-PDF\sentinel.txt"
+echo user state > "%ProgramData%\RustlingPDF\sentinel.txt"
 
 :: 5. uninstall (or: Settings > Apps > RustlingPDF > Uninstall,
 ::    or re-run the SAME .msi and choose Remove in the maintenance dialog)
@@ -642,7 +642,7 @@ reg query "HKLM\SOFTWARE\Classes\.pdf\shellex\{E357FCCD-A995-4576-B01F-234630154
 reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF" /reg:64
 reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF" /reg:32
 reg query "HKCU\Software\RustlingPDF\RustlingPDF"
-dir "%ProgramData%\Stirling-PDF\stirling-provisioning.json"
+dir "%ProgramData%\RustlingPDF\rustling-provisioning.json"
 dir "%ProgramFiles%\RustlingPDF"
 
 :: 7. these must still EXIST -- deleting any of these is over-deletion.
@@ -657,8 +657,8 @@ reg query "HKLM\SOFTWARE\Classes\.pdf" /v ForeignSentinel /reg:64
 reg query "HKLM\SOFTWARE\Classes\.pdf\shellex" /v ForeignSentinel /reg:64
 reg query "HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell" /v ForeignSentinel /reg:64
 reg query "HKLM\SOFTWARE\Classes\CLSID" /reg:64
-dir "%ProgramData%\Stirling-PDF\sentinel.txt"
-dir "%AppData%\Stirling-PDF"
+dir "%ProgramData%\RustlingPDF\sentinel.txt"
+dir "%AppData%\RustlingPDF"
 
 :: 8. tidy up the seeds from step 7
 reg delete "HKLM\SOFTWARE\Classes\.pdf" /v ForeignSentinel /f /reg:64

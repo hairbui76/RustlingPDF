@@ -1,7 +1,7 @@
 import React from "react";
 import { FileDocIcon } from "@app/components/shared/FileDocIcon";
 import type { FileDocVariant } from "@app/components/shared/FileDocIcon";
-import type { StirlingFileStub } from "@app/types/fileContext";
+import type { RustlingFileStub } from "@app/types/fileContext";
 import { detectFileExtension } from "@app/utils/fileUtils";
 
 export const SPREADSHEET_EXTS = new Set(["csv", "xls", "xlsx", "ods"]);
@@ -47,7 +47,7 @@ export const CODE_EXTS = new Set([
   "yml",
 ]);
 
-type FileLike = File | StirlingFileStub;
+type FileLike = File | RustlingFileStub;
 
 export function getFileDocVariant(ext: string, mime = ""): FileDocVariant {
   if (ext === "pdf" || mime === "application/pdf") return "pdf";

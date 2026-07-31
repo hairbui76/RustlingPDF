@@ -1,102 +1,59 @@
-# Running RustlingPDF (the Rust backend)
+# Running RustlingPDF
 
-This is the operator's guide to running this repository: the Rust processing
-service (`rustling-processing`) — a full port of upstream Stirling-PDF's Java
-Spring Boot backend — plus the optional Rust AI engine (`rustling-ai-engine`),
-which ports upstream's Python engine. This repository contains no Java and no
-Python engine; the upstream Stirling-PDF repo is a separate project used only as
-an external reference oracle.
+RustlingPDF consists of the `rustling-processing` service, the shared React
+frontend, the local `rustlingpdf` CLI, and an optional `rustling-ai-engine`
+sidecar. The processing service is account-free and stateless: it has no user
+database or durable server-side document storage.
 
-**Status in one paragraph:** the Rust service serves the same `/api/v1/...` REST
-surface the unchanged web UI talks to, and it is the only backend here — all
-local development tasks (`task dev`, `task backend:dev`, `task dev:all`) run it.
-The service has **no authentication and no server-side state** (maintainer
-decision, 2026-07-28): no accounts, no database, no durable storage — run it on
-a trusted network or behind your own auth proxy. Legacy `security.*`/`mcp.*`/
-`storage.*`/`policies.*` settings keys (including `SECURITY_ENABLELOGIN` and
-`DOCKER_ENABLE_SECURITY`) are **ignored with a one-line startup warning**,
-never refused, so pre-decision configs keep booting. Remaining limitations are
-listed in [Limitations](#7-what-does-not-run-on-rust) and tracked in
-[`PORT_STATUS.md`](PORT_STATUS.md).
+## Prerequisites
 
----
+| Requirement | Purpose |
+|---|---|
+| Stable Rust toolchain | Build the Rust workspace |
+| [Task](https://taskfile.dev) | Run repository workflows |
+| Node.js and npm | Build or run the web frontend |
+| PDFium | Native PDF rendering and selected processing paths |
 
-## 1. Prerequisites
-
-| Requirement | Why | Install |
-|---|---|---|
-| Rust toolchain (stable) | builds the workspace in `rust/` | <https://rustup.rs> |
-| [Task](https://taskfile.dev) | unified command runner used below | `brew install go-task` / see site |
-| PDFium (pinned revision 7543) | native PDF rendering/processing paths | `task rust:install` (automatic) |
-| Node.js + npm | only if you also run the frontend dev server | `task frontend:install` |
-
-`task rust:install` fetches the Cargo dependencies and downloads the pinned PDFium
-build for your platform into the git-ignored `rust/.pdfium/` directory, verifying
-its SHA-256 digest. Deployments can instead point
-`RUSTLING_PDFIUM_LIBRARY_PATH` at an absolute PDFium shared-library path (or its
-containing directory). A configured PDFium is treated as required: a bad path fails
-the request rather than silently switching engines. Without any PDFium, the service
-still starts and uses pure-Rust fallbacks where they exist, but the native
-processing paths (and many endpoint tests) need it — install it.
-
-### Optional external tools
-
-Like the upstream Java backend, some conversions shell out to external tools. The
-Rust service discovers them at startup (bounded discovery, with minimum versions
-where upstream requires them). A missing tool does not crash anything: the affected
-endpoints report as unavailable with reason `DEPENDENCY` in
-`GET /api/v1/config/endpoints-availability`, exactly like upstream's alternatives
-mechanism.
-
-| Tool (binary) | Enables | Notes |
-|---|---|---|
-| LibreOffice (`soffice`) | office ↔ PDF (`convert/file/pdf`, `pdf/word`, `pdf/presentation`, `pdf/xml`) | |
-| qpdf | repair, compress assist | minimum version 12 |
-| OCRmyPDF (`ocrmypdf`) | preferred OCR path for `misc/ocr-pdf` | |
-| Tesseract (`tesseract`) | OCR fallback path; language data under the configured tessdata dir | |
-| WeasyPrint (`weasyprint`) | HTML/Markdown/EML/URL → PDF, AI create-PDF | minimum version 58 |
-| Poppler (`pdftohtml`) | PDF → HTML, and Calibre's PDF→EPUB engine | |
-| Calibre (`ebook-convert`) | ebook ↔ PDF | |
-| `unrar` (or 7-Zip fallback) / `rar` | CBR → PDF / PDF → CBR (creating CBR requires `rar`) | |
-| FFmpeg | PDF → video (route is an explicit opt-in, see below) | set `RUSTLING_PROCESSING_FFMPEG_COMMAND` |
-| veraPDF | strict PDF/A validation (optional) | set `RUSTLING_PROCESSING_VERAPDF_COMMAND` |
-
-Every tool's executable can be overridden explicitly with
-`RUSTLING_PROCESSING_<TOOL>_COMMAND` (e.g. `RUSTLING_PROCESSING_SOFFICE_COMMAND`,
-`..._QPDF_COMMAND`, `..._WEASYPRINT_COMMAND`,
-`..._OCRMYPDF_COMMAND`, `..._TESSERACT_COMMAND`, `..._PDFTOHTML_COMMAND`,
-`..._EBOOK_CONVERT_COMMAND`, `..._UNRAR_COMMAND`, `..._RAR_COMMAND`).
-
----
-
-## 2. Quick start
-
-From the repository root:
+Install dependencies and the pinned PDFium build from the repository root:
 
 ```bash
-task rust:install     # once: deps + pinned PDFium
-task backend:dev      # Rust backend on http://127.0.0.1:8080
+task rust:install
+task frontend:install
 ```
 
-In a second terminal, if you want the web UI:
+`task rust:install` writes PDFium below the ignored `rust/.pdfium/` directory
+and verifies its checksum. A deployment may instead point
+`RUSTLING_PDFIUM_LIBRARY_PATH` at a PDFium shared library or its directory.
+
+## Quick start
+
+Run the processing service and web UI together:
 
 ```bash
-task frontend:dev     # Vite dev server, proxies /api/* to localhost:8080
+task dev
 ```
 
-Or run both together on automatically chosen free ports:
+Or run each component separately:
 
 ```bash
-task dev              # backend (Rust) + frontend
-task dev:all          # backend (Rust) + frontend + Rust AI engine
+task backend:dev
+task frontend:dev
 ```
 
-`task backend:dev`, `task dev`, and `task dev:all` all run the **Rust** backend —
-there is no other backend in this repository. (The upstream Java implementation
-lives in the separate Stirling-PDF repo and remains the behavior reference the
-contracts were verified against.)
+The defaults are:
 
-Direct entry point without Task:
+- processing service: `http://127.0.0.1:8080`;
+- Vite frontend: `http://127.0.0.1:5173`;
+- optional AI engine: `http://127.0.0.1:5001`.
+
+Check a running service:
+
+```bash
+curl http://127.0.0.1:8080/api/v1/info/status
+curl http://127.0.0.1:8080/api/v1/config/app-config
+```
+
+Run the service directly:
 
 ```bash
 cd rust
@@ -104,277 +61,180 @@ RUSTLING_PDFIUM_LIBRARY_PATH="$PWD/.pdfium/current" \
   cargo run -p rustling-processing --locked
 ```
 
-Smoke-check a running instance:
+The service binds to loopback by default. Set `RUSTLING_HOST=0.0.0.0` only
+when it should accept network connections, and put public deployments behind
+an authenticated reverse proxy.
 
-```bash
-curl http://127.0.0.1:8080/api/v1/info/status
-curl http://127.0.0.1:8080/api/v1/config/app-config
-```
+## Local CLI
 
-### Local CLI (no server)
-
-The `rustlingpdf` CLI uses the same processing runtime and pipeline router
-in-process, so local automation does not need `backend:dev`:
+The CLI invokes the processing runtime in-process and does not need a server:
 
 ```bash
 task rust:cli -- operations
 task rust:cli -- describe general-rotate-pdf
 task rust:cli -- run general-rotate-pdf \
-  -i report.pdf -o report-rotated.pdf -p angle=90
-task rust:cli -- pipeline \
-  --spec pipeline.json -i report.pdf -o report-ready.pdf
+  --input report.pdf \
+  --output report-rotated.pdf \
+  --param angle=90
 ```
 
-For a user-level executable, run
-`cargo install --path rust/crates/rustling-cli --locked`. Optional native tools
-are discovered exactly as they are for the service; an unavailable required
-tool receives the CLI's stable exit code `5`. See
-[`contracts/cli.md`](contracts/cli.md) for catalog discovery, JSON parameters,
-overwrite and stdout policy, and every exit code.
+Install the command for the current user:
 
-### Ports and binding
+```bash
+cargo install --path rust/crates/rustling-cli --locked
+```
 
-- `task backend:dev` / `task rust:run` default to `127.0.0.1:8080`; pass
-  `PORT=<n>` to either Task command.
-- Invoking the binary directly: `RUSTLING_PORT` (or the Spring-compatible
-  `SERVER_PORT`) selects the port; `0` requests an OS-assigned ephemeral port.
-  Startup prints `RustlingPDF running on port: <port>`.
-- The binary binds **loopback only** unless `RUSTLING_HOST` (or Spring-compatible
-  `SERVER_ADDRESS`) is set to an explicit IP. Container-shaped runs use
-  `RUSTLING_HOST=0.0.0.0`. Malformed host/port values fail startup instead of
-  falling back.
+See [`contracts/cli.md`](contracts/cli.md) for pipeline files, JSON parameters,
+binary stdout, overwrite rules, dependency failures, and exit codes.
 
-### Environment-variable spellings (`RUSTLING_*` vs legacy `STIRLING_*`)
+## Configuration
 
-`RUSTLING_*` is the primary spelling for every product environment variable in
-this guide. Deployments configured before the product rename can keep their
-`STIRLING_*` spellings: each one is accepted as a deprecated alias for the same
-variable (`STIRLING_PORT` ≙ `RUSTLING_PORT`, and so on). When both spellings
-are set, `RUSTLING_*` wins. A process started with legacy spellings logs a
-single deprecation line on stderr listing them. The same policy applies to the
-product-rooted settings-file keys: `rustling.*` (e.g.
-`rustling.job.queue.baseCapacity`, `rustling.ai.streamTimeoutMs`) is the
-primary root, and the pre-rename `stirling.*` root keeps working as a legacy
-alias with `rustling.*` winning when both are present.
+The processing service loads:
 
----
+1. `configs/settings.yml`;
+2. `configs/custom_settings.yml`, which overrides the first file;
+3. supported environment variables.
 
-## 3. Configuration
+Both files are resolved below `RUSTLING_BASE_PATH`, which defaults to the
+working directory. The bundled template is
+`crates/rustling-processing/resources/settings.yml.template`.
 
-The Rust service reads the same YAML files as upstream Stirling-PDF:
-`configs/settings.yml` then `configs/custom_settings.yml`, resolved below
-`RUSTLING_BASE_PATH` (default: the working directory). Behavior matches upstream
-Java's `ConfigInitializer`, including:
-
-- template merge on upgrade (new template keys arrive with defaults; user-set leaf
-  values are preserved; comments/ordering kept; idempotent),
-- truncated-file recovery (a `settings.yml` under 31 lines is backed up to
-  `settings.yml.<epoch-millis>.bak` and recreated from the template),
-- environment overrides layered on top (`SYSTEM_*`, `SECURITY_*`, `STIRLING_*`
-  spellings that Java's relaxed binding accepts).
-
-Commonly used environment variables:
+Common variables:
 
 | Variable | Purpose |
 |---|---|
-| `RUSTLING_BASE_PATH` | root for `configs/` settings files |
-| `RUSTLING_HOST` / `SERVER_ADDRESS` | bind address (default loopback) |
-| `RUSTLING_PORT` / `SERVER_PORT` | port (default 8080; `0` = ephemeral) |
-| `RUSTLING_PDFIUM_LIBRARY_PATH` | PDFium shared library (file or directory) |
-| `RUSTLING_PROCESSING_MAX_UPLOAD_BYTES` | multipart upload cap |
-| `SYSTEM_MAXFILESIZE`, `SYSTEM_MAXDPI` | Java-compatible processing limits |
-| `SYSTEM_GOOGLEVISIBILITY` | `robots.txt` policy |
-| `SYSTEM_ENABLEMOBILESCANNER` | mobile-scanner QR transfer feature gate |
-| `RUSTLING_PROCESSING_ENABLE_URL_TO_PDF` / `SYSTEM_ENABLEURLTOPDF` | opt-in URL→PDF (SSRF-guarded) |
-| `RUSTLING_JOB_QUEUE_*`, `RUSTLING_JOB_RESULT_EXPIRY_MINUTES` | async job queue/result tuning |
-| `AIENGINE_URL`, `AIENGINE_ENABLED`, `AIENGINE_TIMEOUTSECONDS` | AI-engine proxy wiring |
+| `RUSTLING_BASE_PATH` | Root containing `configs/` and optional `customFiles/` |
+| `RUSTLING_HOST` | Bind address; defaults to loopback |
+| `RUSTLING_PORT` | HTTP port; defaults to `8080`, and `0` asks the OS for a free port |
+| `RUSTLING_FRONTEND_DIST` | Built frontend directory served by the Rust binary |
+| `RUSTLING_PDFIUM_LIBRARY_PATH` | PDFium library file or directory |
+| `RUSTLING_PROCESSING_MAX_UPLOAD_BYTES` | Multipart upload limit |
+| `RUSTLING_PROCESSING_ENABLE_URL_TO_PDF` | Explicitly enable guarded URL-to-PDF requests |
+| `RUSTLING_JOB_QUEUE_BASE_CAPACITY` | Base asynchronous job capacity |
+| `RUSTLING_JOB_QUEUE_RESOURCE_BUDGET` | Resource budget for queued work |
+| `RUSTLING_JOB_RESULT_EXPIRY_MINUTES` | Result retention in temporary storage |
+| `AIENGINE_ENABLED` | Enable the AI proxy |
+| `AIENGINE_URL` | AI engine base URL |
+| `AIENGINE_TIMEOUTSECONDS` | Default AI request timeout |
 
-Async processing works on the ported POST endpoints via the same `?async=true`
-contract as Java (`general/job/{jobId}`, `/result`, `/result/files`,
-`general/files/{fileId}` serve status/results).
+Only `RUSTLING_*` is the product environment namespace. Unknown or retired
+settings do not become runtime compatibility aliases.
 
----
+### Security-sensitive configuration
 
-## 4. Optional: the Rust AI engine
+- URL-to-PDF is disabled by default and applies DNS/IP and redirect checks when
+  enabled.
+- CORS defaults should be replaced with explicit origins for network
+  deployments.
+- Temporary workspaces and asynchronous results are bounded and swept.
+- Legal-policy links are empty by default and appear only when configured.
+- PDF signature trust, timestamping, and revocation behavior are configured
+  under the document-security settings; they are unrelated to application
+  accounts or product licensing.
 
-The AI features (`/api/v1/ai/*`: classification, PDF edit/review/create
-agents, math audit, orchestration) are served by the separate
-`rustling-ai-engine` crate, the Rust replacement for upstream Stirling-PDF's
-Python engine (which stays in the upstream repo; it is not part of this one).
-The engine is stateless — it keeps no document store and answers every request
-from the content the client sends with it.
+## Optional external tools
 
-```bash
-task engine:dev       # Rust AI engine on localhost:5001
-# or: task dev:all    # starts it alongside backend + frontend
-```
+RustlingPDF probes optional programs at startup. If one is unavailable, only
+the endpoints that require it are reported unavailable through
+`GET /api/v1/config/endpoints-availability`.
 
-Point the processing service at it with `AIENGINE_URL` (default
-`http://localhost:5001`) and `AIENGINE_ENABLED=true`. Provider credentials follow
-the engine's own configuration (structured-output-capable providers, including
-Anthropic/OpenAI-compatible APIs and native `ollama:<model>` for local models).
-`RUSTLING_ENGINE_SHARED_SECRET` protects the engine boundary when set.
-The engine's quality gate is `task engine:check`.
+| Program | Features |
+|---|---|
+| LibreOffice (`soffice`) | Office document conversion |
+| qpdf | Repair and selected compression paths |
+| OCRmyPDF (`ocrmypdf`) | Preferred OCR workflow |
+| Tesseract (`tesseract`) | OCR fallback and language data |
+| WeasyPrint (`weasyprint`) | HTML, Markdown, email, and URL rendering |
+| Poppler (`pdftohtml`) | PDF-to-HTML and supporting conversions |
+| Calibre (`ebook-convert`) | eBook conversion |
+| `unrar`, 7-Zip, and `rar` | Comic archive conversion |
+| FFmpeg | Opt-in PDF-to-video conversion |
+| veraPDF | Optional strict conformance validation |
 
----
+Executables can be overridden with
+`RUSTLING_PROCESSING_<TOOL>_COMMAND`, for example
+`RUSTLING_PROCESSING_SOFFICE_COMMAND` or
+`RUSTLING_PROCESSING_TESSERACT_COMMAND`.
 
-## 5. Docker
+## Optional AI engine
 
-The repository ships a self-contained container image: the `rustling-processing`
-release binary, the built React SPA (served by the binary itself — see
-`contracts/spa-serving.md`), a pinned checksum-verified PDFium, and the external
-conversion tools, all in one image listening on `:8080`.
-
-```bash
-task docker:build     # build the image (tag: rustlingpdf)
-task docker:up        # start docker/compose.yml detached on :8080
-task docker:logs      # tail the stack's logs
-task docker:down      # stop the stack
-```
-
-Equivalent raw commands: `docker build -t rustlingpdf -f docker/Dockerfile .`
-and `docker compose -f docker/compose.yml up -d`.
-
-### Pulling a prebuilt image from GHCR
-
-Every tagged release (see `RELEASING.md` at the repo root) publishes both
-image targets to GitHub Container Registry, so building locally is optional:
+Start all local components:
 
 ```bash
-docker pull ghcr.io/hairbui76/rustlingpdf:latest             # or a specific vX.Y.Z tag
-docker run -d -p 8080:8080 ghcr.io/hairbui76/rustlingpdf:latest
-# optional read-only config mount: -v "$(pwd)/data:/data:ro"
-
-docker pull ghcr.io/hairbui76/rustlingpdf-ai-engine:latest   # optional AI sidecar
+task dev:all
 ```
 
-The pulled image is content-identical to a local `task docker:build` (same
-Dockerfile, `runtime` target, plus OCI `version`/`source`/`revision`/
-`created` labels stamped by the release workflow). To use it with
-`docker/compose.yml` — which references the local tags — either retag it
-(`docker tag ghcr.io/hairbui76/rustlingpdf:latest rustlingpdf:latest`, and
-likewise for the sidecar) or point the compose `image:` fields at the GHCR
-names. Pin `vX.Y.Z` (or a digest) instead of `latest` when you need
-reproducible deployments; `latest` moves on every release.
-
-### What the image contains
-
-- **One process, one port.** The Rust binary serves the REST API and the web UI
-  (`RUSTLING_FRONTEND_DIST=/app/frontend` bakes the Vite `dist/` in; the SPA
-  index, deep links, and static-asset serving follow the single-binary SPA
-  contract). No nginx, no separate frontend container.
-- **Frontend flavor: proprietary** — the same flavor upstream Stirling-PDF's
-  self-hosted embedded image builds (`RUSTLING_FLAVOR=proprietary`) and this
-  repo's default dev/build mode: the core UI plus client-side extras
-  (heuristic classification, watched folders via the File System Access API).
-- **External tools** (Debian trixie packages): LibreOffice `-nogui`
-  (writer/calc/impress/draw), qpdf 12.2, Tesseract (+`eng`+OSD),
-  OCRmyPDF (+unpaper/pngquant), WeasyPrint 62, poppler-utils (`pdftohtml`),
-  7zip (CBR fallback), and metric-compatible + Noto/CJK fonts. **Not**
-  included, versus upstream's standard image: Calibre (~1 GB — the ebook↔PDF
-  endpoints self-report `DEPENDENCY`), ImageMagick/unoserver/Python extras
-  (Java-era needs), unrar (non-free), ffmpeg (PDF→video stays opt-in). Add a
-  missing tool with your own derived image; the backend picks it up at startup.
-- **PDFium** installed by `rust/scripts/install-pdfium.sh` inside the build for
-  the image's architecture (`RUSTLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so`).
-- **Non-root** (`stirling`, uid/gid 1000), `tini` as PID 1, `HEALTHCHECK`
-  against `/api/v1/info/status`, `RUSTLING_HOST=0.0.0.0`.
-
-### Configuration (the container is stateless)
-
-`RUSTLING_BASE_PATH=/data`: `settings.yml` / `custom_settings.yml` are read
-from `/data/configs/` when present, and `customFiles/` overrides (shared
-signature assets, static SPA overrides, disclaimer texts) resolve beneath
-`/data` as well. The server only ever **reads** from `/data`, so nothing needs
-to be mounted at all — with no mount, built-in template defaults plus
-environment overrides apply (the automatic first-start materialization of
-`settings.yml` is a desktop/Tauri-mode behavior, not a container one). To
-supply configuration, bind-mount it read-only (the compose example shows
-`./data:/data:ro`). No `VOLUME` is declared: job scratch space is
-TTL-swept inside the container's own tmp dir, and there is no database. All
-the environment variables from [Configuration](#3-configuration) apply
-unchanged; the server is unauthenticated by design — run it on a trusted
-network or behind your own auth proxy.
-
-### The optional AI-engine sidecar
-
-The same Dockerfile has an `ai-engine` target with only the
-`rustling-ai-engine` binary (`task docker:build:ai-engine`, port 5001,
-`/health` healthcheck; stateless — no volume). The compose file wires it
-behind the `ai` profile:
+Or run the engine alone:
 
 ```bash
-task docker:up:ai     # or: docker compose -f docker/compose.yml --profile ai up -d
+task engine:dev
 ```
 
-Then set `AIENGINE_ENABLED=true` (and a provider credential such as
-`ANTHROPIC_API_KEY` on the sidecar) to activate the `/api/v1/ai/*` proxy
-routes. The main image never requires the sidecar; with it absent the AI
-features simply stay off.
+Then set `AIENGINE_ENABLED=true` and point `AIENGINE_URL` at the engine.
+Provider credentials are supplied to the engine process. A local Ollama
+endpoint can be used instead of a hosted provider. The AI surface is optional,
+disabled by default, and keeps no document database.
 
-### Smoke-checking a running container
+## Docker
+
+Build and run the self-hosted image:
 
 ```bash
-curl -s http://localhost:8080/api/v1/info/status        # {"status":"UP",...}
-curl -s http://localhost:8080/ | head -1                 # SPA index.html
-curl -s -o rotated.pdf -F fileInput=@some.pdf -F angle=90 \
-     http://localhost:8080/api/v1/general/rotate-pdf     # a real PDF operation
+task docker:build
+task docker:up
 ```
 
----
+Or use Compose directly:
 
-## 6. Verifying parity yourself
+```bash
+docker compose -f docker/compose.yml up --build
+```
 
-- `task rust:check` — fmt + clippy + full test suite with PDFium bound (see
-  `PORT_STATUS.md` for the latest full-gate numbers).
-- **Per-surface contracts** (`rust/contracts/*.md`) — each ported surface documents
-  routes, upstream Java counterparts, parity notes, and explicit gaps.
+The runtime image serves the SPA and API on port 8080. It includes PDFium and a
+common conversion toolchain. Configuration may be mounted read-only below
+`/data`; request scratch data remains temporary.
 
----
+Run the optional AI profile:
 
-## 7. What does NOT run on Rust
+```bash
+task docker:up:ai
+```
 
-These are deliberate, documented limits — the authoritative list with rationale is
-[`PORT_STATUS.md`](PORT_STATUS.md):
+Set the provider credential in the container environment and change
+`AIENGINE_ENABLED` to `true` for the processing container.
 
-- **Authentication and every server-stateful feature** (login/users/teams/OIDC/
-  MFA, audit, durable storage, collaborative signing sessions, policies,
-  integrations, MCP, the AI document/RAG store): **removed by maintainer
-  decision on 2026-07-28**, not pending. The server is single-tenant,
-  unauthenticated, and stateless; deployments needing access control put it
-  behind their own auth proxy. Legacy settings keys for these features are
-  ignored with a startup warning. (Upstream Stirling-PDF's Java product, in
-  its own repo, still offers them.)
-- **SaaS / hosted-cloud layer** (upstream's `app/saas`, account-link billing):
-  never ported, removed from scope with the same decision.
-- **SAML2 SSO**: removed from scope (it only existed as a secured-mode idea).
-- **H2 database backup/restore routes**: N/A — there is no database.
-- **PDF → video** route: implemented but an explicit opt-in
-  (`RUSTLING_PROCESSING_FFMPEG_COMMAND`) while upstream FFmpeg CVEs are assessed —
-  upstream's own Java route is itself commented out.
-- **Desktop packaging**: the Tauri desktop app bundles the Rust backend as its
-  default sidecar (`task desktop:stage-sidecar` stages the release
-  `rustling-processing` binary, pinned PDFium, qpdf 12.3.2, Tesseract 5.5.3,
-  and English tessdata 4.1.0 into the bundle; ephemeral-port handshake,
-  workspace migration, bundled-PDFium wiring via
-  `RUSTLING_PDFIUM_LIBRARY_PATH`, and tool wiring via
-  `RUSTLING_PROCESSING_QPDF_COMMAND`,
-  `RUSTLING_PROCESSING_TESSERACT_COMMAND`, and `TESSDATA_PREFIX`).
-  `RUSTLING_NATIVE_BACKEND_PATH` remains as a
-  development-only override. Cross-platform signed-bundle upgrade proof is
-  still outstanding — see `contracts/desktop-native-startup.md`.
-- **Deep PDF-fidelity edges** in the PDF↔JSON editor model (e.g. Type3 glyph
-  synthesis, Type0/Type3 byte-parity, >4-component DeviceN JPEGs): see the
-  "Remaining" section of `PORT_STATUS.md`.
+## Desktop
 
-## 8. Production readiness position
+The Tauri application bundles the core frontend and the Rust processing
+sidecar. Build prerequisites and native runtimes are staged automatically:
 
-The Rust service is the only backend in this repository and is
-production-usable today on a trusted network or behind an operator-provided
-auth proxy; the [Docker image](#5-docker) is the supported packaged form. The
-remaining gates before full packaged distribution are: cross-platform proof of
-the signed desktop bundles (the Rust binary + PDFium are now bundled as the
-desktop sidecar, with qpdf and Tesseract bundled as resources) and the
-residual fidelity gaps above. Follow
-`PORT_STATUS.md` and `SIGNING_MIGRATION_DESIGN.md` for the live state of each
-gate.
+```bash
+task desktop:dev
+task desktop:test
+task desktop:build
+```
+
+Desktop bundles include pinned PDFium, qpdf, Tesseract, English OCR data, and
+their third-party notices. Platform-specific installer behavior is documented
+under `contracts/desktop-*.md`.
+
+## Validation
+
+```bash
+task rust:check
+task frontend:check
+task engine:check
+task desktop:test
+task check:all
+```
+
+When running Cargo directly on Linux in this workspace, bind PDFium explicitly:
+
+```bash
+cd rust
+RUSTLING_PDFIUM_LIBRARY_PATH="$PWD/.pdfium/current" \
+  cargo test --workspace --locked
+```
+
+Generated OpenAPI consumers, operation catalogs, frontend types, and dependency
+notices must stay synchronized with their source files.

@@ -1,4 +1,7 @@
-import { DOWNLOAD_BASE_URL } from "@app/constants/downloads";
+const REPOSITORY_URL = "https://github.com/hairbui76/RustlingPDF";
+const RELEASES_URL = `${REPOSITORY_URL}/releases`;
+const RELEASES_API_URL =
+  "https://api.github.com/repos/hairbui76/RustlingPDF/releases";
 
 export interface UpdateSummary {
   latest_version: string | null;
@@ -35,172 +38,145 @@ export interface FullUpdateInfo {
 
 export interface MachineInfo {
   machineType: string;
-  activeSecurity: boolean;
-  licenseType: string;
+}
+
+interface GitHubRelease {
+  tag_name: string;
+  name: string | null;
+  body: string | null;
+  html_url: string;
+  draft: boolean;
+  prerelease: boolean;
+}
+
+function normalizeVersion(version: string): string {
+  return version.trim().replace(/^v/i, "").split("-", 1)[0] ?? "";
+}
+
+function releaseVersion(release: GitHubRelease): string {
+  return normalizeVersion(release.tag_name);
+}
+
+function isBreaking(body: string | null): boolean {
+  return /\bbreaking(?:\s+change)?s?\b/i.test(body ?? "");
 }
 
 export class UpdateService {
-  private readonly baseUrl =
-    "https://supabase.stirling.com/functions/v1/updates";
-
   /**
-   * Compare two version strings
-   * @returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+   * Compare dotted numeric versions. Pre-release suffixes are ignored because
+   * update discovery only consumes stable GitHub releases.
    */
   compareVersions(version1: string, version2: string): number {
-    const v1 = version1.split(".");
-    const v2 = version2.split(".");
+    const v1 = normalizeVersion(version1).split(".");
+    const v2 = normalizeVersion(version2).split(".");
 
     for (let i = 0; i < v1.length || i < v2.length; i++) {
-      const n1 = parseInt(v1[i]) || 0;
-      const n2 = parseInt(v2[i]) || 0;
+      const n1 = Number.parseInt(v1[i] ?? "0", 10) || 0;
+      const n2 = Number.parseInt(v2[i] ?? "0", 10) || 0;
 
-      if (n1 > n2) {
-        return 1;
-      } else if (n1 < n2) {
-        return -1;
-      }
+      if (n1 > n2) return 1;
+      if (n1 < n2) return -1;
     }
 
     return 0;
   }
 
-  /**
-   * Get download URL based on machine type and security settings
-   */
   getDownloadUrl(machineInfo: MachineInfo): string | null {
-    // Only show download for non-Docker installations
     if (
       machineInfo.machineType === "Docker" ||
       machineInfo.machineType === "Kubernetes"
     ) {
       return null;
     }
-
-    // Determine file based on machine type and security
-    if (machineInfo.machineType === "Server-jar") {
-      return (
-        DOWNLOAD_BASE_URL +
-        (machineInfo.activeSecurity
-          ? "Stirling-PDF-with-login.jar"
-          : "Stirling-PDF.jar")
-      );
-    }
-
-    // Client installations
-    if (machineInfo.machineType.startsWith("Client-")) {
-      const os = machineInfo.machineType.replace("Client-", ""); // win, mac, unix
-      const type = machineInfo.activeSecurity ? "-server-security" : "-server";
-
-      if (os === "unix") {
-        return DOWNLOAD_BASE_URL + os + type + ".jar";
-      } else if (os === "win") {
-        return DOWNLOAD_BASE_URL + os + "-installer.exe";
-      } else if (os === "mac") {
-        return DOWNLOAD_BASE_URL + os + "-installer.dmg";
-      }
-    }
-
-    return null;
+    return `${RELEASES_URL}/latest`;
   }
 
-  /**
-   * Fetch update summary from API
-   */
   async getUpdateSummary(
     currentVersion: string,
-    machineInfo: MachineInfo,
+    _machineInfo: MachineInfo,
   ): Promise<UpdateSummary | null> {
-    // Map Java License enum to API types
-    let type = "normal";
-    if (machineInfo.licenseType === "SERVER") {
-      type = "server";
-    } else if (machineInfo.licenseType === "ENTERPRISE") {
-      type = "enterprise";
-    }
+    const releases = await this.fetchStableReleases();
+    const latest = releases[0];
+    if (!latest) return null;
 
-    const url = `${this.baseUrl}?from=${currentVersion}&type=${type}&login=${machineInfo.activeSecurity}&summary=true`;
-    console.log("Fetching update summary from:", url);
-
-    try {
-      const response = await fetch(url);
-      console.log("Response status:", response.status);
-
-      if (response.status === 200) {
-        const data = await response.json();
-        return data as UpdateSummary;
-      } else {
-        console.error(
-          "Failed to fetch update summary from Supabase:",
-          response.status,
-        );
-        return null;
-      }
-    } catch (error) {
-      console.error("Failed to fetch update summary from Supabase:", error);
-      return null;
-    }
+    const latestVersion = releaseVersion(latest);
+    return {
+      latest_version: latestVersion,
+      latest_stable_version: latestVersion,
+      max_priority: "normal",
+      recommended_action:
+        this.compareVersions(latestVersion, currentVersion) > 0
+          ? "Review the release notes, then update when convenient."
+          : undefined,
+      any_breaking: isBreaking(latest.body),
+    };
   }
 
-  /**
-   * Fetch full update information with detailed version info
-   */
   async getFullUpdateInfo(
     currentVersion: string,
-    machineInfo: MachineInfo,
+    _machineInfo: MachineInfo,
   ): Promise<FullUpdateInfo | null> {
-    // Map Java License enum to API types
-    let type = "normal";
-    if (machineInfo.licenseType === "SERVER") {
-      type = "server";
-    } else if (machineInfo.licenseType === "ENTERPRISE") {
-      type = "enterprise";
-    }
+    const releases = await this.fetchStableReleases();
+    const latest = releases[0];
+    if (!latest) return null;
 
-    const url = `${this.baseUrl}?from=${currentVersion}&type=${type}&login=${machineInfo.activeSecurity}&summary=false`;
-    console.log("Fetching full update info from:", url);
+    const newVersions = releases
+      .filter(
+        (release) =>
+          this.compareVersions(releaseVersion(release), currentVersion) > 0,
+      )
+      .map<VersionUpdate>((release) => {
+        const breaking = isBreaking(release.body);
+        return {
+          version: releaseVersion(release),
+          priority: "normal",
+          announcement: {
+            title: release.name || release.tag_name,
+            message: release.body ?? "",
+          },
+          compatibility: {
+            breaking_changes: breaking,
+            breaking_description: breaking
+              ? (release.body ?? undefined)
+              : undefined,
+            migration_guide_url: release.html_url,
+          },
+        };
+      });
 
-    try {
-      const response = await fetch(url);
-      console.log("Full update response status:", response.status);
-
-      if (response.status === 200) {
-        const data = await response.json();
-        return data as FullUpdateInfo;
-      } else {
-        console.error(
-          "Failed to fetch full update info from Supabase:",
-          response.status,
-        );
-        return null;
-      }
-    } catch (error) {
-      console.error("Failed to fetch full update info from Supabase:", error);
-      return null;
-    }
+    return {
+      latest_version: releaseVersion(latest),
+      latest_stable_version: releaseVersion(latest),
+      new_versions: newVersions,
+    };
   }
 
-  /**
-   * Get current version from GitHub build.gradle as fallback
-   */
   async getCurrentVersionFromGitHub(): Promise<string> {
-    const url =
-      "https://raw.githubusercontent.com/RustlingPDF-Tools/RustlingPDF/V2-master/build.gradle";
+    const releases = await this.fetchStableReleases();
+    return releases[0] ? releaseVersion(releases[0]) : "";
+  }
 
+  private async fetchStableReleases(): Promise<GitHubRelease[]> {
     try {
-      const response = await fetch(url);
-      if (response.status === 200) {
-        const text = await response.text();
-        const versionRegex = /version\s*=\s*['"](\d+\.\d+\.\d+)['"]/;
-        const match = versionRegex.exec(text);
-        if (match) {
-          return match[1];
-        }
+      const response = await fetch(`${RELEASES_API_URL}?per_page=20`, {
+        headers: { Accept: "application/vnd.github+json" },
+      });
+      if (!response.ok) {
+        console.warn(
+          `[UpdateService] GitHub releases request failed: ${response.status}`,
+        );
+        return [];
       }
-      throw new Error("Version number not found");
+      const releases = (await response.json()) as GitHubRelease[];
+      return releases.filter(
+        (release) =>
+          !release.draft &&
+          !release.prerelease &&
+          /^\d+\.\d+\.\d+(?:[-+].*)?$/.test(releaseVersion(release)),
+      );
     } catch (error) {
-      console.error("Failed to fetch latest version from build.gradle:", error);
-      return "";
+      console.warn("[UpdateService] Could not fetch GitHub releases:", error);
+      return [];
     }
   }
 }

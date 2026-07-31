@@ -1,5 +1,5 @@
 import JSZip, { JSZipObject } from "jszip";
-import { StirlingFileStub, createStirlingFile } from "@app/types/fileContext";
+import { RustlingFileStub, createRustlingFile } from "@app/types/fileContext";
 import { generateThumbnailForFile } from "@app/utils/thumbnailUtils";
 import { fileStorage } from "@app/services/fileStorage";
 
@@ -291,9 +291,9 @@ export class ZipFileService {
   }
 
   /**
-   * Check if a StirlingFileStub represents a ZIP file (for UI checks without loading full file)
+   * Check if a RustlingFileStub represents a ZIP file (for UI checks without loading full file)
    */
-  public isZipFileStub(stub: StirlingFileStub): boolean {
+  public isZipFileStub(stub: RustlingFileStub): boolean {
     const hasValidType =
       stub.type && ZipFileService.VALID_ZIP_TYPES.includes(stub.type);
     const hasValidExtension = ZipFileService.VALID_ZIP_EXTENSIONS.some((ext) =>
@@ -684,20 +684,20 @@ export class ZipFileService {
    * Note: HTML files will NOT be extracted - the ZIP is kept intact when HTML is detected
    *
    * @param zipFile - The ZIP file to extract from
-   * @param zipStub - The StirlingFileStub for the ZIP (contains metadata to preserve)
+   * @param zipStub - The RustlingFileStub for the ZIP (contains metadata to preserve)
    * @returns Object with success status, extracted stubs, and any errors
    */
   async extractAndStoreFilesWithHistory(
     zipFile: File,
-    zipStub: StirlingFileStub,
+    zipStub: RustlingFileStub,
   ): Promise<{
     success: boolean;
-    extractedStubs: StirlingFileStub[];
+    extractedStubs: RustlingFileStub[];
     errors: string[];
   }> {
     const result = {
       success: false,
-      extractedStubs: [] as StirlingFileStub[],
+      extractedStubs: [] as RustlingFileStub[],
       errors: [] as string[],
     };
 
@@ -728,17 +728,17 @@ export class ZipFileService {
           // Generate thumbnail (works for PDFs and images)
           const thumbnail = await generateThumbnailForFile(extractedFile);
 
-          // Create StirlingFile
-          const newStirlingFile = createStirlingFile(extractedFile);
+          // Create RustlingFile
+          const newRustlingFile = createRustlingFile(extractedFile);
 
-          // Create StirlingFileStub with ZIP's history metadata
-          const stub: StirlingFileStub = {
-            id: newStirlingFile.fileId,
+          // Create RustlingFileStub with ZIP's history metadata
+          const stub: RustlingFileStub = {
+            id: newRustlingFile.fileId,
             name: extractedFile.name,
             size: extractedFile.size,
             type: extractedFile.type,
             lastModified: extractedFile.lastModified,
-            quickKey: newStirlingFile.quickKey,
+            quickKey: newRustlingFile.quickKey,
             createdAt: Date.now(),
             isLeaf: true,
             // Preserve ZIP's history - unzipping is NOT a tool operation
@@ -750,7 +750,7 @@ export class ZipFileService {
           };
 
           // Store in IndexedDB
-          await fileStorage.storeStirlingFile(newStirlingFile, stub);
+          await fileStorage.storeRustlingFile(newRustlingFile, stub);
 
           result.extractedStubs.push(stub);
         } catch (error) {

@@ -1,7 +1,6 @@
 # Embedded scripts and document navigation routes
 
-Rust compatibility contract for `ShowJavascript` and
-`EditTableOfContentsController`.
+Current contract for embedded-script and table-of-contents operations.
 
 ## `POST /api/v1/misc/show-javascript`
 

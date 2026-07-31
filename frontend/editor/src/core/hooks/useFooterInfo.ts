@@ -12,7 +12,7 @@ export interface FooterInfo {
 
 /**
  * Hook to fetch public footer configuration data.
- * This endpoint is always accessible without authentication.
+ * This endpoint is public application configuration.
  */
 export function useFooterInfo() {
   const [footerInfo, setFooterInfo] = useState<FooterInfo | null>(null);

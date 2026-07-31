@@ -4,7 +4,6 @@ import { Checkbox, Menu, Tooltip } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { PolicyBadges as PolicyBadgeRow } from "@app/components/shared/PolicyBadges";
 import FolderIcon from "@mui/icons-material/Folder";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
@@ -13,15 +12,13 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import HistoryIcon from "@mui/icons-material/History";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 
 import { FileId } from "@app/types/file";
 import { FolderId, FolderRecord, ROOT_FOLDER_ID } from "@app/types/folder";
 import { useFolders } from "@app/contexts/FolderContext";
-import { usePolicyFileBadges } from "@app/hooks/usePolicyFileBadges";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { formatFileSize, getFileDate } from "@app/utils/fileUtils";
 import {
   FILES_PAGE_DRAG_TYPE,
@@ -29,8 +26,6 @@ import {
   serialiseFilesPageDragPayload,
 } from "@app/components/filesPage/dragDrop";
 import { useDropTarget } from "@app/components/filesPage/useDropTarget";
-import { getFileOrigin } from "@app/components/filesPage/fileOrigin";
-import { FileOriginBadge } from "@app/components/filesPage/FileOriginBadge";
 import { FolderThumbnail } from "@app/components/filesPage/FolderThumbnail";
 import { findFolderIcon } from "@app/components/filesPage/folderIcons";
 import { FolderAppearancePicker } from "@app/components/filesPage/FolderAppearancePicker";
@@ -45,7 +40,7 @@ export interface FilesPageEntry {
   folder?: FolderRecord;
   /** Number of files inside this folder (folder entries only). */
   folderFileCount?: number;
-  file?: StirlingFileStub;
+  file?: RustlingFileStub;
   /** Parent breadcrumb path for search results outside the current folder. */
   parentPath?: string;
 }
@@ -61,7 +56,7 @@ interface FileGridProps {
   onSetSelection?: (ids: Set<FileId>) => void;
   onOpenFolder: (id: FolderId) => void;
   /** "Add to workspace". */
-  onOpenFile: (file: StirlingFileStub) => void;
+  onOpenFile: (file: RustlingFileStub) => void;
   onMoveFiles: (
     fileIds: FileId[],
     targetFolderId: FolderId | null,
@@ -78,19 +73,13 @@ interface FileGridProps {
   ) => void;
   onRemoveFiles: (fileIds: FileId[]) => void;
   onPromptMoveFiles: (fileIds: FileId[]) => void;
-  /** Per-file Save to server; hidden when file already has remoteStorageId. */
-  onSaveToServer?: (file: StirlingFileStub) => void;
   /** Open the version-history modal for a file (only when it has >1 version). */
-  onVersionHistory?: (file: StirlingFileStub) => void;
-  /** When set, the Save to server item renders disabled with this tooltip. */
-  saveToServerDisabledReason?: string | null;
+  onVersionHistory?: (file: RustlingFileStub) => void;
   /** When supplied the list-view column headers become sortable. */
   sortMode?: FilesPageSortMode;
   onChangeSortMode?: (mode: FilesPageSortMode) => void;
   /** Drives the empty-state copy. */
-  currentTab?: "all" | "local" | "cloud" | "recent" | "shared" | "sharedByMe";
-  /** Cloud reachability; switches the cloud empty-state copy. */
-  serverReachable?: boolean;
+  currentTab?: "all" | "recent";
   /** Empty-state CTA handlers; if absent the matching button hides. */
   onEmptyUpload?: () => void;
   onEmptyCreateFolder?: () => void;
@@ -104,7 +93,6 @@ export function FileGrid(props: FileGridProps & { loading?: boolean }) {
     entries,
     loading,
     currentTab,
-    serverReachable,
     onEmptyUpload,
     onEmptyCreateFolder,
     newFolderDisabledReason,
@@ -118,7 +106,6 @@ export function FileGrid(props: FileGridProps & { loading?: boolean }) {
     return (
       <EmptyState
         tab={currentTab}
-        serverReachable={serverReachable}
         onUpload={onEmptyUpload}
         onCreateFolder={onEmptyCreateFolder}
         newFolderDisabledReason={newFolderDisabledReason}
@@ -186,9 +173,7 @@ function SkeletonGrid({ viewMode }: { viewMode: FilesPageViewMode }) {
 
 interface EmptyStateProps {
   /** Drives copy + iconography. */
-  tab?: "all" | "local" | "cloud" | "recent" | "shared" | "sharedByMe";
-  /** Switches the cloud empty-state copy. */
-  serverReachable?: boolean;
+  tab?: "all" | "recent";
   /** CTA handlers; absent => button hidden. */
   onUpload?: () => void;
   onCreateFolder?: () => void;
@@ -198,7 +183,6 @@ interface EmptyStateProps {
 
 function EmptyState({
   tab = "all",
-  serverReachable = true,
   onUpload,
   onCreateFolder,
   newFolderDisabledReason,
@@ -206,50 +190,12 @@ function EmptyState({
   const { t } = useTranslation();
   const { titleKey, titleFallback, hintKey, hintFallback } = (() => {
     switch (tab) {
-      case "local":
-        return {
-          titleKey: "filesPage.empty.local.title",
-          titleFallback: "No local-only files",
-          hintKey: "filesPage.empty.local.hint",
-          hintFallback:
-            "Files saved without uploading stay here. Drop a file to add one.",
-        };
-      case "cloud":
-        return serverReachable
-          ? {
-              titleKey: "filesPage.empty.cloud.title",
-              titleFallback: "No cloud files yet",
-              hintKey: "filesPage.empty.cloud.hint",
-              hintFallback:
-                "Upload a file to start, or create a folder to organise.",
-            }
-          : {
-              titleKey: "filesPage.empty.cloud.offlineTitle",
-              titleFallback: "No cached cloud files",
-              hintKey: "filesPage.empty.cloud.offlineHint",
-              hintFallback: "Reconnect to load your cloud library.",
-            };
       case "recent":
         return {
           titleKey: "filesPage.empty.recent.title",
           titleFallback: "Nothing modified yet",
           hintKey: "filesPage.empty.recent.hint",
           hintFallback: "Files you open or edit will appear here.",
-        };
-      case "shared":
-        return {
-          titleKey: "filesPage.empty.shared.title",
-          titleFallback: "Nothing shared with you",
-          hintKey: "filesPage.empty.shared.hint",
-          hintFallback: "When someone shares a file via link, it appears here.",
-        };
-      case "sharedByMe":
-        return {
-          titleKey: "filesPage.empty.sharedByMe.title",
-          titleFallback: "You haven't shared any files yet",
-          hintKey: "filesPage.empty.sharedByMe.hint",
-          hintFallback:
-            "Create a share link or invite a teammate from any of your files to see it here.",
         };
       case "all":
       default:
@@ -262,12 +208,9 @@ function EmptyState({
         };
     }
   })();
-  // Recent/Shared tabs are read-only filters; Local is cloud-only for folders.
-  const readOnlyTab =
-    tab === "recent" || tab === "shared" || tab === "sharedByMe";
+  const readOnlyTab = tab === "recent";
   const showUpload = Boolean(onUpload) && !readOnlyTab;
-  const showCreateFolder =
-    Boolean(onCreateFolder) && !readOnlyTab && tab !== "local";
+  const showCreateFolder = Boolean(onCreateFolder) && !readOnlyTab;
   const showCtas = showUpload || showCreateFolder;
   return (
     <div className="files-page-empty">
@@ -338,9 +281,7 @@ function GridView({
   onChangeFolderAppearance,
   onRemoveFiles,
   onPromptMoveFiles,
-  onSaveToServer,
   onVersionHistory,
-  saveToServerDisabledReason,
 }: FileGridProps) {
   return (
     <div className="files-page-grid" role="list">
@@ -389,15 +330,11 @@ function GridView({
                   : [entry.file!.id];
                 onPromptMoveFiles(target);
               }}
-              onSaveToServer={
-                onSaveToServer ? () => onSaveToServer(entry.file!) : undefined
-              }
               onVersionHistory={
                 onVersionHistory
                   ? () => onVersionHistory(entry.file!)
                   : undefined
               }
-              saveToServerDisabledReason={saveToServerDisabledReason}
             />
           );
         }
@@ -436,11 +373,7 @@ function FolderCard({
   onMoveFolder,
 }: FolderCardProps) {
   const { t } = useTranslation();
-  const { serverReachable, setError } = useFolders();
-  const offlineHint = t(
-    "filesPage.offlineNoFolderEdits",
-    "Offline - folder changes are disabled.",
-  );
+  const { setError } = useFolders();
   const surfaceDrop = (err: unknown, label: string) => {
     console.error(`[FolderCard] ${label}`, err);
     setError(
@@ -547,8 +480,6 @@ function FolderCard({
             <Menu.Item
               leftSection={<DriveFileRenameOutlineIcon fontSize="small" />}
               onClick={onRename}
-              disabled={!serverReachable}
-              title={!serverReachable ? offlineHint : undefined}
             >
               {t("filesPage.rename", "Rename")}
             </Menu.Item>
@@ -559,15 +490,12 @@ function FolderCard({
             <FolderAppearancePicker
               folder={folder}
               onChange={onChangeAppearance}
-              disabled={!serverReachable}
             />
             <Menu.Divider />
             <Menu.Item
               color="red"
               leftSection={<DeleteIcon fontSize="small" />}
               onClick={onDelete}
-              disabled={!serverReachable}
-              title={!serverReachable ? offlineHint : undefined}
             >
               {t("filesPage.deleteFolder", "Delete folder")}
             </Menu.Item>
@@ -578,14 +506,8 @@ function FolderCard({
   );
 }
 
-/** Shield badges for the policies that have run on a file. */
-function PolicyBadges({ fileId }: { fileId: string }) {
-  const badges = usePolicyFileBadges().get(fileId) ?? [];
-  return <PolicyBadgeRow policies={badges} />;
-}
-
 interface FileCardProps {
-  file: StirlingFileStub;
+  file: RustlingFileStub;
   isSelected: boolean;
   isInWorkspace: boolean;
   /** Subtitle for search results outside current folder. */
@@ -597,12 +519,8 @@ interface FileCardProps {
   onDoubleClick: () => void;
   onRemove: () => void;
   onMove: () => void;
-  /** Kebab Save to server; only fires when file is local-only. */
-  onSaveToServer?: () => void;
   /** Open the version-history modal; shown only when file has >1 version. */
   onVersionHistory?: () => void;
-  /** When set, the kebab Save to server is disabled with this tooltip. */
-  saveToServerDisabledReason?: string | null;
 }
 
 function FileCard({
@@ -616,9 +534,7 @@ function FileCard({
   onDoubleClick,
   onRemove,
   onMove,
-  onSaveToServer,
   onVersionHistory,
-  saveToServerDisabledReason,
 }: FileCardProps) {
   const { t } = useTranslation();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -727,9 +643,6 @@ function FileCard({
             <span>{extension || "FILE"}</span>
           </div>
         )}
-        <div className="files-page-card-origin">
-          <FileOriginBadge origin={getFileOrigin(file)} compact />
-        </div>
       </div>
       <div className="files-page-card-body">
         <div className="files-page-card-name" title={file.name}>
@@ -744,7 +657,6 @@ function FileCard({
           <span>{fileSize}</span>
           <span>·</span>
           <span>{fileDate}</span>
-          <PolicyBadges fileId={file.id as string} />
         </div>
       </div>
       <div className="files-page-card-actions">
@@ -781,34 +693,6 @@ function FileCard({
             >
               {t("filesPage.moveTo", "Move to…")}
             </Menu.Item>
-            {/* Per-file Save to server; shown for local-only files. When
-                storage is off it stays visible but disabled with a tooltip. */}
-            {onSaveToServer && file.remoteStorageId == null && (
-              <Tooltip
-                label={saveToServerDisabledReason}
-                disabled={!saveToServerDisabledReason}
-                withinPortal
-                position="left"
-                multiline
-                w={240}
-              >
-                <Menu.Item
-                  leftSection={<CloudUploadIcon fontSize="small" />}
-                  disabled={Boolean(saveToServerDisabledReason)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSaveToServer();
-                  }}
-                  style={
-                    saveToServerDisabledReason
-                      ? { pointerEvents: "auto" }
-                      : undefined
-                  }
-                >
-                  {t("filesPage.saveToServer", "Save to server")}
-                </Menu.Item>
-              </Tooltip>
-            )}
             {onVersionHistory && (file.versionNumber ?? 1) > 1 && (
               <Menu.Item
                 leftSection={<HistoryIcon fontSize="small" />}
@@ -850,9 +734,7 @@ function ListView({
   onMoveFolder,
   onRenameFolder,
   onDeleteFolder,
-  onSaveToServer,
   onVersionHistory,
-  saveToServerDisabledReason,
   onChangeFolderAppearance,
   onRemoveFiles,
   onPromptMoveFiles,
@@ -869,7 +751,7 @@ function ListView({
     () =>
       entries
         .filter(
-          (e): e is FilesPageEntry & { file: StirlingFileStub } =>
+          (e): e is FilesPageEntry & { file: RustlingFileStub } =>
             e.kind === "file" && !!e.file,
         )
         .map((e) => e.file.id),
@@ -982,15 +864,11 @@ function ListView({
                   : [entry.file!.id];
                 onPromptMoveFiles(target);
               }}
-              onSaveToServer={
-                onSaveToServer ? () => onSaveToServer(entry.file!) : undefined
-              }
               onVersionHistory={
                 onVersionHistory
                   ? () => onVersionHistory(entry.file!)
                   : undefined
               }
-              saveToServerDisabledReason={saveToServerDisabledReason}
             />
           );
         }
@@ -1027,11 +905,7 @@ function FolderRow({
   onDropFolder,
 }: FolderRowProps) {
   const { t } = useTranslation();
-  const { serverReachable, setError } = useFolders();
-  const offlineHint = t(
-    "filesPage.offlineNoFolderEdits",
-    "Offline - folder changes are disabled.",
-  );
+  const { setError } = useFolders();
   const surfaceDrop = (err: unknown, label: string) => {
     console.error(`[FolderRow] ${label}`, err);
     setError(
@@ -1148,8 +1022,6 @@ function FolderRow({
           <Menu.Item
             leftSection={<DriveFileRenameOutlineIcon fontSize="small" />}
             onClick={onRename}
-            disabled={!serverReachable}
-            title={!serverReachable ? offlineHint : undefined}
           >
             {t("filesPage.rename", "Rename")}
           </Menu.Item>
@@ -1160,15 +1032,12 @@ function FolderRow({
           <FolderAppearancePicker
             folder={folder}
             onChange={onChangeAppearance}
-            disabled={!serverReachable}
           />
           <Menu.Divider />
           <Menu.Item
             color="red"
             leftSection={<DeleteIcon fontSize="small" />}
             onClick={onDelete}
-            disabled={!serverReachable}
-            title={!serverReachable ? offlineHint : undefined}
           >
             {t("filesPage.deleteFolder", "Delete folder")}
           </Menu.Item>
@@ -1179,7 +1048,7 @@ function FolderRow({
 }
 
 interface FileRowProps {
-  file: StirlingFileStub;
+  file: RustlingFileStub;
   isSelected: boolean;
   isInWorkspace: boolean;
   parentPath?: string;
@@ -1190,12 +1059,8 @@ interface FileRowProps {
   onOpen: () => void;
   onRemove: () => void;
   onMove: () => void;
-  /** Kebab Save to server; only fires when file is local-only. */
-  onSaveToServer?: () => void;
   /** Open the version-history modal; shown only when file has >1 version. */
   onVersionHistory?: () => void;
-  /** When set, the kebab Save to server is disabled with this tooltip. */
-  saveToServerDisabledReason?: string | null;
 }
 
 function FileRow({
@@ -1209,9 +1074,7 @@ function FileRow({
   onOpen,
   onRemove,
   onMove,
-  onSaveToServer,
   onVersionHistory,
-  saveToServerDisabledReason,
 }: FileRowProps) {
   const { t } = useTranslation();
   const kebabRef = useRef<HTMLButtonElement>(null);
@@ -1333,8 +1196,6 @@ function FileRow({
             </span>
           )}
         </span>
-        <FileOriginBadge origin={getFileOrigin(file)} compact />
-        <PolicyBadges fileId={file.id as string} />
         {isInWorkspace && (
           <span className="files-page-row-open-pill">
             <span className="files-page-card-open-dot" />
@@ -1378,34 +1239,6 @@ function FileRow({
           >
             {t("filesPage.moveTo", "Move to…")}
           </Menu.Item>
-          {/* Per-file Save to server; shown for local-only files. When
-              storage is off it stays visible but disabled with a tooltip. */}
-          {onSaveToServer && file.remoteStorageId == null && (
-            <Tooltip
-              label={saveToServerDisabledReason}
-              disabled={!saveToServerDisabledReason}
-              withinPortal
-              position="left"
-              multiline
-              w={240}
-            >
-              <Menu.Item
-                leftSection={<CloudUploadIcon fontSize="small" />}
-                disabled={Boolean(saveToServerDisabledReason)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSaveToServer();
-                }}
-                style={
-                  saveToServerDisabledReason
-                    ? { pointerEvents: "auto" }
-                    : undefined
-                }
-              >
-                {t("filesPage.saveToServer", "Save to server")}
-              </Menu.Item>
-            </Tooltip>
-          )}
           {onVersionHistory && (file.versionNumber ?? 1) > 1 && (
             <Menu.Item
               leftSection={<HistoryIcon fontSize="small" />}

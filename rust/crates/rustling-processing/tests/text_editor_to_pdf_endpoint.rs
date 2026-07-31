@@ -312,7 +312,7 @@ async fn rebuilds_annotation_appearance_streams_as_indirect_objects()
 fn pdfium() -> Result<Option<pdfium_render::prelude::Pdfium>, Box<dyn std::error::Error>> {
     use pdfium_render::prelude::Pdfium;
 
-    let Some(configured) = rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH")
+    let Some(configured) = rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH")
     else {
         return Ok(None);
     };
@@ -334,7 +334,7 @@ async fn rejects_invalid_json() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn requires_a_file() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-editor-empty";
+    let boundary = "rustling-editor-empty";
     let body = format!("--{boundary}--\r\n").into_bytes();
     let response = app(4 * 1024 * 1024)
         .oneshot(
@@ -373,7 +373,7 @@ async fn require_status(
 }
 
 async fn post_json(json: &[u8]) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-editor-json-boundary";
+    let boundary = "rustling-editor-json-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"editor.json\"\r\nContent-Type: application/json\r\n\r\n"
     )

@@ -128,9 +128,8 @@
   flex-shrink: 0;
 }
 
-/* Processing state: a spinner in the running policy's colour (set inline via
-   `color`) with that policy's badge glyph held still in the centre. Fills the
-   20px icon slot, replacing the file icon while a policy runs on the file. */
+/* Processing state: a spinner in the operation colour with its glyph held
+   still in the centre. */
 .file-sidebar-file-spinner {
   position: relative;
   width: 20px;

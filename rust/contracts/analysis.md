@@ -1,6 +1,6 @@
 # `POST /api/v1/analysis/*`
 
-Rust compatibility contract for the eight routes in `AnalysisController`.
+Current contract for the eight analysis routes.
 
 ## Request
 

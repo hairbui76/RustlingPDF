@@ -122,8 +122,29 @@ pub fn run() {
 
             tauri::async_runtime::spawn(async move {
                 add_log("🚀 Starting bundled backend in background".to_string());
-                if let Err(e) = commands::backend::start_backend(app_handle.clone()).await {
-                    add_log(format!("⚠️ Backend start failed: {}", e));
+                match commands::backend::start_backend(app_handle.clone()).await {
+                    Ok(_) => {
+                        if let Some(port) = commands::backend::get_backend_port() {
+                            let script = format!(
+                                "window.localStorage.setItem(\
+                                 'rustlingpdf.desktopBackendUrl',\
+                                 'http://127.0.0.1:{port}');\
+                                 window.location.reload();"
+                            );
+                            if let Some(window) =
+                                app_handle.get_webview_window(MAIN_WINDOW_LABEL)
+                            {
+                                if let Err(error) = window.eval(&script) {
+                                    add_log(format!(
+                                        "⚠️ Could not connect the desktop UI to the backend: {error}"
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        add_log(format!("⚠️ Backend start failed: {error}"));
+                    }
                 }
             });
 

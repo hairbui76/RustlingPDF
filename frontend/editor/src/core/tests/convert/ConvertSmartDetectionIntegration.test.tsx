@@ -25,7 +25,7 @@ import i18n from "@app/i18n/config";
 import { detectFileExtension } from "@app/utils/fileUtils";
 import { FIT_OPTIONS } from "@app/constants/convertConstants";
 import {
-  createTestStirlingFile,
+  createTestRustlingFile,
   createTestFilesWithId,
 } from "@app/tests/utils/testFileHelpers";
 import { expectConsole } from "@app/tests/failOnConsole";
@@ -78,7 +78,7 @@ vi.mock("../../services/fileStorage", () => ({
         thumbnail: thumbnail,
       });
     }),
-    storeStirlingFile: vi.fn().mockResolvedValue(undefined),
+    storeRustlingFile: vi.fn().mockResolvedValue(undefined),
     persistVersionedOutputs: vi.fn().mockResolvedValue(undefined),
     getAllFileMetadata: vi.fn().mockResolvedValue([]),
     cleanup: vi.fn().mockResolvedValue(undefined),
@@ -141,7 +141,7 @@ describe("Convert Tool - Smart Detection Integration Tests", () => {
       );
 
       // Create mock DOCX file
-      const docxFile = createTestStirlingFile(
+      const docxFile = createTestRustlingFile(
         "document.docx",
         "docx content",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -195,7 +195,7 @@ describe("Convert Tool - Smart Detection Integration Tests", () => {
       );
 
       // Create mock unknown file
-      const unknownFile = createTestStirlingFile(
+      const unknownFile = createTestRustlingFile(
         "document.xyz",
         "unknown content",
         "application/octet-stream",
@@ -429,7 +429,7 @@ describe("Convert Tool - Smart Detection Integration Tests", () => {
         },
       );
 
-      const htmlFile = createTestStirlingFile(
+      const htmlFile = createTestRustlingFile(
         "page.html",
         "<html>content</html>",
         "text/html",
@@ -470,7 +470,7 @@ describe("Convert Tool - Smart Detection Integration Tests", () => {
         },
       );
 
-      const emlFile = createTestStirlingFile(
+      const emlFile = createTestRustlingFile(
         "email.eml",
         "email content",
         "message/rfc822",

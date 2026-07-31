@@ -5,7 +5,6 @@ import { ActionIcon } from "@app/ui/ActionIcon";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import HomeIcon from "@mui/icons-material/Home";
-import DevicesOtherIcon from "@mui/icons-material/DevicesOther";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
@@ -29,11 +28,8 @@ import {
 import { useDropTarget } from "@app/components/filesPage/useDropTarget";
 
 /**
- * Hard cap on folder-tree render depth. The backend already enforces an
- * application-level depth limit via cycle detection + folder-count cap,
- * and React's render stack handles ~50 nested components comfortably,
- * so this is purely defensive against a corrupted IDB cache producing
- * a chain deeper than the server would allow.
+ * Hard cap on folder-tree render depth. This protects React's render stack
+ * if a corrupted local cache contains an unexpectedly deep chain.
  */
 const MAX_TREE_DEPTH = 50;
 
@@ -58,10 +54,8 @@ interface FolderTreeSidebarProps {
 // its own <aside> chrome and "New folder at root" toolbar control. An
 // earlier `embed` prop selected between an embedded list and a standalone
 // aside+header layout; the standalone layout was unused and its "New
-// folder at root" ActionIcon was not gated by `serverReachable`, so if
-// anyone re-wired the component into a non-embed surface they'd ship an
-// always-enabled mutation button against a possibly-offline server.
-// Deleted to remove the trap.
+// folder at root" ActionIcon. The unused branch was removed to keep this
+// component focused on the embedded tree used by the file manager.
 export function FolderTreeSidebar({
   fileCounts,
   onRequestNewFolder,
@@ -81,25 +75,14 @@ export function FolderTreeSidebar({
     >
       <RootRow
         fileCount={fileCounts.get(ROOT_FOLDER_ID) ?? 0}
-        isActive={
-          currentFolderId === ROOT_FOLDER_ID &&
-          (currentTab === "all" || currentTab === "cloud")
-        }
+        isActive={currentFolderId === ROOT_FOLDER_ID && currentTab === "all"}
         onSelect={() => {
-          // Picking the root re-enters the cloud bucket - also switch out
-          // of any virtual tab so the user lands somewhere consistent.
-          if (currentTab !== "all" && currentTab !== "cloud") {
-            setCurrentTab("all");
-          }
+          setCurrentTab("all");
           setCurrentFolderId(ROOT_FOLDER_ID);
         }}
         onDropFiles={(fileIds) =>
           onMoveFilesIntoFolder(ROOT_FOLDER_ID, fileIds)
         }
-      />
-      <LocalRow
-        isActive={currentTab === "local"}
-        onSelect={() => setCurrentTab("local")}
       />
       {tree.map((node) => (
         <TreeNodeRow
@@ -107,13 +90,8 @@ export function FolderTreeSidebar({
           node={node}
           fileCounts={fileCounts}
           currentFolderId={currentFolderId}
-          // Same dance as RootRow: clicking a cloud folder must drop the
-          // virtual-tab highlight (Local/Recent/Shared), otherwise the row
-          // AND the tab both look "active" simultaneously.
           onSelect={(id) => {
-            if (currentTab !== "all" && currentTab !== "cloud") {
-              setCurrentTab("all");
-            }
+            setCurrentTab("all");
             setCurrentFolderId(id);
           }}
           onMoveFolder={async (folderId, newParentId) => {
@@ -191,44 +169,6 @@ function RootRow({ fileCount, isActive, onSelect, onDropFiles }: RootRowProps) {
   );
 }
 
-interface LocalRowProps {
-  isActive: boolean;
-  onSelect: () => void;
-}
-
-/**
- * Pinned pseudo-folder row that selects the Local tab. Local files don't
- * belong to a folder (folders are a cloud concept) so this row is not a
- * drop target and has no count badge - the Local view scopes by predicate
- * (`remoteStorageId == null`), not by folderId.
- */
-function LocalRow({ isActive, onSelect }: LocalRowProps) {
-  const { t } = useTranslation();
-  return (
-    <div
-      role="treeitem"
-      aria-selected={isActive}
-      tabIndex={0}
-      className={`files-page-tree-node${isActive ? " is-active" : ""}`}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-    >
-      <span className="files-page-tree-spacer" />
-      <span className="files-page-tree-icon">
-        <DevicesOtherIcon fontSize="small" />
-      </span>
-      <span className="files-page-tree-name">
-        {t("filesPage.tabName.local", "Local")}
-      </span>
-    </div>
-  );
-}
-
 interface TreeNodeRowProps {
   node: FolderTreeNode;
   fileCounts: Map<FolderId | null, number>;
@@ -259,20 +199,11 @@ function TreeNodeRow({
   onDeleteFolder,
 }: TreeNodeRowProps) {
   const { t } = useTranslation();
-  const { serverReachable, setError } = useFolders();
+  const { setError } = useFolders();
   const { currentTab } = useFilesPage();
-  const offlineHint = t(
-    "filesPage.offlineNoFolderEdits",
-    "Offline - folder changes are disabled.",
-  );
   const [open, setOpen] = useState(true);
 
-  // Only highlight the folder row when we're actually in a cloud-rooted
-  // view. Otherwise (Local/Recent/Shared tabs) it'd compete with the tab
-  // highlight and confuse the user about "where they are".
-  const isActive =
-    currentFolderId === node.folder.id &&
-    (currentTab === "all" || currentTab === "cloud");
+  const isActive = currentFolderId === node.folder.id && currentTab === "all";
   const hasChildren = node.children.length > 0;
   const indent = useMemo(
     () => ({ paddingLeft: `${14 + node.depth * 16}px` }),
@@ -433,8 +364,6 @@ function TreeNodeRow({
                 e.stopPropagation();
                 onRenameFolder(node.folder);
               }}
-              disabled={!serverReachable}
-              title={!serverReachable ? offlineHint : undefined}
             >
               {t("filesPage.treeMenu.rename", "Rename")}
             </Menu.Item>
@@ -444,8 +373,6 @@ function TreeNodeRow({
                 e.stopPropagation();
                 onRequestNewFolder(node.folder.id);
               }}
-              disabled={!serverReachable}
-              title={!serverReachable ? offlineHint : undefined}
             >
               {t("filesPage.treeMenu.newSubfolder", "New subfolder")}
             </Menu.Item>
@@ -457,8 +384,6 @@ function TreeNodeRow({
                 e.stopPropagation();
                 onDeleteFolder(node.folder);
               }}
-              disabled={!serverReachable}
-              title={!serverReachable ? offlineHint : undefined}
             >
               {t("filesPage.treeMenu.delete", "Delete folder")}
             </Menu.Item>
@@ -468,7 +393,7 @@ function TreeNodeRow({
       {open &&
         // Cap render recursion at MAX_TREE_DEPTH to guarantee a finite
         // call stack even if a future bug (or a hand-edited IDB cache)
-        // produces a folder chain deeper than the server enforces. Any
+        // produces an unexpectedly deep folder chain. Any
         // realistic user tree stays well under this; the cap exists so
         // the renderer fails closed rather than blowing the JS stack.
         node.depth < MAX_TREE_DEPTH &&

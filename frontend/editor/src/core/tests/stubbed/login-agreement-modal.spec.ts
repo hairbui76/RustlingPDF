@@ -6,9 +6,9 @@ import {
 } from "@app/tests/helpers/api-stubs";
 
 /**
- * The LoginAgreementModal (AppLayout) shows a blocking Accept/Decline disclaimer after login
- * (and on launch in anonymous mode). Text comes from GET /api/v1/config/login-disclaimer for the
- * current language, rendered as markdown; acceptance is remembered per login for the tab session.
+ * The LoginAgreementModal shows a blocking Accept/Decline disclaimer on
+ * launch. Text comes from GET /api/v1/config/login-disclaimer for the current
+ * language and acceptance is remembered for the browser tab.
  */
 
 const MARKDOWN = "## Test Disclaimer\n\nThis is **mandatory** reading.";
@@ -32,27 +32,18 @@ async function stubDisclaimer(page: Page, opts: DisclaimerStub = {}) {
   );
 }
 
-async function setUpLoggedIn(page: Page, disclaimer: DisclaimerStub = {}) {
+async function setUpDisclaimer(page: Page, disclaimer: DisclaimerStub = {}) {
   await seedCookieConsent(page);
   await skipOnboarding(page);
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      "stirling_jwt",
-      "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.signature",
-    );
-  });
-  await mockAppApis(page, {
-    enableLogin: true,
-    user: { id: 1, username: "admin", email: "admin", roles: ["ROLE_ADMIN"] },
-  });
+  await mockAppApis(page);
   await stubDisclaimer(page, disclaimer);
 }
 
 test.describe("Login agreement modal", () => {
-  test("shows a blocking disclaimer with rendered markdown after login", async ({
+  test("shows a blocking disclaimer with rendered markdown", async ({
     page,
   }) => {
-    await setUpLoggedIn(page);
+    await setUpDisclaimer(page);
     await page.goto("/");
 
     await expect(
@@ -68,7 +59,7 @@ test.describe("Login agreement modal", () => {
   });
 
   test("Escape does not dismiss the modal (blocking)", async ({ page }) => {
-    await setUpLoggedIn(page);
+    await setUpDisclaimer(page);
     await page.goto("/");
     await expect(
       page.getByRole("heading", { name: "Test Disclaimer" }),
@@ -81,10 +72,10 @@ test.describe("Login agreement modal", () => {
     ).toBeVisible();
   });
 
-  test("Accept dismisses and it does not reappear on reload (once per login)", async ({
+  test("Accept dismisses and it does not reappear on reload", async ({
     page,
   }) => {
-    await setUpLoggedIn(page);
+    await setUpDisclaimer(page);
     await page.goto("/");
     await expect(
       page.getByRole("heading", { name: "Test Disclaimer" }),
@@ -103,7 +94,7 @@ test.describe("Login agreement modal", () => {
   });
 
   test("does not show when the feature is disabled", async ({ page }) => {
-    await setUpLoggedIn(page, { enabled: false, content: "" });
+    await setUpDisclaimer(page, { enabled: false, content: "" });
     await page.goto("/");
     // App is usable; modal never appears.
     await page.waitForTimeout(1500);
@@ -115,7 +106,7 @@ test.describe("Login agreement modal", () => {
   test("shows in anonymous (no-login) mode when allowed", async ({ page }) => {
     await seedCookieConsent(page);
     await skipOnboarding(page);
-    await mockAppApis(page, { enableLogin: false });
+    await mockAppApis(page);
     await stubDisclaimer(page, { showInAnonymousMode: true });
     await page.goto("/");
 
@@ -127,7 +118,7 @@ test.describe("Login agreement modal", () => {
   test("does not show in anonymous mode when suppressed", async ({ page }) => {
     await seedCookieConsent(page);
     await skipOnboarding(page);
-    await mockAppApis(page, { enableLogin: false });
+    await mockAppApis(page);
     await stubDisclaimer(page, { showInAnonymousMode: false });
     await page.goto("/");
 

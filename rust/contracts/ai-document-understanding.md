@@ -17,8 +17,7 @@ modified.
 The routes are disabled unless `AIENGINE_ENABLED` (or
 `RUSTLING_AI_ENGINE_ENABLED`) is true. They use the existing Anthropic,
 OpenAI-compatible, or local Ollama provider selected for
-`rustling-ai-engine`; no account, RustlingPDF license key, or server-side
-document identity is introduced.
+`rustling-ai-engine`; no server-side document identity is introduced.
 
 ## Shared multipart and bounds
 

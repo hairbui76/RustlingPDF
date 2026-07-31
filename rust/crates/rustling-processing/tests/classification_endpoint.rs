@@ -93,7 +93,7 @@ async fn post_pdf(
     source: &[u8],
     labels: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-classification-boundary";
+    let boundary = "rustling-classification-boundary";
     let mut body = Vec::new();
     if let Some(labels) = labels {
         body.extend_from_slice(

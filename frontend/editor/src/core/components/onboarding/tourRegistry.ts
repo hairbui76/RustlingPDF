@@ -1,13 +1,10 @@
 import type { StepType } from "@reactour/tour";
 import type { TFunction } from "i18next";
 import type { useTourOrchestration } from "@app/contexts/TourOrchestrationContext";
-import type { useAdminTourOrchestration } from "@app/contexts/AdminTourOrchestrationContext";
-import { createAdminStepsConfig } from "@app/components/onboarding/adminStepsConfig";
 import { createUserStepsConfig } from "@app/components/onboarding/userStepsConfig";
 import { createWhatsNewStepsConfig } from "@app/components/onboarding/whatsNewStepsConfig";
 
 type WorkbenchTourActions = ReturnType<typeof useTourOrchestration>;
-type AdminTourActions = ReturnType<typeof useAdminTourOrchestration>;
 
 /**
  * Everything a tour's step builder might need, resolved once by the onboarding
@@ -16,7 +13,7 @@ type AdminTourActions = ReturnType<typeof useAdminTourOrchestration>;
 export interface TourBuildContext {
   t: TFunction;
   workbench: WorkbenchTourActions;
-  admin: AdminTourActions;
+  openSettingsHelpSection: () => void;
   openFilesModal: () => void;
   closeFilesModal: () => void;
 }
@@ -32,24 +29,15 @@ export interface TourDefinition {
  * builds/features can register their own without editing a central union.
  */
 export const TOUR_REGISTRY: Record<string, TourDefinition> = {
-  admin: {
-    id: "admin",
-    build: ({ t, admin }) =>
-      Object.values(
-        createAdminStepsConfig({
-          t,
-          actions: {
-            saveAdminState: admin.saveAdminState,
-            openConfigModal: admin.openConfigModal,
-            navigateToSection: admin.navigateToSection,
-            scrollNavToSection: admin.scrollNavToSection,
-          },
-        }),
-      ),
-  },
   tools: {
     id: "tools",
-    build: ({ t, workbench, admin, openFilesModal, closeFilesModal }) =>
+    build: ({
+      t,
+      workbench,
+      openSettingsHelpSection,
+      openFilesModal,
+      closeFilesModal,
+    }) =>
       Object.values(
         createUserStepsConfig({
           t,
@@ -65,7 +53,7 @@ export const TOUR_REGISTRY: Record<string, TourDefinition> = {
             modifyCropSettings: workbench.modifyCropSettings,
             executeTool: workbench.executeTool,
             openFilesModal,
-            openSettingsHelpSection: () => admin.navigateToSection("help"),
+            openSettingsHelpSection,
           },
         }),
       ),

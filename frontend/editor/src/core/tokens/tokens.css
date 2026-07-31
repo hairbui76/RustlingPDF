@@ -1,5 +1,5 @@
 /*
- * Stirling design tokens — CSS custom properties.
+ * Rustling design tokens — CSS custom properties.
  *
  * This is the single source of truth for the design tokens. Components
  * reference them via var(--color-...); there is no JS palette to keep in sync.

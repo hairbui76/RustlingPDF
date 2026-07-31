@@ -32,11 +32,11 @@ use crate::config_push::ConfigPushRequest;
 const CACHE_FILENAME: &str = "ai_config_cache.enc";
 const KEY_FILENAME: &str = "ai_config_cache.key";
 // Constant salt/info so the same shared secret always derives the same key.
-const HKDF_SALT: &[u8] = b"stirling-ai-config-cache/v1/salt";
-const HKDF_INFO: &[u8] = b"stirling-ai-config-cache/v1/aead-key";
+const HKDF_SALT: &[u8] = b"rustling-ai-config-cache/v1/salt";
+const HKDF_INFO: &[u8] = b"rustling-ai-config-cache/v1/aead-key";
 // Version prefix authenticated as associated data so format bumps cannot be
 // replayed across versions.
-const FORMAT_VERSION: &[u8] = b"stirling-ai-config-cache/rust/v1";
+const FORMAT_VERSION: &[u8] = b"rustling-ai-config-cache/rust/v1";
 const KEY_BYTES: usize = 32;
 const NONCE_BYTES: usize = 12;
 
@@ -308,7 +308,7 @@ mod tests {
         let mut suffix = [0_u8; 8];
         rand::rng().fill(&mut suffix);
         path.push(format!(
-            "stirling-ai-config-cache-{}",
+            "rustling-ai-config-cache-{}",
             URL_SAFE_NO_PAD.encode(suffix)
         ));
         fs::create_dir_all(&path)?;

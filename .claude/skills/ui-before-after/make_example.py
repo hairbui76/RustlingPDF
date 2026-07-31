@@ -7,10 +7,7 @@ import pathlib
 import re
 
 HERE = pathlib.Path(__file__).parent
-SHOTS = pathlib.Path(
-    r"C:\Users\systo\git\Stirling-PDFNew\.claude\worktrees\kind-faraday-522a30"
-    r"\frontend\editor\screenshots\files-page"
-)
+SHOTS = HERE.parents[2] / "frontend" / "editor" / "screenshots" / "files-page"
 
 
 def uri(fname):

@@ -4,14 +4,14 @@ import { useViewScopedFiles } from "@app/hooks/tools/shared/useViewScopedFiles";
 import { BaseToolProps } from "@app/types/tool";
 import { ToolOperationHook } from "@app/hooks/tools/shared/useToolOperation";
 import { BaseParametersHook } from "@app/hooks/tools/shared/useBaseParameters";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 
 interface BaseToolReturn<
   TParams,
   TParamsHook extends BaseParametersHook<TParams>,
 > {
   // File management
-  selectedFiles: StirlingFile[];
+  selectedFiles: RustlingFile[];
 
   // Tool-specific hooks
   params: TParamsHook;

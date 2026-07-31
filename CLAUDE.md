@@ -1,171 +1,87 @@
-# AGENTS.md
+# Repository Guide
 
-This file provides guidance to AI Agents when working with code in this repository.
+RustlingPDF is an MIT-licensed PDF workbench with a Rust backend, React
+frontend, Tauri desktop shell, Docker packaging, local CLI, and an optional
+Rust AI sidecar. This repository is the authority for product behavior; do not
+add dependencies on another product or repository to build, test, or run it.
 
-## What this repository is
+## Commands
 
-**RustlingPDF** is a standalone PDF-toolbox product with a pure-Rust backend and a
-React SPA. It is based on Stirling-PDF (the Java project it was ported from), but it
-is a **separate repository and a separate tool**: there is no Java code here, no
-Gradle, no JVM dependency, and it must never be wired back into Stirling-PDF as a
-submodule. All development effort in this repository focuses on RustlingPDF itself.
+[Task](https://taskfile.dev) is the shared command runner:
 
-The original Stirling-PDF checkout (if present at `../Stirling-PDF`) is a **read-only
-reference oracle**: consult its Java sources when a behavior question arises. Never
-edit that repo from here, and never add build-time dependencies on it. (The
-differential harness that drove a live upstream instance was removed by maintainer
-decision on 2026-07-28; a replacement harness is planned.)
+- `task install` installs Rust, frontend, and engine dependencies.
+- `task dev` starts the processing service and core web frontend.
+- `task dev:all` also starts the optional AI engine.
+- `task rust:check` runs Rust formatting, Clippy, and tests.
+- `task frontend:check` runs frontend formatting, lint, types, tests, and build.
+- `task engine:check` validates the AI engine.
+- `task desktop:test` validates the Tauri application.
+- `task check:all` runs the repository-wide quality gates.
 
-The coordinated `Stirling` → `Rustling` rename has been executed: crates are
-`rustling-*` and `RUSTLING_*` is the primary env-var spelling (every legacy
-`STIRLING_*` spelling keeps working as a deprecated alias; `RUSTLING_*` wins
-when both are set — see `env_compat` in each crate). Identifiers deliberately
-kept under the old spelling for continuity with shipped releases and existing
-installs — the tauri bundle identifier `stirling.pdf.dev`, the `Stirling-PDF`
-desktop app-data directory, persisted storage keys, the
-`StirlingPDFClassification` PDF Info key, and `X-Stirling-*` wire headers —
-must not be renamed piecemeal.
+Before a Rust compile or test, check `rust/target/debug/deps`. If it exceeds
+50 GB, use `task rust:clean:deps`; do not delete a broader target directory as
+an automatic cleanup.
 
-## Taskfile
+## Architecture
 
-[Task](https://taskfile.dev) is the unified command runner. `task --list` shows all
-commands. Key ones:
+- `rust/crates/rustling-processing` is the Axum HTTP service and in-process
+  processing runtime. It serves `/api/v1/...`, reads configuration below
+  `RUSTLING_BASE_PATH`, and uses the `RUSTLING_*` environment namespace.
+- `rust/crates/rustling-cli` exposes the same catalog-backed processing runtime
+  without starting an HTTP listener.
+- `rust/crates/rustling-ai-engine` is an optional stateless AI service. The
+  processing service connects through `AIENGINE_URL` only when explicitly
+  enabled.
+- `rust/crates/rustling-operation-catalog` generates typed operation metadata
+  from the committed `SwaggerDoc.json`.
+- `frontend/editor/src/core` is the only frontend product layer. Web, Docker,
+  and desktop builds all use Vite's `core` mode.
+- `frontend/editor/src-tauri` contains the native desktop shell, sidecar
+  lifecycle, file integration, and installers.
+- `rust/contracts` contains behavior contracts for public processing surfaces.
 
-- `task rust:install` — Cargo deps + pinned PDFium (required before backend tests)
-- `task backend:dev` — the Rust backend on 127.0.0.1:8080 (`PORT=<n>` to override)
-- `task frontend:dev` — Vite dev server on 5173, proxies `/api` (override target with `BACKEND_URL`)
-- `task dev` / `task dev:all` — backend + frontend (+ AI engine)
-- `task engine:dev|check|test|fix` — the Rust AI engine (localhost:5001)
-- `task rust:check` — the full backend quality gate (fmt + clippy + tests with PDFium)
-- `task rust:clean:deps` — remove exactly `rust/target/debug/deps`
+The service has no application authentication, account database, billing
+system, commercial license key, or durable server-side document store. PDF
+security operations such as encryption, redaction, signing, timestamping, and
+signature validation remain processing features.
 
-After modifying files, run the matching gate: `task frontend:check` for frontend,
-`task engine:check` for the AI engine, `task rust:check` (or targeted `cargo test`
-filters plus fmt/clippy) for the processing backend.
+## Backend conventions
 
-## Rust Build Storage Guard
+- Keep `Cargo.lock` committed and use `--locked` in gates.
+- Install pinned PDFium with `task rust:install`; set
+  `RUSTLING_PDFIUM_LIBRARY_PATH` when running Cargo commands directly.
+- Optional native programs are discovered at startup. Missing dependencies
+  make only their affected endpoints unavailable.
+- Update the relevant file under `rust/contracts/` whenever externally
+  observable behavior changes.
+- Keep the OpenAPI snapshot, operation catalog, generated frontend API types,
+  and their generators synchronized.
+- Preserve input bounds, temporary-file cleanup, SSRF defenses, and explicit
+  dependency failures.
 
-- Before every Rust compile or test command, check the size of `rust/target/debug/deps`
-  in the active worktree.
-- If it exceeds 50 GB, run `task rust:clean:deps` to remove exactly that directory first.
-- Never remove a broader `target` directory as part of this automatic guard.
+## Frontend conventions
 
-## Backend architecture (rust/)
+- Import application modules through `@app/*`.
+- Use the core source tree; do not recreate commercial, proprietary, prototype,
+  cloud, or SaaS overlay layers.
+- Route file operations through `FileContext`, and preserve PDF.js/blob cleanup.
+- New tools should use the shared operation-hook and catalog patterns.
+- Follow `frontend/editor/src/core/theme/README.md` for color and token changes.
+- Keep translatable UI copy in the locale system and generated metadata in sync.
 
-- `rust/crates/rustling-processing` — the axum HTTP service. Routes mirror the
-  `/api/v1/...` REST surface the SPA calls. Configuration comes from
-  `configs/settings.yml` under `RUSTLING_BASE_PATH` plus `SYSTEM_*`/`SECURITY_*`/
-  `RUSTLING_*` env overrides (legacy `STIRLING_*` spellings are accepted as
-  deprecated aliases). PDFium is the native processing engine
-  (`RUSTLING_PDFIUM_LIBRARY_PATH`, or `task rust:install`); pure-Rust fallbacks
-  exist where implemented. External tools (LibreOffice, Ghostscript, qpdf,
-  Tesseract/OCRmyPDF, WeasyPrint, pdftohtml, Calibre, unrar) are discovered at
-  startup; missing ones disable their endpoints with reason `DEPENDENCY` — never
-  hard-fail on a missing optional tool.
-- **No authentication, no server-side state — by maintainer decision
-  (2026-07-28)**: the service has no login, no accounts, no database, and no
-  durable server-side storage; user state lives on the client. Legacy
-  login/mcp/storage/policy settings keys are **ignored with a one-line startup
-  warning, never refused** (a hard refusal would brick existing installs whose
-  settings.yml still carries them). PDF *document* security — password,
-  redact, sanitize, watermark, cert-sign/hardware signing, timestamping,
-  signature validation — is a processing feature and stays. The only
-  settings.yml write-backs are the desktop (Tauri-mode) sidecar's, which
-  target the user's own machine. Do not reintroduce auth or server state.
-- `rust/contracts/*.md` are the per-surface behavior contracts. When changing an
-  endpoint's behavior, update its contract in the same change; when adding a
-  surface, add one. `rust/PORT_STATUS.md` is the authoritative ledger of feature
-  status and documented divergences — keep it truthful (claims there are audited).
-- `rust/crates/rustling-ai-engine` — typed contracts in, typed contracts out, AI
-  only where it adds reasoning value. The frontend reaches it through the
-  processing service as a proxy (`AIENGINE_URL`, `AIENGINE_ENABLED`).
-- `rust/crates/rustling-operation-catalog` — regenerates the typed operation
-  catalog from the frozen `SwaggerDoc.json` snapshot at the repo root. Generated
-  catalog files are committed; keep them in sync via the taskfile target when the
-  snapshot changes.
-- New Rust dependencies go in the owning crate's `Cargo.toml`; keep `Cargo.lock`
-  committed and use `--locked` in gates.
+## Product constraints
 
-## Team workflow for substantial backend work
+- The product is open source under the root `LICENSE`.
+- Third-party license generation is dependency attribution, not a product
+  license-key mechanism, and must remain accurate.
+- Do not reintroduce accounts, billing, usage credits, commercial plan gates,
+  or license activation.
+- Do not add PDF/A roadmap work unless the maintainer requests it.
+- Runtime identifiers use RustlingPDF naming only; do not add compatibility
+  aliases for removed product identities.
 
-Any substantial backend feature or subsystem change (multi-step; a new endpoint
-family, a new engine capability) is executed as **dev + tester agent pairs**, not
-solo:
+## Communication
 
-- The orchestrating agent acts as project manager: decompose into work-items,
-  spawn a dev and an **independent** tester per item (never the same agent grading
-  its own work), integrate the results, keep `rust/PORT_STATUS.md` and the
-  relevant contract docs updated, and report outcomes.
-- Parallel work-items run in separate git worktrees (dev and its tester share the
-  same worktree path); coupled items sharing hot files run sequentially on one tree.
-- Definition of done: the relevant gate is clean; the tester has adversarially
-  attacked the change (edge cases, malformed input, security/SSRF, resource
-  bounds) and signed off; contracts/ledger updated. Reference-oracle comparison
-  (against the Stirling-PDF sources) applies whenever the surface has an
-  upstream counterpart.
-- Trivial one-line edits, config tweaks, doc fixes, and pure questions are handled
-  directly without a team.
-- **The dev may be a Claude subagent or Codex** (`codex exec --sandbox
-  workspace-write -C <worktree>` — the sandbox is what confines writes to that
-  worktree); pick per work-item. A PM must always orchestrate, and the tester is
-  always a different agent from the dev.
-- **Always choose each subagent's model deliberately** rather than inheriting:
-  `haiku` only for trivial mechanical work, `sonnet` for bounded dev and doc
-  sweeps, `opus` or Codex for substantial dev and for recon that will become a
-  spec, `opus`/`fable` for adversarial testers (never a cheap model — finding
-  what the dev missed is the highest reasoning load), `fable` for
-  security/privacy/crypto review. Set workflow stage `effort` explicitly too.
-
-## Frontend (frontend/editor)
-
-- Tech stack: Vite + React + TypeScript + Mantine + TailwindCSS.
-- **ALWAYS import via `@app/*`** — never `@core/*`/`@proprietary/*` except when a
-  higher layer deliberately wraps a lower-layer module it shadows. The alias
-  resolves per build flavor (core → proprietary → cloud → saas/desktop cascade);
-  read `frontend/editor/DeveloperGuide.md` before touching the layering.
-- Extension modules are named for **what they do**, never for which build overrides
-  them; core code never checks `isDesktop()`/`isTauri()`.
-- All `VITE_*` vars belong in the committed `.env`/`.env.<flavor>` files; local
-  secrets go in uncommitted `.local` siblings. Never inline `|| 'fallback'`.
-- Colours/theming: read `frontend/editor/src/core/theme/README.md` first; literal
-  colours live only in `primitives.css`, components use `--c-*` tokens.
-- All file operations go through `FileContext`; manual cleanup of PDF.js documents
-  and blob URLs is load-bearing (100GB+ target) — never remove cleanup code.
-- New tools follow the `useToolOperation` hook pattern (see `ADDING_TOOLS`-style
-  hooks under `core/hooks/tools/`).
-- Translations: update `en-US` JSON under `frontend/editor/public/locales/` only;
-  other languages are handled separately.
-
-## Testing
-
-- Backend: unit + integration tests in the crates (run with PDFium bound). The
-  former differential harness (`testing/differential`) was removed by maintainer
-  decision on 2026-07-28; the maintainer plans to build a new harness.
-- Frontend: `task frontend:check`; stubbed Playwright specs under
-  `frontend/editor/src/core/tests/` for backend-free UI verification.
-
-## Communication Style
-
-- The user may write prompts in English, but agents must reply to the user in
-  Vietnamese unless the user explicitly requests another response language.
-- Only user-facing natural-language responses are translated; source code, code
-  comments, identifiers, file contents, patches, commands, logs, and other
-  technical artifacts must remain in English.
-- Be direct and to the point; no apologies or conversational filler; answer
-  questions directly without preamble.
-
-## Decision Making
-
-- Ask clarifying questions before making assumptions on product direction.
-- Confirm approach before structural changes (crate splits, cross-cutting renames,
-  security-surface behavior changes).
-- Agents may freely delegate independent work to subagents and use all available
-  concurrency; respect the dev/tester pair workflow for substantial backend work.
-
-## Stack reality check
-
-The frontend tracks current Vite/React/TS releases and the backend tracks a recent
-stable Rust toolchain with workspace lints (`cargo clippy --workspace --all-targets
---locked -- -D warnings` must stay clean). Ground code in what is actually in
-`Cargo.toml`/`package.json` and the existing source — do not assume APIs from
-training data; open the dependency source when unsure.
+Users may prompt in English, but agents reply in Vietnamese unless the user
+explicitly requests another language. Code, comments, commands, logs, and
+technical files remain in English.

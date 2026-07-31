@@ -1308,7 +1308,7 @@
         "type": "number"
       },
       "stampText": {
-        "default": "Stirling Software",
+        "default": "Rustling Software",
         "description": "The stamp text",
         "type": "string"
       },
@@ -1737,7 +1737,7 @@
         "anyOf": [
           {
             "description": "Blur amount (0 = none, higher = more blur)",
-            "example": 1.0,
+            "example": 1,
             "type": "number"
           },
           {
@@ -1763,7 +1763,7 @@
         "anyOf": [
           {
             "description": "Brightness multiplier (1.0 = no change)",
-            "example": 1.0,
+            "example": 1,
             "type": "number"
           },
           {
@@ -1793,7 +1793,7 @@
         "anyOf": [
           {
             "description": "Contrast multiplier (1.0 = no change)",
-            "example": 1.0,
+            "example": 1,
             "type": "number"
           },
           {
@@ -1806,7 +1806,7 @@
         "anyOf": [
           {
             "description": "Noise amount (0 = none, higher = more noise)",
-            "example": 8.0,
+            "example": 8,
             "type": "number"
           },
           {
@@ -2106,7 +2106,7 @@
       "fontSize": {
         "default": 30,
         "description": "The font size of the watermark text",
-        "minimum": 1.0,
+        "minimum": 1,
         "type": "number"
       },
       "heightSpacer": {
@@ -2126,7 +2126,7 @@
         "type": "number"
       },
       "watermarkText": {
-        "default": "Stirling Software",
+        "default": "Rustling Software",
         "description": "The watermark text",
         "type": "string"
       },
@@ -2577,7 +2577,7 @@
     "properties": {
       "tsaUrl": {
         "default": "http://timestamp.digicert.com",
-        "description": "URL of the RFC 3161 Time Stamp Authority (TSA) server. Must be one of the built-in presets (DigiCert, Sectigo, SSL.com, FreeTSA, MeSign) or an admin-configured URL in settings.yml (security.timestamp.customTsaUrls). If omitted, the server default is used.",
+        "description": "URL of the RFC 3161 Time Stamp Authority (TSA) server. Must be one of the built-in presets (DigiCert, Sectigo, SSL.com, FreeTSA, MeSign) or a URL allowed in settings.yml (security.timestamp.customTsaUrls). If omitted, the server default is used.",
         "type": "string"
       }
     },

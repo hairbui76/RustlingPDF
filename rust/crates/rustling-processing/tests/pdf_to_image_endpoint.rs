@@ -151,7 +151,7 @@ async fn rejects_invalid_options_and_a_missing_file() -> Result<(), Box<dyn std:
             "field {field:?}"
         );
     }
-    let boundary = "stirling-pdf-to-image-missing-file";
+    let boundary = "rustlingpdf-to-image-missing-file";
     let response = app(1024 * 1024)
         .oneshot(
             Request::builder()
@@ -171,7 +171,7 @@ async fn rejects_invalid_options_and_a_missing_file() -> Result<(), Box<dyn std:
 }
 
 fn native_pdfium_available() -> bool {
-    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 async fn response_bytes(response: Response) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -198,7 +198,7 @@ async fn post_pdf(
     pdf: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-to-image-boundary";
+    let boundary = "rustlingpdf-to-image-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

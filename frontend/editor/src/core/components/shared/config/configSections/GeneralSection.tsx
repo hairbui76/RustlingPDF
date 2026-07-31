@@ -102,7 +102,7 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
   // falling back to the backend version
   const currentVersion = appVersion ?? config?.appVersion ?? null;
 
-  // Check for updates on mount — skipped when the update UI is hidden (SaaS
+  // Check for updates on mount — skipped when the update UI is hidden (legacy web build
   // build, managed-disabled desktop) so no external update call ever fires.
   useEffect(() => {
     if (hideUpdateSection) return;
@@ -118,8 +118,6 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
 
     const machineInfo = {
       machineType: config?.machineType ?? "unknown",
-      activeSecurity: config?.activeSecurity ?? false,
-      licenseType: config?.license ?? "NORMAL",
     };
 
     const summary = await updateService.getUpdateSummary(
@@ -738,7 +736,7 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
           onClose={() => setUpdateModalOpened(false)}
           onRemindLater={() => {
             localStorage.setItem(
-              "stirling-pdf-updater:snoozedUntil",
+              "rustlingpdf-updater:snoozedUntil",
               String(Date.now() + 24 * 60 * 60 * 1000),
             );
           }}
@@ -746,8 +744,6 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
           updateSummary={updateSummary}
           machineInfo={{
             machineType: config?.machineType ?? "unknown",
-            activeSecurity: config?.activeSecurity ?? false,
-            licenseType: config?.license ?? "NORMAL",
           }}
           desktopInstall={desktopInstallProps}
         />

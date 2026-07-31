@@ -21,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import { Button as DSButton } from "@app/ui/Button";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
 import { LogoIcon } from "@app/components/shared/LogoIcon";
-import { Wordmark } from "@app/components/shared/Wordmark";
 import { withBasePath } from "@app/constants/app";
 import apiClient from "@app/services/apiClient";
 import {
@@ -972,9 +971,8 @@ export default function MobileScannerPage() {
           <Group gap="sm">
             <LogoIcon
               alt={t("home.mobile.brandAlt", "RustlingPDF logo")}
-              style={{ height: 32, width: 32 }}
+              style={{ height: 32, width: "auto" }}
             />
-            <Wordmark alt="RustlingPDF" style={{ height: 24 }} />
           </Group>
           <Badge
             color={sessionState === "transfer" && online ? "green" : "gray"}

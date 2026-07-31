@@ -301,7 +301,7 @@ fn validate_profile(
 }
 
 fn verapdf_commands() -> (Vec<String>, bool) {
-    if let Some(command) = crate::env_compat::var_os(VERAPDF_COMMAND_ENV) {
+    if let Some(command) = crate::environment::var_os(VERAPDF_COMMAND_ENV) {
         return (vec![command.to_string_lossy().into_owned()], true);
     }
     (vec!["verapdf".to_owned(), "verapdf.bat".to_owned()], false)

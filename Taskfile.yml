@@ -89,7 +89,6 @@ tasks:
   dev:_all:
     internal: true
     vars:
-      FRONTEND: '{{.FRONTEND | default "proprietary"}}'
       PORTS:
         sh: '{{if eq OS "windows"}}{{.FIND_FREE_PORT_PS}} 8080 5173 5001{{else}}{{.FIND_FREE_PORT_SH}} 8080 5173 5001{{end}}'
       BACKEND_PORT: '{{index (splitList "\n" .PORTS) 0}}'
@@ -104,7 +103,7 @@ tasks:
           PORT: '{{.BACKEND_PORT}}'
           AIENGINE_URL: 'http://localhost:{{.ENGINE_PORT}}'
           AIENGINE_ENABLED: "true"
-      - task: 'frontend:dev:{{.FRONTEND}}'
+      - task: frontend:dev
         vars:
           PORT: '{{.FRONTEND_PORT}}'
           BACKEND_URL: 'http://localhost:{{.BACKEND_PORT}}'

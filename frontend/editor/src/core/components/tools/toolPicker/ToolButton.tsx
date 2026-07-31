@@ -20,9 +20,6 @@ import {
   getToolDisabledReason,
   getDisabledLabel,
 } from "@app/components/tools/fullscreen/shared";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
-import { CloudBadge } from "@app/components/shared/CloudBadge";
-import { useWillUseCloud } from "@app/hooks/useWillUseCloud";
 
 interface ToolButtonProps {
   id: ToolId;
@@ -52,35 +49,19 @@ const ToolButton: React.FC<ToolButtonProps> = ({
   badgeCount,
 }) => {
   const { t } = useTranslation();
-  const { config } = useAppConfig();
-  const premiumEnabled = config?.premiumEnabled;
   const { isFavorite, toolAvailability } = useToolWorkflowData();
   const { toggleFavorite } = useToolWorkflowActions();
-  const disabledReason = getToolDisabledReason(
-    id,
-    tool,
-    toolAvailability,
-    premiumEnabled,
-  );
+  const disabledReason = getToolDisabledReason(id, tool, toolAvailability);
   const isUnavailable = disabledReason !== null;
   // If onUnavailableClick is provided for a non-comingSoon tool, render as "cloud-available":
   // full opacity, cloud badge, normal tooltip — clicking still fires onUnavailableClick (e.g. sign-in).
   const showAsCloudAvailable =
-    isUnavailable &&
-    !!onUnavailableClick &&
-    disabledReason !== "comingSoon" &&
-    disabledReason !== "selfHostedOffline";
+    isUnavailable && !!onUnavailableClick && disabledReason !== "comingSoon";
   const visuallyUnavailable = isUnavailable && !showAsCloudAvailable;
   const { hotkeys } = useHotkeys();
   const binding = hotkeys[id];
   const { getToolNavigation } = useToolNavigation();
   const fav = isFavorite(id as ToolId);
-
-  // Check if this tool will route to SaaS backend (desktop only)
-  const rawEndpoint = tool.operationConfig?.endpoint;
-  const endpointString =
-    typeof rawEndpoint === "string" ? rawEndpoint : undefined;
-  const usesCloud = useWillUseCloud(endpointString);
 
   const handleClick = (id: ToolId) => {
     if (isUnavailable) {
@@ -196,7 +177,6 @@ const ToolButton: React.FC<ToolButtonProps> = ({
             {badgeCount}
           </Badge>
         )}
-        {usesCloud && !visuallyUnavailable && <CloudBadge />}
       </div>
       {showDescription && tool.description && (
         <span

@@ -18,7 +18,7 @@ Until the shared `settings.yml` migration lands, the timestamp settings can be
 provided through `SECURITY_TIMESTAMP_DEFAULTTSAURL` (or
 `SECURITY_TIMESTAMP_DEFAULT_TSA_URL`) and comma-separated
 `SECURITY_TIMESTAMP_CUSTOMTSAURLS` (or
-`SECURITY_TIMESTAMP_CUSTOM_TSA_URLS`). The matching `STIRLING_` prefixed aliases
+`SECURITY_TIMESTAMP_CUSTOM_TSA_URLS`). The matching `RUSTLING_` prefixed aliases
 are also accepted. The Java YAML keys remain the target configuration contract.
 
 ## Timestamp operation

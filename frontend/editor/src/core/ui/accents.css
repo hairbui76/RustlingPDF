@@ -39,8 +39,8 @@ html[data-app-theme="custom"] .sui-acc-default {
   --_bd: var(--color-amber-border);
   --_tint: color-mix(in srgb, var(--color-amber) 12%, transparent);
 }
-/* premium: purple upgrade CTA — gradient fill (token), violet text/border. */
-.sui-acc-premium {
+/* highlight: purple upgrade CTA — gradient fill (token), violet text/border. */
+.sui-acc-highlight {
   --_solid: var(--grad-purple-btn);
   --_solid-hover: var(--grad-purple-btn);
   --_on: #ffffff;
@@ -65,7 +65,7 @@ html[data-app-theme="custom"] .sui-acc-default {
   --_bd: var(--p-c-334155);
   --_tint: color-mix(in srgb, var(--p-c-94a3b8) 16%, transparent);
 }
-/* brand: Stirling red — a bespoke brand colour, not part of the token palette. */
+/* brand: Rustling red — a bespoke brand colour, not part of the token palette. */
 .sui-acc-brand {
   --_solid: var(--p-brand-red-650);
   --_solid-hover: var(--p-brand-red-700);

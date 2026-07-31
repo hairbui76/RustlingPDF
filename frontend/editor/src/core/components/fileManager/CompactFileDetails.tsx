@@ -7,13 +7,13 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useTranslation } from "react-i18next";
 import { getFileSize } from "@app/utils/fileUtils";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { PrivateContent } from "@app/components/shared/PrivateContent";
 
 interface CompactFileDetailsProps {
-  currentFile: StirlingFileStub | null;
+  currentFile: RustlingFileStub | null;
   thumbnail: string | null;
-  selectedFiles: StirlingFileStub[];
+  selectedFiles: RustlingFileStub[];
   currentFileIndex: number;
   numberOfFiles: number;
   isAnimating: boolean;
@@ -38,15 +38,6 @@ const CompactFileDetails: React.FC<CompactFileDetailsProps> = ({
   const { t } = useTranslation();
   const hasSelection = selectedFiles.length > 0;
   const hasMultipleFiles = numberOfFiles > 1;
-  const showOwner = Boolean(
-    currentFile &&
-    (currentFile.remoteOwnedByCurrentUser === false ||
-      currentFile.remoteSharedViaLink),
-  );
-  const ownerLabel = currentFile
-    ? currentFile.remoteOwnerUsername ||
-      t("fileManager.ownerUnknown", "Unknown")
-    : "";
 
   return (
     <Stack gap="xs" style={{ height: "100%" }}>
@@ -117,11 +108,6 @@ const CompactFileDetails: React.FC<CompactFileDetailsProps> = ({
               {currentFile.toolHistory
                 .map((tool) => t(`home.${tool.toolId}.title`, tool.toolId))
                 .join(" → ")}
-            </Text>
-          )}
-          {currentFile && showOwner && (
-            <Text size="xs" c="dimmed">
-              {t("fileManager.owner", "Owner")}: {ownerLabel}
             </Text>
           )}
         </Box>

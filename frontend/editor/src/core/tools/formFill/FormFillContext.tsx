@@ -3,12 +3,12 @@
  *
  * Provider-agnostic: delegates data fetching/saving to an IFormDataProvider.
  * - PdfLibFormProvider: frontend-only, uses pdf-lib (for normal viewer mode)
- * - PdfBoxFormProvider: backend API via PDFBox (for dedicated formFill tool)
+ * - BackendFormProvider: processing API (for the dedicated formFill tool)
  *
  * The active provider can be switched at runtime via setProvider(). This allows
  * EmbedPdfViewer to auto-select:
  * - Normal viewer → PdfLibFormProvider (no backend calls for large PDFs)
- * - formFill tool → PdfBoxFormProvider (full-fidelity PDFBox handling)
+ * - formFill tool → BackendFormProvider
  *
  * Performance Architecture:
  * Form values are stored in a FormValuesStore (external to React state) to
@@ -37,7 +37,7 @@ import type {
   WidgetCoordinates,
 } from "@app/tools/formFill/types";
 import type { IFormDataProvider } from "@app/tools/formFill/providers/types";
-import { PdfBoxFormProvider } from "@app/tools/formFill/providers/PdfBoxFormProvider";
+import { BackendFormProvider } from "@app/tools/formFill/providers/BackendFormProvider";
 import { PdfiumFormProvider } from "@app/tools/formFill/providers/PdfiumFormProvider";
 import { fetchSignatureFieldsWithAppearances } from "@app/services/pdfiumService";
 
@@ -196,14 +196,14 @@ export interface FormFillContextValue {
   reset: () => void;
   /** Pre-computed map of page index to fields for performance */
   fieldsByPage: Map<number, FormField[]>;
-  /** Name of the currently active provider ('pdf-lib' | 'pdfbox') */
+  /** Name of the currently active provider (`pdflib` or `backend`). */
   activeProviderName: string;
   /**
    * Switch the active data provider.
-   * Use 'pdflib' for frontend-only pdf-lib, 'pdfbox' for backend PDFBox.
+   * Use `pdflib` for frontend-only pdf-lib or `backend` for the processing API.
    * Resets form state when switching providers.
    */
-  setProviderMode: (mode: "pdflib" | "pdfbox") => void;
+  setProviderMode: (mode: "pdflib" | "backend") => void;
   /** The file ID that the current form fields belong to (null if no fields loaded) */
   forFileId: string | null;
 }
@@ -269,7 +269,7 @@ export function useAllFormValues(): Record<string, string> {
 
 /** Singleton provider instances */
 const pdfiumProvider = new PdfiumFormProvider();
-const pdfBoxProvider = new PdfBoxFormProvider();
+const backendProvider = new BackendFormProvider();
 
 export function FormFillProvider({
   children,
@@ -279,15 +279,15 @@ export function FormFillProvider({
   /** Override the initial provider. If not given, defaults to pdf-lib. */
   provider?: IFormDataProvider;
 }) {
-  const initialMode = providerProp?.name === "pdfbox" ? "pdfbox" : "pdflib";
-  const [providerMode, setProviderModeState] = useState<"pdflib" | "pdfbox">(
+  const initialMode = providerProp?.name === "backend" ? "backend" : "pdflib";
+  const [providerMode, setProviderModeState] = useState<"pdflib" | "backend">(
     initialMode,
   );
-  const providerModeRef = useRef(initialMode as "pdflib" | "pdfbox");
+  const providerModeRef = useRef(initialMode as "pdflib" | "backend");
   providerModeRef.current = providerMode;
   const provider =
     providerProp ??
-    (providerMode === "pdfbox" ? pdfBoxProvider : pdfiumProvider);
+    (providerMode === "backend" ? backendProvider : pdfiumProvider);
   const providerRef = useRef(provider);
   providerRef.current = provider;
 
@@ -333,9 +333,9 @@ export function FormFillProvider({
           return;
         }
 
-        // When the pdfbox provider is active the backend doesn't return signature fields
+        // The processing API does not return signature appearances.
         // (they're not fillable). Fetch them via pdflib so their appearances still render.
-        if (providerModeRef.current === "pdfbox") {
+        if (providerModeRef.current === "backend") {
           try {
             // Convert File/Blob to ArrayBuffer for pdfiumService
             const arrayBuffer = await file.arrayBuffer();
@@ -347,7 +347,7 @@ export function FormFillProvider({
             }
           } catch (e) {
             console.warn(
-              "[FormFill] Failed to extract signature appearances for pdfbox mode:",
+              "[FormFill] Failed to extract signature appearances for backend mode:",
               e,
             );
           }
@@ -435,13 +435,13 @@ export function FormFillProvider({
   );
 
   const setProviderMode = useCallback(
-    (mode: "pdflib" | "pdfbox") => {
+    (mode: "pdflib" | "backend") => {
       // Use the ref to check the current mode synchronously — avoids
       // relying on stale closure state and allows the early return.
       if (providerModeRef.current === mode) return;
 
-      // provider (pdfbox vs pdflib).
-      const newProvider = mode === "pdfbox" ? pdfBoxProvider : pdfiumProvider;
+      // provider (processing API vs frontend pdf-lib).
+      const newProvider = mode === "backend" ? backendProvider : pdfiumProvider;
       providerRef.current = newProvider;
       providerModeRef.current = mode;
 

@@ -12,7 +12,6 @@ import {
 import { ToolRegistry } from "@app/data/toolsTaxonomy";
 import { firePixel } from "@app/utils/scarfTracking";
 import { withBasePath } from "@app/constants/app";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
 
 /**
  * Hook to sync workbench and tool with URL using registry
@@ -24,34 +23,17 @@ export function useNavigationUrlSync(
   registry: ToolRegistry,
   enableSync: boolean = true,
 ) {
-  const { config } = useAppConfig();
-  const premiumEnabled = config?.premiumEnabled;
   const hasInitialized = useRef(false);
   const prevSelectedTool = useRef<ToolId | null>(null);
 
-  // Check if tool requires premium and redirect if needed
-  const checkPremiumAndSelect = useCallback(
-    (toolId: ToolId) => {
-      const tool = registry[toolId];
-      if (tool?.requiresPremium === true && premiumEnabled !== true) {
-        // Premium tool accessed without premium - redirect to home
-        const homePath = withBasePath("/");
-        if (window.location.pathname !== homePath) {
-          clearToolRoute(true); // Use replaceState to avoid adding to history
-          window.location.href = homePath;
-        }
-        return;
-      }
-      handleToolSelect(toolId);
-    },
-    [registry, premiumEnabled, handleToolSelect],
+  const selectFromUrl = useCallback(
+    (toolId: ToolId) => handleToolSelect(toolId),
+    [handleToolSelect],
   );
 
   // Initialize workbench and tool from URL on mount
   useEffect(() => {
     if (!enableSync) return;
-    // Wait for config to load before checking premium status
-    if (config === null) return;
     // Only run once on initial mount
     if (hasInitialized.current) return;
 
@@ -63,14 +45,14 @@ export function useNavigationUrlSync(
     if (route.toolId) {
       // URL specifies a tool — navigate to it (URL takes precedence over startup view preference)
       if (route.toolId !== selectedTool) {
-        checkPremiumAndSelect(route.toolId);
+        selectFromUrl(route.toolId);
       }
     }
     // When the URL is the home path (no tool), leave selectedTool untouched so that
     // the startup view preference (defaultStartupView) is respected.
 
     hasInitialized.current = true;
-  }, [checkPremiumAndSelect, config, enableSync, registry, selectedTool]); // Include dependencies
+  }, [enableSync, registry, selectFromUrl, selectedTool]);
 
   // Update URL when tool or workbench changes
   useEffect(() => {
@@ -102,7 +84,7 @@ export function useNavigationUrlSync(
         firePixel(currentPath);
 
         if (route.toolId) {
-          checkPremiumAndSelect(route.toolId);
+          selectFromUrl(route.toolId);
         } else {
           clearToolSelection();
         }
@@ -111,14 +93,7 @@ export function useNavigationUrlSync(
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [
-    selectedTool,
-    handleToolSelect,
-    clearToolSelection,
-    registry,
-    enableSync,
-    checkPremiumAndSelect,
-  ]);
+  }, [selectedTool, clearToolSelection, registry, enableSync, selectFromUrl]);
 }
 
 /**

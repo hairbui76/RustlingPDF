@@ -18,8 +18,7 @@ import "@app/styles/index.css";
 // Import file ID debugging helpers (development only)
 import "@app/utils/fileIdSafety";
 
-// Minimal providers for the public, no-auth mobile-scanner page - no API
-// calls, no authentication
+// Minimal providers for the local mobile-scanner page.
 function PublicRouteProviders({ children }: { children: React.ReactNode }) {
   return (
     <PreferencesProvider>

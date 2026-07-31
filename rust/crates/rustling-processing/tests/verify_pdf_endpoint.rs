@@ -67,7 +67,7 @@ async fn validates_required_file_and_pdf_syntax() -> Result<(), Box<dyn std::err
 }
 
 async fn post_pdf(pdf: Option<&[u8]>) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-verify-pdf-boundary";
+    let boundary = "rustling-verify-pdf-boundary";
     let mut body = Vec::new();
     if let Some(pdf) = pdf {
         body.extend_from_slice(

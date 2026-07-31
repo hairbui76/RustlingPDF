@@ -1,42 +1,42 @@
 import {
-  StirlingFile,
+  RustlingFile,
   FileId,
-  StirlingFileStub,
-  createStirlingFile,
+  RustlingFileStub,
+  createRustlingFile,
   ProcessedFileMetadata,
-  createNewStirlingFileStub,
+  createNewRustlingFileStub,
 } from "@app/types/fileContext";
 
 /**
- * Builds parallel inputFileIds and inputStirlingFileStubs arrays from the valid input files.
+ * Builds parallel inputFileIds and inputRustlingFileStubs arrays from the valid input files.
  * Falls back to a fresh stub when the file is not found in the current context state
  * (e.g. it was removed between operation start and this point).
  */
 export function buildInputTracking(
-  validFiles: StirlingFile[],
+  validFiles: RustlingFile[],
   selectors: {
-    getStirlingFileStub: (id: FileId) => StirlingFileStub | undefined;
+    getRustlingFileStub: (id: FileId) => RustlingFileStub | undefined;
   },
-): { inputFileIds: FileId[]; inputStirlingFileStubs: StirlingFileStub[] } {
+): { inputFileIds: FileId[]; inputRustlingFileStubs: RustlingFileStub[] } {
   const inputFileIds: FileId[] = [];
-  const inputStirlingFileStubs: StirlingFileStub[] = [];
+  const inputRustlingFileStubs: RustlingFileStub[] = [];
   for (const file of validFiles) {
     const fileId = file.fileId;
-    const record = selectors.getStirlingFileStub(fileId);
+    const record = selectors.getRustlingFileStub(fileId);
     if (record) {
       inputFileIds.push(fileId);
-      inputStirlingFileStubs.push(record);
+      inputRustlingFileStubs.push(record);
     } else {
       console.debug(`No file stub found for file: ${file.name}`);
       inputFileIds.push(fileId);
-      inputStirlingFileStubs.push(createNewStirlingFileStub(file, fileId));
+      inputRustlingFileStubs.push(createNewRustlingFileStub(file, fileId));
     }
   }
-  return { inputFileIds, inputStirlingFileStubs };
+  return { inputFileIds, inputRustlingFileStubs };
 }
 
 /**
- * Creates parallel outputStirlingFileStubs and outputStirlingFiles arrays from processed files.
+ * Creates parallel outputRustlingFileStubs and outputRustlingFiles arrays from processed files.
  * The stubFactory determines how each stub is constructed (child version vs fresh root).
  */
 export function buildOutputPairs(
@@ -48,16 +48,16 @@ export function buildOutputPairs(
     thumbnail: string,
     metadata: ProcessedFileMetadata | undefined,
     index: number,
-  ) => StirlingFileStub,
+  ) => RustlingFileStub,
 ): {
-  outputStirlingFileStubs: StirlingFileStub[];
-  outputStirlingFiles: StirlingFile[];
+  outputRustlingFileStubs: RustlingFileStub[];
+  outputRustlingFiles: RustlingFile[];
 } {
-  const outputStirlingFileStubs = processedFiles.map((file, index) =>
+  const outputRustlingFileStubs = processedFiles.map((file, index) =>
     stubFactory(file, thumbnails[index], metadataArray[index], index),
   );
-  const outputStirlingFiles = processedFiles.map((file, index) =>
-    createStirlingFile(file, outputStirlingFileStubs[index].id),
+  const outputRustlingFiles = processedFiles.map((file, index) =>
+    createRustlingFile(file, outputRustlingFileStubs[index].id),
   );
-  return { outputStirlingFileStubs, outputStirlingFiles };
+  return { outputRustlingFileStubs, outputRustlingFiles };
 }

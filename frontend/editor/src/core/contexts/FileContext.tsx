@@ -27,9 +27,9 @@ import {
   FileContextActionsValue,
   FileContextActions,
   FileId,
-  StirlingFileStub,
-  StirlingFile,
-  createStirlingFile,
+  RustlingFileStub,
+  RustlingFile,
+  createRustlingFile,
 } from "@app/types/fileContext";
 
 // Import modular components
@@ -40,7 +40,7 @@ import {
 import { createFileSelectors } from "@app/contexts/file/fileSelectors";
 import {
   addFiles,
-  addStirlingFileStubs,
+  addRustlingFileStubs,
   consumeFiles,
   undoConsumeFiles,
   createFileActions,
@@ -224,9 +224,9 @@ function FileContextInner({
     dispatch({ type: "SET_UNSAVED_CHANGES", payload: { hasChanges } });
   }, []);
 
-  const selectFiles = (stirlingFiles: StirlingFile[]) => {
+  const selectFiles = (rustlingFiles: RustlingFile[]) => {
     const currentSelection = stateRef.current.ui.selectedFileIds;
-    const newFileIds = stirlingFiles.map((stirlingFile) => stirlingFile.fileId);
+    const newFileIds = rustlingFiles.map((rustlingFile) => rustlingFile.fileId);
     dispatch({
       type: "SET_SELECTED_FILES",
       payload: { fileIds: [...currentSelection, ...newFileIds] },
@@ -244,10 +244,9 @@ function FileContextInner({
         /** Persist to IDB without dispatching to workspace state. */
         skipWorkspaceDispatch?: boolean;
         skipUploadTracking?: boolean;
-        derivedFromTool?: boolean;
       },
-    ): Promise<StirlingFile[]> => {
-      const stirlingFiles = await addFiles(
+    ): Promise<RustlingFile[]> => {
+      const rustlingFiles = await addFiles(
         {
           files,
           ...options,
@@ -265,14 +264,14 @@ function FileContextInner({
       );
 
       // Auto-select the newly added files if requested
-      if (options?.selectFiles && stirlingFiles.length > 0) {
-        selectFiles(stirlingFiles);
+      if (options?.selectFiles && rustlingFiles.length > 0) {
+        selectFiles(rustlingFiles);
       }
-      if (stirlingFiles.length > 0) {
+      if (rustlingFiles.length > 0) {
         indexedDB?.bumpRevision?.();
       }
 
-      return stirlingFiles;
+      return rustlingFiles;
     },
     [enablePersistence, requestConfirmation, indexedDB],
   );
@@ -293,8 +292,8 @@ function FileContextInner({
         allowDuplicates?: boolean;
         skipUploadTracking?: boolean;
       },
-    ): Promise<StirlingFile[]> => {
-      const stirlingFiles = await addFiles(
+    ): Promise<RustlingFile[]> => {
+      const rustlingFiles = await addFiles(
         {
           files,
           ...options,
@@ -306,27 +305,27 @@ function FileContextInner({
         enablePersistence,
       );
 
-      if (options?.selectFiles && stirlingFiles.length > 0) {
-        selectFiles(stirlingFiles);
+      if (options?.selectFiles && rustlingFiles.length > 0) {
+        selectFiles(rustlingFiles);
       }
 
-      if (stirlingFiles.length > 0) {
+      if (rustlingFiles.length > 0) {
         indexedDB?.bumpRevision?.();
       }
 
-      return stirlingFiles;
+      return rustlingFiles;
     },
     [enablePersistence, indexedDB],
   );
 
-  const addStirlingFileStubsAction = useCallback(
+  const addRustlingFileStubsAction = useCallback(
     async (
-      stirlingFileStubs: StirlingFileStub[],
+      rustlingFileStubs: RustlingFileStub[],
       options?: { insertAfterPageId?: string; selectFiles?: boolean },
-    ): Promise<StirlingFile[]> => {
-      // StirlingFileStubs preserve all metadata - perfect for FileManager use case!
-      const result = await addStirlingFileStubs(
-        stirlingFileStubs,
+    ): Promise<RustlingFile[]> => {
+      // RustlingFileStubs preserve all metadata - perfect for FileManager use case!
+      const result = await addRustlingFileStubs(
+        rustlingFileStubs,
         options,
         stateRef,
         filesRef,
@@ -351,17 +350,15 @@ function FileContextInner({
   const consumeFilesWrapper = useCallback(
     async (
       inputFileIds: FileId[],
-      outputStirlingFiles: StirlingFile[],
-      outputStirlingFileStubs: StirlingFileStub[],
-      options?: { silent?: boolean },
+      outputRustlingFiles: RustlingFile[],
+      outputRustlingFileStubs: RustlingFileStub[],
     ): Promise<FileId[]> => {
       return consumeFiles(
         inputFileIds,
-        outputStirlingFiles,
-        outputStirlingFileStubs,
+        outputRustlingFiles,
+        outputRustlingFileStubs,
         filesRef,
         dispatch,
-        options,
       );
     },
     [],
@@ -420,12 +417,12 @@ function FileContextInner({
         thumbnail,
         processedMetadata,
       );
-      const stirlingUnlockedFile = createStirlingFile(
+      const rustlingUnlockedFile = createRustlingFile(
         unlockedFile,
         childStub.id,
       );
 
-      await consumeFilesWrapper([fileId], [stirlingUnlockedFile], [childStub]);
+      await consumeFilesWrapper([fileId], [rustlingUnlockedFile], [childStub]);
     },
     [consumeFilesWrapper, t],
   );
@@ -548,12 +545,12 @@ function FileContextInner({
   const undoConsumeFilesWrapper = useCallback(
     async (
       inputFiles: File[],
-      inputStirlingFileStubs: StirlingFileStub[],
+      inputRustlingFileStubs: RustlingFileStub[],
       outputFileIds: FileId[],
     ): Promise<void> => {
       return undoConsumeFiles(
         inputFiles,
-        inputStirlingFileStubs,
+        inputRustlingFileStubs,
         outputFileIds,
         filesRef,
         dispatch,
@@ -563,16 +560,16 @@ function FileContextInner({
     [indexedDB],
   );
 
-  // File pinning functions - use StirlingFile directly
+  // File pinning functions - use RustlingFile directly
   const pinFileWrapper = useCallback(
-    (file: StirlingFile) => {
+    (file: RustlingFile) => {
       baseActions.pinFile(file.fileId);
     },
     [baseActions],
   );
 
   const unpinFileWrapper = useCallback(
-    (file: StirlingFile) => {
+    (file: RustlingFile) => {
       baseActions.unpinFile(file.fileId);
     },
     [baseActions],
@@ -584,7 +581,7 @@ function FileContextInner({
       ...baseActions,
       addFiles: addRawFiles,
       addFilesWithOptions,
-      addStirlingFileStubs: addStirlingFileStubsAction,
+      addRustlingFileStubs: addRustlingFileStubsAction,
       removeFiles: async (fileIds: FileId[], deleteFromStorage?: boolean) => {
         // Remove from memory and cleanup resources
         lifecycleManager.removeFiles(fileIds, stateRef);
@@ -598,10 +595,10 @@ function FileContextInner({
           }
         }
       },
-      updateStirlingFileStub: (
+      updateRustlingFileStub: (
         fileId: FileId,
-        updates: Partial<StirlingFileStub>,
-      ) => lifecycleManager.updateStirlingFileStub(fileId, updates, stateRef),
+        updates: Partial<RustlingFileStub>,
+      ) => lifecycleManager.updateRustlingFileStub(fileId, updates, stateRef),
       reorderFiles: (orderedFileIds: FileId[]) => {
         dispatch({ type: "REORDER_FILES", payload: { orderedFileIds } });
       },
@@ -644,7 +641,7 @@ function FileContextInner({
     [
       baseActions,
       addRawFiles,
-      addStirlingFileStubsAction,
+      addRustlingFileStubsAction,
       lifecycleManager,
       setHasUnsavedChanges,
       consumeFilesWrapper,
@@ -762,7 +759,7 @@ export {
   useFileSelection,
   useFileManagement,
   useFileUI,
-  useStirlingFileStub,
+  useRustlingFileStub,
   useAllFiles,
   useSelectedFiles,
   // Primary API hooks for tools

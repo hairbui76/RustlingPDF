@@ -107,28 +107,6 @@ async fn rejects_path_like_locales_and_oversized_disclaimers()
     Ok(())
 }
 
-#[tokio::test]
-async fn a_legacy_enable_login_setting_is_ignored() -> Result<(), Box<dyn std::error::Error>> {
-    let directory = tempdir()?;
-    let settings = directory.path().join("configs/settings.yml");
-    fs::create_dir_all(settings.parent().ok_or("missing settings parent")?)?;
-    fs::write(&settings, "security:\n  enableLogin: true\n")?;
-
-    let response = get_disclaimer(
-        RuntimeConfig::from_files(
-            settings,
-            directory.path().join("configs/custom_settings.yml"),
-        ),
-        "/api/v1/config/login-disclaimer",
-    )
-    .await?;
-
-    // Login was removed; the legacy key must never gate the open disclaimer.
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_no_store(&response);
-    Ok(())
-}
-
 async fn get_disclaimer(
     runtime_config: RuntimeConfig,
     uri: &str,

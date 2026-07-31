@@ -181,7 +181,7 @@ async fn post_pipeline_to(
     files: Vec<(&str, Vec<u8>)>,
     config: serde_json::Value,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pipeline-test-boundary";
+    let boundary = "rustling-pipeline-test-boundary";
     let mut body = Vec::new();
     for (filename, content) in files {
         add_file_part(&mut body, boundary, filename, &content);

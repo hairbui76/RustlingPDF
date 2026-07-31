@@ -38,9 +38,8 @@ returned.
 
 ## Compatibility limits
 
-- XMP is returned as decoded source XML. The Java implementation attempts a
-  normalize-and-reserialize pass first, but also falls back to the same source
-  XML when normalization fails.
+- XMP is returned as decoded source XML without a normalize-and-reserialize
+  pass.
 - Embedded-file creation and modification dates retain their PDF date strings.
   Top-level document dates are normalized to the Java-compatible local date
   format.

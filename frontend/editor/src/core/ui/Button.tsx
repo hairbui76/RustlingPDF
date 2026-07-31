@@ -17,13 +17,13 @@ import "@app/ui/Button.css";
 
 /** primary=solid, secondary=outlined, tertiary=ghost (tinted hover), quiet=plain (no bg, hovers to text colour). */
 export type ButtonVariant = "primary" | "secondary" | "tertiary" | "quiet";
-/** default(blue) | neutral | brand | ai | premium | danger | success | warning. */
+/** default(blue) | neutral | brand | ai | highlight | danger | success | warning. */
 export type ButtonAccent =
   | "default"
   | "neutral"
   | "brand"
   | "ai"
-  | "premium"
+  | "highlight"
   | "danger"
   | "success"
   | "warning";

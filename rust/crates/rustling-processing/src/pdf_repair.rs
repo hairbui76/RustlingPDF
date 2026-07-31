@@ -244,7 +244,7 @@ mod tests {
     }
 
     fn discoverable_qpdf() -> Option<std::path::PathBuf> {
-        let configured = crate::env_compat::var_os("RUSTLING_PROCESSING_QPDF_COMMAND")
+        let configured = crate::environment::var_os("RUSTLING_PROCESSING_QPDF_COMMAND")
             .filter(|command| !command.is_empty())
             .map(std::path::PathBuf::from);
         let candidates = configured.map_or_else(

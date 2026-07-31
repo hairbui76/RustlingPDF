@@ -1,7 +1,7 @@
 /**
  * Unit tests for buildMobileScannerUrl.
  *
- * Regression guard: the SaaS frontend is served under a base path (e.g.
+ * Regression guard: the legacy web build frontend is served under a base path (e.g.
  * `/app`), and `/mobile-scanner` is a public route that only matches under that
  * base path. The backend advertises `frontendUrl` as a bare origin (no
  * subpath), so the generated QR URL must still carry the base path. Dropping it
@@ -14,37 +14,37 @@ import { buildMobileScannerUrl } from "@app/utils/mobileScannerUrl";
 const sessionId = "abc-123";
 
 describe("buildMobileScannerUrl", () => {
-  test("origin-only frontendUrl keeps the app base path (SaaS web regression)", () => {
+  test("origin-only frontendUrl keeps the app base path (legacy web build web regression)", () => {
     expect(
       buildMobileScannerUrl({
-        configuredUrl: "https://app.stirlingpdf.com",
+        configuredUrl: "https://app.rustlingpdf.com",
         sessionId,
-        origin: "https://app.stirlingpdf.com",
+        origin: "https://app.rustlingpdf.com",
         basePath: "/app",
       }),
-    ).toBe("https://app.stirlingpdf.com/app/mobile-scanner?session=abc-123");
+    ).toBe("https://app.rustlingpdf.com/app/mobile-scanner?session=abc-123");
   });
 
   test("origin-only frontendUrl with a trailing slash keeps the app base path", () => {
     expect(
       buildMobileScannerUrl({
-        configuredUrl: "https://app.stirlingpdf.com/",
+        configuredUrl: "https://app.rustlingpdf.com/",
         sessionId,
-        origin: "https://app.stirlingpdf.com",
+        origin: "https://app.rustlingpdf.com",
         basePath: "/app",
       }),
-    ).toBe("https://app.stirlingpdf.com/app/mobile-scanner?session=abc-123");
+    ).toBe("https://app.rustlingpdf.com/app/mobile-scanner?session=abc-123");
   });
 
   test("configured URL that already carries the subpath is used verbatim (no doubled base)", () => {
     expect(
       buildMobileScannerUrl({
-        configuredUrl: "https://app.stirlingpdf.com/app",
+        configuredUrl: "https://app.rustlingpdf.com/app",
         sessionId,
         origin: "https://elsewhere.example",
         basePath: "/app",
       }),
-    ).toBe("https://app.stirlingpdf.com/app/mobile-scanner?session=abc-123");
+    ).toBe("https://app.rustlingpdf.com/app/mobile-scanner?session=abc-123");
   });
 
   test("configured URL subpath with trailing slash is normalized", () => {
@@ -74,10 +74,10 @@ describe("buildMobileScannerUrl", () => {
       buildMobileScannerUrl({
         configuredUrl: "   ",
         sessionId,
-        origin: "https://app.stirlingpdf.com",
+        origin: "https://app.rustlingpdf.com",
         basePath: "/app",
       }),
-    ).toBe("https://app.stirlingpdf.com/app/mobile-scanner?session=abc-123");
+    ).toBe("https://app.rustlingpdf.com/app/mobile-scanner?session=abc-123");
   });
 
   test("custom port (LAN/desktop) is preserved", () => {
@@ -96,10 +96,10 @@ describe("buildMobileScannerUrl", () => {
       buildMobileScannerUrl({
         configuredUrl: "not a url",
         sessionId,
-        origin: "https://app.stirlingpdf.com",
+        origin: "https://app.rustlingpdf.com",
         basePath: "/app",
       }),
-    ).toBe("https://app.stirlingpdf.com/app/mobile-scanner?session=abc-123");
+    ).toBe("https://app.rustlingpdf.com/app/mobile-scanner?session=abc-123");
   });
 
   test("non-http(s) configured URL is ignored (no javascript: injection)", () => {
@@ -107,9 +107,9 @@ describe("buildMobileScannerUrl", () => {
       buildMobileScannerUrl({
         configuredUrl: "javascript:alert(1)",
         sessionId,
-        origin: "https://app.stirlingpdf.com",
+        origin: "https://app.rustlingpdf.com",
         basePath: "/app",
       }),
-    ).toBe("https://app.stirlingpdf.com/app/mobile-scanner?session=abc-123");
+    ).toBe("https://app.rustlingpdf.com/app/mobile-scanner?session=abc-123");
   });
 });

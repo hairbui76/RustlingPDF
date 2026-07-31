@@ -71,7 +71,7 @@ async fn rejects_an_unknown_colorspace() -> Result<(), Box<dyn std::error::Error
 
 #[tokio::test]
 async fn requires_a_file() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-scanner-empty";
+    let boundary = "rustling-scanner-empty";
     let body = format!("--{boundary}--\r\n").into_bytes();
     let response = app(1024 * 1024)
         .oneshot(
@@ -90,7 +90,7 @@ async fn requires_a_file() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn native_pdfium_requested() -> bool {
-    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 async fn response_bytes(response: Response) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -117,7 +117,7 @@ async fn post_scanner_effect(
     pdf: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-scanner-effect-boundary";
+    let boundary = "rustling-scanner-effect-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

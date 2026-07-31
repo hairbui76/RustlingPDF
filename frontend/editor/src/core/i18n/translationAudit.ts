@@ -1,5 +1,5 @@
 /**
- * Shared translation-coverage engine for the frontend i18n suites.
+ * Translation-coverage engine for the editor.
  *
  * The editor keeps its UI strings in a US-English source locale
  * (`public/locales/en-US/translation.toml`) and look them up with
@@ -11,7 +11,7 @@
  *   - **unused**:  a locale key no source reference (static or dynamic) reaches
  *
  * The Vitest suites in `editor/src/core/tests/` run these over every entry in
- * {@link I18N_PROJECTS}, so one implementation guards both apps.
+ * {@link I18N_PROJECTS}.
  */
 import fs from "fs";
 import path from "path";
@@ -75,8 +75,6 @@ export const I18N_PROJECTS: TranslationProject[] = [
       // SignSettings / SavedSignaturesSection resolve every key as
       // t(`${scope}.${key}`); scope and leaf only ever exist as separate literals.
       /^(sign|addText|addImage)\./,
-      // SettingsSearchBar indexes whole subtrees via t(prefix, { returnObjects }).
-      /^settings\./,
       // [language] direction is read by the i18n layer, never as a UI string.
       /^language\.direction$/,
     ],

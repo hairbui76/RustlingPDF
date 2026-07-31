@@ -1,6 +1,6 @@
 # `POST /api/v1/general/split-by-size-or-count`
 
-Rust compatibility contract for `SplitPdfBySizeController.autoSplitPdf()`.
+Current contract for splitting by size or count.
 
 ## Request
 

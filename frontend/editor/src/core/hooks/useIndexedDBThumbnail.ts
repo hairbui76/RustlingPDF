@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { useIndexedDB } from "@app/contexts/IndexedDBContext";
 import { generateThumbnailForFile } from "@app/utils/thumbnailUtils";
 import { FileId } from "@app/types/fileContext";
@@ -10,7 +10,7 @@ import { useFileManagement } from "@app/contexts/FileContext";
  * Handles thumbnail generation for files not in IndexedDB
  */
 export function useIndexedDBThumbnail(
-  file: StirlingFileStub | undefined | null,
+  file: RustlingFileStub | undefined | null,
 ): {
   thumbnail: string | null;
   isGenerating: boolean;
@@ -18,7 +18,7 @@ export function useIndexedDBThumbnail(
   const [thumb, setThumb] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const indexedDB = useIndexedDB();
-  const { updateStirlingFileStub } = useFileManagement();
+  const { updateRustlingFileStub } = useFileManagement();
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +70,7 @@ export function useIndexedDBThumbnail(
             // instead of regenerating. IndexedDB persistence alone only helps
             // the next page load; the current session reads file.thumbnailUrl
             // from the FileContext stub.
-            updateStirlingFileStub(file.id as FileId, {
+            updateRustlingFileStub(file.id as FileId, {
               thumbnailUrl: thumbnail,
             });
           } catch (error) {
@@ -93,7 +93,7 @@ export function useIndexedDBThumbnail(
     // set by this effect, and including it caused the effect to cancel
     // itself mid-flight (orphaning the render and leaving generating=true
     // stuck forever).
-  }, [file, file?.thumbnailUrl, file?.id, indexedDB, updateStirlingFileStub]);
+  }, [file, file?.thumbnailUrl, file?.id, indexedDB, updateRustlingFileStub]);
 
   return { thumbnail: thumb, isGenerating: generating };
 }

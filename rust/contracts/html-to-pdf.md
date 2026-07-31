@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/html/pdf`
 
-Rust compatibility contract for `ConvertHtmlToPDF`.
+Current contract for HTML-to-PDF conversion.
 
 ## Request and response
 
@@ -30,15 +30,14 @@ base64 data URLs. Remote image URLs are removed rather than fetched.
 ZIP input is repacked after every HTML entry is sanitized. Archive entries must be
 relative normal paths; more than 100,000 entries or 200 MiB uncompressed is rejected.
 
-## Availability and parity
+## Availability and security
 
 If WeasyPrint is absent the route returns `501 Not Implemented`. Bad extensions and
 unsafe ZIP packages return `400`; a renderer failure or invalid output returns `500`.
 
 Java can use its configured `SsrfProtectionService` to allow selected remote URLs.
-Rust deliberately does **not** fetch any remote rendering resource yet, avoiding DNS
-rebinding and renderer-side SSRF until a shared SSRF-aware fetch proxy exists. This is
-a security-hardening divergence, not a claim of full remote-resource parity.
+RustlingPDF deliberately does **not** fetch remote rendering resources, avoiding DNS
+rebinding and renderer-side SSRF until a shared SSRF-aware fetch proxy exists.
 
 ## Verification
 

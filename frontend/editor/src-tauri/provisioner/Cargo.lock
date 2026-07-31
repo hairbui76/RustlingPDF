@@ -76,7 +76,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stirling-provisioner"
+name = "rustling-provisioner"
 version = "0.1.0"
 dependencies = [
  "serde",

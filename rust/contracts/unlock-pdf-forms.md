@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/unlock-pdf-forms`
 
-Rust compatibility contract for `UnlockPDFFormsController.unlockPDFForms()`.
+Current contract for unlocking PDF forms.
 
 - Multipart request: required `fileInput` PDF.
 - Success: `200 OK`, `application/pdf`, download name

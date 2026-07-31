@@ -111,7 +111,7 @@ async fn post_compress_body(
     pdf: Option<&[u8]>,
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-compress-boundary";
+    let boundary = "rustling-compress-boundary";
     let mut body = Vec::new();
     if let Some(pdf) = pdf {
         body.extend_from_slice(

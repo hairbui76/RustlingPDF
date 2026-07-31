@@ -1,6 +1,6 @@
 # `POST /api/v1/general/overlay-pdfs`
 
-Rust compatibility contract for `PdfOverlayController.overlayPdfs()`.
+Current contract for overlaying PDFs.
 
 ## Request
 

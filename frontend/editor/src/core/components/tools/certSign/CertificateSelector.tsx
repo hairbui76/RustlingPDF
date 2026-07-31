@@ -1,8 +1,7 @@
-import { Stack, Radio, Divider, TextInput, Text, Group } from "@mantine/core";
+import { Stack, TextInput, Text, Group } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
 import FileUploadButton from "@app/components/shared/FileUploadButton";
 
 export type CertificateType = "USER_CERT" | "SERVER" | "UPLOAD";
@@ -44,15 +43,13 @@ export const CertificateSelector: React.FC<CertificateSelectorProps> = ({
   disabled = false,
 }) => {
   const { t } = useTranslation();
-  const { config } = useAppConfig();
-  const isServerPlan = config?.runningProOrHigher ?? false;
 
-  // If managed cert types are not available, reset to UPLOAD
+  // Account-managed certificates are not part of the local, stateless build.
   useEffect(() => {
-    if (!isServerPlan && (certType === "USER_CERT" || certType === "SERVER")) {
+    if (certType !== "UPLOAD") {
       onCertTypeChange("UPLOAD");
     }
-  }, [isServerPlan, certType, onCertTypeChange]);
+  }, [certType, onCertTypeChange]);
 
   const handleFormatChange = (fmt: UploadFormat) => {
     onUploadFormatChange(fmt);
@@ -70,82 +67,9 @@ export const CertificateSelector: React.FC<CertificateSelectorProps> = ({
 
   return (
     <Stack gap="md">
-      {/* Managed certificate options — server plan only */}
-      {isServerPlan && (
-        <Radio.Group
-          value={certType}
-          onChange={(val) => onCertTypeChange(val as CertificateType)}
-        >
-          <Stack gap="sm">
-            <Radio
-              value="USER_CERT"
-              disabled={disabled}
-              label={
-                <Stack gap={1}>
-                  <Text size="sm" fw={500}>
-                    {t(
-                      "certSign.collab.signRequest.usePersonalCert",
-                      "Personal Certificate",
-                    )}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {t(
-                      "certSign.collab.signRequest.usePersonalCertDesc",
-                      "Auto-generated for your account",
-                    )}
-                  </Text>
-                </Stack>
-              }
-            />
-            <Radio
-              value="SERVER"
-              disabled={disabled}
-              label={
-                <Stack gap={1}>
-                  <Text size="sm" fw={500}>
-                    {t(
-                      "certSign.collab.signRequest.useServerCert",
-                      "Organization Certificate",
-                    )}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {t(
-                      "certSign.collab.signRequest.useServerCertDesc",
-                      "Shared organization certificate",
-                    )}
-                  </Text>
-                </Stack>
-              }
-            />
-            <Radio
-              value="UPLOAD"
-              disabled={disabled}
-              label={
-                <Text size="sm" fw={500}>
-                  {t(
-                    "certSign.collab.signRequest.uploadCert",
-                    "Custom Certificate",
-                  )}
-                </Text>
-              }
-            />
-          </Stack>
-        </Radio.Group>
-      )}
-
       {/* Upload section */}
       {certType === "UPLOAD" && (
         <Stack gap="sm">
-          {isServerPlan && (
-            <Divider
-              label={t(
-                "certSign.collab.signRequest.uploadCert",
-                "Custom Certificate",
-              )}
-              labelPosition="left"
-            />
-          )}
-
           {/* Format picker */}
           <Group gap="xs">
             {(["PKCS12", "PFX", "PEM", "JKS"] as UploadFormat[]).map((fmt) => (

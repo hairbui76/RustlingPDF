@@ -105,10 +105,8 @@ async fn wait_for_native_backend_startup(timeout: Duration) -> Result<u16, Strin
     }
 }
 
-// Extract port number from the "RustlingPDF running on port: PORT" handshake
-// line. The split is deliberately name-agnostic so output from a pre-rename
-// "Stirling-PDF"-spelled backend (dev override at an old checkout) still
-// parses.
+// Extract the port number from the "RustlingPDF running on port: PORT"
+// handshake line.
 fn extract_port_from_running_log(log_line: &str) -> Option<u16> {
     let (_, after_prefix) = log_line.split_once("running on port: ")?;
     let port_str: String = after_prefix
@@ -149,7 +147,7 @@ fn check_backend_status() -> Result<(), String> {
 /// instead of the bundled sidecar (useful for pointing the desktop shell at a
 /// freshly built `rust/target/{debug,release}/rustling-processing`).
 fn native_backend_path() -> Result<Option<PathBuf>, String> {
-    let Some(path) = crate::utils::env_compat::var_os("RUSTLING_NATIVE_BACKEND_PATH") else {
+    let Some(path) = crate::utils::environment::var_os("RUSTLING_NATIVE_BACKEND_PATH") else {
         return Ok(None);
     };
     let path = PathBuf::from(path);
@@ -257,7 +255,7 @@ fn resolve_bundled_resource_override(
     bundled_path: Option<&Path>,
     resource_name: &str,
 ) -> Option<PathBuf> {
-    let operator_value = crate::utils::env_compat::var_os(environment_variable);
+    let operator_value = crate::utils::environment::var_os(environment_variable);
     let resolved = bundled_resource_override(operator_value.as_deref(), bundled_path);
     if operator_value.is_some() {
         add_log(format!(
@@ -706,7 +704,7 @@ mod tests {
         fn new() -> std::io::Result<Self> {
             let sequence = NEXT_TEST_DIRECTORY.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir().join(format!(
-                "stirling-desktop-backend-test-{}-{sequence}",
+                "rustling-desktop-backend-test-{}-{sequence}",
                 std::process::id()
             ));
             fs::create_dir_all(&path)?;
@@ -736,9 +734,9 @@ mod tests {
             ),
             Some(8_081)
         );
-        // Pre-rename handshake spelling must keep parsing (name-agnostic split).
+        // The parser intentionally keys off the stable, name-agnostic suffix.
         assert_eq!(
-            extract_port_from_running_log("Stirling-PDF running on port: 43127"),
+            extract_port_from_running_log("RustlingPDF running on port: 43127"),
             Some(43_127)
         );
         assert_eq!(extract_port_from_running_log("backend ready"), None);

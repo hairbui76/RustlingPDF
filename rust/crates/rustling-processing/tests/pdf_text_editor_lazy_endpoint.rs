@@ -395,7 +395,7 @@ fn replacement_png() -> Result<String, image::ImageError> {
 }
 
 fn metadata_request(pdf: &[u8]) -> Result<Request<Body>, axum::http::Error> {
-    let boundary = "stirling-text-editor-lazy-boundary";
+    let boundary = "rustling-text-editor-lazy-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

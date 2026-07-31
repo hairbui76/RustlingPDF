@@ -1,4 +1,4 @@
-pub mod env_compat;
+pub mod environment;
 pub mod logging;
 pub mod paths;
 

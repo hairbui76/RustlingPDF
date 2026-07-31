@@ -345,7 +345,7 @@ export function PageEditorProvider({ children }: PageEditorProviderProps) {
       newFileIdsToProcess.forEach((fileId) => {
         const stub = state.files.byId[fileId];
         if (stub?.insertAfterPageId) {
-          fileActions.updateStirlingFileStub(fileId, {
+          fileActions.updateRustlingFileStub(fileId, {
             insertAfterPageId: undefined,
           });
         }

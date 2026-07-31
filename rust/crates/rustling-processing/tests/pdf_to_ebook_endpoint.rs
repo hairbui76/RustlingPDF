@@ -46,7 +46,7 @@ async fn post_pdf_to_ebook(
     filename: &str,
     options: &[(&str, &str)],
 ) -> Result<axum::response::Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-to-ebook-boundary";
+    let boundary = "rustlingpdf-to-ebook-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

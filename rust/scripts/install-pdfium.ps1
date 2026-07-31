@@ -33,7 +33,7 @@ if (-not $ArchiveIsValid) {
         Remove-Item -LiteralPath $Archive
     }
     $Url = "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/$PdfiumRevision/$Asset"
-    Invoke-WebRequest -Headers @{ 'User-Agent' = 'Stirling-PDF-Rust-Port' } -Uri $Url -OutFile $Archive
+    Invoke-WebRequest -Headers @{ 'User-Agent' = 'RustlingPDF-Rust-Port' } -Uri $Url -OutFile $Archive
     $ActualSha256 = (Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($ActualSha256 -ne $ExpectedSha256) {
         Remove-Item -LiteralPath $Archive

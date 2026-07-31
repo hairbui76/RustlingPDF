@@ -10,7 +10,7 @@ import {
 import type { useFileActions, useFileState } from "@app/contexts/FileContext";
 import { PDFDocument, PDFPage } from "@app/types/pageEditor";
 import { FileId } from "@app/types/file";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 
 type FileActions = ReturnType<typeof useFileActions>["actions"];
 type FileSelectors = ReturnType<typeof useFileState>["selectors"];
@@ -290,7 +290,7 @@ export const usePageEditorCommands = ({
 
   const handleInsertFiles = useCallback(
     async (
-      files: File[] | StirlingFileStub[],
+      files: File[] | RustlingFileStub[],
       insertAfterPage: number,
       isFromStorage?: boolean,
     ) => {
@@ -326,8 +326,8 @@ export const usePageEditorCommands = ({
 
         let addedFileIds: FileId[] = [];
         if (isFromStorage) {
-          const stubs = files as StirlingFileStub[];
-          const result = await actions.addStirlingFileStubs(stubs, {
+          const stubs = files as RustlingFileStub[];
+          const result = await actions.addRustlingFileStubs(stubs, {
             selectFiles: true,
             insertAfterPageId,
           });
@@ -348,7 +348,7 @@ export const usePageEditorCommands = ({
 
         const newPages: PDFPage[] = [];
         for (const fileId of addedFileIds) {
-          const stub = selectors.getStirlingFileStub(fileId);
+          const stub = selectors.getRustlingFileStub(fileId);
           if (stub?.processedFile?.pages) {
             const clonedPages = stub.processedFile.pages.map((page, idx) => ({
               ...page,

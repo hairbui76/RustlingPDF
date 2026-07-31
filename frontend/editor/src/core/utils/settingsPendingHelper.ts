@@ -3,10 +3,9 @@
  *
  * Backend returns settings in this format:
  * {
- *   "enableLogin": false,          // Current active value
- *   "csrfDisabled": true,
+ *   "defaultLocale": "en-US",      // Current active value
  *   "_pending": {                  // Optional - only present if there are pending changes
- *     "enableLogin": true          // Value that will be active after restart
+ *     "defaultLocale": "vi-VN"     // Value that will be active after restart
  *   }
  * }
  */

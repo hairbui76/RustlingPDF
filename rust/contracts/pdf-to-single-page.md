@@ -1,6 +1,6 @@
 # `POST /api/v1/general/pdf-to-single-page`
 
-Rust compatibility contract for `ToSinglePageController.pdfToSinglePage()`.
+Current contract for joining pages into one page.
 
 ## Request
 

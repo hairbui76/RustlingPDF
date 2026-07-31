@@ -1,6 +1,6 @@
 import { FolderRecord } from "@app/types/folder";
 
-const STORAGE_KEY = "stirling-folder-tree-width";
+const STORAGE_KEY = "rustling-folder-tree-width";
 export const MIN_WIDTH = 210;
 export const MAX_WIDTH = 480;
 const DEFAULT_WIDTH = 272;

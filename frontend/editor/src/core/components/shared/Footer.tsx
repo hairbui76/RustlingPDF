@@ -39,14 +39,6 @@ export default function Footer({
     analyticsEnabled: finalAnalyticsEnabled,
   });
 
-  // Default URLs
-  const defaultTermsUrl = "https://www.stirling.com/terms";
-  const defaultPrivacyUrl = "https://www.stirling.com/privacy";
-
-  // Use provided URLs or fall back to defaults
-  const finalTermsUrl = finalTermsAndConditions || defaultTermsUrl;
-  const finalPrivacyUrl = finalPrivacyPolicy || defaultPrivacyUrl;
-
   // Helper to check if a value is valid (not null/undefined/empty string)
   const isValidLink = (link?: string) => link && link.trim().length > 0;
 
@@ -70,35 +62,31 @@ export default function Footer({
           fontSize: "0.75rem",
         }}
       >
+        {isValidLink(finalPrivacyPolicy) && (
+          <a
+            className="footer-link px-3"
+            target="_blank"
+            rel="noopener noreferrer"
+            href={finalPrivacyPolicy}
+          >
+            {t("legal.privacy", "Privacy Policy")}
+          </a>
+        )}
+        {isValidLink(finalTermsAndConditions) && (
+          <a
+            className="footer-link px-3"
+            target="_blank"
+            rel="noopener noreferrer"
+            href={finalTermsAndConditions}
+          >
+            {t("legal.terms", "Terms and Conditions")}
+          </a>
+        )}
         <a
           className="footer-link px-3"
           target="_blank"
           rel="noopener noreferrer"
-          href={finalPrivacyUrl}
-        >
-          {t("legal.privacy", "Privacy Policy")}
-        </a>
-        <a
-          className="footer-link px-3"
-          target="_blank"
-          rel="noopener noreferrer"
-          href={finalTermsUrl}
-        >
-          {t("legal.terms", "Terms and Conditions")}
-        </a>
-        <a
-          className="footer-link px-3"
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://discord.gg/Cn8pWhQRxZ"
-        >
-          {t("footer.discord", "Discord")}
-        </a>
-        <a
-          className="footer-link px-3"
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://github.com/RustlingPDF-Tools/RustlingPDF"
+          href="https://github.com/hairbui76/RustlingPDF"
         >
           {t("footer.issues", "GitHub")}
         </a>

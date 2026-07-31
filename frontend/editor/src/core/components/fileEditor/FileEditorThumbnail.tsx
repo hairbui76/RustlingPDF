@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from "react";
-import { Text, Modal, Group, Loader, Stack, Tooltip } from "@mantine/core";
+import { Text, Modal, Group, Stack, Tooltip } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { Button } from "@app/ui/Button";
 import { useIsMobile } from "@app/hooks/useIsMobile";
@@ -10,23 +10,15 @@ import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
 import CloseIcon from "@mui/icons-material/Close";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import UnarchiveIcon from "@mui/icons-material/Unarchive";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import LinkIcon from "@mui/icons-material/Link";
 import HistoryIcon from "@mui/icons-material/History";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import {
   draggable,
   dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { StirlingFileStub } from "@app/types/fileContext";
-import {
-  PolicyBadges,
-  type FileItemPolicyRef,
-} from "@app/components/shared/PolicyBadges";
-import { PolicyEnforcingOverlay } from "@app/components/shared/PolicyEnforcingOverlay";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { zipFileService } from "@app/services/zipFileService";
 
 import styles from "@app/components/fileEditor/FileEditorThumbnail.module.css";
@@ -37,19 +29,16 @@ import ToolChain from "@app/components/shared/ToolChain";
 import HoverActionMenu, {
   HoverAction,
 } from "@app/components/shared/HoverActionMenu";
-import { downloadFileWithPolicy as downloadFile } from "@app/services/exportWithPolicy";
+import { downloadFile } from "@app/services/downloadService";
 import { PrivateContent } from "@app/components/shared/PrivateContent";
-import UploadToServerModal from "@app/components/shared/UploadToServerModal";
-import ShareFileModal from "@app/components/shared/ShareFileModal";
 import { VersionHistoryModal } from "@app/components/filesPage/VersionHistoryModal";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
 import { useFileThumbnail } from "@app/hooks/useFileThumbnail";
 import DocumentThumbnail from "@app/components/shared/filePreview/DocumentThumbnail";
 import { truncateCenter } from "@app/utils/textUtils";
 import { FileEditorStatusDot } from "@app/components/fileEditor/FileEditorStatusDot";
 
 interface FileEditorThumbnailProps {
-  file: StirlingFileStub;
+  file: RustlingFileStub;
   index: number;
   totalFiles: number;
   onCloseFile: (fileId: FileId) => void;
@@ -63,7 +52,6 @@ interface FileEditorThumbnailProps {
   onUnzipFile?: (fileId: FileId) => void;
   toolMode?: boolean;
   isSupported?: boolean;
-  policies?: FileItemPolicyRef[];
 }
 
 const FileEditorThumbnail = ({
@@ -74,10 +62,8 @@ const FileEditorThumbnail = ({
   onDownloadFile,
   onUnzipFile,
   isSupported = true,
-  policies = [],
 }: FileEditorThumbnailProps) => {
   const { t } = useTranslation();
-  const { config } = useAppConfig();
   const terminology = useFileActionTerminology();
   const icons = useFileActionIcons();
   const DownloadOutlinedIcon = icons.download;
@@ -139,25 +125,6 @@ const FileEditorThumbnail = ({
   const isCBZ = extLower === "cbz";
   const isCBR = extLower === "cbr";
 
-  const uploadEnabled = config?.storageEnabled === true;
-  const sharingEnabled =
-    uploadEnabled && config?.storageSharingEnabled === true;
-  const shareLinksEnabled =
-    sharingEnabled && config?.storageShareLinksEnabled === true;
-  const isOwnedOrLocal = file.remoteOwnedByCurrentUser !== false;
-  const isSharedFile =
-    file.remoteOwnedByCurrentUser === false || file.remoteSharedViaLink;
-  const localUpdatedAt = file.createdAt ?? file.lastModified ?? 0;
-  const remoteUpdatedAt = file.remoteStorageUpdatedAt ?? 0;
-  const isUploaded = Boolean(file.remoteStorageId);
-  const isUpToDate = isUploaded && remoteUpdatedAt >= localUpdatedAt;
-  const canUpload =
-    uploadEnabled &&
-    isOwnedOrLocal &&
-    file.isLeaf &&
-    (!isUploaded || !isUpToDate);
-  const canShare = shareLinksEnabled && isOwnedOrLocal && file.isLeaf;
-
   const pageLabel = useMemo(
     () =>
       pageCount > 0 ? `${pageCount} ${pageCount === 1 ? "Page" : "Pages"}` : "",
@@ -176,10 +143,6 @@ const FileEditorThumbnail = ({
 
   const [isDragging, setIsDragging] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [showSharedEditNotice, setShowSharedEditNotice] = useState(false);
-  const sharedEditNoticeShownRef = useRef(false);
 
   const fileElementRef = useCallback(
     (element: HTMLDivElement | null) => {
@@ -255,7 +218,7 @@ const FileEditorThumbnail = ({
           fileId: file.id,
         });
         if (!result.cancelled && result.savedPath) {
-          fileActions.updateStirlingFileStub(file.id, {
+          fileActions.updateRustlingFileStub(file.id, {
             localFilePath: file.localFilePath ?? result.savedPath,
             isDirty: false,
           });
@@ -294,30 +257,7 @@ const FileEditorThumbnail = ({
 
   const [showVersionHistory, setShowVersionHistory] = useState(false);
 
-  const policyEnforcing = policies.some((p) => p.enforcing);
-  // Accent of the policy currently enforcing, so the overlay's icon/spinner match
-  // that policy's badge instead of a fixed blue.
-  const enforcingAccent = policies.find((p) => p.enforcing)?.accentColor;
-
   const hoverActions = useMemo<HoverAction[]>(() => {
-    const uploadLabel = isUploaded
-      ? t("fileManager.updateOnServer", "Update on Server")
-      : t("fileManager.uploadToServer", "Upload to Server");
-    const enforcingTooltip = (action: string): React.ReactNode => (
-      <Stack gap={4} py={2} w={180}>
-        <Group gap={6} wrap="nowrap">
-          <ShieldOutlinedIcon style={{ fontSize: 13 }} />
-          <Text size="xs" fw={600}>
-            {t(
-              "policy.blockingAction",
-              "{{action}} blocked while enforcing policy, please wait...",
-              { action },
-            )}
-          </Text>
-        </Group>
-        <Loader size="xs" />
-      </Stack>
-    );
     return [
       {
         id: "view",
@@ -362,49 +302,11 @@ const FileEditorThumbnail = ({
         id: "download",
         icon: <DownloadOutlinedIcon style={{ fontSize: 20 }} />,
         label: terminology.download,
-        disabled: policyEnforcing,
-        tooltip: policyEnforcing
-          ? enforcingTooltip(terminology.download)
-          : undefined,
         onClick: (e) => {
           e.stopPropagation();
           onDownloadFile(file.id);
         },
       },
-      ...(canUpload
-        ? [
-            {
-              id: "upload",
-              icon: <CloudUploadIcon style={{ fontSize: 20 }} />,
-              label: uploadLabel,
-              disabled: policyEnforcing,
-              tooltip: policyEnforcing
-                ? enforcingTooltip(uploadLabel)
-                : undefined,
-              onClick: (e: React.MouseEvent) => {
-                e.stopPropagation();
-                setShowUploadModal(true);
-              },
-            },
-          ]
-        : []),
-      ...(canShare
-        ? [
-            {
-              id: "share",
-              icon: <LinkIcon style={{ fontSize: 20 }} />,
-              label: t("fileManager.share", "Share"),
-              disabled: policyEnforcing,
-              tooltip: policyEnforcing
-                ? enforcingTooltip(t("fileManager.share", "Share"))
-                : undefined,
-              onClick: (e: React.MouseEvent) => {
-                e.stopPropagation();
-                setShowShareModal(true);
-              },
-            },
-          ]
-        : []),
       {
         id: "unzip",
         icon: <UnarchiveIcon style={{ fontSize: 20 }} />,
@@ -460,10 +362,6 @@ const FileEditorThumbnail = ({
     onDownloadFile,
     onUnzipFile,
     handleCloseWithConfirmation,
-    policyEnforcing,
-    canUpload,
-    canShare,
-    isUploaded,
     pinFile,
     unpinFile,
   ]);
@@ -476,10 +374,6 @@ const FileEditorThumbnail = ({
       } catch (_e) {
         void _e;
       }
-    }
-    if (isSharedFile && !sharedEditNoticeShownRef.current) {
-      sharedEditNoticeShownRef.current = true;
-      setShowSharedEditNotice(true);
     }
   };
 
@@ -538,13 +432,6 @@ const FileEditorThumbnail = ({
                 </div>
               )}
 
-              {/* Policy enforcement overlay — shown while any policy is in-flight */}
-              <PolicyEnforcingOverlay
-                enforcing={policyEnforcing}
-                zIndex={2}
-                accentVar={enforcingAccent}
-              />
-
               {/* Thumbnail image or loading state */}
               <DocumentThumbnail
                 file={file}
@@ -572,11 +459,6 @@ const FileEditorThumbnail = ({
                 {isPinned && (
                   <span className={styles.pinnedBadge}>
                     <PushPinIcon style={{ fontSize: 12 }} />
-                  </span>
-                )}
-                {isSharedFile && !isOwnedOrLocal && (
-                  <span className={styles.ownershipBadge}>
-                    {t("fileManager.sharedWithYou", "Shared")}
                   </span>
                 )}
                 {isEncrypted && (
@@ -631,7 +513,6 @@ const FileEditorThumbnail = ({
           <span className={styles.fileNameText}>
             <PrivateContent>{truncateCenter(file.name, 40)}</PrivateContent>
           </span>
-          <PolicyBadges policies={policies} className={styles.fileNameBadges} />
         </p>
         <p className={styles.fileMeta}>{metaLine}</p>
       </div>
@@ -689,43 +570,6 @@ const FileEditorThumbnail = ({
         </Stack>
       </Modal>
 
-      {/* Shared edit notice modal */}
-      <Modal
-        opened={showSharedEditNotice}
-        onClose={() => setShowSharedEditNotice(false)}
-        title={t("fileManager.sharedEditNoticeTitle", "Read-only server copy")}
-        centered
-        size="auto"
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            {t(
-              "fileManager.sharedEditNoticeBody",
-              "You do not have edit rights to the server version of this file. Any edits you make will be saved as a local copy.",
-            )}
-          </Text>
-          <Group justify="flex-end" gap="sm">
-            <Button onClick={() => setShowSharedEditNotice(false)}>
-              {t("fileManager.sharedEditNoticeConfirm", "Got it")}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      {canUpload && (
-        <UploadToServerModal
-          opened={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          file={file}
-        />
-      )}
-      {canShare && (
-        <ShareFileModal
-          opened={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          file={file}
-        />
-      )}
       <VersionHistoryModal
         opened={showVersionHistory}
         onClose={() => setShowVersionHistory(false)}

@@ -9,7 +9,6 @@ import { useBaseUrl } from "@app/hooks/useBaseUrl";
 import { useIsMobile, useIsTouch } from "@app/hooks/useIsMobile";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
 import { LogoIcon } from "@app/components/shared/LogoIcon";
-import { Wordmark } from "@app/components/shared/Wordmark";
 import { useFileContext } from "@app/contexts/file/fileHooks";
 import {
   useNavigationState,
@@ -41,7 +40,7 @@ import type { FileSidebarProps } from "@app/components/shared/FileSidebar";
 import { Button } from "@app/ui/Button";
 import "@app/pages/HomePage.css";
 
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "stirling.fileSidebarCollapsed";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "rustling.fileSidebarCollapsed";
 
 function readPersistedSidebarCollapsed(): boolean {
   try {
@@ -332,10 +331,9 @@ export default function HomePage() {
               <div className="mobile-toggle">
                 <div className="mobile-header">
                   <div className="mobile-brand">
-                    <LogoIcon className="mobile-brand-icon" />
-                    <Wordmark
+                    <LogoIcon
                       alt={brandAltText}
-                      className="mobile-brand-text"
+                      className="mobile-brand-icon"
                     />
                   </div>
                 </div>
@@ -586,12 +584,7 @@ const MyFilesSidebarOverrides = forwardRef<HTMLDivElement, FileSidebarProps>(
       [addFiles, filesPage, folders.currentFolderId],
     );
 
-    const newFolderDisabledReason = !folders.serverReachable
-      ? t(
-          "filesPage.newFolderStorageDisabled",
-          "Server folder storage isn't enabled. Ask your admin to turn it on.",
-        )
-      : null;
+    const newFolderDisabledReason = null;
 
     return (
       <FileSidebar

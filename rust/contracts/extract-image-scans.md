@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/extract-image-scans`
 
-Rust compatibility contract for `ExtractImageScansController`.
+Current contract for extracting scanned image regions.
 
 ## Request and response
 
@@ -35,7 +35,7 @@ No Python command or OpenCV module is required. Invalid raster data, dimensions,
 encoding, or output I/O returns `500`. A missing PDFium runtime returns `501` only
 when the input is PDF.
 
-## Safety and parity
+## Safety and limitations
 
 Output files are sorted, limited to 100,000 files and 2,000 MiB, and symbolic links
 are rejected before copying or archiving. Rust deliberately preserves the script's

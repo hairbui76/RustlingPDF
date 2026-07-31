@@ -56,7 +56,7 @@ class ComposeLatestJsonTest(unittest.TestCase):
         """The exact artifact layout the three release matrix legs upload."""
         linux = self.artifacts / "desktop-linux-x86_64"
         write_bundle(linux, "RustlingPDF_2.14.2_amd64.AppImage")
-        write_bundle(linux, "rustling-pdf_2.14.2_amd64.deb")
+        write_bundle(linux, "rustlingpdf_2.14.2_amd64.deb")
 
         windows = self.artifacts / "desktop-windows-x86_64"
         write_bundle(windows, "RustlingPDF_2.14.2_x64_en-US.msi")
@@ -101,7 +101,7 @@ class ComposeLatestJsonTest(unittest.TestCase):
         )
         self.assertEqual(
             manifest["platforms"]["linux-x86_64-deb"]["url"],
-            f"{BASE_URL}/rustling-pdf_2.14.2_amd64.deb",
+            f"{BASE_URL}/rustlingpdf_2.14.2_amd64.deb",
         )
         self.assertEqual(
             manifest["platforms"]["windows-x86_64"]["url"],
@@ -210,10 +210,10 @@ class ComposeLatestJsonTest(unittest.TestCase):
     def test_rejects_space_in_artifact_name(self) -> None:
         self.stage_default_tree()
         linux = self.artifacts / "desktop-linux-x86_64"
-        (linux / "rustling-pdf_2.14.2_amd64.deb").rename(
+        (linux / "rustlingpdf_2.14.2_amd64.deb").rename(
             linux / "rustling pdf_2.14.2_amd64.deb"
         )
-        (linux / "rustling-pdf_2.14.2_amd64.deb.sig").rename(
+        (linux / "rustlingpdf_2.14.2_amd64.deb.sig").rename(
             linux / "rustling pdf_2.14.2_amd64.deb.sig"
         )
         self.assert_compose_error("space")

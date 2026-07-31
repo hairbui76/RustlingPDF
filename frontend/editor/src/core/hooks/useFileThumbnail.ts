@@ -1,8 +1,8 @@
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { useIndexedDBThumbnail } from "@app/hooks/useIndexedDBThumbnail";
 
 export function useFileThumbnail(
-  fileStub: StirlingFileStub | null | undefined,
+  fileStub: RustlingFileStub | null | undefined,
 ): {
   isEncrypted: boolean;
   thumbnail: string | null;

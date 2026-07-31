@@ -2,9 +2,8 @@ import { BackendModule, ReadCallback } from "i18next";
 import { parse } from "smol-toml";
 
 /**
- * i18next backend that loads TOML translation files over HTTP. Shared by the
- * editor and portal so both apps consume the same locale format and the same
- * Crowdin-managed `public/locales/{lng}/{ns}.toml` layout.
+ * i18next backend that loads TOML translation files over HTTP from
+ * `public/locales/{lng}/{ns}.toml`.
  */
 export interface TomlBackendOptions {
   loadPath: string | ((lngs: string[], namespaces: string[]) => string);

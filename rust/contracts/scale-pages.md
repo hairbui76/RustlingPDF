@@ -1,6 +1,6 @@
 # `POST /api/v1/general/scale-pages`
 
-Rust compatibility contract for `ScalePagesController.scalePages()`.
+Current contract for the scale-pages route.
 
 ## Request
 

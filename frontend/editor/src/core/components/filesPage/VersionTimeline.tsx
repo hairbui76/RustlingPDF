@@ -12,7 +12,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 import { FileId, ToolOperation } from "@app/types/file";
 import { ToolId } from "@app/types/toolId";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { formatFileSize, getFileDate } from "@app/utils/fileUtils";
 import { downloadFileFromStorage } from "@app/utils/downloadUtils";
 import ToolChain from "@app/components/shared/ToolChain";
@@ -35,8 +35,8 @@ export function DetailField({
 
 /** Tool that produced `version` from `prior`; null for v1. */
 function deltaToolFor(
-  version: StirlingFileStub,
-  prior: StirlingFileStub | null,
+  version: RustlingFileStub,
+  prior: RustlingFileStub | null,
 ): ToolOperation | null {
   if (!prior) return null;
   const priorLen = prior.toolHistory?.length ?? 0;
@@ -52,7 +52,7 @@ function ToolLabel({ toolId }: { toolId: ToolId }) {
 
 export interface VersionTimelineProps {
   /** Chain sorted oldest-first. */
-  chain: StirlingFileStub[];
+  chain: RustlingFileStub[];
   /** Currently selected version. */
   currentId: FileId;
   onAddToWorkspace: (fileIds: FileId[]) => void;
@@ -83,7 +83,7 @@ export function VersionTimeline({
 
   // Index by versionNumber for prior-version lookup.
   const byVersionNumber = useMemo(() => {
-    const map = new Map<number, StirlingFileStub>();
+    const map = new Map<number, RustlingFileStub>();
     for (const v of chain) {
       map.set(v.versionNumber ?? 1, v);
     }
@@ -94,7 +94,7 @@ export function VersionTimeline({
   const COLLAPSE_THRESHOLD = 6;
   const collapsible = ordered.length > COLLAPSE_THRESHOLD;
   type Row =
-    | { kind: "version"; version: StirlingFileStub }
+    | { kind: "version"; version: RustlingFileStub }
     | {
         kind: "ellipsis";
         hidden: number;

@@ -11,7 +11,7 @@ const POSTPROCESS_ONLY = !!INPUT_FILE;
 
 /**
  * Generate 3rd party licenses for frontend dependencies
- * This script creates a JSON file similar to the Java backend's 3rdPartyLicenses.json
+ * The generated JSON powers the dependency-attribution screen in the UI.
  */
 
 const OUTPUT_FILE = path.join(
@@ -391,7 +391,7 @@ try {
     }
   }
 
-  // Transform to match Java backend format
+  // Transform to the stable UI data contract.
   const transformedData = {
     dependencies: licenseArray.map((dep) => {
       const licenseType = Array.isArray(dep.licenseType)
@@ -467,11 +467,10 @@ try {
       JSON.stringify(
         {
           warnings: problematicLicenses,
-          generated: new Date().toISOString(),
         },
         null,
         2,
-      ),
+      ) + "\n",
     );
     console.log(`⚠️  License warnings saved to: ${warningsFile}`);
   } else {
@@ -673,7 +672,6 @@ function checkLicenseCompatibility(licenseSummary, licenseArray) {
     "Ruby",
     "MPL-2.0",
     "CC-BY-4.0",
-    "SEE LICENSE IN https://raw.githubusercontent.com/Stirling-Tools/Stirling-PDF/refs/heads/main/proprietary/LICENSE",
     "SEE LICENSE IN LICENSE https://github.com/PostHog/posthog-js/blob/main/LICENSE",
   ]);
 
@@ -690,29 +688,6 @@ function checkLicenseCompatibility(licenseSummary, licenseArray) {
     // Skip known good licenses
     if (goodLicenses.has(license)) {
       return;
-    }
-
-    // Check if this license only affects our own packages
-    const affectedPackages = licenseArray.filter((dep) => {
-      const depLicense = Array.isArray(dep.licenseType)
-        ? dep.licenseType.join(", ")
-        : dep.licenseType;
-      return depLicense === license;
-    });
-
-    const isOnlyOurPackages = affectedPackages.every(
-      (dep) =>
-        dep.name === "frontend" ||
-        dep.name.toLowerCase().includes("stirling-pdf") ||
-        dep.name.toLowerCase().includes("stirling_pdf") ||
-        dep.name.toLowerCase().includes("stirlingpdf"),
-    );
-
-    if (
-      isOnlyOurPackages &&
-      (license === "UNLICENSED" || license.startsWith("SEE LICENSE IN"))
-    ) {
-      return; // Skip warnings for our own Stirling-PDF packages
     }
 
     // Check for compound licenses like "(MIT AND Zlib)" or "(MIT OR CC0-1.0)"

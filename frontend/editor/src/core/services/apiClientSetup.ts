@@ -12,8 +12,3 @@ export function setupApiInterceptors(client: AxiosInstance): void {
     (error) => Promise.reject(error),
   );
 }
-
-/** Auth headers for raw fetch() calls — empty in core; proprietary/SaaS override. */
-export async function getAuthHeaders(): Promise<Record<string, string>> {
-  return {};
-}

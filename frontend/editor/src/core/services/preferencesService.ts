@@ -13,18 +13,12 @@ export type StartupView = "tools" | "read" | "automate";
 export type ViewerZoomSetting =
   "auto" | "fitWidth" | "fitPage" | "50" | "75" | "100" | "125" | "150" | "200";
 
-// SaaS-only: which app a team lead lands on after signing in. Members can't
-// reach the processor, so this never applies to them.
-export type LoginLandingView = "processor" | "editor";
-
 export interface UserPreferences {
   autoUnzip: boolean;
   autoUnzipFileLimit: number;
   defaultToolPanelMode: ToolPanelMode;
   defaultStartupView: StartupView;
   defaultViewerZoom: ViewerZoomSetting;
-  // SaaS-only: team lead's post-login landing app (processor vs editor).
-  loginLandingView: LoginLandingView;
   theme: ThemeMode;
   toolPanelModePromptSeen: boolean;
   hasSelectedToolPanelMode: boolean;
@@ -44,7 +38,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   defaultToolPanelMode: DEFAULT_TOOL_PANEL_MODE,
   defaultStartupView: "tools",
   defaultViewerZoom: "auto",
-  loginLandingView: "processor",
   theme: "system",
   toolPanelModePromptSeen: false,
   hasSelectedToolPanelMode: false,
@@ -58,7 +51,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   pdfRenderMode: "normal",
 };
 
-const STORAGE_KEY = "stirlingpdf_preferences";
+const STORAGE_KEY = "rustlingpdf_preferences";
 
 class PreferencesService {
   private serverDefaults: Partial<UserPreferences> = {};

@@ -427,7 +427,7 @@ fn resolution_filter(resolution: &str) -> &'static str {
 }
 
 fn ffmpeg_commands() -> FfmpegCommands {
-    if let Ok(command) = crate::env_compat::var(FFMPEG_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(FFMPEG_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return FfmpegCommands {

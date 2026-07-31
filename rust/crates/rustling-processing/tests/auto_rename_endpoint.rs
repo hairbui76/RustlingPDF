@@ -39,7 +39,7 @@ async fn preserves_the_uploaded_name_when_no_title_is_found()
 
 #[tokio::test]
 async fn native_pdfium_selects_the_largest_font_line() -> Result<(), Box<dyn std::error::Error>> {
-    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
+    if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
         return Ok(());
     }
     let response = require_status(
@@ -79,7 +79,7 @@ async fn post_pdf(
     pdf: &[u8],
     use_first_text_as_fallback: bool,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-auto-rename-boundary";
+    let boundary = "rustling-auto-rename-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

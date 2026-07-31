@@ -82,7 +82,7 @@ async fn rejects_missing_blank_and_invalid_comment_json() -> Result<(), Box<dyn 
 #[tokio::test]
 async fn native_pdfium_resolves_anchor_text_to_a_twenty_point_icon()
 -> Result<(), Box<dyn std::error::Error>> {
-    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
+    if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
         return Ok(());
     }
     let comments = r#"[{"pageIndex":0,"x":1,"y":2,"width":3,"height":4,"text":"anchored","anchorText":"Anchor Text"}]"#;
@@ -140,7 +140,7 @@ async fn post_comments(
     pdf: &[u8],
     comments: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-comments-boundary";
+    let boundary = "rustling-comments-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

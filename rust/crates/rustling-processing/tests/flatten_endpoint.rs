@@ -96,7 +96,7 @@ async fn rejects_a_non_integer_render_dpi() -> Result<(), Box<dyn std::error::Er
 }
 
 fn native_pdfium_requested() -> bool {
-    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 async fn response_bytes(response: Response) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -123,7 +123,7 @@ async fn post_flatten(
     pdf: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-flatten-boundary";
+    let boundary = "rustling-flatten-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

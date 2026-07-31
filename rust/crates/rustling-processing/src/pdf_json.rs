@@ -1,5 +1,5 @@
 //! Serde data model for the PDF text-editor JSON, mirroring the Java
-//! `stirling.software.SPDF.model.json.PdfJson*` types (`ConvertPdfJsonController`
+//! `rustling.software.SPDF.model.json.PdfJson*` types (`ConvertPdfJsonController`
 //! / `PdfJsonConversionService`).
 //!
 //! The bounded PDF↔JSON conversion preserves editor metadata, COS dictionaries,
@@ -657,9 +657,8 @@ pub fn pdf_to_json_metadata(
 /// palette bases, ICC fallbacks, and Separation/`DeviceN` alternates (including `ICCBased`
 /// spot-color alternates) convert through bounded
 /// calibrated color math, including Gray/RGB/Lab DCT samples. DCT `DeviceN` images with more than
-/// four source components are rejected rather than treated as tint samples — this matches
-/// upstream, whose JDK JPEG reader cannot decode a >4-component frame either, so it is parity and
-/// not a gap. `CCITTFax`/JBIG2/JPX-filtered images remain an actual outstanding decoder gap.
+/// four source components are rejected rather than treated as tint samples.
+/// `CCITTFax`/JBIG2/JPX-filtered images remain an outstanding decoder limitation.
 ///
 /// `lightweight` omits the base64 stream payloads (ports the `omitStreamData`
 /// serialization context) for a smaller preview response.
@@ -772,9 +771,9 @@ fn build_page(
 /// palette bases, ICC fallbacks, and Separation/`DeviceN` alternates (including `ICCBased`
 /// spot-color alternates) convert through bounded
 /// calibrated color math, including Gray/RGB/Lab DCT samples. DCT `DeviceN` images with more than
-/// four source components are skipped rather than serializing an unusable payload; this is
-/// parity, not a gap — the JDK JPEG reader upstream depends on cannot decode a >4-component frame
-/// either. `CCITTFax`/JBIG2/JPX-filtered images are skipped as an actual outstanding decoder gap.
+/// four source components are skipped rather than serializing an unusable
+/// payload. `CCITTFax`/JBIG2/JPX-filtered images are also skipped because those
+/// decoders are not yet available.
 fn extract_image_elements(
     document: &Document,
     page_number: u32,
@@ -7007,7 +7006,7 @@ fn type0_cmap_collection(document: &Document, font: &Dictionary) -> Option<Strin
 }
 
 fn predefined_cmap_roots() -> Vec<PathBuf> {
-    let mut roots = crate::env_compat::var_os(PREDEFINED_CMAP_PATH_ENV)
+    let mut roots = crate::environment::var_os(PREDEFINED_CMAP_PATH_ENV)
         .map(|value| env::split_paths(&value).collect::<Vec<_>>())
         .unwrap_or_default();
     for root in DEFAULT_PREDEFINED_CMAP_ROOTS {

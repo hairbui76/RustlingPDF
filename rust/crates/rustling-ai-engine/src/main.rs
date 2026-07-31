@@ -34,7 +34,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_ansi(std::io::stdout().is_terminal())
         .init();
 
-    rustling_ai_engine::env_compat::warn_once_on_legacy_environment();
     let settings = EngineSettings::from_environment()?;
     let address = bind_address_from_environment()?;
     let listener = tokio::net::TcpListener::bind(address).await?;
@@ -56,7 +55,7 @@ fn bind_address_from_environment() -> Result<(IpAddr, u16), BindAddressError> {
 }
 
 fn optional_environment_value(name: &str) -> Result<Option<String>, BindAddressError> {
-    match rustling_ai_engine::env_compat::var(name) {
+    match rustling_ai_engine::environment::var(name) {
         Ok(value) => Ok(Some(value)),
         Err(env::VarError::NotPresent) => Ok(None),
         Err(env::VarError::NotUnicode(_)) => Err(BindAddressError(format!(

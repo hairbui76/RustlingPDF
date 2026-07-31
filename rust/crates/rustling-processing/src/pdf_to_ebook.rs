@@ -1,4 +1,4 @@
-//! PDF to EPUB/AZW3 conversion through Calibre, ported from `ConvertPDFToEpubController`.
+//! PDF to EPUB/AZW3 conversion through Calibre.
 //!
 //! Calibre owns the PDF reflow implementation. The adapter deliberately invokes it without a
 //! shell, preserves Java's converter flags, and confines all transient files to a `TempDir`.
@@ -193,7 +193,7 @@ fn run_ebook_convert(arguments: &[OsString]) -> Result<(), PdfToEbookError> {
 }
 
 fn ebook_convert_commands() -> EbookConvertCommands {
-    if let Ok(command) = crate::env_compat::var(EBOOK_CONVERT_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(EBOOK_CONVERT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return EbookConvertCommands {

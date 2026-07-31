@@ -142,7 +142,7 @@
   min-width: 0;
 }
 
-/* Layout-only wrapper for the shared PolicyBadges row in the file-name line. */
+/* Layout-only wrapper for file-name badges. */
 .fileNameBadges {
   padding-top: 2px;
 }
@@ -221,7 +221,7 @@
   pointer-events: auto;
 }
 
-/* Policy badges pinned to top-right of thumbnail */
+/* Status badges pinned to top-right of thumbnail. */
 .statusDot {
   display: inline-block;
   width: 8px;

@@ -13,7 +13,7 @@ use zip::ZipArchive;
 #[tokio::test]
 async fn splits_after_selected_pages_into_the_existing_zip_contract()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-split-pages-boundary";
+    let boundary = "rustling-split-pages-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -45,7 +45,7 @@ async fn splits_after_selected_pages_into_the_existing_zip_contract()
 
 #[tokio::test]
 async fn keeps_only_live_form_fields_in_each_split() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-split-form-boundary";
+    let boundary = "rustling-split-form-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "form.pdf", &pdf_with_two_page_form()?);
     add_text_part(&mut body, boundary, "pageNumbers", "all");
@@ -79,7 +79,7 @@ async fn keeps_only_live_form_fields_in_each_split() -> Result<(), Box<dyn std::
 #[tokio::test]
 async fn rejects_unsafe_expressions_with_the_split_path() -> Result<(), Box<dyn std::error::Error>>
 {
-    let boundary = "stirling-invalid-split-boundary";
+    let boundary = "rustling-invalid-split-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,

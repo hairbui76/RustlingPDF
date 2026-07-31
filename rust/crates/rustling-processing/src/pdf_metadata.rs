@@ -250,7 +250,7 @@ pub fn set_classification_metadata_to_file(
     })?;
     let info_id = ensure_info_dictionary(&mut document)?;
     document.get_dictionary_mut(info_id)?.set(
-        "StirlingPDFClassification",
+        "RustlingPDFClassification",
         Object::string_literal(classification),
     );
     document.save(output_path)?;
@@ -382,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn applies_default_stirling_metadata_to_a_fresh_document() -> Result<(), lopdf::Error> {
+    fn applies_default_rustling_metadata_to_a_fresh_document() -> Result<(), lopdf::Error> {
         let mut document = Document::with_version("1.7");
         apply_default_new_document_metadata(&mut document);
 

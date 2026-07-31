@@ -1,19 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { isAxiosError } from "axios";
 import apiClient from "@app/services/apiClient";
-import { useJwtConfigSync } from "@app/hooks/useJwtConfigSync";
 import type { EndpointAvailabilityDetails } from "@app/types/endpointAvailability";
 
 // Track whether we've done the global fetch to prevent duplicate requests
 let globalFetchDone = false;
 const globalEndpointCache: Record<string, EndpointAvailabilityDetails> = {};
-
-function resetGlobalCache() {
-  globalFetchDone = false;
-  Object.keys(globalEndpointCache).forEach(
-    (key) => delete globalEndpointCache[key],
-  );
-}
 
 /**
  * Hook to check if a specific endpoint is enabled
@@ -227,19 +219,6 @@ export function useMultipleEndpointsEnabled(endpoints: string[]): {
   useEffect(() => {
     fetchAllEndpointStatuses();
   }, [fetchAllEndpointStatuses]);
-
-  // Re-fetch when auth state changes. Core implementation listens for the
-  // proprietary `jwt-available` event; the SaaS no-op override means the
-  // cache simply isn't invalidated on Supabase auth changes (today's behavior).
-  // If SaaS later needs that, wire it up inside saas/hooks/useJwtConfigSync.ts.
-  const handleAuthChange = useCallback(() => {
-    console.debug(
-      "[useEndpointConfig] Auth changed - clearing cache for refetch",
-    );
-    resetGlobalCache();
-    fetchAllEndpointStatuses(true);
-  }, [fetchAllEndpointStatuses]);
-  useJwtConfigSync(handleAuthChange);
 
   return {
     endpointStatus,

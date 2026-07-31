@@ -3,12 +3,12 @@
   "productName": "RustlingPDF",
   "mainBinaryName": "RustlingPDF",
   "version": "3.1.2",
-  "identifier": "stirling.pdf.dev",
+  "identifier": "io.github.hairbui76.rustlingpdf",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npx vite --mode desktop",
-    "beforeBuildCommand": "npx vite build --mode desktop"
+    "beforeDevCommand": "npx vite --mode core",
+    "beforeBuildCommand": "npx vite build --mode core"
   },
   "app": {
     "windows": [
@@ -26,7 +26,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "publisher": "RustlingPDF",
+    "publisher": "RustlingPDF contributors",
     "targets": ["deb", "rpm", "appimage", "dmg", "app", "msi"],
     "icon": [
       "icons/icon.png",
@@ -65,7 +65,7 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com",
       "wix": {
-        "upgradeCode": "3305fba9-7e5e-5c09-bc71-eca0a65f4fee",
+        "upgradeCode": "92156D31-4DBC-43C0-8717-C60CF63C435C",
         "bannerPath": "windows/wix/banner.bmp",
         "dialogImagePath": "windows/wix/dialog.bmp",
         "fragmentPaths": ["windows/wix/provisioning.wxs"],

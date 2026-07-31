@@ -4,8 +4,8 @@ description: >-
   Explain the full logic and process of the current branch end-to-end so someone
   with no prior knowledge of the task can understand, review, and reproduce it.
   Scopes the change from the branch diff, traces the flow across every layer it
-  touches (frontend tool/hook/component, Java controller/service/endpoint, Python
-  engine, config, i18n, tests), and produces a self-contained walkthrough document
+  touches (frontend tool/hook/component, Rust route/service/runtime, optional Rust
+  AI engine, config, i18n, tests), and produces a self-contained walkthrough document
   with Mermaid diagrams (sequence/flow/architecture), annotated file map with
   clickable references, before/after behavior, screenshots where a UI is involved,
   a "try it locally" section, and edge cases/risks. Use when asked for a feature or
@@ -35,14 +35,16 @@ vs `main`. Flags: `--html` (also emit a rendered HTML twin), `--no-screens`.
   - **Frontend**: tools (`frontend/editor/src/core/components/tools/*` or `.../core/tools/*`),
     hooks (`core/hooks/tools/*`, `useToolOperation`), contexts, routes, i18n
     (`public/locales/en-US`).
-  - **Java backend**: controllers (`.../controller/api/...`), services, models, config.
-  - **Engine**: `engine/src/stirling/{agents,contracts,api,services}`.
+  - **Rust backend**: routes and processing modules under
+    `rust/crates/rustling-processing/src`.
+  - **Engine**: `rust/crates/rustling-ai-engine/src`.
   - **Config / build / docker / tests.**
 
 ### 2. Trace the flow end-to-end
 Follow one real path from user action to result. For a typical PDF tool that's:
-UI control → `useToolOperation` hook → `POST /api/v1/...` → Spring controller →
-service (PDFBox / LibreOffice / engine call) → response → review panel → download.
+UI control → `useToolOperation` hook → `POST /api/v1/...` → Axum route →
+processing module (PDFium / pure Rust / native tool / engine call) → response →
+review panel → download.
 Read the actual files so the narrative is true to the code, and collect the exact
 file:line anchors you'll cite.
 
@@ -72,8 +74,8 @@ Create `walkthrough/<feature>/FEATURE-WALKTHROUGH.md` with:
 6. **Logic deep-dive** - the flowchart + prose for the non-obvious decisions.
 7. **Behavior** - before vs after; screenshots or request/response examples.
 8. **Try it locally** - exact steps (`task dev` / `task dev:all`, the route to
-   open or the curl to run, any env like `DOCKER_ENABLE_SECURITY` or a test
-   license key). Make it copy-pasteable.
+   open or the curl to run, and any required `RUSTLING_*` or `AIENGINE_*`
+   environment variables). Make it copy-pasteable.
 9. **Edge cases, risks, follow-ups** - what's untested, known limits, gotchas.
 
 Markdown is the primary deliverable - it renders with diagrams in GitHub PRs and

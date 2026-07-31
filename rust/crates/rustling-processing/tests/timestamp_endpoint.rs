@@ -110,7 +110,7 @@ async fn post(
     pdf: &[u8],
     tsa_url: Option<&str>,
 ) -> TestResult<axum::response::Response> {
-    let boundary = "stirling-timestamp-boundary";
+    let boundary = "rustling-timestamp-boundary";
     let mut body = Vec::new();
     append_file_part(&mut body, boundary, pdf);
     if let Some(tsa_url) = tsa_url {

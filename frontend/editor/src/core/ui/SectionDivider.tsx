@@ -8,7 +8,7 @@ export interface SectionDividerProps {
 
 /**
  * Hairline divider used between sidebar groups and inside settings panels.
- * No section label — the prototype's deliberate Supabase pattern is to group
+ * No section label — the prototype's deliberate hosted database pattern is to group
  * via the divider alone, without forcing a category noun onto the surfaces.
  */
 export function SectionDivider({

@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { useAllFiles } from "@app/contexts/FileContext";
 import { useViewer } from "@app/contexts/ViewerContext";
 import { useNavigationState } from "@app/contexts/NavigationContext";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 
-export function useViewScopedFiles(ignoreViewerScope = false): StirlingFile[] {
+export function useViewScopedFiles(ignoreViewerScope = false): RustlingFile[] {
   const { activeFileIndex } = useViewer();
   const { files: allFiles } = useAllFiles();
   const { workbench } = useNavigationState();

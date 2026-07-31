@@ -12,7 +12,7 @@ pub mod config_push;
 pub mod contradiction;
 pub mod document_classifier;
 pub mod document_understanding;
-pub mod env_compat;
+pub mod environment;
 pub mod execution;
 pub mod ledger;
 pub mod ledger_auditor;
@@ -467,7 +467,7 @@ pub fn app(settings: EngineSettings) -> Router {
 /// error, so existing deployments keep starting.
 fn warn_on_ignored_legacy_environment() {
     for name in IGNORED_LEGACY_ENVIRONMENT {
-        if crate::env_compat::var(name).is_ok() {
+        if crate::environment::var(name).is_ok() {
             tracing::warn!(
                 "{name} is set but the document store / PDF question-answer feature was removed; \
                  the value is ignored"
@@ -1658,7 +1658,7 @@ fn error_response(status: StatusCode, detail: impl Into<String>) -> Response {
 }
 
 fn optional_environment_value(name: &str) -> Result<Option<String>, EngineSettingsError> {
-    environment_result(name, crate::env_compat::var(name))
+    environment_result(name, crate::environment::var(name))
 }
 
 fn environment_result(
@@ -3696,7 +3696,7 @@ mod tests {
     async fn config_push_persists_and_boot_restores_the_encrypted_cache()
     -> Result<(), Box<dyn std::error::Error>> {
         let cache_dir = std::env::temp_dir().join(format!(
-            "stirling-ai-config-push-{}-{}",
+            "rustling-ai-config-push-{}-{}",
             std::process::id(),
             line!()
         ));

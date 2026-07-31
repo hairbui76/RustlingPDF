@@ -1,5 +1,5 @@
 export type SavedSignatureType = "canvas" | "image" | "text";
-export type SignatureScope = "personal" | "shared" | "localStorage";
+export type SignatureScope = "localStorage";
 
 export type SavedSignaturePayload =
   | {

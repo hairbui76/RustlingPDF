@@ -201,7 +201,7 @@ async fn post_pdf(
     filename: &str,
     pdf: &[u8],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-document-op-boundary";
+    let boundary = "rustling-document-op-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

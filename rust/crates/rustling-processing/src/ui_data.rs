@@ -125,7 +125,7 @@ pub fn footer_data(runtime_config: &RuntimeConfig) -> FooterData {
 
 #[must_use]
 pub fn home_data() -> HomeData {
-    let show_survey_from_docker = crate::env_compat::var("SHOW_SURVEY")
+    let show_survey_from_docker = crate::environment::var("SHOW_SURVEY")
         .map_or(true, |value| value.eq_ignore_ascii_case("true"));
     HomeData {
         show_survey_from_docker,

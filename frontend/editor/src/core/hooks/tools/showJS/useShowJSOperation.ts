@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import apiClient from "@app/services/apiClient";
 import type { ToolOperationHook } from "@app/hooks/tools/shared/useToolOperation";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 import { extractErrorMessage } from "@app/utils/toolErrorHandler";
 import type { ShowJSParameters } from "@app/hooks/tools/showJS/useShowJSParameters";
 
@@ -47,7 +47,7 @@ export const useShowJSOperation = (): ShowJSOperationHook => {
   }, []);
 
   const executeOperation = useCallback(
-    async (_params: ShowJSParameters, selectedFiles: StirlingFile[]) => {
+    async (_params: ShowJSParameters, selectedFiles: RustlingFile[]) => {
       if (selectedFiles.length === 0) {
         setErrorMessage(t("noFileSelected", "No file loaded"));
         return;

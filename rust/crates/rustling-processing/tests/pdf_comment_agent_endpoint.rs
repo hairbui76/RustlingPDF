@@ -100,7 +100,7 @@ async fn post_comment_agent(
     prompt: Option<&str>,
     pdf_content_type: &str,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-comment-agent-boundary";
+    let boundary = "rustlingpdf-comment-agent-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: {pdf_content_type}\r\n\r\n"
     )

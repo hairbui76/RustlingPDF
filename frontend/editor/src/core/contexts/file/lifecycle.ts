@@ -5,7 +5,7 @@
 import { FileId } from "@app/types/file";
 import {
   FileContextAction,
-  StirlingFileStub,
+  RustlingFileStub,
   ProcessedFilePage,
 } from "@app/types/fileContext";
 
@@ -185,9 +185,9 @@ export class FileLifecycleManager {
   /**
    * Update file record with race condition guards
    */
-  updateStirlingFileStub = (
+  updateRustlingFileStub = (
     fileId: FileId,
-    updates: Partial<StirlingFileStub>,
+    updates: Partial<RustlingFileStub>,
     stateRef?: React.MutableRefObject<any>,
   ): void => {
     // Guard against updating removed files (race condition protection)

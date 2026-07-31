@@ -1,9 +1,7 @@
-# PDF ↔ JSON (text editor) — `ConvertPdfJsonController`
+# PDF ↔ JSON text editor
 
-Rust compatibility contract for the PDF text-editor JSON subsystem. This is the
-largest, hardest-to-port piece (Java `PdfJsonConversionService` is ~6,958 lines built
-entirely on PDFBox's content-stream graphics engine and font model). It is being
-ported in phases; see `rust/BACKEND_REPLACEMENT_PLAN.md` Part B.
+This contract defines the PDF text-editor JSON subsystem and its bounded
+content-stream, image, form, annotation, and font behavior.
 
 ## Data model (Phase 1 — done)
 
@@ -48,7 +46,7 @@ Deferred (returned empty/unset, documented gaps):
   the Java endpoint. The full-document endpoint exports root AcroForm fields.
 - no additional metadata fields
 
-**Date/trapped parity (closed):** Info **and** annotation dates now round-trip through
+**Date and trapped metadata:** Info **and** annotation dates round-trip through
 `pdf_date_to_iso_instant` / `iso_instant_to_pdf_date`. On read a `D:YYYYMMDD...` string
 becomes an ISO-8601 UTC instant (`YYYY-MM-DDTHH:MM:SSZ`) — mirroring PDFBox's GMT-seeded
 `DateConverter` (a missing designator is UTC; a `Z`/`±HH'mm'` offset is applied and
@@ -143,19 +141,15 @@ The fast path is deliberately strict and **defers to strip-and-regenerate**
 (returning nothing, leaving that path's output byte-for-byte unchanged) on any
 unsupported case: a `Type0`/`Type3` (or unresolvable) active font; a simple font
 that is not `Type1`/`TrueType`/`MMType1`; a replacement the font cannot represent
-losslessly (Java's "a Standard-14 fallback would be needed" case); an encode
+losslessly (the Standard-14 fallback case); an encode
 failure; a glyph-count/cursor mismatch; text in an invoked Form XObject (its
 elements stay in the cursor and force a leftover-defer); or an interior-kerned
 multi-string `TJ`. The rewrite mutates a local content clone, so **any** deferral
-re-decodes the *original* stream — there is never a partial rewrite. Two apparent
-gaps are confirmed parity, not Rust shortfalls: (a) Java's `TextRunAccumulator`
-merges same-baseline kerned glyphs into one run with no kerning-gap check, so an
-interior-kerning run defers in both implementations; and (b) Java's partial-export
-path (`determineRegenerateMode` with `forceRegenerate=true`) also always
-regenerates, so the cached `partial/{jobId}` path always regenerating is parity.
-This **partially closes** the headline byte-parity gap; still open are
-`Type0`/`Type3`, interior-kerning-run rewrite, true Type3 glyph synthesis, and
-byte-parity for those deferred classes.
+re-decodes the *original* stream — there is never a partial rewrite.
+Interior-kerning runs defer because the text accumulator merges same-baseline
+kerned glyphs without a kerning-gap check. The cached `partial/{jobId}` path
+always regenerates. Token-preserving support is still missing for
+`Type0`/`Type3`, interior-kerning-run rewrites, and true Type3 glyph synthesis.
 
 **Deferred (font subsystem, later phases):** token-preserving in-place rewriting
 for the classes the fast path above still defers (`Type0`/`Type3` fonts, an
@@ -237,9 +231,9 @@ creates fresh non-widget annotation objects and attaches them to their page. Wid
 annotations are instead reconstructed through the matching root-form-field path,
 which prevents duplicate controls. Rich non-widget-annotation appearance streams,
 destination relationships, and orphan widgets without a root field are not
-reconstructed and remain a parity gap; `Tx`/`Ch`/`Btn` widget appearance streams
-are covered (see above). An annotation reply chain (`/IRT`) is not a parity gap:
-Java's own `PdfJsonAnnotation` model has no reply-chain field either.
+reconstructed; `Tx`/`Ch`/`Btn` widget appearance streams are covered (see
+above). Annotation reply chains (`/IRT`) are not represented by the current
+wire model.
 
 **Deferred (font/graphics subsystem, Phase 4):** Type3 outline-derived normalization,
 font synthesis beyond restored source dictionaries, rich non-widget-annotation appearance
@@ -248,9 +242,9 @@ cases described below.
 The top-level `fonts` collection contains bounded source resource/program data,
 including fonts found in nested Form XObjects.
 
-**Parity gap:** dictionary/stream-dictionary entries use a sorted `BTreeMap`, so key
-order is alphabetized rather than preserved in Java's `LinkedHashMap` insertion
-order. PDF dictionaries are unordered by spec, so the rebuilt PDF is semantically
+**Dictionary ordering:** dictionary/stream-dictionary entries use a sorted
+`BTreeMap`, so key order is alphabetized. PDF dictionaries are unordered by
+spec, so the rebuilt PDF is semantically
 equivalent but not byte-identical.
 
 ## Lazy editor endpoints (cache contract)
@@ -287,11 +281,10 @@ the classes the full-document fast path still defers (`Type0`/`Type3`, interior-
 see `/api/v1/convert/text-editor/pdf` above), font-program
 round-trip, complex inline filter parameters, and rich
 non-widget-annotation appearance streams
-remain outstanding (`Tx`/`Ch`/`Btn` widget appearance streams are ported — see above).
-Nested/multi-widget form hierarchies and annotation reply chains are not parity gaps:
-Java's own `PdfJsonFormField`/`PdfJsonAnnotation` wire models are one-widget-per-field and have
-no `/IRT` reply field either; a true multi-widget/radio-group field would need a new shared
-schema design across Java, Rust, and the frontend contract, not a Rust-only port.
+remain outstanding (`Tx`/`Ch`/`Btn` widget appearance streams are implemented
+— see above). Nested and multi-widget form hierarchies and annotation reply
+chains are outside the current one-widget-per-field wire model; a true
+multi-widget/radio-group field requires a new shared backend/frontend schema.
 Direct and Form-nested image XObjects already export page-space
 transforms plus bounded JPEG or 1/2/4/8/16-bit DeviceRGB/DeviceGray/DeviceCMYK payloads, apply `/Decode`
 ranges and grayscale `/SMask` alpha, and expand packed 1/2/4/8-bit Indexed images with Gray/RGB/
@@ -322,20 +315,9 @@ their tint transforms. DCT DeviceN images with one to four JPEG components likew
 source planes, perform Adobe/`ColorTransform` JPEG colour conversion, apply per-component `/Decode`
 mappings in the same order as PDF.js, and then evaluate the DeviceN tint function. Declared
 dimensions and component counts must match the JPEG header; mismatches and DeviceN JPEGs above four
-components are rejected rather than silently treating decoder-projected RGB as tint samples. This
-is upstream parity, not an outstanding decoder gap — though not through the mechanism once
-documented here. PDFBox 3.0.7's `DCTFilter.readImageRaster` routes any `/NumChannels` other than
-`"3"` or absent (i.e. any DeviceN count) straight to `ImageIO.readRaster()`, and the runtime
-TwelveMonkeys 3.13.1 JPEG reader's `readRaster` is a raw passthrough that never calls
-`getSourceCSType` — that method's one-through-four `tableswitch` sits on the unrelated `read()`
-path and is never reached here; TwelveMonkeys' own `getColorSpaceType()` in fact tolerates more
-than four components (reporting `"5CLR"` for five). The real limit is the JDK's own
-`com.sun.imageio.plugins.jpeg` reader: its `JPEG.bandOffsets` table has exactly four entries,
-indexed by `numComponents - 1` in `readInternal`, so a 5-component frame throws
-`ArrayIndexOutOfBoundsException` before any entropy decoding — surfaced upstream as `IIOException:
-Corrupt JPEG data: Bad segment length` for 5 colorants (DCT `Nf`=5), while 4 colorants (`Nf`=4)
-decode fine. Rust keeps the bounded device fallback rather than inventing support the JDK itself
-cannot run.
+components are rejected rather than silently treating decoder-projected RGB as
+tint samples. The decoder boundary is therefore one to four JPEG components;
+higher-component DeviceN JPEG frames receive an explicit rejection.
 Direct CalGray/CalRGB images, calibrated Indexed palette bases, compatible ICC fallbacks, and
 calibrated Separation/DeviceN alternates convert to sRGB with bounded gamma, matrix, black-point,
 Bradford-adaptation, and transfer-function math. Gray/RGB DCT calibrated images retain their source

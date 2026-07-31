@@ -7,7 +7,6 @@
  */
 
 import { useTranslation } from "react-i18next";
-import DiamondOutlinedIcon from "@mui/icons-material/DiamondOutlined";
 
 import type {
   SlideDefinition,
@@ -51,32 +50,21 @@ export default function OnboardingModalSlide({
   allowDismiss = true,
 }: OnboardingModalSlideProps) {
   const { t } = useTranslation();
-  const { licenseNotice } = runtimeState;
-  const flowState = { selectedRole: runtimeState.selectedRole };
+  const flowState = runtimeState;
 
   const heroType = slideDefinition.hero.type;
   const hero =
-    heroType === "dual-icon" || heroType === "logo" ? (
+    heroType === "dual-icon" ? (
       <ShellHero appIcon />
     ) : (
       <ShellHero>
-        {heroType === "diamond" ? (
-          <DiamondOutlinedIcon sx={{ fontSize: 30 }} />
-        ) : HERO_ICON[heroType] ? (
+        {HERO_ICON[heroType] ? (
           <LocalIcon icon={HERO_ICON[heroType]} width={30} height={30} />
         ) : null}
       </ShellHero>
     );
 
   const resolveLabel = (button: ButtonDefinition) => {
-    if (
-      button.type === "button" &&
-      slideDefinition.id === "server-license" &&
-      button.action === "see-plans" &&
-      licenseNotice.isOverLimit
-    ) {
-      return t("onboarding.serverLicense.upgrade", "Upgrade now →");
-    }
     const label = button.label ?? "";
     if (!label) return "";
     const fallback = label.split(".").pop() || label;

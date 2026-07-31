@@ -10,7 +10,7 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Setup interceptors (core does nothing, proprietary adds JWT auth)
+// Configure headers used by the stateless backend.
 setupApiInterceptors(apiClient);
 
 // ---------- Install error interceptor ----------

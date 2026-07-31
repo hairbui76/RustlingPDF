@@ -295,11 +295,6 @@
       "title": "Automated Folder Scanning - RustlingPDF",
       "description": "Link to automated folder scanning guide"
     },
-    "devSsoGuide": {
-      "image": "/og_images/dev-sso-guide.png",
-      "title": "SSO Guide - RustlingPDF",
-      "description": "Link to SSO guide"
-    },
     "devAirgapped": {
       "image": "/og_images/dev-airgapped.png",
       "title": "Air-gapped Setup - RustlingPDF",
@@ -320,179 +315,14 @@
       "title": "Settings - RustlingPDF",
       "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
     },
-    "/settings/preferences": {
-      "image": "/og_images/home.png",
-      "title": "Preferences Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/notifications": {
-      "image": "/og_images/home.png",
-      "title": "Notifications Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/connections": {
-      "image": "/og_images/home.png",
-      "title": "Connections Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/account": {
-      "image": "/og_images/home.png",
-      "title": "Account Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
     "/settings/general": {
       "image": "/og_images/home.png",
       "title": "General Settings - RustlingPDF",
       "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
     },
-    "/settings/people": {
-      "image": "/og_images/home.png",
-      "title": "People Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/teams": {
-      "image": "/og_images/home.png",
-      "title": "Teams Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/security": {
-      "image": "/og_images/home.png",
-      "title": "Security Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/identity": {
-      "image": "/og_images/home.png",
-      "title": "Identity Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/plan": {
-      "image": "/og_images/home.png",
-      "title": "Plan Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/payments": {
-      "image": "/og_images/home.png",
-      "title": "Payments Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/requests": {
-      "image": "/og_images/home.png",
-      "title": "Requests Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/developer": {
-      "image": "/og_images/home.png",
-      "title": "Developer Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/api-keys": {
-      "image": "/og_images/home.png",
-      "title": "Api Keys Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
     "/settings/hotkeys": {
       "image": "/og_images/home.png",
       "title": "Hotkeys Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminGeneral": {
-      "image": "/og_images/home.png",
-      "title": "Admin General Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminSecurity": {
-      "image": "/og_images/home.png",
-      "title": "Admin Security Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminConnections": {
-      "image": "/og_images/home.png",
-      "title": "Admin Connections Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminPrivacy": {
-      "image": "/og_images/home.png",
-      "title": "Admin Privacy Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminDatabase": {
-      "image": "/og_images/home.png",
-      "title": "Admin Database Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminAdvanced": {
-      "image": "/og_images/home.png",
-      "title": "Admin Advanced Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminLegal": {
-      "image": "/og_images/home.png",
-      "title": "Admin Legal Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminPremium": {
-      "image": "/og_images/home.png",
-      "title": "Admin Premium Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminFeatures": {
-      "image": "/og_images/home.png",
-      "title": "Admin Features Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminPlan": {
-      "image": "/og_images/home.png",
-      "title": "Admin Plan Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminAudit": {
-      "image": "/og_images/home.png",
-      "title": "Admin Audit Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminUsage": {
-      "image": "/og_images/home.png",
-      "title": "Admin Usage Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminEndpoints": {
-      "image": "/og_images/home.png",
-      "title": "Admin Endpoints Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminStorageSharing": {
-      "image": "/og_images/home.png",
-      "title": "Admin Storage Sharing Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminFolderAccess": {
-      "image": "/og_images/home.png",
-      "title": "Admin Folder Access Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminMcp": {
-      "image": "/og_images/home.png",
-      "title": "Admin Mcp Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminAiGeneral": {
-      "image": "/og_images/home.png",
-      "title": "Admin Ai General Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminAiModels": {
-      "image": "/og_images/home.png",
-      "title": "Admin Ai Models Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminAiDocuments": {
-      "image": "/og_images/home.png",
-      "title": "Admin Ai Documents Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/adminAiLimits": {
-      "image": "/og_images/home.png",
-      "title": "Admin Ai Limits Settings - RustlingPDF",
       "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
     },
     "/settings/help": {
@@ -513,16 +343,6 @@
     "/settings/frontendThirdPartyLicenses": {
       "image": "/og_images/home.png",
       "title": "Frontend Third Party Licenses Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/payg": {
-      "image": "/og_images/home.png",
-      "title": "Payg Settings - RustlingPDF",
-      "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
-    },
-    "/settings/account-link": {
-      "image": "/og_images/home.png",
-      "title": "Account Link Settings - RustlingPDF",
       "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
     }
   },
@@ -585,7 +405,6 @@
     "/automate": "automate",
     "/dev-api": "devApi",
     "/dev-folder-scanning": "devFolderScanning",
-    "/dev-sso-guide": "devSsoGuide",
     "/dev-airgapped": "devAirgapped",
     "/split-pdfs": "split",
     "/merge-pdfs": "merge",
@@ -642,46 +461,11 @@
     "/mobile-scanner": "/mobile-scanner",
     "/files": "/files",
     "/settings": "/settings",
-    "/settings/preferences": "/settings/preferences",
-    "/settings/notifications": "/settings/notifications",
-    "/settings/connections": "/settings/connections",
-    "/settings/account": "/settings/account",
     "/settings/general": "/settings/general",
-    "/settings/people": "/settings/people",
-    "/settings/teams": "/settings/teams",
-    "/settings/security": "/settings/security",
-    "/settings/identity": "/settings/identity",
-    "/settings/plan": "/settings/plan",
-    "/settings/payments": "/settings/payments",
-    "/settings/requests": "/settings/requests",
-    "/settings/developer": "/settings/developer",
-    "/settings/api-keys": "/settings/api-keys",
     "/settings/hotkeys": "/settings/hotkeys",
-    "/settings/adminGeneral": "/settings/adminGeneral",
-    "/settings/adminSecurity": "/settings/adminSecurity",
-    "/settings/adminConnections": "/settings/adminConnections",
-    "/settings/adminPrivacy": "/settings/adminPrivacy",
-    "/settings/adminDatabase": "/settings/adminDatabase",
-    "/settings/adminAdvanced": "/settings/adminAdvanced",
-    "/settings/adminLegal": "/settings/adminLegal",
-    "/settings/adminPremium": "/settings/adminPremium",
-    "/settings/adminFeatures": "/settings/adminFeatures",
-    "/settings/adminPlan": "/settings/adminPlan",
-    "/settings/adminAudit": "/settings/adminAudit",
-    "/settings/adminUsage": "/settings/adminUsage",
-    "/settings/adminEndpoints": "/settings/adminEndpoints",
-    "/settings/adminStorageSharing": "/settings/adminStorageSharing",
-    "/settings/adminFolderAccess": "/settings/adminFolderAccess",
-    "/settings/adminMcp": "/settings/adminMcp",
-    "/settings/adminAiGeneral": "/settings/adminAiGeneral",
-    "/settings/adminAiModels": "/settings/adminAiModels",
-    "/settings/adminAiDocuments": "/settings/adminAiDocuments",
-    "/settings/adminAiLimits": "/settings/adminAiLimits",
     "/settings/help": "/settings/help",
     "/settings/legal": "/settings/legal",
     "/settings/backendThirdPartyLicenses": "/settings/backendThirdPartyLicenses",
-    "/settings/frontendThirdPartyLicenses": "/settings/frontendThirdPartyLicenses",
-    "/settings/payg": "/settings/payg",
-    "/settings/account-link": "/settings/account-link"
+    "/settings/frontendThirdPartyLicenses": "/settings/frontendThirdPartyLicenses"
   }
 }

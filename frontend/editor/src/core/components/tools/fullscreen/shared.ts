@@ -3,7 +3,6 @@ import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import { ToolRegistryEntry } from "@app/data/toolsTaxonomy";
 import { ToolId } from "@app/types/toolId";
 import type { ToolAvailabilityMap } from "@app/hooks/useToolManagement";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
 
 export const getItemClasses = (isDetailed: boolean): string => {
   return isDetailed ? "tool-panel__fullscreen-item--detailed" : "";
@@ -34,30 +33,19 @@ export type ToolDisabledReason =
   | "disabledByAdmin"
   | "missingDependency"
   | "unknownUnavailable"
-  | "requiresPremium"
-  | "selfHostedOffline"
   | null;
 
 export const getToolDisabledReason = (
   id: string,
   tool: ToolRegistryEntry,
   toolAvailability?: ToolAvailabilityMap,
-  premiumEnabled?: boolean,
 ): ToolDisabledReason => {
   if (!tool.component && !tool.link && id !== "read" && id !== "multiTool") {
     return "comingSoon";
   }
 
-  // Check if tool requires premium but premium is not enabled
-  if (tool.requiresPremium === true && premiumEnabled !== true) {
-    return "requiresPremium";
-  }
-
   const availabilityInfo = toolAvailability?.[id as ToolId];
   if (availabilityInfo && availabilityInfo.available === false) {
-    if (availabilityInfo.reason === "selfHostedOffline") {
-      return "selfHostedOffline";
-    }
     if (availabilityInfo.reason === "missingDependency") {
       return "missingDependency";
     }
@@ -73,18 +61,6 @@ export const getToolDisabledReason = (
 export const getDisabledLabel = (
   disabledReason: ToolDisabledReason,
 ): { key: string; fallback: string } => {
-  if (disabledReason === "requiresPremium") {
-    return {
-      key: "toolPanel.premiumFeature",
-      fallback: "Premium feature:",
-    };
-  }
-  if (disabledReason === "selfHostedOffline") {
-    return {
-      key: "toolPanel.fullscreen.selfHostedOffline",
-      fallback: "Requires your RustlingPDF server (currently offline):",
-    };
-  }
   if (disabledReason === "missingDependency") {
     return {
       key: "toolPanel.fullscreen.unavailableDependency",
@@ -109,17 +85,9 @@ export const getDisabledLabel = (
 export function useToolMeta(id: string, tool: ToolRegistryEntry) {
   const { hotkeys } = useHotkeys();
   const { isFavorite, toggleFavorite, toolAvailability } = useToolWorkflow();
-  const { config } = useAppConfig();
-  const premiumEnabled = config?.premiumEnabled;
-
   const isFav = isFavorite(id as ToolId);
   const binding = hotkeys[id as ToolId];
-  const disabledReason = getToolDisabledReason(
-    id,
-    tool,
-    toolAvailability,
-    premiumEnabled,
-  );
+  const disabledReason = getToolDisabledReason(id, tool, toolAvailability);
   const disabled = disabledReason !== null;
 
   return {

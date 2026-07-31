@@ -21,7 +21,7 @@ import styles from "@app/components/pageEditor/PageEditor.module.css";
 import HoverActionMenu, {
   HoverAction,
 } from "@app/components/shared/HoverActionMenu";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { PrivateContent } from "@app/components/shared/PrivateContent";
 
 interface PageThumbnailProps {
@@ -63,7 +63,7 @@ interface PageThumbnailProps {
   setPdfDocument: (doc: PDFDocument) => void;
   splitPositions: Set<string>;
   onInsertFiles?: (
-    files: File[] | StirlingFileStub[],
+    files: File[] | RustlingFileStub[],
     insertAfterPage: number,
     isFromStorage?: boolean,
   ) => void;
@@ -234,7 +234,7 @@ const PageThumbnail: React.FC<PageThumbnailProps> = ({
         openFilesModal({
           insertAfterPage: page.pageNumber,
           customHandler: (
-            files: File[] | StirlingFileStub[],
+            files: File[] | RustlingFileStub[],
             insertAfterPage?: number,
             isFromStorage?: boolean,
           ) => {

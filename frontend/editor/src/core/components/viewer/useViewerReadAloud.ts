@@ -4,7 +4,7 @@ import { useFileState } from "@app/contexts/FileContext";
 import { useViewer } from "@app/contexts/ViewerContext";
 import { useStopReadAloudOnNavigation } from "@app/components/viewer/useStopReadAloudOnNavigation";
 import { pdfWorkerManager } from "@app/services/pdfWorkerManager";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 import { ZINDEX } from "@app/constants/zIndex";
 
 interface TextItemWithGeometry {
@@ -85,7 +85,7 @@ export function useViewerReadAloud(defaultLanguage?: string) {
   const restartingSpeechRef = useRef(false);
   const restartTimeoutRef = useRef<number | null>(null);
   const pageAdvanceTimeoutRef = useRef<number | null>(null);
-  const currentFileRef = useRef<StirlingFile | null>(null);
+  const currentFileRef = useRef<RustlingFile | null>(null);
   const totalPagesRef = useRef(0);
   const speechRateRef = useRef(1); // Keep track of current rate without recreating dependent functions
   const speechLanguageRef = useRef(defaultLanguage || "en-US");
@@ -271,7 +271,7 @@ export function useViewerReadAloud(defaultLanguage?: string) {
 
   const readPage = useCallback(
     async (
-      currentFile: StirlingFile | File,
+      currentFile: RustlingFile | File,
       pageNumber: number,
       options?: {
         preserveSpeechState?: boolean;

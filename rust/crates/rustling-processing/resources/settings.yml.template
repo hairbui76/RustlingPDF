@@ -11,42 +11,10 @@
 #############################################################################################################
 
 security:
-  validation: # PDF signature validation settings
-    trust:
-      serverAsAnchor: true # Trust server certificate as anchor for PDF signatures (if configured and self-signed or CA)
-      useSystemTrust: true # Trust Java/OS system trust store for PDF signature validation
-      useMozillaBundle: true # Trust bundled Mozilla CA bundle (~140 CAs) for PDF signature validation
-      useAATL: false # Trust Adobe Approved Trust List (AATL) for PDF signature validation - downloads from Adobe on startup if enabled
-      useEUTL: false # Trust EU Trusted List (EUTL) for eIDAS qualified certificates - downloads LOTL and national TSLs on startup if enabled
-    allowAIA: false # Allow JDK to fetch issuer certificates and revocation information from network (OCSP/CRL/AIA)
-    aatl:
-      url: https://trustlist.adobe.com/tl.pdf # Adobe Approved Trust List download URL
-    eutl:
-      lotlUrl: https://ec.europa.eu/tools/lotl/eu-lotl.xml # EU List Of Trusted Lists (LOTL) URL
-      acceptTransitional: false # Accept certificates with 'supervisionincessation' status (transitional state)
-    revocation:
-      mode: none # Revocation checking mode: 'none' (disabled), 'ocsp' (OCSP only), 'crl' (CRL only), 'ocsp+crl' (OCSP with CRL fallback)
-      hardFail: false # Fail validation if revocation status cannot be determined (true=strict, false=soft-fail)
   timestamp:
     defaultTsaUrl: http://timestamp.digicert.com # Default TSA server for RFC 3161 document timestamps
-    customTsaUrls: [] # Admin-configured additional TSA URLs (e.g. ['https://internal-tsa.corp.com/timestamp']). Users can only select from built-in presets and these URLs.
-  xFrameOptions: DENY # X-Frame-Options header value. Options: 'DENY' (default, prevents all framing), 'SAMEORIGIN' (allows framing from same domain), 'DISABLED' (no X-Frame-Options header sent)
+    customTsaUrls: [] # Additional TSA URLs offered alongside the built-in presets
 
-premium:
-  key: 00000000-0000-0000-0000-000000000000
-  enabled: false # Enable license key checks for pro/enterprise features
-  proFeatures:
-    ssoAutoLogin: false
-    customMetadata:
-      autoUpdateMetadata: false
-      author: username
-      creator: RustlingPDF
-      producer: RustlingPDF
-    googleDrive:
-      enabled: false # Enable Google Drive file picker integration
-      clientId: "" # Google OAuth 2.0 client ID (obtain from Google Cloud Console)
-      apiKey: "" # Google API key for Google Picker API (obtain from Google Cloud Console)
-      appId: "" # Google Drive app ID
 mail:
   enabled: false # set to 'true' to enable sending emails
   host: smtp.example.com # SMTP server hostname
@@ -60,110 +28,45 @@ mail:
   sslTrust: "" # optional trusted host override, e.g. "smtp.example.com" or "*"; defaults to "*" (trust all) when empty
   sslCheckServerIdentity: false # enable hostname verification when using SSL/TLS
 
-telegram:
-  enabled: false # set to 'true' to enable Telegram bot integration
-  botToken: "" # Telegram bot token obtained from BotFather
-  botUsername: "" # Telegram bot username (without @)
-  pipelineInboxFolder: telegram # Name of the pipeline inbox folder for Telegram uploads
-  customFolderSuffix: true # set to 'true' to allow users to specify custom target folders via UserID
-  enableAllowUserIDs: true # set to 'true' to restrict access to specific Telegram user IDs. NOTE: only takes effect when allowUserIDs is non-empty; with an empty list every user is still allowed even when this is 'true'
-  allowUserIDs: [] # List of allowed Telegram user IDs (e.g. [123456789, 987654321]). Leave empty to allow all users (the enableAllowUserIDs toggle has no effect until this list is populated).
-  enableAllowChannelIDs: true # set to 'true' to restrict access to specific Telegram channel IDs. NOTE: only takes effect when allowChannelIDs is non-empty; with an empty list every channel is still allowed even when this is 'true'
-  allowChannelIDs: [] # List of allowed Telegram channel IDs (e.g. [-1001234567890, -1009876543210]). Leave empty to allow all channels (the enableAllowChannelIDs toggle has no effect until this list is populated).
-  processingTimeoutSeconds: 180 # Maximum time in seconds to wait for processing a Telegram request
-  pollingIntervalMillis: 2000 # Interval in milliseconds between polling for new messages
-  feedback:
-    channel:
-      noValidDocument: true # set to 'false' to hide/suppress feedback messages in channels (to avoid spam)
-      errorProcessing: true # set to 'false' to hide/suppress feedback messages in channels (to avoid spam)
-      errorMessage: true # set to 'false' to hide/suppress error messages in channels (to avoid spam)
-      processing: true # set to 'false' to hide/suppress processing messages in channels (to avoid spam)
-    user:
-      noValidDocument: true # set to 'false' to hide/suppress feedback messages to users (to avoid spam)
-      errorProcessing: true # set to 'false' to hide/suppress feedback messages to users (to avoid spam)
-      errorMessage: true # set to 'false' to hide/suppress error messages to users (to avoid spam)
-      processing: true # set to 'false' to hide/suppress processing messages to users (to avoid spam)
-
 legal:
-  termsAndConditions: https://www.stirling.com/legal/terms-of-service # URL to the terms and conditions of your application (e.g. https://example.com/terms). Empty string to disable or filename to load from local file in static folder
-  privacyPolicy: https://www.stirling.com/legal/privacy-policy # URL to the privacy policy of your application (e.g. https://example.com/privacy). Empty string to disable or filename to load from local file in static folder
+  termsAndConditions: "" # URL to the terms and conditions of your application. Empty string disables the link.
+  privacyPolicy: "" # URL to the privacy policy of your application. Empty string disables the link.
   accessibilityStatement: "" # URL to the accessibility statement of your application (e.g. https://example.com/accessibility). Empty string to disable or filename to load from local file in static folder
   cookiePolicy: "" # URL to the cookie policy of your application (e.g. https://example.com/cookie). Empty string to disable or filename to load from local file in static folder
   impressum: "" # URL to the impressum of your application (e.g. https://example.com/impressum). Empty string to disable or filename to load from local file in static folder
   loginAgreement:
-    enabled: false # set to 'true' to show a login agreement/disclaimer popup after login (and on app launch when login is disabled). Per-language text is read from customFiles/disclaimer/<locale>.md (e.g. en-GB.md, fr-FR.md)
-    showInAnonymousMode: true # when login is disabled, set to 'false' to suppress the agreement in anonymous (no-login) mode
-    fallbackText: "" # optional markdown used for any language that has no customFiles/disclaimer/<locale>.md file (also settable via the LEGAL_LOGINAGREEMENT_FALLBACKTEXT env var for single-language headless installs)
+    enabled: false # Set to 'true' to show an agreement/disclaimer popup on app launch. Per-language text is read from customFiles/disclaimer/<locale>.md.
+    showInAnonymousMode: true # Set to 'false' to suppress the agreement in this account-free build
+    fallbackText: "" # Optional markdown used when no locale-specific disclaimer file exists
 
 system:
   defaultLocale: "" # force a default language for new users (e.g. 'en-US', 'de-DE'). Empty string auto-detects from the browser, falling back to en-US
   googlevisibility: false # 'true' serves an allow-all /robots.txt; 'false' serves a disallow-all /robots.txt to keep the instance out of search engines
   enableAlphaFunctionality: false # set to enable functionality which might need more testing before it fully goes live (this feature might make no changes)
   showUpdate: true # see when a new update is available
-  showUpdateOnlyAdmin: true # only admins can see when a new update is available, depending on showUpdate it must be set to 'true'
-  customHTMLFiles: false # enable to have files placed in /customFiles/templates override the existing template HTML files
   tessdataDir: "" # path to the directory containing the Tessdata files. This setting is relevant for Windows systems. For Windows users, this path should be adjusted to point to the appropriate directory where the Tessdata files are stored.
-  enableAnalytics: null # Master toggle for analytics: set to 'true' to enable all analytics, 'false' to disable all analytics, or leave as 'null' to prompt admin on first launch
+  enableAnalytics: null # Master toggle for analytics: true enables analytics, false disables it, and null uses the interactive preference
   enableDesktopInstallSlide: true # Set to 'false' to hide the desktop app installation slide in the onboarding flow
   enablePosthog: null # Enable PostHog analytics (open-source product analytics): set to 'true' to enable, 'false' to disable, or 'null' to enable by default when analytics is enabled
   enableScarf: null # Enable Scarf tracking pixel: set to 'true' to enable, 'false' to disable, or 'null' to enable by default when analytics is enabled
   enableUrlToPDF: false # Set to 'true' to enable URL to PDF, INTERNAL ONLY, known security issues, should not be used externally
-  disableSanitize: false # set to true to disable Sanitize HTML; (can lead to injections in HTML)
   maxDPI: 500 # Maximum allowed DPI for PDF to image conversion
-  corsAllowedOrigins: [] # List of allowed origins for CORS (e.g. ['http://localhost:5173', 'https://app.example.com']). WARNING: leaving this empty falls back to allowing ALL origins (with credentials), it does NOT disable CORS. Set explicit origins to lock it down.
-  backendUrl: "" # Backend base URL for SAML/OAuth/API callbacks (e.g. 'http://localhost:8080' for dev, 'https://api.example.com' for production). REQUIRED for SSO authentication to work correctly. This is where your IdP will send SAML responses and OAuth callbacks. Leave empty to default to 'http://localhost:8080' in development.
-  frontendUrl: "" # Frontend URL for invite email links (e.g. 'https://app.example.com'). Optional - if not set, will use backendUrl. This is the URL users click in invite emails.
+  backendUrl: "" # Public backend base URL advertised to the frontend; empty uses same-origin requests
+  frontendUrl: "" # Public web-app URL used to generate mobile-scanner links; empty derives it from the request host
   enableMobileScanner: true # Enable mobile phone QR code upload feature. Requires frontendUrl to be configured.
-  frontendDist: "" # Absolute path to a built frontend dist/ directory to serve the web UI directly from this binary (single-binary deployment). Leave empty to keep the backend API-only (e.g. behind the Vite dev proxy). Also settable via RUSTLING_FRONTEND_DIST (legacy alias: STIRLING_FRONTEND_DIST).
+  frontendDist: "" # Absolute path to a built frontend dist/ directory to serve the web UI directly from this binary (single-binary deployment). Leave empty to keep the backend API-only (e.g. behind the Vite dev proxy). Also settable via RUSTLING_FRONTEND_DIST.
   mobileScannerSettings:
     convertToPdf: true # Automatically convert uploaded images to PDF format. If false, images are kept as-is.
     imageResolution: full # Image resolution for mobile uploads: 'full' (original size) or 'reduced' (max 1200px on longest side). Only applies when convertToPdf is true.
     pageFormat: A4 # Page format for converted PDFs: 'keep' (original image dimensions), 'A4' (A4 page size), or 'letter' (US Letter page size). Only applies when convertToPdf is true.
     stretchToFit: false # Whether to stretch images to fill the entire page (may distort aspect ratio). If false, images are centered with preserved aspect ratio. Only applies when convertToPdf is true.
-  html:
-    urlSecurity:
-      enabled: true # Enable URL security restrictions for HTML processing
-      level: MEDIUM # Security level: MAX (whitelist only), MEDIUM (block internal networks), OFF (no restrictions)
-      allowedDomains: [] # Whitelist of allowed domains (e.g. ['cdn.example.com', 'images.google.com'])
-      blockedDomains: [] # Additional domains to block (e.g. ['evil.com', 'malicious.org'])
-      internalTlds: [".local", ".internal", ".corp", ".home"] # Block domains with these TLD patterns
-      blockPrivateNetworks: true # Block RFC 1918 private networks (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
-      blockLocalhost: true # Block localhost and loopback addresses (127.x.x.x, ::1)
-      blockLinkLocal: true # Block link-local addresses (169.254.x.x, fe80::/10)
-      blockCloudMetadata: true # Block cloud provider metadata endpoints (169.254.169.254)
-  datasource:
-    enableCustomDatabase: false # Enterprise users ONLY, set this property to 'true' if you would like to use your own custom database configuration
-    customDatabaseUrl: "" # eg jdbc:postgresql://localhost:5432/postgres, set the url for your own custom database connection. If provided, the type, hostName, port and name are not necessary and will not be used
-    username: postgres # set the database username
-    password: postgres # set the database password
-    type: postgresql # the type of the database to set (e.g. 'h2', 'postgresql')
-    hostName: localhost # the host name to use for the database url. Set to 'localhost' when running the app locally. Set to match the name of the container name of your database container when running the app on a server (Docker configuration)
-    port: 5432 # set the port number of the database. Ensure this matches the port the database is listening to
-    name: postgres # set the name of your database. Should match the name of the database you create
   customPaths:
     pipeline:
       pipelineDir: "" # Defaults to /pipeline
-    operations:
-      weasyprint: "" # Defaults to /opt/venv/bin/weasyprint
-      unoconvert: "" # Defaults to /opt/venv/bin/unoconvert
-      calibre: "" # Defaults to /usr/bin/ebook-convert
-      ocrmypdf: "" # Defaults to /usr/bin/ocrmypdf
-      soffice: "" # Defaults to /usr/bin/soffice
-  fileUploadLimit: "" # Defaults to "". No limit when string is empty. Set a number, between 0 and 999, followed by one of the following strings to set a limit. "KB", "MB", "GB".
-  tempFileManagement:
-    baseTmpDir: "" # Defaults to java.io.tmpdir/stirling-pdf
-    libreofficeDir: "" # Defaults to tempFileManagement.baseTmpDir/libreoffice
-    systemTempDir: "" # Only used if cleanupSystemTemp is true
-    prefix: stirling-pdf- # Prefix for temp file names
-    maxAgeHours: 24 # Maximum age in hours before temp files are cleaned up
-    cleanupIntervalMinutes: 30 # How often to run cleanup (in minutes)
-    startupCleanup: true # Clean up old temp files on startup
-    cleanupSystemTemp: false # Whether to clean broader system temp directory
-  databaseBackup:
-    cron: "0 0 0 * * ?" # Cron expression for automatic database backups "0 0 0 * * ?" daily at midnight
+      webUIConfigsDir: "" # Defaults to <pipelineDir>/defaultWebUIConfigs
 
 ui:
-  appNameNavbar: "" # custom app/brand name. NOTE: no longer shown in the navbar (the navbar renders the logo). It IS used as the browser tab title and as the TOTP/2FA issuer label in authenticator apps. Empty falls back to "RustlingPDF"
+  appNameNavbar: "" # Custom browser-tab title; empty falls back to "RustlingPDF"
   logoStyle: classic # Options: 'classic' (default - classic S icon) or 'modern' (minimalist logo)
   languages: [] # If empty, all languages are enabled. To restrict to specific languages, use a whitelist like ["de_DE", "pl_PL", "sv_SE"]. Empty list or not restricting any languages will enable all available languages.
   defaultHideUnavailableTools: false # Default user preference: hide disabled tools instead of greying them out
@@ -186,50 +89,22 @@ AutomaticallyGenerated:
   appVersion: 0.35.0
 
 processExecutor:
-  autoUnoServer: true # true: use local pool based on libreOfficeSessionLimit; false: use unoServerEndpoints
-  unoServerEndpoints: [] # Used when autoUnoServer is false
-  # Example manual endpoints (uncomment to use):
-  # unoServerEndpoints:
-  #   - host: "127.0.0.1"
-  #     port: 2003
-  #     hostLocation: "auto"  # auto|local|remote (use "remote" for port-forwarded servers)
-  #     protocol: "http"       # http|https
-  #   - host: "remote-server.local"
-  #     port: 8080
-  #     hostLocation: "remote"
-  #     protocol: "https"
   sessionLimit: # Process executor instances limits
-    libreOfficeSessionLimit: 1 # Each additional uno server adds ~50MB idle RAM
-    pdfToHtmlSessionLimit: 1
     qpdfSessionLimit: 4
     tesseractSessionLimit: 1
-    pythonOpenCvSessionLimit: 8
-    weasyPrintSessionLimit: 16
-    installAppSessionLimit: 1
-    calibreSessionLimit: 1
-    imageMagickSessionLimit: 4
-    ghostscriptSessionLimit: 8 # Ignored: Ghostscript was removed from this service
     ocrMyPdfSessionLimit: 2
   timeoutMinutes: # Process executor timeout in minutes
-    libreOfficetimeoutMinutes: 30
-    pdfToHtmltimeoutMinutes: 20
-    pythonOpenCvtimeoutMinutes: 30
-    weasyPrinttimeoutMinutes: 30
-    installApptimeoutMinutes: 60
-    calibretimeoutMinutes: 30
-    imageMagickTimeoutMinutes: 30
     tesseractTimeoutMinutes: 30
     qpdfTimeoutMinutes: 30
-    ghostscriptTimeoutMinutes: 30 # Ignored: Ghostscript was removed from this service
     ocrMyPdfTimeoutMinutes: 30
 
 aiEngine:
   enabled: false # Set to 'true' to enable the AI engine integration
-  url: http://localhost:5001 # URL of the Python AI engine
+  url: http://localhost:5001 # URL of the Rust AI engine
   timeoutSeconds: 120 # Timeout in seconds for AI engine requests
   longRunningTimeoutSeconds: 600 # Timeout (seconds) for heavy operations like orchestrated runs over large documents
   streamTimeoutSeconds: 1800 # SSE stream timeout (seconds) for long-running orchestrator runs
-  pushConfigToEngine: true # Push admin AI config to the engine on startup + save; false = engine stays fully env-controlled
+  pushConfigToEngine: true # Push configured AI settings to the engine on startup; false keeps the engine environment-controlled
   models:
     provider: anthropic # Model provider: 'anthropic', 'openai', 'ollama', or 'custom' (OpenAI-compatible)
     smartModel: claude-haiku-4-5 # High-quality tier model name (no provider prefix)
@@ -248,39 +123,3 @@ aiEngine:
     mathAuditor: true # Numerical/formula contradiction auditing
     pdfComment: true # AI-authored PDF comments/annotations
     classify: true # Automatic document classification/labelling
-
-# Cluster configuration. NOT YET ENABLED - scaffolding for later work. Leave at defaults.
-cluster:
-  enabled: false # Master switch. 'false' (default) wires the in-process backplane and skips all cluster checks. Single-instance installs do not need to change anything here.
-  backplane: inprocess # Backplane implementation: 'inprocess' (single JVM only) or 'valkey' (multi-node via Valkey/Redis)
-  artifactStore: local # Transient cluster job-artifact backend: 'local' (per-node disk; single-node only) or 's3' (shared object store; required for multi-node). Distinct from 'storage.provider' which controls persistent user uploads - when both are 's3' they share the storage.s3.* credentials block. Multi-node deployments MUST set this to 's3'.
-  s3:
-    keyPrefix: transient/ # Bucket key prefix used by the cluster artifact store when artifactStore=s3. Trailing slash recommended. Lets a single bucket host both persistent uploads (storage.s3.*) and transient job artifacts under separate prefixes.
-  valkey:
-    url: "" # Valkey/Redis URL, e.g. 'redis://valkey:6379' or 'rediss://...' for TLS. Required when enabled=true and backplane=valkey.
-    tls:
-      skipCertVerification: false # set to 'true' to skip TLS certificate verification on Valkey connections (dev/test only)
-  node:
-    id: "" # Optional explicit node id. Blank = auto-generated UUID at startup.
-    role: both # 'web' (serves HTTP), 'worker' (runs jobs), or 'both' (default)
-    internalAddress: "" # host:port advertised in the instance registry for peer-to-peer cluster traffic. Blank = derived at startup.
-    scheme: http # 'http' or 'https' - scheme peers use to call this node's /internal/cluster/** endpoints
-    heartbeatIntervalMs: 5000 # Heartbeat publish interval for the instance registry (ms)
-
-pdfEditor:
-  fallback-font: classpath:/static/fonts/NotoSans-Regular.ttf # Override to point at a custom fallback font
-  cache:
-    max-bytes: -1 # Max in-memory cache size in bytes; -1 disables byte cap
-    max-percent: 20 # Max in-memory cache as % of JVM max; used when max-bytes <= 0
-  font-normalization:
-    enabled: false # IMPORTANT: Disable to preserve ToUnicode CMaps for correct font rendering. Ghostscript strips Unicode mappings from CID fonts.
-  cff-converter:
-    enabled: true # Wrap CFF/Type1CFF fonts as OpenType-CFF for browser compatibility
-    method: python # Converter method: 'python' (fontTools, recommended - wraps as OTF), 'fontforge' (legacy - converts to TTF, may hang on CID fonts)
-    python-command: /opt/venv/bin/python3 # Python interpreter path
-    python-script: /scripts/convert_cff_to_ttf.py # Path to font wrapping script
-    fontforge-command: fontforge # Override if FontForge is installed under a different name/path
-  type3:
-    library:
-      enabled: true # Match common Type3 fonts against the built-in library of converted programs
-      index: classpath:/type3/library/index.json # Override to point at a custom index.json (supports http:, file:, classpath:)

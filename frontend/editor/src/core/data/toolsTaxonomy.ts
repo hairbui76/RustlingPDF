@@ -25,8 +25,6 @@ import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
 import BuildRoundedIcon from "@mui/icons-material/BuildRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import CodeRoundedIcon from "@mui/icons-material/CodeRounded";
-import { ProprietaryToolId } from "@app/types/proprietaryToolId";
-import { PrototypeToolId } from "@app/types/prototypeToolId";
 
 export enum SubcategoryId {
   SIGNING = "signing",
@@ -75,20 +73,12 @@ export type ToolRegistryEntry = {
   synonyms?: string[];
   // Version status indicator (e.g., "alpha", "beta")
   versionStatus?: "alpha" | "beta";
-  // Whether this tool requires premium access
-  requiresPremium?: boolean;
 };
 
 export type RegularToolRegistry = Record<RegularToolId, ToolRegistryEntry>;
 export type SuperToolRegistry = Record<SuperToolId, ToolRegistryEntry>;
 export type LinkToolRegistry = Record<LinkToolId, ToolRegistryEntry>;
 export type ToolRegistry = Record<ToolId, ToolRegistryEntry>;
-export type ProprietaryToolRegistry = Record<
-  ProprietaryToolId,
-  ToolRegistryEntry
->;
-export type PrototypeToolRegistry = Record<PrototypeToolId, ToolRegistryEntry>;
-
 export const SUBCATEGORY_ORDER: SubcategoryId[] = [
   SubcategoryId.SIGNING,
   SubcategoryId.DOCUMENT_SECURITY,

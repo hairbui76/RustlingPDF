@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/ocr-pdf`
 
-Rust compatibility contract for `OCRController`.
+Current contract for OCR processing.
 
 ## Request and response
 
@@ -17,7 +17,7 @@ Rust compatibility contract for `OCRController`.
 
 ## Behavior
 
-Prefers OCRmyPDF, the same primary tool the Java service uses:
+OCRmyPDF is the preferred engine:
 
 ```
 ocrmypdf --verbose 2 --output-type pdf --pdf-renderer <hocr|sandwich> \

@@ -3,16 +3,14 @@
 This is the complete, code-derived feature reference. Every row below is a route
 actually wired into the axum router in
 [`rust/crates/rustling-processing/src/lib.rs`](../../rust/crates/rustling-processing/src/lib.rs)
-(some registered by sibling modules and merged in) — not a wishlist and not the
-old Java Swagger doc. **166 distinct `/api/v1/...` endpoints** are registered.
+(some registered by sibling modules and merged in) — not a wishlist or a
+marketing inventory. **166 distinct `/api/v1/...` endpoints** are registered.
 See [Methodology](#methodology) for how this list was produced and how it was
 cross-checked.
 
 For install/run instructions, ports, and environment variables, see
-[`rust/RUNNING_WITH_RUST.md`](../../rust/RUNNING_WITH_RUST.md). For the
-authoritative parity ledger and per-surface behavior contracts, see
-[`rust/PORT_STATUS.md`](../../rust/PORT_STATUS.md) and
-[`rust/contracts/`](../../rust/contracts/).
+[`rust/RUNNING_WITH_RUST.md`](../../rust/RUNNING_WITH_RUST.md). Public behavior
+details live in [`rust/contracts/`](../../rust/contracts/).
 
 ## No accounts, no server-side storage
 
@@ -293,9 +291,9 @@ unless `--output -` deliberately selects binary stdout. See
 
 | Method | Endpoint | What it does |
 |---|---|---|
-| POST | `/api/v1/admin/job/cleanup` | Purge expired completed jobs |
-| GET | `/api/v1/admin/job/queue/stats` | Job queue depth/capacity counters |
-| GET | `/api/v1/admin/job/stats` | Job counters (total/active/completed/failed) |
+| POST | `/api/v1/jobs/cleanup` | Purge expired completed jobs |
+| GET | `/api/v1/jobs/queue/stats` | Job queue depth/capacity counters |
+| GET | `/api/v1/jobs/stats` | Job counters (total/active/completed/failed) |
 
 ### Local-first mobile scanner
 
@@ -341,9 +339,8 @@ listed here for completeness, not because they process a PDF:
 
 - `GET /api/v1/config/*` (`app-config`, `endpoint-enabled`,
   `endpoints-availability`, `endpoints-enabled`, `group-enabled`,
-  `login-disclaimer`) — what the UI should show/hide and why an endpoint is
-  disabled. `login-disclaimer` is a compatibility leftover: since there is no
-  login, it always serves its (usually empty) content openly.
+  `login-disclaimer`) — what the UI should show/hide, the optional anonymous
+  agreement, and why an endpoint is disabled.
 - `GET /api/v1/settings/get-endpoints-status` — same availability data via a
   legacy shape.
 - `GET /api/v1/ui-data/*` (`footer-info`, `home`, `licenses`, `ocr-pdf`,
@@ -363,20 +360,13 @@ then cross-checked against the per-surface contracts in `rust/contracts/` and
 against `ENDPOINT_GROUPS` in
 [`runtime_config.rs`](../../rust/crates/rustling-processing/src/runtime_config.rs)
 (the table that drives `DEPENDENCY`/`CONFIG` availability reporting) to find
-the 17 tool-gated endpoints. It is not sourced from the frontend's menu labels,
-from Stirling-PDF's marketing, or from the frozen `SwaggerDoc.json` snapshot
-(that file predates the 2026-07-28 no-auth/stateless removals and still lists
-routes — auth, teams, admin, audit, storage, integrations — that no longer
-exist in this repository).
+the 17 tool-gated endpoints. It is not sourced from frontend menu labels or
+marketing copy. `SwaggerDoc.json` is the committed API-generation input and is
+validated separately against its consumers.
 
-**Deliberately not offered** (removed by maintainer decision, 2026-07-28; see
-[`rust/PORT_STATUS.md`](../../rust/PORT_STATUS.md) and
-[`ROADMAP.md`](../../ROADMAP.md) for the full record): user accounts, login,
-teams, administrator/account settings, audit logs, durable server-side
-storage, policies, a portal, billing, MCP, and AI PDF question-answering with
-its document/RAG store. (The `admin/job/*` endpoints above are unrelated: open
-job-queue introspection, not administrator account management — there being
-no accounts to administer.) PDF *document* security — password, redaction,
-sanitization, watermarking, certificate signing, hardware signing, RFC 3161
-timestamping, and signature validation — is unaffected and stays; it is a
-processing feature, not server-side state.
+RustlingPDF is stateless at the server boundary: documents enter one operation
+or pipeline and leave as explicit results. Browser-managed files, preferences,
+and saved signatures stay on the user's device. PDF document security —
+passwords, redaction, sanitization, watermarking, certificate signing,
+hardware signing, RFC 3161 timestamping, and signature validation — remains
+part of document processing.

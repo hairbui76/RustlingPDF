@@ -177,7 +177,7 @@ fn remove_entry_file(entry: Option<CacheEntry>) {
     }
 }
 
-const CACHE_FILE_PREFIX: &str = "stirling-pdf-json-";
+const CACHE_FILE_PREFIX: &str = "rustlingpdf-json-";
 const CACHE_FILE_SUFFIX: &str = ".pdf";
 
 fn cache_path(job_id: &str) -> PathBuf {

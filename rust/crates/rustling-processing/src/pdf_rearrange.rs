@@ -282,7 +282,7 @@ mod tests {
     }
 
     /// Upstream's DUPLICATE mode once put the same page node under `/Kids`
-    /// several times, which makes the page tree cyclic (Stirling-PDF #6851).
+    /// several times, which makes the page tree cyclic (RustlingPDF #6851).
     /// Every slot must stay a distinct object.
     #[test]
     fn duplicate_mode_emits_a_distinct_page_object_per_slot()

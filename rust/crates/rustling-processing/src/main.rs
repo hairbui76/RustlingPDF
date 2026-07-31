@@ -18,13 +18,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    rustling_processing::env_compat::warn_once_on_legacy_environment();
     desktop_settings::initialize_from_environment()?;
     let bootstrap_config = RuntimeConfig::from_environment();
-    // Legacy login/MCP/server-state settings are ignored, never refused: the
-    // bundled desktop template still ships `security.enableLogin: true` on
-    // existing installs and a hard failure would brick them on upgrade.
-    bootstrap_config.warn_on_ignored_legacy_settings();
     // Install identity (Java `InitialSetup`): a UUID and machine key in
     // AutomaticallyGenerated.* plus the running app version. Only the desktop
     // sidecar persists it into its own local settings.yml (fail-open there);
@@ -59,8 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let runtime = ProcessingRuntime::from_environment_with_dependency_discovery(
         max_upload_bytes_from_environment(),
     );
-    // Background maintenance loops ported from the Java @Scheduled tasks plus
-    // the one-shot startup sweep of crash-abandoned temp artifacts.
+    // Periodic maintenance plus a one-shot startup sweep of abandoned temp artifacts.
     let maintenance_loops = runtime.spawn_background_maintenance();
     info!(maintenance_loops, "spawned background maintenance");
     info!(%address, "starting RustlingPDF processing service");
@@ -88,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn configured_host() -> Result<IpAddr, io::Error> {
     for variable in ["RUSTLING_HOST", "SERVER_ADDRESS"] {
-        match rustling_processing::env_compat::var(variable) {
+        match rustling_processing::environment::var(variable) {
             Ok(value) => return parse_host(variable, &value),
             Err(env::VarError::NotPresent) => {}
             Err(env::VarError::NotUnicode(_)) => {
@@ -101,7 +95,7 @@ fn configured_host() -> Result<IpAddr, io::Error> {
 
 fn configured_port() -> Result<u16, io::Error> {
     for variable in ["RUSTLING_PORT", "SERVER_PORT"] {
-        match rustling_processing::env_compat::var(variable) {
+        match rustling_processing::environment::var(variable) {
             Ok(value) => return parse_port(variable, &value),
             Err(env::VarError::NotPresent) => {}
             Err(env::VarError::NotUnicode(_)) => {

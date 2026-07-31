@@ -13,15 +13,6 @@ export type FolderId = string & { readonly [folderTag]: "FolderId" };
 /** The root folder is represented in UI/state by `null`. */
 export const ROOT_FOLDER_ID: null = null;
 
-/**
- * UI sentinel for the pinned "Local" pseudo-folder. Never sent to the server,
- * never persisted to IndexedDB - only used as a `currentFolderId` value
- * to scope the file grid to local-only files. The underlying data predicate
- * is `remoteStorageId == null`.
- */
-export const LOCAL_PSEUDO_FOLDER_ID = "__local__" as const;
-export type LocalPseudoFolderId = typeof LOCAL_PSEUDO_FOLDER_ID;
-
 /** Default colour palette used when no explicit colour is provided. */
 export const FOLDER_COLOR_PALETTE = [
   "#3b82f6",
@@ -66,8 +57,8 @@ export interface FolderBreadcrumbEntry {
 }
 
 /**
- * Generic RFC-4122 UUID regex (case-insensitive). Accepts any valid UUID variant - server-side
- * {@code UUID.randomUUID()} is v4 in practice, but other tools and tests may produce v1/v3/v5.
+ * Generic RFC-4122 UUID regex (case-insensitive). Accepts any valid UUID
+ * variant because imported data and tests may use v1/v3/v4/v5 values.
  * Being strict-v4-only here turned the {@code pullFromServer} merge into a silent skip whenever
  * a non-v4 id arrived.
  */

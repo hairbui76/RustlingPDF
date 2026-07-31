@@ -49,7 +49,7 @@ async fn converts_markdown_or_reports_missing_weasyprint() -> Result<(), Box<dyn
 }
 
 async fn post_file(content: &[u8], filename: &str) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-markdown-to-pdf-boundary";
+    let boundary = "rustling-markdown-to-pdf-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
     )
@@ -81,7 +81,7 @@ fn zip_without_markdown() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 
 fn weasyprint_present() -> bool {
     if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_WEASYPRINT_COMMAND")
+        rustling_processing::environment::var_os("RUSTLING_PROCESSING_WEASYPRINT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();

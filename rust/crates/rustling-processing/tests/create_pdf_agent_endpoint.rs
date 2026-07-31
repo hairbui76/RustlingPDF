@@ -64,7 +64,7 @@ async fn post_create_pdf_agent(
     document: Option<&str>,
     filename: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-create-pdf-agent-boundary";
+    let boundary = "rustling-create-pdf-agent-boundary";
     let mut body = Vec::new();
     if let Some(document) = document {
         append_text_field(&mut body, boundary, "document", document);

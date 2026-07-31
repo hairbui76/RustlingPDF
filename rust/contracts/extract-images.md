@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/extract-images`
 
-Rust compatibility contract for `ExtractImagesController`.
+Current contract for extracting PDF images.
 
 ## Request and response
 

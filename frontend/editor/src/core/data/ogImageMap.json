@@ -55,6 +55,5 @@
   "automate": "automate",
   "devApi": "dev-api",
   "devFolderScanning": "dev-folder-scanning",
-  "devSsoGuide": "dev-sso-guide",
   "devAirgapped": "dev-airgapped"
 }

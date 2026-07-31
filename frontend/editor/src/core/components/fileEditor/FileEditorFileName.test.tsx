@@ -3,12 +3,12 @@ import { describe, expect, test } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import FileEditorFileName from "@app/components/fileEditor/FileEditorFileName";
-import type { StirlingFileStub } from "@app/types/fileContext";
+import type { RustlingFileStub } from "@app/types/fileContext";
 import type { FileId } from "@app/types/file";
 
 const buildFileStub = (
-  overrides: Partial<StirlingFileStub> = {},
-): StirlingFileStub => ({
+  overrides: Partial<RustlingFileStub> = {},
+): RustlingFileStub => ({
   id: "file-1" as FileId,
   name: "report.pdf",
   type: "application/pdf",
@@ -20,7 +20,7 @@ const buildFileStub = (
   ...overrides,
 });
 
-const renderName = (file: StirlingFileStub) =>
+const renderName = (file: RustlingFileStub) =>
   render(
     <MantineProvider>
       <FileEditorFileName file={file} />

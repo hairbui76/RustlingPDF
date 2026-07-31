@@ -287,7 +287,7 @@ async fn post_pdf(
     pdf: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-geometry-boundary";
+    let boundary = "rustling-geometry-boundary";
     let mut body = Vec::new();
     body.extend_from_slice(
         format!(

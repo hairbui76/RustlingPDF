@@ -1,45 +1,15 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <base href="/" />
     <title>RustlingPDF</title>
-    <script>
-      // Minimal handler for SSO callback when index.html is missing (desktop fallback)
-      (function() {
-        const baseUrl = '/';
-        window.RUSTLING_PDF_API_BASE_URL = baseUrl;
-        window.STIRLING_PDF_API_BASE_URL = baseUrl; // pre-rename spelling for older bundles
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-        const searchParams = new URLSearchParams(window.location.search);
-        const token = hashParams.get('access_token') || hashParams.get('token') || searchParams.get('access_token');
-        const serverUrl = (window.location.origin + '/');
-
-        if (token) {
-          // Extract nonce from URL to send back to desktop app for validation
-          const nonceFromUrl = hashParams.get('nonce') || searchParams.get('nonce');
-
-          console.log('[Fallback Auth] Token received, sending to desktop app via deep link');
-
-          // Send token + nonce via deep link to desktop app
-          // Desktop app will validate nonce before accepting token
-          try {
-            const encodedToken = encodeURIComponent(token);
-            const encodedServer = encodeURIComponent(serverUrl);
-            const encodedNonce = nonceFromUrl ? encodeURIComponent(nonceFromUrl) : '';
-            const deepLink = `stirlingpdf://auth/sso-complete?server=${encodedServer}#access_token=${encodedToken}&nonce=${encodedNonce}&type=sso-selfhosted`;
-            window.location.href = deepLink;
-            return;
-          } catch (_) {
-            // ignore deep link errors
-          }
-        }
-
-        // No redirect to avoid loops when index.html is missing
-      })();
-    </script>
   </head>
   <body>
-    <p>RustlingPDF is running.</p>
+    <main>
+      <h1>RustlingPDF is running</h1>
+      <p>The web frontend is not configured for this service.</p>
+    </main>
   </body>
 </html>

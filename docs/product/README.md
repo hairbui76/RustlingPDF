@@ -5,8 +5,8 @@ accepted intent. Harness deliberately ships no fake product domains.
 
 When a user provides a product specification, derive smaller living documents
 here instead of keeping one growing specification as the operating manual. Name
-files after actual product domains, such as `overview.md`, `billing.md`,
-`permissions.md`, or `api-conventions.md`.
+files after actual product domains, such as `overview.md`, `editor.md`,
+`desktop.md`, or `api-conventions.md`.
 
 ## Current Product Contract
 

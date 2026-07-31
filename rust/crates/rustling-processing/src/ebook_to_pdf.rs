@@ -1,4 +1,4 @@
-//! eBook to PDF conversion through Calibre, ported from `ConvertEbookToPDFController`.
+//! eBook to PDF conversion through Calibre.
 //!
 //! Calibre owns eBook layout and supports the same input extensions as Java. The
 //! `OPTIMIZED_FOR_EBOOK` output mode used to run a best-effort Ghostscript `/ebook`
@@ -148,7 +148,7 @@ fn run_ebook_convert(arguments: &[OsString]) -> Result<(), EbookToPdfError> {
 }
 
 fn ebook_convert_commands() -> EbookConvertCommands {
-    if let Ok(command) = crate::env_compat::var(EBOOK_CONVERT_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(EBOOK_CONVERT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return EbookConvertCommands {

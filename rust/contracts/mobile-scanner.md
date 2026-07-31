@@ -39,9 +39,7 @@ while offline and can be retried after reconnection.
 
 ## Anonymous transfer routes
 
-The following section is the Rust compatibility contract for the ephemeral
-mobile-to-desktop transfer API formerly described as
-`MobileScannerController`.
+The following section defines the ephemeral mobile-to-desktop transfer API.
 
 ## Routes
 
@@ -52,8 +50,8 @@ mobile-to-desktop transfer API formerly described as
   session information with `valid: true`, or `404` with
   `{ "valid": false, "error": "Session not found or expired" }`.
 - `POST /api/v1/mobile-scanner/upload/{sessionId}` accepts multipart `files`.
-  It returns `success`, `sessionId`, `filesUploaded`, and the legacy success
-  message. Uploading creates a missing valid session, as the Java service does.
+  It returns `success`, `sessionId`, `filesUploaded`, and the established
+  success message. Uploading creates a missing valid session.
   The current scanner sends one locally created, ordered PDF; the compatibility
   route continues to accept multiple files for older clients.
 - `GET /api/v1/mobile-scanner/files/{sessionId}` returns `sessionId`, `count`,
@@ -75,8 +73,7 @@ separators. Files live in a private `TempDir`, never in a user-selected path.
 Sessions use a ten-minute inactivity timeout. Every create, validation, upload,
 list, or download refreshes activity; an expired session is removed on its next
 access. The temporary workspace is removed when the Rust process exits. This is
-process-local state, matching the Java service's in-memory session model; a
-restart invalidates outstanding QR sessions.
+process-local state, so a restart invalidates outstanding QR sessions.
 
 The service worker cache contains only application code and static assets.
 Transfer documents still use the private request/session `TempDir` below and

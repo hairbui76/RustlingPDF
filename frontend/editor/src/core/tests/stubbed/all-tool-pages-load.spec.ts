@@ -87,7 +87,7 @@ const CERT_SIGN_MODES = ["auto", "manual"];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Navigate to a tool page and verify it loaded (didn't crash / redirect to login) */
+/** Navigate to a tool page and verify it loaded without crashing. */
 async function verifyToolPageLoads(
   page: import("@playwright/test").Page,
   urlPath: string,
@@ -100,7 +100,6 @@ async function verifyToolPageLoads(
   // Page should not show an unhandled error / white screen
   await expect(page.locator("body").first()).not.toBeEmpty();
 
-  // Should not have been kicked back to login
   const url = page.url();
   expect(url.includes(urlPath) || url.endsWith("/")).toBeTruthy();
 }

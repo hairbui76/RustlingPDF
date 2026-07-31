@@ -529,7 +529,7 @@ struct ExternalCommands {
 }
 
 fn cbr_extractor_commands() -> ExternalCommands {
-    if let Ok(command) = crate::env_compat::var(UNRAR_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(UNRAR_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return ExternalCommands {
@@ -554,7 +554,7 @@ fn cbr_extractor_commands() -> ExternalCommands {
 }
 
 fn rar_commands() -> ExternalCommands {
-    if let Ok(command) = crate::env_compat::var(RAR_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(RAR_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return ExternalCommands {

@@ -26,7 +26,7 @@ pub(crate) fn shared_pdfium_runtime() -> &'static PdfiumRuntime {
 }
 
 fn initialize_pdfium() -> PdfiumRuntime {
-    let configured_path = crate::env_compat::var_os(PDFIUM_LIBRARY_PATH_ENV).map(PathBuf::from);
+    let configured_path = crate::environment::var_os(PDFIUM_LIBRARY_PATH_ENV).map(PathBuf::from);
     let explicitly_configured = configured_path.is_some();
     let bindings = match configured_path {
         Some(path) => Pdfium::bind_to_library(pdfium_library_path(&path)),

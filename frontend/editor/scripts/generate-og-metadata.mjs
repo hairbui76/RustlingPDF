@@ -131,8 +131,8 @@ for (const id of allIds) byPath[canonicalPath(id)] = id;
 for (const [p, id] of Object.entries(urlToTool)) byPath[p] = id;
 
 // --- non-tool application routes --------------------------------------------
-// Every other URL the SPA serves also gets OG: auth, the file manager, the
-// mobile scanner, and each settings section. These have no bespoke art (default
+// Every other URL the SPA serves also gets OG: the file manager, the mobile
+// scanner, and each settings section. These have no bespoke art (default
 // image) but carry a page-specific title so shared links are labelled correctly.
 // Keyed by path (tool ids never start with "/", so there is no collision).
 const navKeys = (

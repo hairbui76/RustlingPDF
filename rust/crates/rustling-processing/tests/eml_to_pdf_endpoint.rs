@@ -66,7 +66,7 @@ async fn post_email(
     filename: &str,
     options: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-eml-to-pdf-boundary";
+    let boundary = "rustling-eml-to-pdf-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
     )

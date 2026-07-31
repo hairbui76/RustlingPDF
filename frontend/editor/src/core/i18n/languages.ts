@@ -1,6 +1,6 @@
 /**
- * Shared language metadata and code helpers for the editor and portal i18n
- * setups. Pure data + string utilities — no i18next instance or app state.
+ * Language metadata and code helpers. Pure data + string utilities — no
+ * i18next instance or application state.
  */
 
 /** Supported languages, keyed by BCP-47-ish code → native display name. */

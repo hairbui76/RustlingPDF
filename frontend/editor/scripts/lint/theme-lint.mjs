@@ -17,11 +17,18 @@
 //
 // Structural black / white / transparent (shadows, scrims) are always allowed.
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { relative, resolve, join } from "node:path";
 
 const THEME = resolve(process.cwd(), "editor/src/core/theme");
+
+function trackedEditorFiles() {
+  return execSync("git ls-files -- editor/src", { encoding: "utf8" })
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((file) => file && existsSync(file));
+}
 
 // Fixed list of theme CSS files to check, so every read takes a constant path
 // (no directory-listing feeding into a file read). readdir is used only to fail
@@ -406,8 +413,8 @@ function reportContrast() {
   }
   // The editor always renders data-app-theme="custom"; the accent (--user-*) is
   // injected at runtime, so seed the DEFAULT blue to resolve the custom tint
-  // statically. Themes = the ones that actually render: editor custom light/dark
-  // (data-app-theme="custom") and the portal's neutral dark (data-theme="dark").
+  // statically. Themes = the editor's custom light/dark schemes and the
+  // neutral Storybook dark scheme.
   const SEED = {
     "--user-primary": "#3b82f6",
     "--user-primary-on": "#ffffff",
@@ -427,7 +434,7 @@ function reportContrast() {
   const themes = {
     "editor light": [...lightBase, ...customBase],
     "editor dark": [...lightBase, ...customBase, ...customDark],
-    "portal dark": [...lightBase, ...midnight],
+    "storybook dark": [...lightBase, ...midnight],
   };
   const flatten = (list) =>
     Object.assign({ ...SEED }, ...list.map((b) => b.decls));
@@ -564,10 +571,9 @@ function reportToneContrast() {
 // primitives.css (the literal home) and generated output.css are exempt.
 function checkAppCss() {
   const EXEMPT = /(?:^|\/)(?:primitives\.css|output\.css)$/;
-  const listed = execSync("git ls-files -- editor/src", { encoding: "utf8" })
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l && l.endsWith(".css") && !EXEMPT.test(l));
+  const listed = trackedEditorFiles().filter(
+    (l) => l && l.endsWith(".css") && !EXEMPT.test(l),
+  );
 
   const violations = [];
   const lineOf = (text, index) => text.slice(0, index).split("\n").length;
@@ -622,12 +628,10 @@ const CODE_EXEMPT_PATH = [
   /pdfTextEditor|pixelCompare|\/compare\.ts$|customPrimary|accentColors/,
   /validateSignature\/outputtedPDFSections|CenteredMessageSection|StatusBadgeSection/,
   /\/viewer\/|Annotation|useViewerReadAloud|CommentsSidebar|\/constants\/search\.ts$|SignaturePreview/,
-  /ColorPicker|ColorControl|WatchedFolderManagementModal|watchedFolderPresets|fileColors|unifiedBackground|folder\.ts$|policyFolders/,
-  /OAuthButtons|oauthCallbackHtml/,
+  /ColorPicker|ColorControl|WatchedFolderManagementModal|watchedFolderPresets|fileColors|unifiedBackground|folder\.ts$/,
   /mantineTheme|\/theme\.ts$|toolsTaxonomy|LayoutPreview|PageNumberPreview|CloudStorageIcons|BrandMarks/,
   /\/onboarding\//,
   /addStamp|addWatermark|\/tooltips\//,
-  /UpgradeBanner|AdminPlanSection/,
   /\.test\.[jt]sx?$|\.stories\.[jt]sx?$|\/types\//,
 ];
 const CODE_HEX =
@@ -669,13 +673,9 @@ function codeRgbIsColour(inner) {
   return k !== "0,0,0" && k !== "255,255,255";
 }
 function checkCodeColors() {
-  const files = execSync("git ls-files -- editor/src", { encoding: "utf8" })
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(
-      (l) =>
-        /\.(ts|tsx)$/.test(l) && !CODE_EXEMPT_PATH.some((re) => re.test(l)),
-    );
+  const files = trackedEditorFiles().filter(
+    (l) => /\.(ts|tsx)$/.test(l) && !CODE_EXEMPT_PATH.some((re) => re.test(l)),
+  );
   const violations = [];
   for (const rel of files) {
     const raw = readFileSync(rel, "utf8");
@@ -709,10 +709,7 @@ function checkCodeColors() {
 // reference has a definition somewhere (any source .css/.ts/.tsx) or a fallback.
 // Runtime-injected families (--user-*, --mantine-*, --accent-*) are out of scope.
 function checkTokenResolution() {
-  const files = execSync("git ls-files -- editor/src", { encoding: "utf8" })
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => /\.(css|ts|tsx)$/.test(l));
+  const files = trackedEditorFiles().filter((l) => /\.(css|ts|tsx)$/.test(l));
   const DEF_RE = /(--[a-z0-9-]+)\s*:/gi;
   // Capture the token and the char that follows it (`,` ⇒ has a fallback).
   const REF_RE = /var\(\s*(--[a-z0-9-]+)\s*(,|\))/gi;
@@ -740,19 +737,14 @@ const PRIMITIVE_LAYER = [
   /^editor\/src\/core\/theme\//,
   /^editor\/src\/core\/styles\/theme\.css$/,
   /^editor\/src\/core\/tokens\/tokens\.css$/,
-  /^editor\/src\/saas\/styles\/saas-theme\.css$/,
-  /^editor\/src\/proprietary\/auth\/ui\/auth-theme\.css$/,
   /^editor\/src\/core\/ui\/accents\.css$/,
 ];
 function checkNoPrimitives() {
-  const files = execSync("git ls-files -- editor/src", { encoding: "utf8" })
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(
-      (l) =>
-        /\.(css|scss|ts|tsx)$/.test(l) &&
-        !PRIMITIVE_LAYER.some((re) => re.test(l)),
-    );
+  const files = trackedEditorFiles().filter(
+    (l) =>
+      /\.(css|scss|ts|tsx)$/.test(l) &&
+      !PRIMITIVE_LAYER.some((re) => re.test(l)),
+  );
   const REF = /var\(\s*(--p-[a-z0-9-]+)/g;
   const violations = [];
   const lineOf = (text, index) => text.slice(0, index).split("\n").length;

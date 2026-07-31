@@ -1,6 +1,6 @@
 # `POST /api/v1/general/crop`
 
-Rust compatibility contract for `CropController.cropPdf()`.
+Current contract for cropping PDF pages.
 
 ## Request
 

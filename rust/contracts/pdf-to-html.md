@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/pdf/html`
 
-Rust compatibility contract for `ConvertPDFToHtml` (`PDFToFile.processPdfToHtml`).
+Current contract for PDF-to-HTML conversion.
 
 ## Request and response
 
@@ -119,7 +119,7 @@ encrypted PDFs remain `400 Bad Request`, and no limit violation panics.
 
 ## Explicit native divergences from Poppler `-c`
 
-The native renderer is a faithful approximation, not Poppler parity:
+The native renderer is a faithful approximation of Poppler output:
 
 - positioning is per reconstructed visual line, not exact per-glyph placement;
   kerning, character transforms, clipping, and text rotated *within* a page

@@ -47,19 +47,19 @@ class IndexedDBManager {
       return existingPromise;
     }
 
-    // SaaS lineage shipped a v6 and a v7 of stirling-pdf-files whose
+    // legacy web build lineage shipped a v6 and a v7 of rustlingpdf-files whose
     // upgrade paths corrupted records (separate cursor walks racing in
-    // one versionchange transaction). The SaaS build wipes those
+    // one versionchange transaction). The legacy web build build wipes those
     // databases on open to get users unstuck; we carry the wipe forward
-    // here so any SaaS browser that hadn't reopened the app since then
+    // here so any legacy web build browser that hadn't reopened the app since then
     // gets a clean v9 install instead of trying to migrate corrupt data.
     // Affected users have already lost their files - this is just the
     // recovery path they were already on.
-    if (config.name === "stirling-pdf-files") {
+    if (config.name === "rustlingpdf-files") {
       const existingVersion = await this.getDatabaseVersion(config.name);
       if (existingVersion === 6 || existingVersion === 7) {
         console.warn(
-          `Deleting corrupt SaaS v${existingVersion} ${config.name} database. Files will be lost but the app will work.`,
+          `Deleting corrupt legacy web build v${existingVersion} ${config.name} database. Files will be lost but the app will work.`,
         );
         await this.deleteDatabase(config.name);
       }
@@ -161,7 +161,7 @@ class IndexedDBManager {
 
           // Perform data migration for files database
           if (
-            config.name === "stirling-pdf-files" &&
+            config.name === "rustlingpdf-files" &&
             storeConfig.name === "files" &&
             store
           ) {
@@ -169,13 +169,13 @@ class IndexedDBManager {
           }
         });
 
-        // Drop stores that the SaaS lineage created in v6 but that this
+        // Drop stores that the legacy web build lineage created in v6 but that this
         // codebase doesn't use. We use a different folder model now
         // (a `folders` store plus a `folderId` foreign key on each
         // file row), so folder_members / folder_run_states /
         // smart_folders are dead weight. The deleteObjectStore calls
         // must happen inside this versionchange transaction.
-        if (config.name === "stirling-pdf-files") {
+        if (config.name === "rustlingpdf-files") {
           for (const orphan of [
             "folder_members",
             "folder_run_states",
@@ -183,7 +183,7 @@ class IndexedDBManager {
           ]) {
             if (db.objectStoreNames.contains(orphan)) {
               db.deleteObjectStore(orphan);
-              console.info(`Dropped orphan SaaS store: ${orphan}`);
+              console.info(`Dropped orphan legacy web build store: ${orphan}`);
             }
           }
         }
@@ -192,7 +192,7 @@ class IndexedDBManager {
   }
 
   /**
-   * Single-pass migration for the `files` store on stirling-pdf-files.
+   * Single-pass migration for the `files` store on rustlingpdf-files.
    *
    * Runs ONE openCursor() walk and applies every applicable per-version
    * delta to each record before `cursor.update()` writes it back. The
@@ -250,7 +250,7 @@ class IndexedDBManager {
         }
       }
 
-      // folderId. OSS lineage added this in v4. SaaS lineage never had
+      // folderId. OSS lineage added this in v4. legacy web build lineage never had
       // it (its v5 and v8 file rows both lack the field), so we gate on
       // field presence rather than oldVersion. Required on every row
       // so the folderId index doesn't drop the record out of
@@ -363,7 +363,7 @@ class IndexedDBManager {
 // Pre-defined database configurations
 export const DATABASE_CONFIGS = {
   FILES: {
-    name: "stirling-pdf-files",
+    name: "rustlingpdf-files",
     version: 9,
     stores: [
       {
@@ -395,7 +395,7 @@ export const DATABASE_CONFIGS = {
   } as DatabaseConfig,
 
   DRAFTS: {
-    name: "stirling-pdf-drafts",
+    name: "rustlingpdf-drafts",
     version: 1,
     stores: [
       {
@@ -406,7 +406,7 @@ export const DATABASE_CONFIGS = {
   } as DatabaseConfig,
 
   PREFERENCES: {
-    name: "stirling-pdf-preferences",
+    name: "rustlingpdf-preferences",
     version: 1,
     stores: [
       {

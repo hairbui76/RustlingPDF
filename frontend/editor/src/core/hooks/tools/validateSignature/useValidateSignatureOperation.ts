@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import apiClient from "@app/services/apiClient";
 import { useFileContext } from "@app/contexts/file/fileHooks";
 import { ToolOperationHook } from "@app/hooks/tools/shared/useToolOperation";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 import { extractErrorMessage } from "@app/utils/toolErrorHandler";
 import {
   SignatureValidationBackendResult,
@@ -65,7 +65,7 @@ export const useValidateSignatureOperation =
     const executeOperation = useCallback(
       async (
         params: ValidateSignatureParameters,
-        selectedFiles: StirlingFile[],
+        selectedFiles: RustlingFile[],
       ) => {
         if (selectedFiles.length === 0) {
           setErrorMessage(t("noFileSelected", "No files selected"));

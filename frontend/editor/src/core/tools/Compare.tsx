@@ -21,7 +21,7 @@ import CompareWorkbenchView from "@app/components/tools/compare/CompareWorkbench
 import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import { useNavigationActions } from "@app/contexts/NavigationContext";
 import type { FileId } from "@app/types/file";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 import DocumentThumbnail from "@app/components/shared/filePreview/DocumentThumbnail";
 import type { CompareWorkbenchData } from "@app/types/compare";
 import { getDefaultWorkbench } from "@app/types/workbench";
@@ -74,10 +74,10 @@ const Compare = (props: BaseToolProps) => {
   useEffect(() => {
     base.params.setParameters((prev) => ({
       ...prev,
-      baseFileId: baseSlot?.stirlingFile.fileId ?? null,
-      comparisonFileId: compSlot?.stirlingFile.fileId ?? null,
+      baseFileId: baseSlot?.rustlingFile.fileId ?? null,
+      comparisonFileId: compSlot?.rustlingFile.fileId ?? null,
     }));
-  }, [baseSlot?.stirlingFile.fileId, compSlot?.stirlingFile.fileId]);
+  }, [baseSlot?.rustlingFile.fileId, compSlot?.rustlingFile.fileId]);
 
   const performClearSelected = useCallback(() => {
     try {
@@ -155,8 +155,8 @@ const Compare = (props: BaseToolProps) => {
     (
       baseId: FileId | null,
       compId: FileId | null,
-      baseFile: StirlingFile | null,
-      comparisonFile: StirlingFile | null,
+      baseFile: RustlingFile | null,
+      comparisonFile: RustlingFile | null,
     ) => {
       if (!baseId || !compId) return;
 
@@ -201,9 +201,9 @@ const Compare = (props: BaseToolProps) => {
         baseFileId,
         comparisonFileId,
         baseLocalFile:
-          baseSlot?.stirlingFile ?? previous?.baseLocalFile ?? null,
+          baseSlot?.rustlingFile ?? previous?.baseLocalFile ?? null,
         comparisonLocalFile:
-          compSlot?.stirlingFile ?? previous?.comparisonLocalFile ?? null,
+          compSlot?.rustlingFile ?? previous?.comparisonLocalFile ?? null,
         isLoading: false,
       });
       lastProcessedAtRef.current = processedAt;
@@ -217,9 +217,9 @@ const Compare = (props: BaseToolProps) => {
         baseFileId,
         comparisonFileId,
         baseLocalFile:
-          baseSlot?.stirlingFile ?? previous?.baseLocalFile ?? null,
+          baseSlot?.rustlingFile ?? previous?.baseLocalFile ?? null,
         comparisonLocalFile:
-          compSlot?.stirlingFile ?? previous?.comparisonLocalFile ?? null,
+          compSlot?.rustlingFile ?? previous?.comparisonLocalFile ?? null,
         isLoading: true,
       });
       return;
@@ -234,9 +234,9 @@ const Compare = (props: BaseToolProps) => {
         ...previous,
         baseFileId,
         comparisonFileId,
-        baseLocalFile: baseSlot?.stirlingFile ?? previous.baseLocalFile ?? null,
+        baseLocalFile: baseSlot?.rustlingFile ?? previous.baseLocalFile ?? null,
         comparisonLocalFile:
-          compSlot?.stirlingFile ?? previous.comparisonLocalFile ?? null,
+          compSlot?.rustlingFile ?? previous.comparisonLocalFile ?? null,
         isLoading: false,
       });
     }
@@ -254,18 +254,18 @@ const Compare = (props: BaseToolProps) => {
 
   const handleExecuteCompare = useCallback(async () => {
     if (!baseSlot || !compSlot) return;
-    const baseId = baseSlot.stirlingFile.fileId;
-    const compId = compSlot.stirlingFile.fileId;
-    const selected: StirlingFile[] = [
-      baseSlot.stirlingFile,
-      compSlot.stirlingFile,
+    const baseId = baseSlot.rustlingFile.fileId;
+    const compId = compSlot.rustlingFile.fileId;
+    const selected: RustlingFile[] = [
+      baseSlot.rustlingFile,
+      compSlot.rustlingFile,
     ];
 
     prepareWorkbenchForRun(
       baseId,
       compId,
-      baseSlot.stirlingFile,
-      compSlot.stirlingFile,
+      baseSlot.rustlingFile,
+      compSlot.rustlingFile,
     );
     requestAnimationFrame(() => {
       navigationActions.setWorkbench(CUSTOM_WORKBENCH_ID);
@@ -291,17 +291,17 @@ const Compare = (props: BaseToolProps) => {
     setBaseSlot(newBase);
     setCompSlot(newComp);
     if (operation.result) {
-      const baseId = newBase.stirlingFile.fileId;
-      const compId = newComp.stirlingFile.fileId;
-      const selected: StirlingFile[] = [
-        newBase.stirlingFile,
-        newComp.stirlingFile,
+      const baseId = newBase.rustlingFile.fileId;
+      const compId = newComp.rustlingFile.fileId;
+      const selected: RustlingFile[] = [
+        newBase.rustlingFile,
+        newComp.rustlingFile,
       ];
       prepareWorkbenchForRun(
         baseId,
         compId,
-        newBase.stirlingFile,
-        newComp.stirlingFile,
+        newBase.rustlingFile,
+        newComp.rustlingFile,
       );
       requestAnimationFrame(() => {
         navigationActions.setWorkbench(CUSTOM_WORKBENCH_ID);
@@ -438,7 +438,7 @@ const Compare = (props: BaseToolProps) => {
                   )
             }
             excludeIds={
-              otherSlot ? [otherSlot.stirlingFile.fileId as string] : []
+              otherSlot ? [otherSlot.rustlingFile.fileId as string] : []
             }
             disabled={isDisabled}
             onSelect={(result: FileSelectorResult) => {
@@ -454,7 +454,7 @@ const Compare = (props: BaseToolProps) => {
   const canExecute = Boolean(
     baseSlot &&
     compSlot &&
-    baseSlot.stirlingFile.fileId !== compSlot.stirlingFile.fileId &&
+    baseSlot.rustlingFile.fileId !== compSlot.rustlingFile.fileId &&
     !base.operation.isLoading &&
     base.endpointEnabled !== false,
   );

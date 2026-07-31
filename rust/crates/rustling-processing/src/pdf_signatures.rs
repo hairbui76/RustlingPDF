@@ -280,7 +280,7 @@ fn append_appearance_draws(
         };
         let mut suffix = draw_index;
         let name = loop {
-            let name = format!("StirlingSig{suffix}").into_bytes();
+            let name = format!("RustlingSig{suffix}").into_bytes();
             if !xobjects.has(&name) {
                 break name;
             }
@@ -547,12 +547,12 @@ mod tests {
         );
         let resources = page.get(b"Resources")?.as_dict()?;
         assert!(resources.has(b"ProcSet"));
-        assert!(resources.get(b"XObject")?.as_dict()?.has(b"StirlingSig0"));
+        assert!(resources.get(b"XObject")?.as_dict()?.has(b"RustlingSig0"));
         let content = document.get_page_content(page_id);
         assert!(
             content
-                .windows(b"/StirlingSig0 Do".len())
-                .any(|window| window == b"/StirlingSig0 Do")
+                .windows(b"/RustlingSig0 Do".len())
+                .any(|window| window == b"/RustlingSig0 Do")
         );
         Ok(())
     }

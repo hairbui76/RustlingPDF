@@ -7,8 +7,8 @@ export function useLogoPath(): { dark: string; light: string } {
 
   return useMemo(
     () => ({
-      dark: `${folderPath}/StirlingPDFLogoNoTextDark.svg`,
-      light: `${folderPath}/StirlingPDFLogoNoTextLight.svg`,
+      dark: `${folderPath}/RustlingPDFLogoNoTextDark.svg`,
+      light: `${folderPath}/RustlingPDFLogoNoTextLight.svg`,
     }),
     [folderPath],
   );

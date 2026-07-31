@@ -1,10 +1,9 @@
-//! Periodic background maintenance mirroring the Java backend's `@Scheduled` loops.
+//! Periodic background maintenance for process-local runtime state.
 //!
 //! Every loop is a spawned tokio task that logs-and-continues on error; a tick
-//! can never terminate the process. Cadences mirror the Java oracle:
+//! can never terminate the process:
 //!
-//! - job results: `TaskManager` schedules `cleanupOldJobs` every 10 minutes
-//!   with a 10 minute initial delay.
+//! - job results are swept every 10 minutes with a 10-minute initial delay.
 //! - mobile scanner sessions: `MobileScannerService.cleanupExpiredSessions`
 //!   runs at a fixed five-minute rate.
 //!
@@ -75,7 +74,7 @@ pub(crate) fn schedule_from_environment(
     default: MaintenanceSchedule,
 ) -> MaintenanceSchedule {
     let variable = format!("RUSTLING_MAINTENANCE_{name}_SECONDS");
-    let value = crate::env_compat::var(&variable).ok();
+    let value = crate::environment::var(&variable).ok();
     default.with_period_override(parse_override_seconds(value.as_deref()))
 }
 
@@ -265,10 +264,10 @@ mod tests {
             job_root.join("abandoned0123456789abcdef").join("out.pdf"),
             b"pdf",
         )?;
-        fs::write(temp.path().join("stirling-pdf-json-cafe.pdf"), b"cache")?;
+        fs::write(temp.path().join("rustlingpdf-json-cafe.pdf"), b"cache")?;
         fs::write(temp.path().join("unrelated.pdf"), b"keep")?;
-        fs::write(temp.path().join("stirling-pdf-json-not-a-pdf.txt"), b"keep")?;
-        fs::create_dir(temp.path().join("stirling-pdf-json-dir.pdf"))?;
+        fs::write(temp.path().join("rustlingpdf-json-not-a-pdf.txt"), b"keep")?;
+        fs::create_dir(temp.path().join("rustlingpdf-json-dir.pdf"))?;
 
         // Everything was just created: a sweep judged from the real clock must
         // not remove anything.
@@ -284,10 +283,10 @@ mod tests {
             2
         );
         assert!(!job_root.join("abandoned0123456789abcdef").exists());
-        assert!(!temp.path().join("stirling-pdf-json-cafe.pdf").exists());
+        assert!(!temp.path().join("rustlingpdf-json-cafe.pdf").exists());
         assert!(temp.path().join("unrelated.pdf").exists());
-        assert!(temp.path().join("stirling-pdf-json-not-a-pdf.txt").exists());
-        assert!(temp.path().join("stirling-pdf-json-dir.pdf").exists());
+        assert!(temp.path().join("rustlingpdf-json-not-a-pdf.txt").exists());
+        assert!(temp.path().join("rustlingpdf-json-dir.pdf").exists());
         Ok(())
     }
 
@@ -312,7 +311,7 @@ mod tests {
         // A "cache file" that is really a symlink to a foreign file.
         symlink(
             precious.path().join("victim.txt"),
-            temp.path().join("stirling-pdf-json-evil.pdf"),
+            temp.path().join("rustlingpdf-json-evil.pdf"),
         )?;
         // A genuine stale job directory that smuggles a symlink to a foreign
         // directory among its contents.
@@ -329,7 +328,7 @@ mod tests {
         );
         assert!(!stale.exists());
         assert!(job_root.join("evil0123456789abcdef0123").exists());
-        assert!(temp.path().join("stirling-pdf-json-evil.pdf").exists());
+        assert!(temp.path().join("rustlingpdf-json-evil.pdf").exists());
         assert_eq!(fs::read(precious.path().join("victim.txt"))?, b"precious");
         Ok(())
     }

@@ -661,7 +661,7 @@ mod tests {
         );
         assert_eq!(lopdf::decode_text_string(info.get(b"KeepMe")?)?, "custom");
         assert_eq!(
-            lopdf::decode_text_string(info.get(b"StirlingPDFClassification")?)?,
+            lopdf::decode_text_string(info.get(b"RustlingPDFClassification")?)?,
             r#"{"labels":["invoice"]}"#
         );
         Ok(())

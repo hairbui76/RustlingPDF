@@ -1,7 +1,7 @@
 # AI PDF comment agent
 
-`POST /api/v1/ai/tools/pdf-comment-agent` ports the proprietary Java workflow
-that adds AI-selected sticky-note comments to a PDF. It is deliberately a
+`POST /api/v1/ai/tools/pdf-comment-agent` implements a bounded workflow that
+adds AI-selected sticky-note comments to a PDF. It is deliberately a
 processing route, not an engine/MCP capability: the public endpoint retains the
 PDF and sends only bounded text geometry to the separately configured AI engine.
 
@@ -37,7 +37,7 @@ and passes only trusted coordinates to the existing PDF annotation writer.
 
 On success the response is `application/pdf`, with a
 `<source>-commented.pdf` attachment name and a JSON
-`X-Stirling-Tool-Report` header:
+`X-Rustling-Tool-Report` header:
 
 ```json
 {"annotationsApplied": 2, "instructionsReceived": 3, "rationale": "..."}
@@ -50,9 +50,9 @@ are relayed, and engine 5xx or malformed JSON return `502`. An unavailable
 explicitly configured PDFium runtime returns `501`; PDFs without extractable
 text or malformed PDFs return `400`.
 
-## Parity notes
+## Extraction notes
 
-Java extracts PDFBox text lines, while Rust uses PDFium text segments (normally
+RustlingPDF uses PDFium text segments (normally
 coalesced by PDFium by matching line and font properties). Therefore the
 suggested comments and anchors can differ on documents with fragmented text;
 the final annotation convention remains the same 20 × 20 point sticky-note box

@@ -304,18 +304,18 @@ export const usePageEditorExport = ({
         await actions.removeFiles(sourceFileIds, true);
       }
 
-      const newStirlingFiles = await actions.addFiles(renamedFiles, {
+      const newRustlingFiles = await actions.addFiles(renamedFiles, {
         selectFiles: true,
         skipUploadTracking: true,
       });
-      if (newStirlingFiles.length > 0) {
-        actions.setSelectedFiles(newStirlingFiles.map((file) => file.fileId));
+      if (newRustlingFiles.length > 0) {
+        actions.setSelectedFiles(newRustlingFiles.map((file) => file.fileId));
       }
 
-      if (sourceFileIds.length === 1 && newStirlingFiles.length === 1) {
-        const sourceStub = selectors.getStirlingFileStub(sourceFileIds[0]);
+      if (sourceFileIds.length === 1 && newRustlingFiles.length === 1) {
+        const sourceStub = selectors.getRustlingFileStub(sourceFileIds[0]);
         if (sourceStub?.localFilePath) {
-          actions.updateStirlingFileStub(newStirlingFiles[0].fileId, {
+          actions.updateRustlingFileStub(newRustlingFiles[0].fileId, {
             localFilePath: sourceStub.localFilePath,
             isDirty: true,
           });

@@ -535,7 +535,7 @@ async fn validates_fill_json_and_optionally_flattens_with_pdfium()
         ],
     )
     .await?;
-    if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+    if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
         let response = require_status(response, StatusCode::OK).await?;
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let document = Document::load_mem(&bytes)?;
@@ -724,7 +724,7 @@ async fn post_pdf_with_parts(
     pdf: &[u8],
     extras: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-form-fields-boundary";
+    let boundary = "rustling-form-fields-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"form.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

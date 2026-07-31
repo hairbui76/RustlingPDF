@@ -9,7 +9,7 @@ include!(concat!(env!("OUT_DIR"), "/bundled_language_codes.rs"));
 /// Generates the legacy `/js/additionalLanguageCode.js` response.
 ///
 /// An empty `allowed_languages` permits every locale; otherwise it is the
-/// strict `ui.languages` allowlist used by the Java service.
+/// strict configured `ui.languages` allowlist.
 #[must_use]
 pub fn javascript(allowed_languages: &[String]) -> String {
     let supported_languages = BUNDLED_LANGUAGE_CODES

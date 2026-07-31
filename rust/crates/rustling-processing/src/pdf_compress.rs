@@ -141,7 +141,7 @@ pub fn compress_pdf_to_file(
             current_path = qpdf_path;
         } else if options.linearize || options.normalize {
             return Err(CompressError::QpdfUnavailable {
-                explicitly_configured: crate::env_compat::var_os(QPDF_COMMAND_ENV).is_some(),
+                explicitly_configured: crate::environment::var_os(QPDF_COMMAND_ENV).is_some(),
             });
         }
 
@@ -593,7 +593,7 @@ const fn qpdf_jpeg_quality(level: i32) -> i32 {
 }
 
 fn qpdf_commands() -> (Vec<String>, bool) {
-    if let Ok(command) = crate::env_compat::var(QPDF_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(QPDF_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return (vec![command], true);

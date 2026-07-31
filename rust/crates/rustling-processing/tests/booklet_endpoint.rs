@@ -228,7 +228,7 @@ async fn post_booklet(
     filename: &str,
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-booklet-boundary";
+    let boundary = "rustling-booklet-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

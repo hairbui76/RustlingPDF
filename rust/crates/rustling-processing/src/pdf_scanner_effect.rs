@@ -1,4 +1,4 @@
-//! Scanner-effect image pipeline ported from `ScannerEffectController`.
+//! Scanner-effect image pipeline.
 //!
 //! Pages are rasterized (in [`crate::pdfium_backend`]) and then run through this
 //! pure pipeline: colorspace conversion, a random grey gradient border, a small

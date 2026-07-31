@@ -154,7 +154,7 @@ async fn post_stamp(
     stamp_image: Option<&[u8]>,
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-stamp-boundary";
+    let boundary = "rustling-stamp-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

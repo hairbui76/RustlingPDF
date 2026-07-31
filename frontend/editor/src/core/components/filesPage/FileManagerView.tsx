@@ -22,13 +22,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { stripBasePath } from "@app/constants/app";
-import { useAuth } from "@app/auth/UseSession";
-import { useSharingEnabled } from "@app/hooks/useSharingEnabled";
 import { useFolders } from "@app/contexts/FolderContext";
 import { useFileActions } from "@app/contexts/file/fileHooks";
 import { useAllFiles } from "@app/contexts/FileContext";
@@ -40,19 +37,16 @@ import {
 import { useViewer } from "@app/contexts/ViewerContext";
 import {
   FILES_PAGE_VIEW_MODES,
-  FilesPageOriginFilter,
   FilesPageSortMode,
   useFilesPage,
 } from "@app/contexts/FilesPageContext";
-import { getFileOrigin } from "@app/components/filesPage/fileOrigin";
 
 import { FileId } from "@app/types/file";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { FolderId, ROOT_FOLDER_ID } from "@app/types/folder";
 
 import { FileGrid, FilesPageEntry } from "@app/components/filesPage/FileGrid";
 import { FileDetailsPanel } from "@app/components/filesPage/FileDetailsPanel";
-import BulkUploadToServerModal from "@app/components/shared/BulkUploadToServerModal";
 import MobileUploadModal from "@app/components/shared/MobileUploadModal";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
 import { useIsMobile } from "@app/hooks/useIsMobile";
@@ -61,7 +55,6 @@ import { FolderNameDialog } from "@app/components/filesPage/FolderNameDialog";
 import { DeleteFolderDialog } from "@app/components/filesPage/DeleteFolderDialog";
 import { DeleteFilesDialog } from "@app/components/filesPage/DeleteFilesDialog";
 import { VersionHistoryModal } from "@app/components/filesPage/VersionHistoryModal";
-import { materializeServerStubs } from "@app/services/fileSyncService";
 import {
   FILES_PAGE_DRAG_TYPE,
   parseFilesPageDragPayload,
@@ -74,22 +67,14 @@ export default function FileManagerView() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Hide Shared tab when storageSharingEnabled is false.
-  const { sharingEnabled } = useSharingEnabled();
-
   // ≤800px hosts the details panel in a button-triggered Drawer.
   const isCompactDetailsViewport = useMediaQuery("(max-width: 800px)") ?? false;
   // Phones get a full-screen drawer; tablets get a smaller one.
   const useFullScreenDrawer = useMediaQuery("(max-width: 640px)") ?? false;
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
-  // Save-to-server modal target. Bulk button uses local-only selection;
-  // per-file kebab uses [file]. Targets root; folder placement is via drop.
-  const [saveToServerTarget, setSaveToServerTarget] = useState<
-    StirlingFileStub[] | null
-  >(null);
   // Version-history modal target (opened from the card kebab).
   const [versionHistoryFile, setVersionHistoryFile] =
-    useState<StirlingFileStub | null>(null);
+    useState<RustlingFileStub | null>(null);
   const folders = useFolders();
   const { actions: fileActions } = useFileActions();
   const { fileIds: activeWorkspaceFileIds } = useAllFiles();
@@ -102,27 +87,6 @@ export default function FileManagerView() {
   const isMobile = useIsMobile();
   const isMobileUploadAvailable =
     Boolean(appConfig?.enableMobileScanner) && !isMobile;
-  // Guests (anonymous sessions) have no server-side storage, so every cloud
-  // action is account-only. Rather than let the click fire a guaranteed 401
-  // (which surfaced as an error toast), we disable the control and explain why
-  // on hover - the same affordance the storage-disabled / wrong-tab gates use.
-  const { isAnonymous } = useAuth();
-  const signInRequiredReason = isAnonymous
-    ? t("filesPage.signInRequired", "Sign in to use cloud storage.")
-    : null;
-  // Server storage gate; mirrors ConfigController's storageEnabled
-  // (enableLogin && storage.isEnabled). When off, Save-to-server stays
-  // visible but disabled with an explanatory tooltip (discoverability beats
-  // hiding - mirrors the New folder / Manage sharing gates in this view).
-  const uploadEnabled = appConfig?.storageEnabled === true;
-  const saveToServerDisabledReason: string | null =
-    signInRequiredReason ??
-    (uploadEnabled
-      ? null
-      : t(
-          "filesPage.saveToServerDisabledHint",
-          "Saving to the server isn't enabled on this server. Ask your admin to enable it.",
-        ));
   const [mobileUploadModalOpen, setMobileUploadModalOpen] = useState(false);
   const { actions: navActions } = useNavigationActions();
   const { requestNavigation } = useNavigationGuard();
@@ -143,8 +107,6 @@ export default function FileManagerView() {
     setSortMode,
     search,
     setSearch,
-    originFilter,
-    setOriginFilter,
     typeFilter,
     setTypeFilter,
     currentTab,
@@ -176,7 +138,7 @@ export default function FileManagerView() {
     () =>
       deleteDialogFileIds
         .map((id) => fileMap.get(id))
-        .filter((s): s is StirlingFileStub => Boolean(s)),
+        .filter((s): s is RustlingFileStub => Boolean(s)),
     [deleteDialogFileIds, fileMap],
   );
 
@@ -196,16 +158,6 @@ export default function FileManagerView() {
       setCurrentFolderId(ROOT_FOLDER_ID);
     }
   }, [location.pathname, foldersById, setCurrentFolderId]);
-
-  // Bounce off any share-related tab when sharing isn't enabled.
-  useEffect(() => {
-    if (
-      !sharingEnabled &&
-      (currentTab === "shared" || currentTab === "sharedByMe")
-    ) {
-      setCurrentTab("all");
-    }
-  }, [sharingEnabled, currentTab, setCurrentTab]);
 
   // Push folder selection into the URL while still on /files.
   useEffect(() => {
@@ -244,15 +196,7 @@ export default function FileManagerView() {
   }, [folders.folders, currentFolderId]);
 
   const visibleFolders = useMemo(() => {
-    // Folders only appear in cloud-rooted tabs.
-    if (
-      currentTab === "local" ||
-      currentTab === "recent" ||
-      currentTab === "shared" ||
-      currentTab === "sharedByMe"
-    ) {
-      return [];
-    }
+    if (currentTab === "recent") return [];
     const lc = search.toLowerCase();
     const matched = folders.folders.filter((f) => {
       if (search) {
@@ -273,38 +217,15 @@ export default function FileManagerView() {
 
   // Files in current folder, pre-filter. Drives the type-filter dropdown.
   const filesInCurrentFolder = useMemo(() => {
-    // Tab overrides folder navigation for Local/Recent/Shared.
+    // Recent ignores folder navigation; All follows the selected folder.
     switch (currentTab) {
-      case "local":
-        // Local = files with no server copy. folderId is forced null on this
-        // path (cf. file.ts comment), but we check remoteStorageId too so
-        // stale local-folder rows from a pre-pivot DB don't slip through.
-        return allFiles.filter((f) => f.remoteStorageId == null);
-      case "cloud":
-        // Cloud bucket; search widens to subtree, else direct-folder match.
-        return allFiles.filter((f) => {
-          if (f.remoteStorageId == null) return false;
-          if (search) return subtreeFolderIds.has(f.folderId ?? null);
-          return (f.folderId ?? null) === (currentFolderId ?? null);
-        });
       case "recent": {
-        // Last 50 modified across local + cloud, folder context ignored.
+        // Last 50 modified files, folder context ignored.
         const sorted = [...allFiles].sort(
           (a, b) => (b.lastModified ?? 0) - (a.lastModified ?? 0),
         );
         return sorted.slice(0, 50);
       }
-      case "shared":
-        return allFiles.filter((f) => f.remoteOwnedByCurrentUser === false);
-      case "sharedByMe":
-        // Files I own that I've shared in any way - either with a public link
-        // or with a specific user. (Previously split across two visually
-        // identical tabs; merged here so the same idea lives in one place.)
-        return allFiles.filter(
-          (f) =>
-            f.remoteOwnedByCurrentUser !== false &&
-            (f.remoteHasShareLinks === true || f.remoteHasUserShares === true),
-        );
       case "all":
       default:
         // Search widens to the subtree.
@@ -353,9 +274,6 @@ export default function FileManagerView() {
       .filter((f) =>
         search ? f.name.toLowerCase().includes(search.toLowerCase()) : true,
       )
-      .filter((f) =>
-        originFilter === "all" ? true : getFileOrigin(f) === originFilter,
-      )
       .filter((f) => {
         if (typeFilter.length === 0) return true;
         const ext = (f.name.split(".").pop() ?? "").toUpperCase();
@@ -380,7 +298,7 @@ export default function FileManagerView() {
       }
     });
     return sorted;
-  }, [filesInCurrentFolder, search, sortMode, originFilter, typeFilter]);
+  }, [filesInCurrentFolder, search, sortMode, typeFilter]);
 
   /**
    * Resolve a folder id to its breadcrumb path (e.g. "Receipts / 2024 / Q1").
@@ -516,23 +434,9 @@ export default function FileManagerView() {
         skipWorkspaceDispatch: true,
       });
       const fileIds = added.map((f) => f.fileId);
-      const target = currentFolderId;
-      // Uploaded files land in Local (folderId stays null).
-      if (
-        target !== null &&
-        fileIds.length > 0 &&
-        (currentTab === "all" || currentTab === "cloud")
-      ) {
-        folders.setError(
-          t(
-            "filesPage.uploadedToLocal",
-            "Uploaded files start in Local. Use 'Save to cloud' to put them in a folder.",
-          ),
-        );
-      }
-      await refresh();
+      await moveFilesTo(fileIds, currentTab === "all" ? currentFolderId : null);
     },
-    [addFiles, currentFolderId, currentTab, folders, refresh, t],
+    [addFiles, currentFolderId, currentTab, moveFilesTo],
   );
 
   const onFileInputChange = useCallback(
@@ -550,32 +454,20 @@ export default function FileManagerView() {
     async (fileIds: FileId[]) => {
       const stubs = fileIds
         .map((id) => fileMap.get(id))
-        .filter((s): s is StirlingFileStub => Boolean(s));
+        .filter((s): s is RustlingFileStub => Boolean(s));
       if (stubs.length === 0) return;
 
       const proceed = async () => {
         clearFilesPageReturnRoute();
 
-        // Server-only stubs have no bytes in IDB; download + ingest first.
-        const materialized = await materializeServerStubs(stubs, {
-          addFiles: fileActions.addFilesWithOptions,
-          updateStub: fileActions.updateStirlingFileStub,
-        });
-        if (materialized.length !== stubs.length) {
-          // At least one server download failed; refresh so the grid
-          // reflects any successful ingests and the user can retry.
-          await refresh();
-          return;
-        }
-
-        await fileActions.addStirlingFileStubs(materialized, {
+        await fileActions.addRustlingFileStubs(stubs, {
           selectFiles: false,
         });
         // Branch on requested stubs so already-active files still activate.
-        if (materialized.length === 1) {
-          setActiveFileId(materialized[0]!.id);
+        if (stubs.length === 1) {
+          setActiveFileId(stubs[0]!.id);
           navActions.setWorkbench("viewer");
-        } else if (materialized.length > 1) {
+        } else if (stubs.length > 1) {
           navActions.setWorkbench("fileEditor");
         }
         navigate("/");
@@ -602,7 +494,7 @@ export default function FileManagerView() {
   );
 
   const handleOpenFile = useCallback(
-    (file: StirlingFileStub) => {
+    (file: RustlingFileStub) => {
       // Double-click commits to workspace.
       void handleAddToWorkspace([file.id]);
     },
@@ -787,59 +679,22 @@ export default function FileManagerView() {
     [selectedFileIds],
   );
 
-  // Local-only subset of selection; drives Save-to-server visibility.
-  const localOnlySelectedStubs = useMemo(
-    () =>
-      selectedFiles
-        .map((id) => fileMap.get(id))
-        .filter(
-          (s): s is StirlingFileStub =>
-            Boolean(s) && s!.remoteStorageId == null,
-        ),
-    [selectedFiles, fileMap],
-  );
-
   // null = New folder actionable; string = disabled tooltip reason.
   const newFolderDisabledReason: string | null = useMemo(() => {
-    // Guests can't use cloud folders at all - say so before any tab/storage
-    // hint, since switching tabs wouldn't help them.
-    if (signInRequiredReason) {
-      return signInRequiredReason;
-    }
-    if (currentTab === "local") {
-      return t(
-        "filesPage.localFoldersUnavailable",
-        "Folders are cloud-only - save a file to the cloud to organise it.",
-      );
-    }
-    if (
-      currentTab === "recent" ||
-      currentTab === "shared" ||
-      currentTab === "sharedByMe"
-    ) {
+    if (currentTab === "recent") {
       return t(
         "filesPage.newFolderTabUnavailable",
-        "Switch to All or Cloud to create folders.",
-      );
-    }
-    if (!folders.serverReachable) {
-      return t(
-        "filesPage.newFolderStorageDisabled",
-        "Server folder storage isn't enabled. Ask your admin to turn it on.",
+        "Switch to All to create folders.",
       );
     }
     return null;
-  }, [signInRequiredReason, currentTab, folders.serverReachable, t]);
+  }, [currentTab, t]);
 
   return (
     <div className="files-page" ref={dropZoneRef}>
       <header className="files-page-header">
-        {/* Breadcrumb only for folder-rooted tabs. */}
-        {(currentTab === "all" || currentTab === "cloud") && <Breadcrumbs />}
-        {(currentTab === "local" ||
-          currentTab === "recent" ||
-          currentTab === "shared" ||
-          currentTab === "sharedByMe") && (
+        {currentTab === "all" && <Breadcrumbs />}
+        {currentTab === "recent" && (
           <div
             style={{
               fontSize: "0.95rem",
@@ -848,13 +703,7 @@ export default function FileManagerView() {
               color: "var(--c-text)",
             }}
           >
-            {currentTab === "local"
-              ? t("filesPage.tabName.local", "Local")
-              : currentTab === "recent"
-                ? t("filesPage.tabName.recent", "Recent")
-                : currentTab === "shared"
-                  ? t("filesPage.tabName.shared", "Shared with me")
-                  : t("filesPage.tabName.sharedByMe", "Shared by me")}
+            {t("filesPage.tabName.recent", "Recent")}
           </div>
         )}
         {(() => {
@@ -863,25 +712,7 @@ export default function FileManagerView() {
           const handleRefresh = async () => {
             setRefreshing(true);
             try {
-              // pullFromServer bumps the folder revision, which the
-              // FolderProvider's effect reacts to by re-running refresh() -
-              // no need to await folders.refresh() manually.
-              const result = await folders.pullFromServer();
-              if (!result.ok && result.reason !== "endpoint-missing") {
-                folders.setError(
-                  result.reason === "network"
-                    ? t(
-                        "filesPage.syncError.network",
-                        "Could not reach the server.",
-                      )
-                    : result.reason === "server"
-                      ? t(
-                          "filesPage.syncError.server",
-                          "Server error during folder sync.",
-                        )
-                      : t("filesPage.syncError.client", "Folder sync failed."),
-                );
-              }
+              await folders.refresh();
               await refresh();
             } finally {
               setRefreshing(false);
@@ -896,20 +727,17 @@ export default function FileManagerView() {
               />
               <div className="files-page-header-actions">
                 <Tooltip
-                  label={
-                    signInRequiredReason ??
-                    t("filesPage.refresh", "Refresh from server")
-                  }
+                  label={t("filesPage.refresh", "Refresh files")}
                   withinPortal
                 >
                   <ActionIcon
                     variant="secondary"
                     size="sm"
                     loading={refreshing}
-                    disabled={refreshing || Boolean(signInRequiredReason)}
+                    disabled={refreshing}
                     aria-busy={refreshing}
                     onClick={handleRefresh}
-                    aria-label={t("filesPage.refresh", "Refresh from server")}
+                    aria-label={t("filesPage.refresh", "Refresh files")}
                   >
                     <RefreshIcon />
                   </ActionIcon>
@@ -1013,11 +841,6 @@ export default function FileManagerView() {
         </div>
       )}
 
-      {/* No offline banner: when the folder API is unreachable the user
-          still sees their cached local files (the IDB read survives), and
-          folder-mutation controls are individually disabled with their own
-          tooltips. Banner removed per UX feedback. */}
-
       <div className="files-page-body">
         <main className="files-page-main">
           {/* Tab strip filters the file list; ARIA Tabs keyboard model. */}
@@ -1025,19 +848,6 @@ export default function FileManagerView() {
             const TAB_DEFS = [
               { id: "all", label: t("filesPage.tabs.all", "All") },
               { id: "recent", label: t("filesPage.tabs.recent", "Recent") },
-              // Sharing tabs only when sharingEnabled.
-              ...(sharingEnabled
-                ? [
-                    {
-                      id: "shared" as const,
-                      label: t("filesPage.tabs.shared", "Shared with me"),
-                    },
-                    {
-                      id: "sharedByMe" as const,
-                      label: t("filesPage.tabs.sharedByMe", "Shared by me"),
-                    },
-                  ]
-                : []),
             ] as const;
             const focusTab = (id: string) => {
               const el = document.getElementById(`filesPage-tab-${id}`);
@@ -1187,42 +997,6 @@ export default function FileManagerView() {
                           {addLabel}
                         </Button>
                       </Tooltip>
-                      {/* Save to server; shown whenever local-only files are
-                          selected. When storage is off it stays visible but
-                          disabled, tooltip pointing at the admin. */}
-                      {localOnlySelectedStubs.length > 0 && (
-                        <Tooltip
-                          label={
-                            saveToServerDisabledReason ??
-                            t("filesPage.saveToServer", "Save to server")
-                          }
-                          withinPortal
-                          multiline={Boolean(saveToServerDisabledReason)}
-                          w={saveToServerDisabledReason ? 240 : undefined}
-                        >
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            leftSection={<CloudUploadIcon fontSize="small" />}
-                            disabled={Boolean(saveToServerDisabledReason)}
-                            onClick={() =>
-                              setSaveToServerTarget(localOnlySelectedStubs)
-                            }
-                            style={{
-                              // Keep the tooltip hoverable while disabled.
-                              pointerEvents: saveToServerDisabledReason
-                                ? "auto"
-                                : undefined,
-                            }}
-                            aria-label={t(
-                              "filesPage.saveToServer",
-                              "Save to server",
-                            )}
-                          >
-                            {t("filesPage.saveToServer", "Save to server")}
-                          </Button>
-                        </Tooltip>
-                      )}
                       {/* Show details button on compact viewports. */}
                       {selectedFiles.length === 1 &&
                         isCompactDetailsViewport && (
@@ -1294,33 +1068,6 @@ export default function FileManagerView() {
                   aria-hidden="true"
                 />
               )}
-              <Select
-                size="xs"
-                value={originFilter}
-                onChange={(value) =>
-                  value && setOriginFilter(value as FilesPageOriginFilter)
-                }
-                data={[
-                  {
-                    value: "all",
-                    label: t("filesPage.origin.all", "All sources"),
-                  },
-                  {
-                    value: "local",
-                    label: t("filesPage.origin.local", "Local"),
-                  },
-                  {
-                    value: "cloud",
-                    label: t("filesPage.origin.cloud", "Cloud"),
-                  },
-                  {
-                    value: "shared-with-me",
-                    label: t("filesPage.origin.shared", "Shared"),
-                  },
-                ]}
-                style={{ width: 140 }}
-                aria-label={t("filesPage.originFilter", "Filter by source")}
-              />
               {availableTypes.length > 1 && (
                 <MultiSelect
                   size="xs"
@@ -1433,7 +1180,6 @@ export default function FileManagerView() {
               entries={entries}
               loading={loading}
               currentTab={currentTab}
-              serverReachable={folders.serverReachable}
               selectedFileIds={selectedFileIds}
               activeWorkspaceFileIds={activeWorkspaceFileIdSet}
               viewMode={viewMode}
@@ -1464,9 +1210,7 @@ export default function FileManagerView() {
               }}
               onRemoveFiles={handleRemoveFiles}
               onPromptMoveFiles={promptMoveFiles}
-              onSaveToServer={(file) => setSaveToServerTarget([file])}
               onVersionHistory={(file) => setVersionHistoryFile(file)}
-              saveToServerDisabledReason={saveToServerDisabledReason}
               // Center-of-grid CTAs when the empty state shows - same
               // handlers the corner header buttons use so behaviour
               // (disabled tooltips, native file picker, dialog) is
@@ -1484,15 +1228,9 @@ export default function FileManagerView() {
                   {t("filesPage.dropOverlay", "Drop files to upload")}
                 </span>
                 <span className="files-page-drop-overlay-sub">
-                  {/* Behavior contract: per handleNativeUpload above, all
-                      newly-uploaded files start in Local (folderId stays
-                      null) regardless of the current folder view. Saying
-                      "will land in {folder}" was a lie; tell the truth
-                      so the user reaches for Save-to-cloud / Move-to when
-                      they actually want a folder placement. */}
                   {t(
                     "filesPage.dropOverlaySub",
-                    "Files start in Local. Use 'Move to' or 'Save to cloud' to organise them into a folder.",
+                    "Use Move to organise files into a folder.",
                   )}
                 </span>
               </div>
@@ -1510,8 +1248,6 @@ export default function FileManagerView() {
             onAddToWorkspace={handleAddToWorkspace}
             onMove={promptMoveFiles}
             onRemove={handleRemoveFiles}
-            onSaveToServer={(files) => setSaveToServerTarget(files)}
-            saveToServerDisabledReason={saveToServerDisabledReason}
           />
         )}
       </div>
@@ -1536,8 +1272,6 @@ export default function FileManagerView() {
               onAddToWorkspace={handleAddToWorkspace}
               onMove={promptMoveFiles}
               onRemove={handleRemoveFiles}
-              onSaveToServer={(files) => setSaveToServerTarget(files)}
-              saveToServerDisabledReason={saveToServerDisabledReason}
               compactVersions
               onOpenVersionHistory={() => {
                 const f = fileMap.get(selectedFiles[0]);
@@ -1564,12 +1298,8 @@ export default function FileManagerView() {
             await moveFolderTo(moveDialog.folderId, target);
           }
         }}
-        // Inline-create folder; gated on serverReachable.
-        onCreateFolder={
-          folders.serverReachable
-            ? (name, parentFolderId) =>
-                folders.createFolder(name, parentFolderId)
-            : undefined
+        onCreateFolder={(name, parentFolderId) =>
+          folders.createFolder(name, parentFolderId)
         }
       />
 
@@ -1617,7 +1347,6 @@ export default function FileManagerView() {
         }}
       />
 
-      {/* Cloud-aware delete; offers local/cloud/both when a file lives in both. */}
       <DeleteFilesDialog
         opened={deleteDialogOpen}
         files={deleteDialogFiles}
@@ -1631,15 +1360,6 @@ export default function FileManagerView() {
         onClose={() => setVersionHistoryFile(null)}
         file={versionHistoryFile}
         onChanged={refresh}
-      />
-
-      {/* Save-to-server modal; keyed on target so updates don't retarget. */}
-      <BulkUploadToServerModal
-        key={`save-${(saveToServerTarget ?? []).map((s) => s.id).join(",")}`}
-        opened={Boolean(saveToServerTarget && saveToServerTarget.length > 0)}
-        onClose={() => setSaveToServerTarget(null)}
-        files={saveToServerTarget ?? []}
-        onUploaded={refresh}
       />
 
       <MobileUploadModal

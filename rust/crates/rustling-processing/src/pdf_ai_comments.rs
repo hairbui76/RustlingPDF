@@ -366,7 +366,7 @@ fn truncate_for_error(value: &str) -> String {
 fn environment_value(names: &[&str]) -> Option<String> {
     names
         .iter()
-        .find_map(|name| crate::env_compat::var(name).ok())
+        .find_map(|name| crate::environment::var(name).ok())
 }
 
 fn environment_bool(names: &[&str], default: bool) -> bool {

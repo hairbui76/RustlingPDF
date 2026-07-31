@@ -14,7 +14,7 @@ use zip::ZipArchive;
 #[tokio::test]
 async fn extracts_unique_page_images_as_png_jpeg_and_gif() -> Result<(), Box<dyn std::error::Error>>
 {
-    let native = rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some();
+    let native = rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some();
     for (wire_format, extension, image_format) in [
         ("png", "png", ImageFormat::Png),
         ("jpg", "jpg", ImageFormat::Jpeg),
@@ -73,7 +73,7 @@ async fn require_status(
 }
 
 async fn post_pdf(pdf: &[u8], format: &str) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-extract-images-boundary";
+    let boundary = "rustling-extract-images-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

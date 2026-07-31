@@ -5,7 +5,7 @@
 
 import { generateId } from "@app/utils/generateId";
 
-const BROWSER_ID_KEY = "stirling_browser_id";
+const BROWSER_ID_KEY = "rustling_browser_id";
 
 /**
  * Gets or creates a unique browser identifier

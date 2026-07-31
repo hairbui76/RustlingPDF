@@ -459,7 +459,7 @@ pub(crate) async fn build_operation_request(
     supporting_files: &SupportingFiles,
 ) -> Result<Request<Body>, PipelineFailure> {
     let boundary = format!(
-        "stirling-pipeline-{}",
+        "rustling-pipeline-{}",
         MULTIPART_BOUNDARY_COUNTER.fetch_add(1, Ordering::Relaxed)
     );
     let mut parts = Vec::new();
@@ -870,7 +870,7 @@ pub(crate) fn validate_operation_path(operation: &str) -> Result<(), PipelineFai
 }
 
 fn parse_report_header(headers: &HeaderMap, operation: &str) -> Option<Value> {
-    let raw = headers.get("X-Stirling-Tool-Report")?.to_str().ok()?.trim();
+    let raw = headers.get("X-Rustling-Tool-Report")?.to_str().ok()?.trim();
     if raw.is_empty() {
         return None;
     }
@@ -880,7 +880,7 @@ fn parse_report_header(headers: &HeaderMap, operation: &str) -> Option<Value> {
             tracing::warn!(
                 operation,
                 %error,
-                "ignoring malformed X-Stirling-Tool-Report header"
+                "ignoring malformed X-Rustling-Tool-Report header"
             );
             None
         }

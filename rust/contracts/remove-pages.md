@@ -1,6 +1,6 @@
 # `POST /api/v1/general/remove-pages`
 
-Rust compatibility contract for `RearrangePagesPDFController.deletePages()`.
+Current contract for removing PDF pages.
 
 ## Request
 

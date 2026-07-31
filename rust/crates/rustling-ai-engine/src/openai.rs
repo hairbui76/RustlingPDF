@@ -34,9 +34,9 @@ impl OpenAiClassifierModel {
     /// Returns an error for missing credentials, an unsupported model name, or
     /// a base URL that is not absolute HTTP(S).
     pub fn from_environment(model_name: &str) -> Result<Self, ModelError> {
-        let api_key = crate::env_compat::var("OPENAI_API_KEY")
+        let api_key = crate::environment::var("OPENAI_API_KEY")
             .map_err(|_| ModelError::new("OPENAI_API_KEY is not configured"))?;
-        let base_url = crate::env_compat::var("OPENAI_BASE_URL")
+        let base_url = crate::environment::var("OPENAI_BASE_URL")
             .unwrap_or_else(|_| DEFAULT_BASE_URL.to_owned());
         Self::new(model_name, api_key, base_url)
     }
@@ -78,10 +78,10 @@ impl OpenAiClassifierModel {
     pub fn from_pushed_config(bare_model: &str, api_key: Option<&str>) -> Result<Self, ModelError> {
         let api_key = match api_key {
             Some(api_key) if !api_key.is_empty() => api_key.to_owned(),
-            _ => crate::env_compat::var("OPENAI_API_KEY")
+            _ => crate::environment::var("OPENAI_API_KEY")
                 .map_err(|_| ModelError::new("OPENAI_API_KEY is not configured"))?,
         };
-        let base_url = crate::env_compat::var("OPENAI_BASE_URL")
+        let base_url = crate::environment::var("OPENAI_BASE_URL")
             .unwrap_or_else(|_| DEFAULT_BASE_URL.to_owned());
         Self::new(&format!("openai:{bare_model}"), api_key, base_url)
     }
@@ -238,7 +238,7 @@ fn completions_endpoint(base_url: &str) -> Result<String, ModelError> {
 }
 
 fn optional_environment_value(name: &str) -> Result<Option<String>, ModelError> {
-    match crate::env_compat::var(name) {
+    match crate::environment::var(name) {
         Ok(value) => Ok(Some(value)),
         Err(env::VarError::NotPresent) => Ok(None),
         Err(env::VarError::NotUnicode(_)) => Err(ModelError::new(format!(

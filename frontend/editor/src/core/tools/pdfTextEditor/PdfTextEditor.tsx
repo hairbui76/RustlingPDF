@@ -15,7 +15,7 @@ import {
   useNavigationState,
 } from "@app/contexts/NavigationContext";
 import { useViewer } from "@app/contexts/ViewerContext";
-import { createStirlingFilesAndStubs } from "@app/services/fileStubHelpers";
+import { createRustlingFilesAndStubs } from "@app/services/fileStubHelpers";
 import { BaseToolProps, ToolComponent } from "@app/types/tool";
 import type { FileId } from "@app/types/file";
 import { getDefaultWorkbench } from "@app/types/workbench";
@@ -1460,7 +1460,7 @@ const PdfTextEditor = ({ onComplete, onError }: BaseToolProps) => {
       }
 
       const sourceFileId = sourceFileIdRef.current;
-      const parentStub = selectors.getStirlingFileStub(sourceFileId);
+      const parentStub = selectors.getRustlingFileStub(sourceFileId);
       if (!parentStub) {
         console.warn(
           "[PdfTextEditor] Could not find parent stub for save to workbench",
@@ -1659,15 +1659,15 @@ const PdfTextEditor = ({ onComplete, onError }: BaseToolProps) => {
         type: "application/pdf",
       });
 
-      // Create StirlingFile and stub for the output
-      const { stirlingFiles, stubs } = await createStirlingFilesAndStubs(
+      // Create RustlingFile and stub for the output
+      const { rustlingFiles, stubs } = await createRustlingFilesAndStubs(
         [pdfFile],
         parentStub,
         "pdfTextEditor",
       );
 
       // Replace the original file with the edited version
-      await consumeFiles([sourceFileId], stirlingFiles, stubs);
+      await consumeFiles([sourceFileId], rustlingFiles, stubs);
 
       // Update the source file ID to point to the new file
       sourceFileIdRef.current = stubs[0].id;

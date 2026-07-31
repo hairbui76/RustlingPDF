@@ -94,11 +94,10 @@ fn check_default_windows() -> Result<bool, String> {
 
             add_log(format!("Windows PDF handler ProgID: {}", default_str));
 
-            // The MSI registers the ProgID as "{productName}.pdf" ("RustlingPDF.pdf");
-            // installs upgraded from the pre-rename releases may still resolve the old
-            // "Stirling PDF.pdf" ProgID, so accept both (case-insensitive).
+            // The MSI registers the ProgID as "{productName}.pdf"
+            // ("RustlingPDF.pdf").
             let lowered = default_str.to_lowercase();
-            let is_default = lowered.contains("rustling") || lowered.contains("stirling");
+            let is_default = lowered.contains("rustlingpdf");
             Ok(is_default)
         })();
 
@@ -168,7 +167,7 @@ fn check_default_macos() -> Result<bool, String> {
         add_log(format!("macOS PDF handler: {}", handler_str));
 
         // Check if it's our bundle identifier
-        let is_default = handler_str == "stirling.pdf.dev";
+        let is_default = handler_str == "io.github.hairbui76.rustlingpdf";
         Ok(is_default)
     }
 }
@@ -194,7 +193,7 @@ fn set_default_macos() -> Result<String, String> {
     unsafe {
         // Set our app as the default handler for PDF files
         let pdf_uti = CFString::new("com.adobe.pdf");
-        let our_bundle_id = CFString::new("stirling.pdf.dev");
+        let our_bundle_id = CFString::new("io.github.hairbui76.rustlingpdf");
 
         let status = LSSetDefaultRoleHandlerForContentType(
             pdf_uti.as_concrete_TypeRef(),

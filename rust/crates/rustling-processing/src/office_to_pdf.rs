@@ -1,9 +1,7 @@
-//! Office/text document to PDF conversion via `LibreOffice`, ported from
-//! `ConvertOfficeController`.
+//! Office/text document to PDF conversion via `LibreOffice`.
 //!
-//! Like the QPDF adapter, this shells out to the same external
-//! tool the Java service uses (`soffice --headless --convert-to pdf`). HTML/HTM
-//! inputs pass through the shared strict HTML sanitizer before `LibreOffice` sees
+//! The adapter invokes `soffice --headless --convert-to pdf`. HTML/HTM inputs
+//! pass through the shared strict HTML sanitizer before `LibreOffice` sees
 //! them. OOXML/ODF packages are rewritten by the office sanitizer, preventing
 //! external-resource SSRF and active-content execution.
 
@@ -280,7 +278,7 @@ fn prepare_conversion_input(
 }
 
 fn soffice_commands() -> Vec<String> {
-    if let Ok(command) = crate::env_compat::var(SOFFICE_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(SOFFICE_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];

@@ -52,17 +52,6 @@ export default class ErrorBoundary extends React.Component<
       }
     }
 
-    // Check localStorage for auth state
-    try {
-      const jwt = localStorage.getItem("stirling_jwt");
-      console.error("Auth state:", {
-        hasJWT: !!jwt,
-        jwtLength: jwt?.length || 0,
-      });
-    } catch (e) {
-      console.error("Could not check localStorage:", e);
-    }
-
     console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   }
 

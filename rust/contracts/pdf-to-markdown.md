@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/pdf/markdown`
 
-Rust compatibility contract for `ConvertPDFToMarkdown`.
+Current contract for PDF-to-Markdown conversion.
 
 ## Request and response
 
@@ -11,8 +11,8 @@ Rust compatibility contract for `ConvertPDFToMarkdown`.
 ## Behavior
 
 When the `PDFium` runtime is available, the implementation reconstructs visual lines
-from page text geometry and infers headings by font size, porting Java's
-`HeadingDetector`: it computes the document's median glyph font size and median line
+from page text geometry and infers headings by font size. It computes the
+document's median glyph font size and median line
 height, then for each line compares its dominant glyph size (or line height when sizes
 are degenerate, i.e. ≤ 2.0) against the corresponding body median. A ratio above 1.4
 becomes `#`, above 1.2 becomes `##`; lines longer than twelve words or ending in
@@ -21,8 +21,8 @@ Non-heading lines are rebuilt into paragraphs (broken at vertical gaps and page
 boundaries), bullets become list items, lower-case soft-hyphen breaks are repaired, and
 inline Markdown controls are escaped so text stays literal.
 
-Two-column reading order is also inferred, porting Java's `detectsTwoColumns` and
-`splitIntoColumns`. Per page, if there are at least eight lines spanning at least 200
+Two-column reading order is also inferred. Per page, if there are at least
+eight lines spanning at least 200
 units and a central-band gutter (35 %–65 % of the used width) exists that few lines
 cross while both sides carry at least four lines, the page is split at the widest gap
 between body-width (≥ 40 unit) line left edges; the left column is emitted top-to-bottom
@@ -42,11 +42,11 @@ reaching that bound means the reconstruction is incomplete, so the route returns
 document silently missing. A successful response therefore always covers the whole
 input.
 
-## Parity gaps
+## Limitations
 
-Java's `PdfMarkdownConverter` also infers borderless/ruled tables, table continuation
-across pages, bold-label emphasis, and images. Those layout-specific features are
-deliberately not yet claimed; the ported slice covers size-based heading inference,
+Borderless and ruled tables, table continuation across pages, bold-label
+emphasis, and images are not yet inferred. The current implementation covers
+size-based heading inference,
 two-column reading order, and textual content in page order.
 
 Column detection is only as good as the line assembly it runs on. Lines are built by
@@ -59,7 +59,7 @@ whose content stream emits one column at a time are detected as documented above
 
 ## Verification
 
-Unit tests cover the ported `heading_prefix` decision (size-ratio thresholds, the
+Unit tests cover the `heading_prefix` decision (size-ratio thresholds, the
 word-count cap, sentence suppression, and the line-height fallback), the `median`
 helper, `detects_two_columns` (gutter layout accepted; full-width/narrow/short pages
 rejected), `split_into_columns` (widest-gap split, single-cluster and no-body-width

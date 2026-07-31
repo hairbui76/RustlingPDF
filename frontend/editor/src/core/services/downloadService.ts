@@ -2,8 +2,7 @@ export interface DownloadRequest {
   data: Blob | File;
   filename: string;
   localPath?: string;
-  /** Workspace fileId of the file being exported, when known. Lets export-time
-   *  policy enforcement version the in-editor file (not just the download). */
+  /** Workspace fileId associated with the download, when known. */
   fileId?: string;
 }
 

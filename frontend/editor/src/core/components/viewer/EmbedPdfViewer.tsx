@@ -32,8 +32,8 @@ import type {
   SignaturePreview,
   SignatureOverlayAPI,
 } from "@app/components/viewer/viewerTypes";
-import { createStirlingFilesAndStubs } from "@app/services/fileStubHelpers";
-import { isStirlingFile, getFormFillFileId } from "@app/types/fileContext";
+import { createRustlingFilesAndStubs } from "@app/services/fileStubHelpers";
+import { isRustlingFile, getFormFillFileId } from "@app/types/fileContext";
 import { useViewerWorkbenchBarButtons } from "@app/components/viewer/useViewerWorkbenchBarButtons";
 import { StampPlacementOverlay } from "@app/components/viewer/StampPlacementOverlay";
 import {
@@ -47,7 +47,6 @@ import { useWheelZoom } from "@app/hooks/useWheelZoom";
 import { useFormFill } from "@app/tools/formFill/FormFillContext";
 import { FormSaveBar } from "@app/tools/formFill/FormSaveBar";
 import { useViewerKeyCommand } from "@app/hooks/useViewerKeyCommand";
-import { usePolicyFileBadges } from "@app/hooks/usePolicyFileBadges";
 import { alert } from "@app/components/toast";
 
 // ─── Measure dictionary extraction ────────────────────────────────────────────
@@ -296,7 +295,7 @@ const EmbedPdfViewerContent = ({
   // Enable redaction only when redaction tool is selected
   const shouldEnableRedaction = selectedTool === "redact";
 
-  // FormFill tool mode — uses PDFBox backend for full-fidelity form handling
+  // FormFill tool mode uses the processing API for full-fidelity form handling.
   const isFormFillToolActive = (selectedTool as string) === "formFill";
 
   // Form overlays are shown in BOTH modes:
@@ -306,7 +305,7 @@ const EmbedPdfViewerContent = ({
 
   // Switch the provider when the tool mode changes
   useEffect(() => {
-    setProviderMode(isFormFillToolActive ? "pdfbox" : "pdflib");
+    setProviderMode(isFormFillToolActive ? "backend" : "pdflib");
   }, [isFormFillToolActive, setProviderMode]);
 
   // Track previous annotation/redaction state to detect tool switches
@@ -365,7 +364,7 @@ const EmbedPdfViewerContent = ({
     } else if (activeFiles.length > 0) {
       const byId = activeFileId
         ? activeFiles.find(
-            (f) => isStirlingFile(f) && f.fileId === activeFileId,
+            (f) => isRustlingFile(f) && f.fileId === activeFileId,
           )
         : null;
       return byId || activeFiles[0];
@@ -375,7 +374,7 @@ const EmbedPdfViewerContent = ({
 
   // Stable id — avoids blob URL churn when FileContext recreates file objects each render.
   const currentFileStableId =
-    currentFile && isStirlingFile(currentFile) ? currentFile.fileId : null;
+    currentFile && isRustlingFile(currentFile) ? currentFile.fileId : null;
   const fileWithUrl = useFileWithUrl(currentFile, currentFileStableId);
 
   // Determine the effective file to display
@@ -393,13 +392,13 @@ const EmbedPdfViewerContent = ({
 
   // Check if the current file is encrypted (gate the viewer to prevent PDFium crash)
   const isCurrentFileEncrypted = React.useMemo(() => {
-    if (!currentFile || !isStirlingFile(currentFile)) return false;
-    const stub = selectors.getStirlingFileStub(currentFile.fileId);
+    if (!currentFile || !isRustlingFile(currentFile)) return false;
+    const stub = selectors.getRustlingFileStub(currentFile.fileId);
     return stub?.processedFile?.isEncrypted === true;
   }, [currentFile, selectors]);
 
   const bookmarkCacheKey = React.useMemo(() => {
-    if (currentFile && isStirlingFile(currentFile)) {
+    if (currentFile && isRustlingFile(currentFile)) {
       return currentFile.fileId;
     }
 
@@ -428,7 +427,7 @@ const EmbedPdfViewerContent = ({
 
     return activeFiles
       .map((file) => {
-        if (isStirlingFile(file)) {
+        if (isRustlingFile(file)) {
           return file.fileId;
         }
         return undefined;
@@ -443,15 +442,6 @@ const EmbedPdfViewerContent = ({
   });
 
   const viewerKeyCommand = useViewerKeyCommand();
-
-  const policyFileBadges = usePolicyFileBadges();
-  const policyEnforcing =
-    !!activeFileId &&
-    (policyFileBadges.get(activeFileId) ?? []).some((p) => p.enforcing);
-  // Use a ref so the keydown handler always reads the latest value without
-  // needing to be in the effect's dependency array.
-  const policyEnforcingRef = useRef(false);
-  policyEnforcingRef.current = policyEnforcing;
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -478,9 +468,7 @@ const EmbedPdfViewerContent = ({
               case "p":
               case "P":
                 event.preventDefault();
-                if (!policyEnforcingRef.current) {
-                  printActions.print();
-                }
+                printActions.print();
                 return;
               case "a":
               case "A":
@@ -721,15 +709,15 @@ const EmbedPdfViewerContent = ({
       const filename = currentFile.name || "document.pdf";
       const file = new File([blob], filename, { type: "application/pdf" });
 
-      // Step 3: Create StirlingFiles and stubs for version history
+      // Step 3: Create RustlingFiles and stubs for version history
       // Only consume the current file, not all active files
       const currentFileId = currentFileStableId;
       if (!currentFileId) throw new Error("Current file ID not found");
 
-      const parentStub = selectors.getStirlingFileStub(currentFileId);
+      const parentStub = selectors.getRustlingFileStub(currentFileId);
       if (!parentStub) throw new Error("Parent stub not found");
 
-      const { stirlingFiles, stubs } = await createStirlingFilesAndStubs(
+      const { rustlingFiles, stubs } = await createRustlingFilesAndStubs(
         [file],
         parentStub,
         selectedTool ?? "multiTool",
@@ -747,7 +735,7 @@ const EmbedPdfViewerContent = ({
       if (newFileId) setActiveFileId(newFileId);
 
       // Step 4: Consume only the current file (replace in context)
-      await actions.consumeFiles([currentFileId], stirlingFiles, stubs);
+      await actions.consumeFiles([currentFileId], rustlingFiles, stubs);
 
       // Mark annotations as saved so navigation away from the viewer is allowed.
       savedAnnotationHistoryApiRef.current = historyApiRef.current;
@@ -819,11 +807,11 @@ const EmbedPdfViewerContent = ({
         const currentFileId = currentFileStableId;
         if (!currentFileId) throw new Error("Current file ID not found");
 
-        const parentStub = selectors.getStirlingFileStub(currentFileId);
+        const parentStub = selectors.getRustlingFileStub(currentFileId);
         if (!parentStub) throw new Error("Parent stub not found");
 
-        // Create StirlingFiles and stubs for version history
-        const { stirlingFiles, stubs } = await createStirlingFilesAndStubs(
+        // Create RustlingFiles and stubs for version history
+        const { rustlingFiles, stubs } = await createRustlingFilesAndStubs(
           [file],
           parentStub,
           selectedTool ?? "multiTool",
@@ -842,7 +830,7 @@ const EmbedPdfViewerContent = ({
         if (newFileId) setActiveFileId(newFileId);
 
         // Replace the current file in context
-        await actions.consumeFiles([currentFileId], stirlingFiles, stubs);
+        await actions.consumeFiles([currentFileId], rustlingFiles, stubs);
 
         console.log("[Viewer] Form fill changes applied successfully");
       } catch (error) {
@@ -892,10 +880,10 @@ const EmbedPdfViewerContent = ({
         const currentFileId = currentFileStableId;
         if (!currentFileId) throw new Error("Current file ID not found");
 
-        const parentStub = selectors.getStirlingFileStub(currentFileId);
+        const parentStub = selectors.getRustlingFileStub(currentFileId);
         if (!parentStub) throw new Error("Parent stub not found");
 
-        const { stirlingFiles, stubs } = await createStirlingFilesAndStubs(
+        const { rustlingFiles, stubs } = await createRustlingFilesAndStubs(
           [file],
           parentStub,
           selectedTool ?? "multiTool",
@@ -909,7 +897,7 @@ const EmbedPdfViewerContent = ({
         const newFileId = stubs[0]?.id;
         if (newFileId) setActiveFileId(newFileId);
 
-        await actions.consumeFiles([currentFileId], stirlingFiles, stubs);
+        await actions.consumeFiles([currentFileId], rustlingFiles, stubs);
       } catch (error) {
         console.error("[Viewer] Apply layer changes failed:", error);
       } finally {
@@ -956,14 +944,14 @@ const EmbedPdfViewerContent = ({
       const filename = currentFile.name || "document.pdf";
       const file = new File([blob], filename, { type: "application/pdf" });
 
-      // Create StirlingFiles and stubs for version history
+      // Create RustlingFiles and stubs for version history
       const currentFileId = currentFileStableId;
       if (!currentFileId) throw new Error("Current file ID not found");
 
-      const parentStub = selectors.getStirlingFileStub(currentFileId);
+      const parentStub = selectors.getRustlingFileStub(currentFileId);
       if (!parentStub) throw new Error("Parent stub not found");
 
-      const { stirlingFiles, stubs } = await createStirlingFilesAndStubs(
+      const { rustlingFiles, stubs } = await createRustlingFilesAndStubs(
         [file],
         parentStub,
         selectedTool ?? "multiTool",
@@ -976,7 +964,7 @@ const EmbedPdfViewerContent = ({
       rotationRestoreAttemptsRef.current = 0;
 
       // Consume only the current file (replace in context)
-      await actions.consumeFiles([currentFileId], stirlingFiles, stubs);
+      await actions.consumeFiles([currentFileId], rustlingFiles, stubs);
 
       // Clear flags
       hasAnnotationChangesRef.current = false;
@@ -1168,7 +1156,7 @@ const EmbedPdfViewerContent = ({
 
   // Auto-fetch form fields when a PDF is loaded in the viewer.
   // In normal viewer mode, this uses PDFium WASM (frontend-only).
-  // In formFill tool mode, this uses PDFBox (backend).
+  // In formFill tool mode, this uses the processing API.
   const formFillFileIdRef = useRef<string | null>(null);
   const formFillProviderRef = useRef(isFormFillToolActive);
 
@@ -1275,7 +1263,7 @@ const EmbedPdfViewerContent = ({
             </Text>
             <Button
               onClick={() => {
-                if (currentFile && isStirlingFile(currentFile)) {
+                if (currentFile && isRustlingFile(currentFile)) {
                   actions.openEncryptedUnlockPrompt(currentFile.fileId);
                 }
               }}
@@ -1307,7 +1295,7 @@ const EmbedPdfViewerContent = ({
               fileName={
                 previewFile
                   ? previewFile.name
-                  : currentFile && isStirlingFile(currentFile)
+                  : currentFile && isRustlingFile(currentFile)
                     ? currentFile.name
                     : effectiveFile?.file instanceof File
                       ? effectiveFile.file.name
@@ -1345,7 +1333,6 @@ const EmbedPdfViewerContent = ({
               file={currentFile ?? null}
               isFormFillToolActive={isFormFillToolActive}
               onApply={handleFormApply}
-              policyEnforcing={policyEnforcing}
             />
             <StampPlacementOverlay
               containerRef={pdfContainerRef}

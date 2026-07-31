@@ -13,7 +13,7 @@
  *     by resetting the timer each time, so only one notification is sent.
  */
 
-const DB_NAME = "stirling-pdf-retry-schedule";
+const DB_NAME = "rustlingpdf-retry-schedule";
 const STORE_NAME = "retries";
 
 let retryTimer = null;

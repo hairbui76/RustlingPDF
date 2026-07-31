@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/auto-rename`
 
-Rust compatibility contract for `AutoRenameController`.
+Current contract for automatic PDF renaming.
 
 ## Request and response
 

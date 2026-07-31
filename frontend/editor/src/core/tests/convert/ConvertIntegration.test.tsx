@@ -28,10 +28,10 @@ import { ToolRegistryProvider } from "@app/contexts/ToolRegistryProvider";
 import { PreferencesProvider } from "@app/contexts/PreferencesContext";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@app/i18n/config";
-import { createTestStirlingFile } from "@app/tests/utils/testFileHelpers";
+import { createTestRustlingFile } from "@app/tests/utils/testFileHelpers";
 import { expectConsole } from "@app/tests/failOnConsole";
 import { fileStorage } from "@app/services/fileStorage";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 import { MantineProvider } from "@mantine/core";
 
 // Mock axios (for static methods like CancelToken, isCancel)
@@ -80,7 +80,7 @@ vi.mock("../../services/fileStorage", () => ({
         thumbnail: thumbnail,
       });
     }),
-    storeStirlingFile: vi.fn().mockResolvedValue(undefined),
+    storeRustlingFile: vi.fn().mockResolvedValue(undefined),
     persistVersionedOutputs: vi.fn().mockResolvedValue(undefined),
     getAllFileMetadata: vi.fn().mockResolvedValue([]),
     cleanup: vi.fn().mockResolvedValue(undefined),
@@ -98,10 +98,10 @@ vi.mock("../../services/thumbnailGenerationService", () => ({
 }));
 
 // Create realistic test files
-const createPDFFile = (): StirlingFile => {
+const createPDFFile = (): RustlingFile => {
   const pdfContent =
     "%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\ntrailer\n<<\n/Size 2\n/Root 1 0 R\n>>\nstartxref\n0\n%%EOF";
-  return createTestStirlingFile("test.pdf", pdfContent, "application/pdf");
+  return createTestRustlingFile("test.pdf", pdfContent, "application/pdf");
 };
 
 // Test wrapper component
@@ -222,7 +222,7 @@ describe("Convert Tool Integration Tests", () => {
         wrapper: TestWrapper,
       });
 
-      const testFile = createTestStirlingFile(
+      const testFile = createTestRustlingFile(
         "invalid.txt",
         "not a pdf",
         "text/plain",
@@ -524,7 +524,7 @@ describe("Convert Tool Integration Tests", () => {
       });
       const files = [
         createPDFFile(),
-        createTestStirlingFile("test2.pdf", "%PDF-1.4...", "application/pdf"),
+        createTestRustlingFile("test2.pdf", "%PDF-1.4...", "application/pdf"),
       ];
       const parameters: ConvertParameters = {
         fromExtension: "pdf",
@@ -633,7 +633,7 @@ describe("Convert Tool Integration Tests", () => {
         wrapper: TestWrapper,
       });
 
-      const corruptedFile = createTestStirlingFile(
+      const corruptedFile = createTestRustlingFile(
         "corrupted.pdf",
         "not-a-pdf",
         "application/pdf",
@@ -874,18 +874,13 @@ describe("Convert Tool Integration Tests", () => {
  *    - Test concurrent conversion requests
  *    - Test timeout handling for long-running conversions
  *
- * 3. **Authentication Integration**
- *    - Test conversions with and without authentication
- *    - Test rate limiting and user quotas
- *    - Test permission-based endpoint access
- *
- * 4. **File Preview Integration**
+ * 3. **File Preview Integration**
  *    - Test that converted files integrate correctly with viewer
  *    - Test thumbnail generation for converted files
  *    - Test file download functionality
  *    - Test FileContext persistence across tool switches
  *
- * 5. **Endpoint Availability Tests**
+ * 4. **Endpoint Availability Tests**
  *    - Test real endpoint availability checking
  *    - Test graceful degradation when endpoints are disabled
  *    - Test dynamic endpoint configuration updates

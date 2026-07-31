@@ -44,7 +44,7 @@ export function useLazyThumbnail(
   const [thumb, setThumb] = useState<string | undefined>(thumbnailUrl);
   const attempted = useRef(false);
   const indexedDB = useIndexedDB();
-  const { updateStirlingFileStub } = useFileManagement();
+  const { updateRustlingFileStub } = useFileManagement();
 
   useEffect(() => {
     if (thumbnailUrl) setThumb(thumbnailUrl);
@@ -67,7 +67,7 @@ export function useLazyThumbnail(
         if (cancelled || !thumbnail) return;
         setThumb(thumbnail);
         void indexedDB.updateThumbnail(fileId, thumbnail);
-        updateStirlingFileStub(fileId, { thumbnailUrl: thumbnail });
+        updateRustlingFileStub(fileId, { thumbnailUrl: thumbnail });
       } catch {
         // non-critical
       }
@@ -76,7 +76,7 @@ export function useLazyThumbnail(
     return () => {
       cancelled = true;
     };
-  }, [fileId, size, thumbnailUrl, indexedDB, updateStirlingFileStub]);
+  }, [fileId, size, thumbnailUrl, indexedDB, updateRustlingFileStub]);
 
   return thumb;
 }

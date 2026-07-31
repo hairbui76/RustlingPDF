@@ -42,8 +42,8 @@ unselected pages unchanged.
 
 Repeated visual invocations on one page are rewritten through private Form graphs, so one visual
 instance cannot mutate its sibling. Cyclic Form back-edges remain a safe sequence boundary. Text
-whose active font has no usable encoding is likewise a safe boundary. Java's full JSON rebuild can
-reconstruct additional font programs; that remains an advanced-editor parity limit.
+whose active font has no usable encoding is likewise a safe boundary. Reconstructing
+additional font programs remains an advanced-editor limitation.
 
 ## Verification
 

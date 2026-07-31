@@ -57,16 +57,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     && install -D -m 0755 target/release/rustling-ai-engine  /out/rustling-ai-engine
 
 ########################################################################
-# Stage 2: Frontend production build (Vite, proprietary flavor)
+# Stage 2: Frontend production build (open-source core)
 ########################################################################
-# Flavor decision: upstream Stirling-PDF's self-hosted embedded image builds
-# with RUSTLING_FLAVOR=proprietary (docker/embedded/Dockerfile, the default),
-# and this repository's own default dev/build mode is proprietary too
-# (vite.config.ts falls back to "proprietary"; `task frontend:dev` runs it).
-# The proprietary build degrades to core behavior at runtime via
-# /api/v1/config/app-config flags (login/premium stay off in open mode), so it
-# is the closest match to upstream's shipped self-hosted web UI.
-#
 # Node 22: vite ^7.3 requires ^20.19 || >=22.12 (same reasoning as CI).
 FROM node:22-slim AS frontend-build
 
@@ -75,12 +67,12 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 COPY frontend/ ./
-# Same prepare steps `task frontend:build:proprietary` runs (env placeholder
+# Same prepare steps `task frontend:build:core` runs (env placeholder
 # files, generated icon set, OG metadata), then the production build.
 RUN npx tsx editor/scripts/setup-env.mts \
     && node editor/scripts/generate-icons.js \
     && node editor/scripts/generate-og-metadata.mjs \
-    && npx vite build editor --mode proprietary
+    && npx vite build editor --mode core
 
 ########################################################################
 # Stage 3: PDFium (pinned revision, arch-correct, checksum-verified)
@@ -105,7 +97,7 @@ FROM debian:trixie-slim AS ai-engine
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl tini \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin stirling
+    && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin rustling
 
 COPY --from=rust-build --chown=root:root /out/rustling-ai-engine /app/rustling-ai-engine
 
@@ -129,7 +121,7 @@ LABEL org.opencontainers.image.title="RustlingPDF AI engine" \
       org.opencontainers.image.created="${CREATED}"
 
 EXPOSE 5001/tcp
-USER stirling
+USER rustling
 WORKDIR /app
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=5 \
@@ -146,7 +138,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
-# External tools, versus upstream Stirling-PDF's standard image (docker/base):
+# External tools included in the runtime image:
 #   included — LibreOffice (writer/calc/impress/draw, -nogui variants),
 #     qpdf (trixie's 12.2 satisfies the >=12 minimum),
 #     Tesseract + eng + osd, OCRmyPDF (+unpaper/pngquant helpers), WeasyPrint
@@ -161,9 +153,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 #     needs; the Rust service calls soffice directly), unrar and 7zip-rar
 #     (non-free, so CBR->PDF self-disables: this image's 7zip has no RAR
 #     codec and no unrar/7zip-rar fallback, so the startup probe reports the
-#     route dependency-disabled instead of shipping a decompressor-less
-#     fallback), ffmpeg (PDF->video stays an explicit opt-in), veraPDF,
-#     xvfb (the -nogui LibreOffice builds convert headless without X).
+#     route dependency-disabled), ffmpeg (PDF->video stays an explicit
+#     opt-in), veraPDF, xvfb (the -nogui LibreOffice builds convert headless
+#     without X).
 # Ghostscript is no longer requested: no code path in this service invokes `gs`
 # (it was removed for its AGPL-3.0-or-commercial licence). It nevertheless still
 # lands in the image, because `ocrmypdf` hard-Depends on it — measured on
@@ -171,9 +163,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # explicit entry (367 packages, ~1039 MiB installed). Dropping `ocrmypdf` too
 # would take Ghostscript out and save ~81 MiB (320 packages, ~958 MiB), at the
 # cost of the preferred OCR engine; that is a separate product decision.
-# This sits between upstream's "standard" and "ultra-lite" variants: every
-# common conversion tools, with graceful DEPENDENCY degradation for optional
-# tools omitted by the image.
+# Common conversion tools are included, with graceful DEPENDENCY degradation
+# for optional tools omitted by the image.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl tini fontconfig \
       libreoffice-writer-nogui libreoffice-calc-nogui \
@@ -187,8 +178,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-crosextra-caladea fonts-crosextra-carlito \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f \
-    && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin stirling \
-    && mkdir -p /data/configs && chown -R stirling:stirling /data
+    && useradd --uid 1000 --user-group --create-home --shell /usr/sbin/nologin rustling \
+    && mkdir -p /data/configs && chown -R rustling:rustling /data
 # /data/configs exists only as a convenient mount point for operator-supplied
 # configuration (see the RUSTLING_BASE_PATH comment below); the server never
 # writes to it.
@@ -204,15 +195,15 @@ COPY --from=frontend-build --chown=root:root /build/frontend/editor/dist/ /app/f
 # /data too. The server is stateless — it only ever READS from /data, so the
 # whole tree can be bind-mounted read-only (e.g. -v ./data:/data:ro). With
 # nothing mounted the image works out of the box: built-in template defaults
-# plus SYSTEM_*/SECURITY_*/RUSTLING_* env overrides (legacy STIRLING_*
-# aliases) apply. Job scratch space lives in the container's own tmp dir and
+# plus supported environment overrides apply. Job scratch space lives in the
+# container's own tmp dir and
 # is swept on a TTL, so no volume is declared.
 ENV RUSTLING_HOST=0.0.0.0 \
     RUSTLING_PORT=8080 \
     RUSTLING_BASE_PATH=/data \
     RUSTLING_FRONTEND_DIST=/app/frontend \
     RUSTLING_PDFIUM_LIBRARY_PATH=/app/pdfium/libpdfium.so \
-    HOME=/home/stirling
+    HOME=/home/rustling
 
 # Stage-local redeclarations pick up the global defaults above (or the
 # release workflow's --build-arg values). licenses matches the root LICENSE.
@@ -231,7 +222,7 @@ LABEL org.opencontainers.image.title="RustlingPDF" \
 
 EXPOSE 8080/tcp
 STOPSIGNAL SIGTERM
-USER stirling
+USER rustling
 WORKDIR /app
 
 HEALTHCHECK --interval=30s --timeout=15s --start-period=15s --retries=5 \

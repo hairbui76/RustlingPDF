@@ -1,8 +1,7 @@
 # AI document-to-PDF agent
 
-`POST /api/v1/ai/tools/create-pdf-from-html-agent` ports the proprietary
-dispatchable tool that turns the structured AI document model into a PDF. The
-name is retained for Java workflow compatibility; clients do not submit HTML.
+`POST /api/v1/ai/tools/create-pdf-from-html-agent` turns the structured AI
+document model into a PDF. Despite the route name, clients do not submit HTML.
 
 ## Request
 

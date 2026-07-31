@@ -59,7 +59,7 @@ async fn post_multipart(
     file: Option<(&str, &str, &[u8])>,
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-redaction-boundary";
+    let boundary = "rustlingpdf-redaction-boundary";
     let mut body = Vec::new();
     if let Some((filename, content_type, bytes)) = file {
         body.extend_from_slice(

@@ -1,4 +1,4 @@
-//! PDF OCR via `OCRmyPDF` or per-page Tesseract, ported from `OCRController`.
+//! PDF OCR via `OCRmyPDF` or per-page Tesseract.
 //!
 //! `OCRmyPDF` remains preferred. When it is disabled or unavailable, `PDFium`
 //! renders the Java-compatible page selection and Tesseract produces searchable
@@ -540,7 +540,7 @@ fn write_sidecar_zip(
 }
 
 fn default_ocrmypdf_commands() -> Vec<String> {
-    if let Ok(command) = crate::env_compat::var(OCRMYPDF_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(OCRMYPDF_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];
@@ -553,7 +553,7 @@ fn default_ocrmypdf_commands() -> Vec<String> {
 }
 
 fn default_tesseract_commands() -> Vec<String> {
-    if let Ok(command) = crate::env_compat::var(TESSERACT_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(TESSERACT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];

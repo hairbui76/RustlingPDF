@@ -19,7 +19,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import CloseIcon from "@mui/icons-material/Close";
 import { useFormFill } from "@app/tools/formFill/FormFillContext";
-import { downloadFileWithPolicy } from "@app/services/exportWithPolicy";
+import { downloadFile } from "@app/services/downloadService";
 
 interface FormSaveBarProps {
   /** The current file being viewed */
@@ -28,15 +28,12 @@ interface FormSaveBarProps {
   isFormFillToolActive: boolean;
   /** Callback when form changes are applied (should reload PDF with filled values) */
   onApply?: (filledBlob: Blob) => Promise<void>;
-  /** Disable download while an ingestion-time policy run is in flight. */
-  policyEnforcing?: boolean;
 }
 
 export function FormSaveBar({
   file,
   isFormFillToolActive,
   onApply,
-  policyEnforcing = false,
 }: FormSaveBarProps) {
   const { t } = useTranslation();
   const { state, submitForm } = useFormFill();
@@ -75,9 +72,7 @@ export function FormSaveBar({
     setSaving(true);
     try {
       const blob = await submitForm(file, false);
-      // Route through the export gateway so a "run on export" policy enforces on
-      // the filled PDF before it leaves the app (no-op when no such policy is set).
-      await downloadFileWithPolicy({
+      await downloadFile({
         data: blob,
         filename: file instanceof File ? file.name : "filled-form.pdf",
       });
@@ -184,7 +179,7 @@ export function FormSaveBar({
                     size="sm"
                     leftSection={<DownloadIcon sx={{ fontSize: 18 }} />}
                     loading={saving}
-                    disabled={applying || policyEnforcing}
+                    disabled={applying}
                     onClick={handleDownload}
                     style={{ flex: 1 }}
                   >

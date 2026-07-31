@@ -1,10 +1,10 @@
 import React from "react";
 import FileStatusIndicator from "@app/components/tools/shared/FileStatusIndicator";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 import i18n from "@app/i18n";
 
 export interface FilesToolStepProps {
-  selectedFiles: StirlingFile[];
+  selectedFiles: RustlingFile[];
   isCollapsed?: boolean;
   onCollapsedClick?: () => void;
   minFiles?: number;

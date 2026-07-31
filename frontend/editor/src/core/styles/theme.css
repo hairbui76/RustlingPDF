@@ -867,22 +867,18 @@
   fill: var(--mantine-color-body);
 }
 
-/* Wordmark muted variant (empty/placeholder states).
-   Stirling text: 30% opacity in light mode, full opacity in dark. */
-.wordmark__text--muted {
-  fill-opacity: 0.3;
+/* Brand mark, muted variant (empty/placeholder states such as EmptyFilesState
+   and AddFileCard). These used to render the grey lockup asset, whose book was
+   desaturated while the dark-mode asset stayed full colour. The mark-only asset
+   has no grey twin, so reproduce that treatment here: desaturated and slightly
+   faded in light mode, full colour in dark. */
+.brand-mark--muted {
+  filter: grayscale(1);
+  opacity: 0.65;
 }
-[data-mantine-color-scheme="dark"] .wordmark__text--muted {
-  fill-opacity: 1;
-}
-/* PDF text: dimmed red in light mode, standard red in dark */
-.wordmark__pdf--muted {
-  fill: var(--p-c-d62626);
-  fill-opacity: 0.7;
-}
-[data-mantine-color-scheme="dark"] .wordmark__pdf--muted {
-  fill: var(--p-art-red-muted);
-  fill-opacity: 1;
+[data-mantine-color-scheme="dark"] .brand-mark--muted {
+  filter: none;
+  opacity: 1;
 }
 
 /* Snappier View-Transitions for FileEditor card reordering. Each thumbnail

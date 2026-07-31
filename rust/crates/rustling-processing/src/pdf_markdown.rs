@@ -1,10 +1,10 @@
 //! PDF to Markdown conversion.
 //!
 //! When the `PDFium` runtime is available, text is reconstructed with per-line and
-//! per-glyph geometry so headings can be inferred from font size exactly as Java's
-//! `HeadingDetector` does (size-ratio thresholds, brevity, and not-a-sentence signals).
-//! Tables, columns, image placement, and bold-label emphasis remain documented parity
-//! gaps. When `PDFium` is unavailable this falls back to a deterministic lopdf
+//! per-glyph geometry so headings can be inferred from font size using
+//! size-ratio thresholds, brevity, and not-a-sentence signals. Tables, columns,
+//! image placement, and bold-label emphasis remain documented limitations.
+//! When `PDFium` is unavailable this falls back to a deterministic lopdf
 //! text-only baseline that rebuilds paragraphs without heading inference. Both paths
 //! escape Markdown control characters so source PDF text is preserved as literal content.
 

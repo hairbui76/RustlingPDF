@@ -37,7 +37,7 @@ wheels = [
 ]
 
 [[package]]
-name = "stirling-precommit-tools"
+name = "rustling-precommit-tools"
 version = "0"
 source = { virtual = "." }
 dependencies = [

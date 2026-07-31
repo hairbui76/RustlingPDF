@@ -1,11 +1,11 @@
 import { Menu } from "@mantine/core";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useTranslation } from "react-i18next";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { useOpenInNewWindow } from "@app/extensions/openInNewWindow";
 
 interface OpenInNewWindowMenuItemProps {
-  file: StirlingFileStub;
+  file: RustlingFileStub;
 }
 
 /**

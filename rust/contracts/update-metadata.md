@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/update-metadata`
 
-Rust compatibility contract for `MetadataController.metadata()`.
+Current contract for updating PDF metadata.
 
 ## Request
 

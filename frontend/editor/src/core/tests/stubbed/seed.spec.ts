@@ -58,8 +58,7 @@ test.describe("RustlingPDF seed", () => {
     // Navigate to the RustlingPDF frontend
     await page.goto("/");
 
-    // The app may redirect to /login if authentication is enabled.
-    // Wait for the app to be ready: either the dashboard layout or the login page.
+    // Wait for the application shell.
     await expect(
       page
         .locator(

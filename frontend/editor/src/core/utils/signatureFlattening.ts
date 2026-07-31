@@ -16,17 +16,17 @@ import {
   createProcessedFile,
 } from "@app/contexts/file/fileActions";
 import {
-  createStirlingFile,
+  createRustlingFile,
   FileId,
-  StirlingFile,
-  StirlingFileStub,
+  RustlingFile,
+  RustlingFileStub,
 } from "@app/types/fileContext";
 import type { SignatureAPI } from "@app/components/viewer/viewerTypes";
 
 interface MinimalFileContextSelectors {
   getAllFileIds: () => FileId[];
-  getStirlingFileStub: (id: FileId) => StirlingFileStub | undefined;
-  getFile: (id: FileId) => StirlingFile | undefined;
+  getRustlingFileStub: (id: FileId) => RustlingFileStub | undefined;
+  getFile: (id: FileId) => RustlingFile | undefined;
 }
 
 interface SignatureFlatteningOptions {
@@ -36,15 +36,15 @@ interface SignatureFlatteningOptions {
     saveAsCopy: () => Promise<ArrayBuffer | null>;
   };
   selectors: MinimalFileContextSelectors;
-  originalFile?: StirlingFile;
+  originalFile?: RustlingFile;
   getScrollState: () => { currentPage: number; totalPages: number };
   activeFileIndex?: number;
 }
 
 export interface SignatureFlatteningResult {
   inputFileIds: FileId[];
-  outputStirlingFile: StirlingFile;
-  outputStub: StirlingFileStub;
+  outputRustlingFile: RustlingFile;
+  outputStub: RustlingFileStub;
 }
 
 export async function flattenSignatures(
@@ -130,10 +130,10 @@ export async function flattenSignatures(
             activeFileIndex !== undefined && activeFileIndex < allFileIds.length
               ? activeFileIndex
               : 0;
-          const fileStub = selectors.getStirlingFileStub(allFileIds[fileIndex]);
+          const fileStub = selectors.getRustlingFileStub(allFileIds[fileIndex]);
           const fileObject = selectors.getFile(allFileIds[fileIndex]);
           if (fileStub && fileObject) {
-            currentFile = createStirlingFile(
+            currentFile = createRustlingFile(
               fileObject,
               allFileIds[fileIndex] as FileId,
             );
@@ -178,7 +178,7 @@ export async function flattenSignatures(
 
       const inputFileIds: FileId[] = [currentFile.fileId];
 
-      const record = selectors.getStirlingFileStub(currentFile.fileId);
+      const record = selectors.getRustlingFileStub(currentFile.fileId);
       if (!record) {
         console.error("No file record found for:", currentFile.fileId);
         return null;
@@ -191,11 +191,11 @@ export async function flattenSignatures(
         thumbnailResult.thumbnail,
         processedFileMetadata,
       );
-      const outputStirlingFile = createStirlingFile(signedFile, outputStub.id);
+      const outputRustlingFile = createRustlingFile(signedFile, outputStub.id);
 
       return {
         inputFileIds,
-        outputStirlingFile,
+        outputRustlingFile,
         outputStub,
       };
     }

@@ -1,6 +1,6 @@
 # `POST /api/v1/filter/*`
 
-Rust compatibility contract for all six routes in `FilterController`.
+Current contract for the six filter routes.
 
 ## Shared behavior
 
@@ -25,8 +25,8 @@ Rust compatibility contract for all six routes in `FilterController`.
 
 Page selections reuse the existing Rust implementation of RustlingPDF ranges,
 `all`, and `an+b` expressions. Literal text currently uses lopdf's font/text
-decoder; complex encodings and malformed font maps remain an explicit parity
-corpus item against PDFBox's `PDFTextStripper`.
+decoder; complex encodings and malformed font maps remain explicit unsupported
+corpus cases.
 
 ## Verification
 

@@ -9,7 +9,7 @@ export type SegmentedAccent =
   | "neutral"
   | "brand"
   | "ai"
-  | "premium"
+  | "highlight"
   | "danger"
   | "success"
   | "warning";

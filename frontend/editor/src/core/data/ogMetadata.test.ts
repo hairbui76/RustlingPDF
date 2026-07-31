@@ -81,14 +81,14 @@ describe("injectOg (build-time prerender)", () => {
 
   it("uses absolute URLs + og:url + secure_url when a canonical base is given", () => {
     const out = injectOg(TEMPLATE, entry, {
-      ogBase: "https://stirlingpdf.com",
+      ogBase: "https://rustlingpdf.com",
       pageUrlPath: "/compress",
     });
     expect(out).toContain(
-      '<meta property="og:image" content="https://stirlingpdf.com/og_images/compress.png" />',
+      '<meta property="og:image" content="https://rustlingpdf.com/og_images/compress.png" />',
     );
     expect(out).toContain(
-      '<meta property="og:url" content="https://stirlingpdf.com/compress" />',
+      '<meta property="og:url" content="https://rustlingpdf.com/compress" />',
     );
     expect(out).toContain("og:image:secure_url");
     // asset path stays absolute-from-root so it resolves at the clean URL
@@ -107,21 +107,19 @@ describe("injectOg (build-time prerender)", () => {
     const out = injectOg(
       TEMPLATE,
       {
-        image: "/og_images/saas/app.png",
-        title: "RustlingPDF - Edit any PDF. Govern every PDF.",
-        ogTitle: "Edit any PDF. Govern every PDF.",
+        image: "/og_images/home.png",
+        title: "RustlingPDF - Private PDF tools",
+        ogTitle: "Private PDF tools",
         description: "d",
       },
       {},
     );
+    expect(out).toContain("<title>RustlingPDF - Private PDF tools</title>");
     expect(out).toContain(
-      "<title>RustlingPDF - Edit any PDF. Govern every PDF.</title>",
+      '<meta property="og:title" content="Private PDF tools" />',
     );
     expect(out).toContain(
-      '<meta property="og:title" content="Edit any PDF. Govern every PDF." />',
-    );
-    expect(out).toContain(
-      '<meta name="twitter:title" content="Edit any PDF. Govern every PDF." />',
+      '<meta name="twitter:title" content="Private PDF tools" />',
     );
   });
 });

@@ -593,7 +593,7 @@ export async function extractFormFields(
  * Process a single annotation and merge into fieldMap.
  * Extracted as a helper so that extractFormFields can catch per-annotation WASM traps.
  *
- * Coordinate conversion mirrors the Java PDFBox backend exactly:
+ * Coordinate conversion follows the processing API's CropBox convention:
  *   relativeX = annotLeft − cropBox.left
  *   relativeY = annotBottom − cropBox.bottom
  *   cssX = relativeX
@@ -660,7 +660,7 @@ function this_extractAnnotation(
       : false;
 
     // Get rect using standard FPDFAnnot_GetRect for known struct layout,
-    // then apply explicit CropBox adjustment (mirrors the Java PDFBox backend).
+    // then apply the explicit CropBox adjustment used by the processing API.
     // Standard FS_RECTF layout: { left(f32), bottom(f32), right(f32), top(f32) }
     const rectBuf = m.pdfium.wasmExports.malloc(4 * 4); // FS_RECTF = 4 floats
     let hasRect = false;
@@ -1941,7 +1941,7 @@ export async function renderButtonFieldAppearances(
  * Fetch signature fields with their rendered appearances.
  *
  * This combines extractSignatureFieldRects and renderSignatureFieldAppearances
- * to return FormField objects suitable for use in pdfbox mode where signature
+ * to return FormField objects suitable for backend mode where signature
  * fields are not returned by the backend.
  *
  * @param data - PDF file data

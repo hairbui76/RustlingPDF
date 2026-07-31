@@ -13,9 +13,9 @@ null-equivalent duplex value defaults to false, matching
 ## Divider Detection
 
 - Only QR codes containing one of these exact strings are dividers:
-  `https://github.com/Stirling-Tools/Stirling-PDF`,
-  `https://github.com/Frooodle/Stirling-PDF`, or
-  `https://stirlingpdf.com`.
+  `https://github.com/hairbui76/RustlingPDF`,
+  `https://github.com/Frooodle/RustlingPDF`, or
+  `https://rustlingpdf.com`.
 - Pages are rendered with annotations and form data at 150 DPI. If no QR is
   found and `SYSTEM_MAXDPI` is greater than 150, detection retries at that DPI;
   its Java-compatible default is 500.

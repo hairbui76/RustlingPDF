@@ -22,12 +22,9 @@ PDF/A creation or conversion is explicitly excluded from this programme.
 - Product breadth and current privacy contract:
   [`README.md`](../../../README.md) and
   [`docs/product/features.md`](../../product/features.md).
-- Current processing/parity ledger:
-  [`rust/PORT_STATUS.md`](../../../rust/PORT_STATUS.md).
-- Existing pure-Rust runtime programme:
-  [`pure-rust-port-programme.md`](../active/pure-rust-port-programme.md). It remains
-  authoritative for removing external runtimes; this plan owns the
-  user-facing product sequence and consumes its desktop-bundling result.
+- Current processing behavior:
+  [`docs/product/features.md`](../../product/features.md) and
+  [`rust/contracts/`](../../../rust/contracts/).
 - Existing desktop-tools implementation branch:
   `port/bundle-desktop-tools`. It adds qpdf and Tesseract but diverged from
   `main` before later crop, Ghostscript-removal, branding, endpoint-gating,

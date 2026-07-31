@@ -93,7 +93,7 @@ tasks:
   dev:
     desc: "Start frontend dev server"
     cmds:
-      - task: dev:proprietary
+      - task: dev:core
         vars: { PORT: '{{.PORT}}', BACKEND_URL: '{{.BACKEND_URL}}', OPEN: '{{.OPEN}}' }
 
   dev:core:
@@ -103,67 +103,21 @@ tasks:
       - task: dev:_run
         vars: { MODE: core, PORT: '{{.PORT}}', BACKEND_URL: '{{.BACKEND_URL}}', OPEN: '{{.OPEN}}' }
 
-  dev:proprietary:
-    desc: "Start frontend dev server in proprietary mode"
-    deps: [prepare]
-    cmds:
-      - task: dev:_run
-        vars: { MODE: proprietary, PORT: '{{.PORT}}', BACKEND_URL: '{{.BACKEND_URL}}', OPEN: '{{.OPEN}}' }
-
-  dev:desktop:
-    desc: "Start frontend dev server in desktop mode"
-    deps:
-      - task: prepare
-        vars: { MODE: desktop }
-    cmds:
-      - task: dev:_run
-        vars: { MODE: desktop, PORT: '{{.PORT}}', BACKEND_URL: '{{.BACKEND_URL}}', OPEN: '{{.OPEN}}' }
-
-  dev:prototypes:
-    desc: "Start frontend dev server in prototypes mode"
-    deps: [prepare]
-    cmds:
-      - task: dev:_run
-        vars: { MODE: prototypes, PORT: '{{.PORT}}', BACKEND_URL: '{{.BACKEND_URL}}', OPEN: '{{.OPEN}}' }
-
   # ============================================================
   # Build
   # ============================================================
 
   build:
-    desc: "Production build (default mode)"
+    desc: "Production build"
     deps: [prepare]
     cmds:
-      - npx vite build editor
+      - npx vite build editor --mode core
 
   build:core:
     desc: "Build for core mode"
     deps: [prepare]
     cmds:
       - npx vite build editor --mode core
-
-  build:proprietary:
-    desc: "Build for proprietary mode"
-    deps: [prepare]
-    vars:
-      PREVIEW: '{{.PREVIEW | default ""}}'
-    cmds:
-      - '{{if .PREVIEW}}VITE_BUILD_FOR_PREVIEW=1 {{end}}npx vite build editor --mode proprietary'
-
-  build:desktop:
-    desc: "Build for desktop mode"
-    deps:
-      - task: prepare
-        vars: { MODE: desktop }
-    cmds:
-      - npx vite build editor --mode desktop
-
-  build:prototypes:
-    desc: "Build for prototypes mode"
-    deps: [prepare]
-    cmds:
-      - npx vite build editor --mode prototypes
-
 
   storybook:
     desc: "Start Storybook dev server"
@@ -244,9 +198,9 @@ tasks:
       - task: lint:fix
 
   typecheck:
-    desc: "Typecheck default build of the app"
+    desc: "Typecheck the app"
     cmds:
-      - task: typecheck:proprietary
+      - task: typecheck:core
 
   typecheck:_run:
     internal: true
@@ -260,22 +214,6 @@ tasks:
       - task: typecheck:_run
         vars: { PROJECT: editor/src/core/tsconfig.json }
 
-  typecheck:proprietary:
-    desc: "Typecheck proprietary build variant"
-    deps: [prepare]
-    cmds:
-      - task: typecheck:_run
-        vars: { PROJECT: editor/src/proprietary/tsconfig.json }
-
-  typecheck:desktop:
-    desc: "Typecheck desktop build variant"
-    deps:
-      - task: prepare
-        vars: { MODE: desktop }
-    cmds:
-      - task: typecheck:_run
-        vars: { PROJECT: editor/src/desktop/tsconfig.json }
-
   typecheck:scripts:
     desc: "Typecheck scripts"
     deps: [prepare]
@@ -283,21 +221,11 @@ tasks:
       - task: typecheck:_run
         vars: { PROJECT: editor/scripts/tsconfig.json }
 
-  typecheck:prototypes:
-    desc: "Typecheck prototypes build variant"
-    deps: [prepare]
-    cmds:
-      - task: typecheck:_run
-        vars: { PROJECT: editor/src/prototypes/tsconfig.json }
-
   typecheck:all:
-    desc: "Typecheck all build variants"
+    desc: "Typecheck application and scripts"
     cmds:
       - task: typecheck:core
-      - task: typecheck:proprietary
-      - task: typecheck:desktop
       - task: typecheck:scripts
-      - task: typecheck:prototypes
 
   # ============================================================
   # Quality Gate

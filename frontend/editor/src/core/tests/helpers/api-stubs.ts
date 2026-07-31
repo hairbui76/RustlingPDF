@@ -117,17 +117,6 @@ const DEFAULT_ENDPOINTS_AVAILABILITY = Object.fromEntries(
 );
 
 export interface MockAppApiOptions {
-  /** Override `enableLogin`. Default `false` — app loads in anonymous mode. */
-  enableLogin?: boolean;
-  /** Override `isAdmin` in app-config. Default `false`. */
-  isAdmin?: boolean;
-  /** Override the logged-in user returned by `/auth/me`. */
-  user?: {
-    id?: number;
-    username?: string;
-    email?: string;
-    roles?: string[];
-  };
   /** Languages advertised by `/config/app-config`. */
   languages?: string[];
   /** Default locale. */
@@ -147,14 +136,6 @@ export async function mockAppApis(
   opts: MockAppApiOptions = {},
 ): Promise<void> {
   const {
-    enableLogin = false,
-    isAdmin = false,
-    user = {
-      id: 1,
-      username: "testuser",
-      email: "test@example.com",
-      roles: ["ROLE_USER"],
-    },
     languages = ["en-US"],
     defaultLocale = "en-US",
     endpointsAvailability = {},
@@ -166,12 +147,10 @@ export async function mockAppApis(
     route.fulfill({ json: { status: backendStatus } }),
   );
 
-  // App config — drives the login flow, language list, and feature flags the UI reads at startup
+  // App config drives language and feature flags read at startup.
   await page.route("**/api/v1/config/app-config", (route: Route) =>
     route.fulfill({
       json: {
-        enableLogin,
-        isAdmin,
         languages,
         defaultLocale,
       },
@@ -179,12 +158,7 @@ export async function mockAppApis(
   );
 
   await page.route("**/api/v1/config/public-config", (route: Route) =>
-    route.fulfill({ json: { enableLogin, languages, defaultLocale } }),
-  );
-
-  // Current user — anonymous by default, configurable for authenticated flows
-  await page.route("**/api/v1/auth/me", (route: Route) =>
-    route.fulfill({ json: { user } }),
+    route.fulfill({ json: { languages, defaultLocale } }),
   );
 
   // Tool availability — every tool enabled unless overridden
@@ -220,28 +194,6 @@ export async function mockAppApis(
     route.fulfill({ json: {} }),
   );
 
-  // Proprietary bucket (login UI, audit, teams, …) — catch-all so the Vite
-  // proxy doesn't log ECONNREFUSED for every call we haven't individually
-  // stubbed. Specs can override with a narrower route registered afterwards.
-  await page.route("**/api/v1/proprietary/ui-data/login", (route: Route) =>
-    route.fulfill({
-      json: { enabled: enableLogin, loginMethod: "form" },
-    }),
-  );
-
-  await page.route("**/api/v1/proprietary/ui-data/account", (route: Route) =>
-    route.fulfill({ json: user }),
-  );
-
-  await page.route("**/api/v1/proprietary/**", (route: Route) =>
-    route.fulfill({ json: {} }),
-  );
-
-  // License info — stubbed so admin settings doesn't log proxy errors
-  await page.route("**/api/v1/admin/license-info", (route: Route) =>
-    route.fulfill({ json: { licenseType: "FREE", valid: true, maxUsers: 5 } }),
-  );
-
   // Settings sections touched by the settings page
   await page.route("**/api/v1/admin/settings", (route: Route) =>
     route.fulfill({ json: {} }),
@@ -254,21 +206,6 @@ export async function mockAppApis(
   // Info sub-resources
   await page.route("**/api/v1/info/wau", (route: Route) =>
     route.fulfill({ json: { count: 0 } }),
-  );
-
-  // Policies (proprietary): the reconcile fires GET /api/v1/policies on app
-  // load. Return an empty list so the stubbed (backend-free) env stays clean —
-  // no failed request polluting the console, and the auto-run controller has
-  // nothing to dispatch.
-  await page.route("**/api/v1/policies", (route: Route) =>
-    route.fulfill({ json: [] }),
-  );
-  // The auto-run controller also reconciles server-side runs on load via
-  // GET /api/v1/policies/runs. The glob above doesn't cover this sub-path, so
-  // stub it empty too; otherwise the request hits the absent backend and the
-  // console error fails the page's no-unexpected-output guard.
-  await page.route("**/api/v1/policies/runs", (route: Route) =>
-    route.fulfill({ json: [] }),
   );
 }
 
@@ -286,10 +223,7 @@ export async function skipOnboarding(page: Page): Promise<void> {
 /**
  * Stronger variant of {@link skipOnboarding}: also sets the session
  * `onboarding::bypass-all` flag honoured by `useBypassOnboarding`. This
- * suppresses the analytics opt-in modal, MFA setup prompt, and any other
- * onboarding step the orchestrator may try to render. Use this in specs
- * where SSO callbacks land on a page that would otherwise show overlays
- * intercepting clicks.
+ * suppresses every optional onboarding step.
  */
 export async function bypassOnboarding(page: Page): Promise<void> {
   await page.addInitScript(() => {

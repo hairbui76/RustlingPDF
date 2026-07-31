@@ -124,7 +124,7 @@ into `FileContext` (`selectFiles: true`, `localFilePath` attached), then
 `navigateToToolIntent(batch.tool)` routes a mapped intent to its tool by
 pushing the tool's URL and dispatching a synthetic `popstate` — the exact
 URL-driven selection path used by browser back/forward
-(`useNavigationUrlSync`), including its availability/premium checks. Batches
+(`useNavigationUrlSync`), including its availability checks. Batches
 process sequentially in launch order, so the last intent's navigation wins.
 `open`, unknown intents, and `tool: null` add files with no navigation.
 

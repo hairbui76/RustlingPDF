@@ -1403,7 +1403,7 @@ amwXixTh3YlrdOneww==\n\
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let private_key = key.private_key_data().ok_or("key")?;
         let key_chain = PrivateKeyChain::new(
-            b"stirling-test-key".as_slice(),
+            b"rustling-test-key".as_slice(),
             PrivateKey::from_der(&private_key)?,
             [Certificate::from_der(certificate.constructed_data())?],
         );

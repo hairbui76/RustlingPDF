@@ -32,9 +32,9 @@ impl AnthropicClassifierModel {
     ///
     /// Returns an error when the model prefix or `ANTHROPIC_API_KEY` is absent.
     pub fn from_environment(model_name: &str) -> Result<Self, ModelError> {
-        let api_key = crate::env_compat::var("ANTHROPIC_API_KEY")
+        let api_key = crate::environment::var("ANTHROPIC_API_KEY")
             .map_err(|_| ModelError::new("ANTHROPIC_API_KEY is not configured"))?;
-        let base_url = crate::env_compat::var("ANTHROPIC_BASE_URL")
+        let base_url = crate::environment::var("ANTHROPIC_BASE_URL")
             .unwrap_or_else(|_| DEFAULT_BASE_URL.to_owned());
         Self::new(model_name, api_key, base_url)
     }
@@ -53,10 +53,10 @@ impl AnthropicClassifierModel {
     pub fn from_pushed_config(bare_model: &str, api_key: Option<&str>) -> Result<Self, ModelError> {
         let api_key = match api_key {
             Some(api_key) if !api_key.is_empty() => api_key.to_owned(),
-            _ => crate::env_compat::var("ANTHROPIC_API_KEY")
+            _ => crate::environment::var("ANTHROPIC_API_KEY")
                 .map_err(|_| ModelError::new("ANTHROPIC_API_KEY is not configured"))?,
         };
-        let base_url = crate::env_compat::var("ANTHROPIC_BASE_URL")
+        let base_url = crate::environment::var("ANTHROPIC_BASE_URL")
             .unwrap_or_else(|_| DEFAULT_BASE_URL.to_owned());
         Self::new(&format!("anthropic:{bare_model}"), api_key, base_url)
     }

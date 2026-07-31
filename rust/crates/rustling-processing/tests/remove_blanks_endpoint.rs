@@ -83,7 +83,7 @@ async fn rejects_a_non_integer_threshold() -> Result<(), Box<dyn std::error::Err
 }
 
 fn native_pdfium_requested() -> bool {
-    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 async fn response_bytes(response: Response) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -111,7 +111,7 @@ async fn post_remove_blanks(
     threshold: &str,
     white_percent: &str,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-remove-blanks-boundary";
+    let boundary = "rustling-remove-blanks-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

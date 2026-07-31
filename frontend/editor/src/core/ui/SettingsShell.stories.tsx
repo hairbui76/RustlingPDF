@@ -5,35 +5,30 @@ import { Button } from "@app/ui/Button";
 
 const SECTIONS: SettingsNavSection[] = [
   {
-    title: "Account",
+    title: "Application",
     items: [
-      { key: "profile", label: "Profile" },
+      { key: "general", label: "General" },
       { key: "appearance", label: "Appearance" },
-      { key: "notifications", label: "Notifications" },
+      { key: "updates", label: "Updates" },
     ],
   },
   {
-    title: "Workspace",
-    items: [{ key: "general", label: "General" }],
-  },
-  {
-    title: "Admin",
+    title: "Information",
     items: [
-      { key: "auth", label: "Authentication" },
-      { key: "sessions", label: "Active sessions" },
-      { key: "beta", label: "Early access", badge: "New" },
+      { key: "privacy", label: "Privacy" },
+      { key: "licenses", label: "Licenses" },
+      { key: "help", label: "Help", badge: "New" },
     ],
   },
 ];
 
 const LABELS: Record<string, string> = {
-  profile: "Profile",
-  appearance: "Appearance",
-  notifications: "Notifications",
   general: "General",
-  auth: "Authentication",
-  sessions: "Active sessions",
-  beta: "Early access",
+  appearance: "Appearance",
+  updates: "Updates",
+  privacy: "Privacy",
+  licenses: "Licenses",
+  help: "Help",
 };
 
 const meta: Meta<typeof SettingsShell> = {
@@ -47,7 +42,7 @@ type Story = StoryObj<typeof SettingsShell>;
 
 export const Default: Story = {
   render: () => {
-    const [active, setActive] = useState("profile");
+    const [active, setActive] = useState("general");
     return (
       <div style={{ height: "36rem", border: "1px solid var(--c-border)" }}>
         <SettingsShell

@@ -1,7 +1,6 @@
 # `POST /api/v1/general/rotate-pdf`
 
-Rust compatibility contract for the existing Java endpoint in
-`RotationController.rotatePDF()`.
+Current contract for rotating PDF pages.
 
 ## Request
 

@@ -1,22 +1,21 @@
 //! Fresh-install and truncation-recovery configuration bootstrap for the
 //! native Tauri sidecar.
 //!
-//! The Java desktop runtime (`ConfigInitializer`) creates the packaged
-//! settings template and an empty custom override file before loading
-//! configuration, and treats a `settings.yml` shorter than
+//! The desktop runtime creates the packaged settings template and an empty
+//! custom override file before loading configuration, and treats a
+//! `settings.yml` shorter than
 //! `MIN_SETTINGS_FILE_LINES` as evidence of a truncated/corrupted file (e.g.
 //! from an interrupted previous write): it backs the file up to
 //! `settings.yml.<epoch-millis>.bak` before recreating it from the template,
 //! rather than leaving a broken file in place or silently discarding whatever
-//! partial content was there. This Rust port covers both the missing-file and
-//! the too-short-file case for `settings.yml`. `custom_settings.yml` is never
-//! backed up or rewritten once it exists, regardless of length — Java's
-//! truncation check applies only to `settings.yml`.
+//! partial content was there. Both the missing-file and too-short-file cases
+//! are covered for `settings.yml`. `custom_settings.yml` is never backed up or
+//! rewritten once it exists, regardless of length; truncation recovery applies
+//! only to `settings.yml`.
 //!
-//! When a `settings.yml` already exists and is long enough, this port also
-//! performs Java's upgrade-time template merge: any keys the bundled template
-//! has gained across app versions are folded into the user's file while their
-//! customized values are preserved. See [`merge_template_into_existing`] for the
+//! When a `settings.yml` already exists and is long enough, an upgrade-time
+//! template merge folds in keys added across app versions while preserving the
+//! user's customized values. See [`merge_template_into_existing`] for the
 //! algorithm and its documented scalar/inline-only scope limitation.
 
 use std::{
@@ -35,7 +34,7 @@ use rustling_processing::settings_yaml;
 const TAURI_MODE_VARIABLE: &str = "RUSTLING_PDF_TAURI_MODE";
 const BASE_PATH_VARIABLE: &str = "RUSTLING_BASE_PATH";
 const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template");
-/// Matches Java's `ConfigInitializer.MIN_SETTINGS_FILE_LINES`.
+/// Files shorter than this threshold are treated as truncated.
 const MIN_SETTINGS_FILE_LINES: usize = 31;
 
 /// Whether the process runs as the desktop (Tauri) sidecar.
@@ -46,7 +45,7 @@ const MIN_SETTINGS_FILE_LINES: usize = 31;
 /// app-data directory. The server deployment is stateless and never writes.
 pub(crate) fn tauri_mode_active() -> bool {
     tauri_mode_enabled(
-        rustling_processing::env_compat::var(TAURI_MODE_VARIABLE)
+        rustling_processing::environment::var(TAURI_MODE_VARIABLE)
             .ok()
             .as_deref(),
     )
@@ -56,7 +55,7 @@ pub(crate) fn initialize_from_environment() -> Result<(), io::Error> {
     if !tauri_mode_active() {
         return Ok(());
     }
-    let base_path = rustling_processing::env_compat::var_os(BASE_PATH_VARIABLE)
+    let base_path = rustling_processing::environment::var_os(BASE_PATH_VARIABLE)
         .filter(|value| !value.is_empty())
         .map_or_else(|| PathBuf::from("."), PathBuf::from);
     initialize_missing_files(&base_path)
@@ -73,8 +72,8 @@ fn initialize_missing_files(base_path: &Path) -> Result<(), io::Error> {
     backup_if_truncated(&settings_path)?;
     // A `settings.yml` that survives [`backup_if_truncated`] both existed and was
     // long enough (truncated files are renamed away first), so `persist_if_missing`
-    // leaves it untouched — this is exactly the branch where Java merges new
-    // template keys into the existing file. A missing or just-backed-up file is
+    // leaves it untouched — this is the branch where new template keys are
+    // merged into the existing file. A missing or just-backed-up file is
     // (re)created from the template below and is already current, needing no merge.
     let settings_already_present = settings_path.exists();
     persist_if_missing(&settings_path, SETTINGS_TEMPLATE.as_bytes())?;
@@ -86,9 +85,9 @@ fn initialize_missing_files(base_path: &Path) -> Result<(), io::Error> {
 
 /// Renames an existing `settings.yml` shorter than `MIN_SETTINGS_FILE_LINES`
 /// out of the way (to `settings.yml.<epoch-millis>.bak`) so the subsequent
-/// [`persist_if_missing`] call recreates it from the template, matching Java's
-/// truncation-recovery behavior. A missing file, or one long enough, is left
-/// for `persist_if_missing`/the caller to handle untouched.
+/// [`persist_if_missing`] call recreates it from the template. A missing file,
+/// or one long enough, is left for `persist_if_missing`/the caller to handle
+/// untouched.
 fn backup_if_truncated(path: &Path) -> Result<(), io::Error> {
     if !path.exists() {
         return Ok(());
@@ -135,8 +134,6 @@ fn persist_if_missing(path: &Path, contents: &[u8]) -> Result<(), io::Error> {
 /// long-enough `settings.yml`, preserving the user's customized values, and
 /// returns whether the file was rewritten.
 ///
-/// This mirrors Java's `ConfigInitializer` upgrade merge (and the `YamlHelper`
-/// it drives):
 /// - the output is TEMPLATE-shaped — the template's structure, comments, blank
 ///   lines and inline comments are kept verbatim, not the user's;
 /// - for each leaf key present in BOTH files, the template's default value is
@@ -147,9 +144,6 @@ fn persist_if_missing(path: &Path, contents: &[u8]) -> Result<(), io::Error> {
 ///   template, so unmatched user keys are never carried);
 /// - the file is rewritten only when the merged result differs from what is on
 ///   disk, so re-running on an already-current file is a no-op.
-///
-/// Java's two historical `migrate*` renames are intentionally NOT ported — they
-/// are Java-schema-specific key migrations, out of scope here.
 ///
 /// Scope limitation (documented follow-up): only values that live inline on
 /// their key's line — scalars and inline flow sequences (`[]`, `[a, b]`) — are
@@ -165,7 +159,7 @@ fn merge_template_into_existing(path: &Path) -> Result<bool, io::Error> {
             // A file long enough to reach this branch but not parseable as YAML is
             // left exactly as-is rather than failing desktop startup: this path
             // previously never inspected the contents at all, so refusing to boot
-            // now would be a regression. (Java throws here; we prefer resilience.)
+            // now would be a regression, so startup remains resilient.
             tracing::warn!(
                 %error,
                 "settings.yml could not be parsed for template merge; leaving it untouched"
@@ -362,9 +356,8 @@ mod tests {
         assert!(!merged.contains("dropMe"));
         assert!(!merged.contains("bogusParent"));
         assert!(!merged.contains("bogusChild"));
-        // The valid override in the same file is still applied. Legacy keys the
-        // template no longer carries (e.g. security.enableLogin) are likewise
-        // dropped by this template-shaped merge.
+        // The valid override in the same file is still applied. Unknown keys
+        // are dropped by this template-shaped merge.
         assert!(merged.contains("  enabled: false # 'true' to enable Info APIs"));
         Ok(())
     }
@@ -390,11 +383,11 @@ mod tests {
     fn default_only_user_file_merges_to_template() -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempfile::tempdir()?;
         let settings_path = directory.path().join("settings.yml");
-        // Every value here equals the template default (enableLogin/true,
-        // metrics.enabled/true), so nothing is a customization.
+        // Every value here equals the template default, so nothing is a
+        // customization.
         fs::write(
             &settings_path,
-            "security:\n  enableLogin: true\nmetrics:\n  enabled: true\n",
+            "metrics:\n  enabled: true\nsystem:\n  showUpdate: true\n",
         )?;
 
         merge_template_into_existing(&settings_path)?;
@@ -403,32 +396,25 @@ mod tests {
         Ok(())
     }
 
-    /// Writes `password` onto the real template's PLAIN-styled
-    /// `system.datasource.password: postgres` key, runs the merge, then returns
+    /// Writes `host` onto the real template's PLAIN-styled
+    /// `mail.host: smtp.example.com` key, runs the merge, then returns
     /// what the merged file reparses that key back to. The user file is built via
     /// `serde_yaml` so the input value is stored exactly, whatever characters it
     /// holds, and the assertion that the WHOLE file still parses catches any
     /// value that would break document structure (`:` / `*` / …).
-    fn round_trip_plain_password(
-        password: &str,
-    ) -> Result<serde_yaml::Value, Box<dyn std::error::Error>> {
+    fn round_trip_plain_host(host: &str) -> Result<serde_yaml::Value, Box<dyn std::error::Error>> {
         let directory = tempfile::tempdir()?;
         let settings_path = directory.path().join("settings.yml");
 
-        let mut datasource = serde_yaml::Mapping::new();
-        datasource.insert(
-            serde_yaml::Value::String("password".to_owned()),
-            serde_yaml::Value::String(password.to_owned()),
-        );
-        let mut system = serde_yaml::Mapping::new();
-        system.insert(
-            serde_yaml::Value::String("datasource".to_owned()),
-            serde_yaml::Value::Mapping(datasource),
+        let mut mail = serde_yaml::Mapping::new();
+        mail.insert(
+            serde_yaml::Value::String("host".to_owned()),
+            serde_yaml::Value::String(host.to_owned()),
         );
         let mut root = serde_yaml::Mapping::new();
         root.insert(
-            serde_yaml::Value::String("system".to_owned()),
-            serde_yaml::Value::Mapping(system),
+            serde_yaml::Value::String("mail".to_owned()),
+            serde_yaml::Value::Mapping(mail),
         );
         fs::write(
             &settings_path,
@@ -441,7 +427,7 @@ mod tests {
         // The whole file must still be valid YAML — a raw plain emit of `a: b` or
         // `*secret` would make this `from_str` fail outright.
         let parsed: serde_yaml::Value = serde_yaml::from_str(&merged)?;
-        Ok(parsed["system"]["datasource"]["password"].clone())
+        Ok(parsed["mail"]["host"].clone())
     }
 
     /// The core corruption fix: a String carried onto a PLAIN-styled key is
@@ -450,7 +436,7 @@ mod tests {
     /// document on `:` / `*`, leading spaces and empty strings preserved.
     #[test]
     fn plain_styled_string_values_round_trip_exactly() -> Result<(), Box<dyn std::error::Error>> {
-        for password in [
+        for host in [
             "my pass #1",                // ` #1` must NOT be swallowed as an inline comment
             "a: b",      // must NOT break the file with "mapping values not allowed"
             "*secret",   // must NOT break the file with "unknown anchor"
@@ -459,11 +445,11 @@ mod tests {
             "",          // empty string must survive
             "p@ss:w*rd#!|>%\"'`,[]{}?-", // a pile of indicators at once
         ] {
-            let reparsed = round_trip_plain_password(password)?;
+            let reparsed = round_trip_plain_host(host)?;
             assert_eq!(
                 reparsed.as_str(),
-                Some(password),
-                "plain-styled value {password:?} must round-trip exactly"
+                Some(host),
+                "plain-styled value {host:?} must round-trip exactly"
             );
         }
         Ok(())
@@ -473,36 +459,33 @@ mod tests {
     /// plain-styled key must reparse to the string, never a bool / number / null.
     #[test]
     fn plain_styled_stringy_scalars_stay_strings() -> Result<(), Box<dyn std::error::Error>> {
-        for password in ["true", "false", "123", "1.5", "null", "~", "yes", "no"] {
-            let reparsed = round_trip_plain_password(password)?;
+        for host in ["true", "false", "123", "1.5", "null", "~", "yes", "no"] {
+            let reparsed = round_trip_plain_host(host)?;
             assert!(
                 reparsed.is_string(),
-                "value {password:?} must reparse as a String, got {reparsed:?}"
+                "value {host:?} must reparse as a String, got {reparsed:?}"
             );
-            assert_eq!(reparsed.as_str(), Some(password));
+            assert_eq!(reparsed.as_str(), Some(host));
         }
         Ok(())
     }
 
-    /// A plain-safe simple password renders bare (no quoting churn), round-trips,
+    /// A plain-safe simple string renders bare (no quoting churn), round-trips,
     /// and the merge is idempotent — re-running leaves the file byte-for-byte.
     #[test]
-    fn plain_safe_password_has_no_quoting_churn_and_is_idempotent()
+    fn plain_safe_string_has_no_quoting_churn_and_is_idempotent()
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempfile::tempdir()?;
         let settings_path = directory.path().join("settings.yml");
-        fs::write(
-            &settings_path,
-            "system:\n  datasource:\n    password: s3cr3t\n",
-        )?;
+        fs::write(&settings_path, "mail:\n  host: smtp.internal\n")?;
 
         let rewritten = merge_template_into_existing(&settings_path)?;
-        assert!(rewritten, "a customized password must be carried forward");
+        assert!(rewritten, "a customized host must be carried forward");
 
         let merged = fs::read_to_string(&settings_path)?;
         // Rendered bare, keeping the template's inline comment, with no quotes.
         assert!(
-            merged.contains("    password: s3cr3t # set the database password"),
+            merged.contains("  host: smtp.internal # SMTP server hostname"),
             "plain-safe value should render without quoting churn"
         );
 
@@ -522,7 +505,7 @@ mod tests {
         let truncated_settings = b"partial: yes\nnext: line\n";
         fs::write(config_directory.join("settings.yml"), truncated_settings)?;
         // A short `custom_settings.yml` must be left alone regardless of
-        // length: Java's truncation check applies only to `settings.yml`.
+        // length: truncation recovery applies only to `settings.yml`.
         let short_override = b"existing: override\n";
         fs::write(config_directory.join("custom_settings.yml"), short_override)?;
 

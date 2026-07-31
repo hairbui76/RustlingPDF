@@ -95,7 +95,7 @@ async fn post_split(
     filename: &str,
     widths: &[i64],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-split-by-size-boundary";
+    let boundary = "rustling-split-by-size-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,

@@ -9,7 +9,7 @@ import { Slider } from "@app/ui/Slider";
 import { Stack } from "@app/ui/Stack";
 import { Inline } from "@app/ui/Inline";
 
-// Inline icon to avoid a cross-layer import; shared/ must not depend on portal/.
+// Inline icon keeps this design-system story self-contained.
 function SearchIcon({ size = 14 }: { size?: number }) {
   return (
     <svg
@@ -108,8 +108,8 @@ export const Checkbox_GridOfCategories: Story = {
 export const Radio_Group: Story = {
   render: () => {
     function Bound() {
-      const [mode, setMode] = useState<"stirling" | "byok" | "hyok">(
-        "stirling",
+      const [mode, setMode] = useState<"rustling" | "byok" | "hyok">(
+        "rustling",
       );
       return (
         <FormField label="Key mode">
@@ -119,7 +119,7 @@ export const Radio_Group: Story = {
             onChange={setMode}
             options={[
               {
-                value: "stirling",
+                value: "rustling",
                 label: "RustlingPDF-managed",
                 description: "RustlingPDF generates and rotates keys.",
               },
@@ -130,7 +130,7 @@ export const Radio_Group: Story = {
               },
               {
                 value: "hyok",
-                label: "HYOK (Enterprise)",
+                label: "External key provider",
                 description: "RustlingPDF never sees the key material.",
               },
             ]}
@@ -216,8 +216,8 @@ export const FullForm: Story = {
     function Form() {
       const [name, setName] = useState("");
       const [retention, setRetention] = useState("90");
-      const [mode, setMode] = useState<"stirling" | "byok" | "hyok">(
-        "stirling",
+      const [mode, setMode] = useState<"rustling" | "byok" | "hyok">(
+        "rustling",
       );
       const [conf, setConf] = useState(0.85);
       const [notify, setNotify] = useState(true);
@@ -248,7 +248,7 @@ export const FullForm: Story = {
               value={mode}
               onChange={setMode}
               options={[
-                { value: "stirling", label: "RustlingPDF-managed" },
+                { value: "rustling", label: "RustlingPDF-managed" },
                 { value: "byok", label: "BYOK" },
                 { value: "hyok", label: "HYOK" },
               ]}

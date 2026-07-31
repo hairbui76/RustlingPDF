@@ -8,7 +8,7 @@ mod classification;
 pub mod comic_book;
 pub mod ebook_to_pdf;
 pub mod eml_to_pdf;
-pub mod env_compat;
+pub mod environment;
 pub mod extract_image_scans;
 pub mod hardware_signing;
 pub mod html_sanitizer;
@@ -16,7 +16,6 @@ pub mod html_to_pdf;
 pub mod image_to_pdf;
 mod job_manager;
 mod job_queue;
-pub mod license;
 mod maintenance;
 pub mod markdown_to_pdf;
 pub mod mobile_scanner;
@@ -1447,17 +1446,14 @@ impl ProcessingRuntime {
         }
     }
 
-    /// Spawns the periodic maintenance loops ported from the Java backend's
-    /// `@Scheduled` tasks, plus a one-shot startup sweep of this runtime's own
+    /// Spawns periodic maintenance loops plus a one-shot startup sweep of this runtime's
     /// crash-abandoned temp artifacts. Every loop logs-and-continues on error
     /// and never terminates the process. Returns the number of periodic loops
     /// spawned so callers and tests can verify the wiring.
     #[must_use = "the count reports which maintenance loops are actually running"]
     pub fn spawn_background_maintenance(&self) -> usize {
-        // Best-effort push of admin-configured AI settings to the engine,
-        // mirroring Java `AiEngineConfigSync.pushConfigOnStartup` (fires on
-        // ApplicationReadyEvent). Off-thread with bounded retries: a down or
-        // still-booting engine never blocks startup.
+        // Best-effort startup push of configured AI settings. Bounded retries
+        // run off-thread, so a down or still-booting engine never blocks startup.
         self.ai_engine_config_sync.push_on_startup();
 
         // One-shot startup reclamation, mirroring Java
@@ -1863,9 +1859,9 @@ fn job_routes() -> Router {
         .route(JOB_STATUS_PATH, get(job_status).delete(cancel_job))
         .route(JOB_FILE_METADATA_PATH, get(job_file_metadata))
         .route(JOB_FILE_DOWNLOAD_PATH, get(download_job_file))
-        .route("/api/v1/admin/job/stats", get(admin_job_stats))
-        .route("/api/v1/admin/job/queue/stats", get(admin_job_queue_stats))
-        .route("/api/v1/admin/job/cleanup", post(admin_job_cleanup))
+        .route("/api/v1/jobs/stats", get(job_stats))
+        .route("/api/v1/jobs/queue/stats", get(job_queue_stats))
+        .route("/api/v1/jobs/cleanup", post(job_cleanup))
 }
 
 fn ui_data_routes() -> Router {
@@ -1980,22 +1976,22 @@ fn info_routes() -> Router {
 
 #[must_use]
 pub fn max_upload_bytes_from_environment() -> usize {
-    crate::env_compat::var("RUSTLING_PROCESSING_MAX_UPLOAD_BYTES")
+    crate::environment::var("RUSTLING_PROCESSING_MAX_UPLOAD_BYTES")
         .ok()
         .and_then(|value| value.parse().ok())
         .filter(|value| *value > 0)
         .or_else(|| {
-            crate::env_compat::var("SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE")
+            crate::environment::var("SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE")
                 .ok()
                 .and_then(|value| parse_data_size(&value))
         })
         .or_else(|| {
-            crate::env_compat::var("SYSTEMFILEUPLOADLIMIT")
+            crate::environment::var("SYSTEMFILEUPLOADLIMIT")
                 .ok()
                 .and_then(|value| parse_data_size(&value))
         })
         .or_else(|| {
-            crate::env_compat::var("SYSTEM_MAXFILESIZE")
+            crate::environment::var("SYSTEM_MAXFILESIZE")
                 .ok()
                 .and_then(|value| value.trim().parse::<usize>().ok())
                 .filter(|megabytes| (1..=999).contains(megabytes))
@@ -2007,7 +2003,7 @@ pub fn max_upload_bytes_from_environment() -> usize {
 fn timestamp_environment_value(names: &[&str]) -> Option<String> {
     names
         .iter()
-        .find_map(|name| crate::env_compat::var(name).ok())
+        .find_map(|name| crate::environment::var(name).ok())
 }
 
 fn parse_data_size(value: &str) -> Option<usize> {
@@ -2582,11 +2578,7 @@ async fn info_weekly_active_users(
         return metrics_disabled_response();
     }
     if !runtime_metrics.weekly_active_users_enabled() {
-        return (
-            StatusCode::NOT_FOUND,
-            "WAU tracking is only available when security is disabled (no-login mode)",
-        )
-            .into_response();
+        return (StatusCode::NOT_FOUND, "WAU tracking is disabled").into_response();
     }
     runtime_metrics.weekly_active_users().map_or_else(
         || StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -2931,7 +2923,6 @@ fn mobile_scanner_unique_filename(filename: &str, number: u16) -> String {
 
 async fn app_config(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
-    license_state: Option<Extension<Arc<license::LicenseState>>>,
     headers: HeaderMap,
 ) -> Json<serde_json::Value> {
     let host = headers
@@ -2940,11 +2931,7 @@ async fn app_config(
     let forwarded_proto = headers
         .get("x-forwarded-proto")
         .and_then(|value| value.to_str().ok());
-    let mut config = runtime_config.app_config(host, forwarded_proto);
-    if let Some(Extension(license_state)) = license_state {
-        license_state.apply_to_app_config(&mut config);
-    }
-    Json(config)
+    Json(runtime_config.app_config(host, forwarded_proto))
 }
 
 async fn hardware_signing_capabilities_route() -> Json<hardware_signing::HardwareSigningCapabilities>
@@ -3232,7 +3219,7 @@ async fn pdf_comment_agent(
     })?;
     response
         .headers_mut()
-        .insert("X-Stirling-Tool-Report", report_header);
+        .insert("X-Rustling-Tool-Report", report_header);
     Ok(response)
 }
 
@@ -4199,18 +4186,18 @@ async fn cancel_job(
     }
 }
 
-async fn admin_job_queue_stats(Extension(job_queue): Extension<Arc<JobQueue>>) -> Response {
+async fn job_queue_stats(Extension(job_queue): Extension<Arc<JobQueue>>) -> Response {
     Json(job_queue.stats()).into_response()
 }
 
-async fn admin_job_stats(Extension(job_manager): Extension<Arc<JobManager>>) -> Response {
+async fn job_stats(Extension(job_manager): Extension<Arc<JobManager>>) -> Response {
     match job_manager.stats() {
         Ok(stats) => Json(stats).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
-async fn admin_job_cleanup(Extension(job_manager): Extension<Arc<JobManager>>) -> Response {
+async fn job_cleanup(Extension(job_manager): Extension<Arc<JobManager>>) -> Response {
     match job_manager.cleanup_expired() {
         Ok(removed_jobs) => {
             let remaining_jobs = job_manager.stats().map_or(0, |stats| stats.total_jobs);
@@ -13557,8 +13544,8 @@ mod tests {
 
     #[test]
     fn send_email_path_is_async_capable() {
-        // @AutoJobPostMapping parity: the handler sits behind submit_async_job,
-        // so the allowlist must recognise it as async-capable.
+        // The handler sits behind submit_async_job, so the allowlist must
+        // recognise it as async-capable.
         assert!(supports_async_jobs(smtp_mail::SEND_EMAIL_PATH));
     }
 

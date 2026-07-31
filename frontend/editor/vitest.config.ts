@@ -19,7 +19,6 @@ export default defineConfig({
       exclude: [
         "node_modules/",
         "src/core/setupTests.ts",
-        "src/proprietary/setupTests.ts",
         "**/*.d.ts",
         "src/tests/test-fixtures/**",
         "src/**/*.spec.ts",
@@ -38,60 +37,6 @@ export default defineConfig({
           react(),
           tsconfigPaths({
             projects: ["./tsconfig.core.vite.json"],
-          }),
-        ],
-        esbuild: {
-          target: "es2020",
-        },
-      },
-      {
-        test: {
-          name: "proprietary",
-          include: ["src/proprietary/**/*.test.{ts,tsx}"],
-          environment: "jsdom",
-          globals: true,
-          setupFiles: ["./src/core/setupTests.ts"],
-        },
-        plugins: [
-          react(),
-          tsconfigPaths({
-            projects: ["./tsconfig.proprietary.vite.json"],
-          }),
-        ],
-        esbuild: {
-          target: "es2020",
-        },
-      },
-      {
-        test: {
-          name: "desktop",
-          include: ["src/desktop/**/*.test.{ts,tsx}"],
-          environment: "jsdom",
-          globals: true,
-          setupFiles: ["./src/core/setupTests.ts"],
-        },
-        plugins: [
-          react(),
-          tsconfigPaths({
-            projects: ["./tsconfig.desktop.vite.json"],
-          }),
-        ],
-        esbuild: {
-          target: "es2020",
-        },
-      },
-      {
-        test: {
-          name: "prototypes",
-          include: ["src/prototypes/**/*.test.{ts,tsx}"],
-          environment: "jsdom",
-          globals: true,
-          setupFiles: ["./src/core/setupTests.ts"],
-        },
-        plugins: [
-          react(),
-          tsconfigPaths({
-            projects: ["./tsconfig.prototypes.vite.json"],
           }),
         ],
         esbuild: {

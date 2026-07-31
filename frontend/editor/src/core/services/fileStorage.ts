@@ -7,9 +7,9 @@
 import { FileId, BaseFileMetadata } from "@app/types/file";
 import { FolderId } from "@app/types/folder";
 import {
-  StirlingFile,
-  StirlingFileStub,
-  createStirlingFile,
+  RustlingFile,
+  RustlingFileStub,
+  createRustlingFile,
 } from "@app/types/fileContext";
 import {
   indexedDBManager,
@@ -18,21 +18,17 @@ import {
 
 /**
  * Storage record - single source of truth
- * Contains all data needed for both StirlingFile and StirlingFileStub
+ * Contains all data needed for both RustlingFile and RustlingFileStub
  */
 const THUMBNAIL_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-export interface StoredStirlingFileRecord extends BaseFileMetadata {
+export interface StoredRustlingFileRecord extends BaseFileMetadata {
   data: ArrayBuffer;
-  fileId: FileId; // Matches runtime StirlingFile.fileId exactly
-  quickKey: string; // Matches runtime StirlingFile.quickKey exactly
+  fileId: FileId; // Matches runtime RustlingFile.fileId exactly
+  quickKey: string; // Matches runtime RustlingFile.quickKey exactly
   thumbnail?: string;
   thumbnailStoredAt?: number; // Epoch ms - sliding 30-day TTL
   url?: string; // For compatibility with existing components
-  // Cached classification labels — mirrors the stub field so the sidebar can
-  // group by label without re-reading PDF bytes, and it survives versioning.
-  // See StirlingFileStub.classificationLabels.
-  classificationLabels?: string[];
 }
 
 export interface StorageStats {
@@ -40,25 +36,6 @@ export interface StorageStats {
   available: number;
   fileCount: number;
   quota?: number;
-}
-
-/**
- * Best-effort provenance for records persisted before `derivedFromTool`
- * existed. A version chain (a tool history, a version past the first, or a
- * parent) is unambiguously a tool output, so flag it. Legacy independent
- * artifacts (convert/split/merge) recorded none of that and are
- * indistinguishable from uploads in old data — they stay unflagged, which for
- * an enforcement feature is the safe default (enforce rather than silently
- * skip). New records always carry an explicit flag, so this only fires for
- * pre-existing files on first read after upgrade.
- */
-export function legacyDerivedFromTool(
-  record: StoredStirlingFileRecord,
-): boolean | undefined {
-  if ((record.toolHistory?.length ?? 0) > 0) return true;
-  if ((record.versionNumber ?? 1) > 1) return true;
-  if (record.parentFileId != null) return true;
-  return undefined;
 }
 
 class FileStorageService {
@@ -73,7 +50,7 @@ class FileStorageService {
   }
 
   /** Returns thumbnail if within TTL, otherwise undefined. */
-  private isThumbnailFresh(record: StoredStirlingFileRecord): boolean {
+  private isThumbnailFresh(record: StoredRustlingFileRecord): boolean {
     if (!record.thumbnail) return false;
     if (!record.thumbnailStoredAt) return false;
     return Date.now() - record.thumbnailStoredAt < THUMBNAIL_TTL_MS;
@@ -95,7 +72,7 @@ class FileStorageService {
       ids.forEach((id) => {
         const req = store.get(id);
         req.onsuccess = () => {
-          const record = req.result as StoredStirlingFileRecord | undefined;
+          const record = req.result as StoredRustlingFileRecord | undefined;
           if (!record) return;
           if (clear) {
             record.thumbnail = undefined;
@@ -111,50 +88,35 @@ class FileStorageService {
   }
 
   /**
-   * Store a StirlingFile with its metadata from StirlingFileStub
+   * Store a RustlingFile with its metadata from RustlingFileStub
    */
-  async storeStirlingFile(
-    stirlingFile: StirlingFile,
-    stub: StirlingFileStub,
+  async storeRustlingFile(
+    rustlingFile: RustlingFile,
+    stub: RustlingFileStub,
   ): Promise<void> {
     const db = await this.getDatabase();
-    const arrayBuffer = await stirlingFile.arrayBuffer();
+    const arrayBuffer = await rustlingFile.arrayBuffer();
 
-    const record: StoredStirlingFileRecord = {
-      id: stirlingFile.fileId,
-      fileId: stirlingFile.fileId, // Explicit field for clarity
-      quickKey: stirlingFile.quickKey,
-      name: stirlingFile.name,
-      type: stirlingFile.type,
-      size: stirlingFile.size,
-      lastModified: stirlingFile.lastModified,
+    const record: StoredRustlingFileRecord = {
+      id: rustlingFile.fileId,
+      fileId: rustlingFile.fileId, // Explicit field for clarity
+      quickKey: rustlingFile.quickKey,
+      name: rustlingFile.name,
+      type: rustlingFile.type,
+      size: rustlingFile.size,
+      lastModified: rustlingFile.lastModified,
       createdAt: stub.createdAt,
       data: arrayBuffer,
       thumbnail: stub.thumbnailUrl,
       thumbnailStoredAt: stub.thumbnailUrl ? Date.now() : undefined,
       isLeaf: stub.isLeaf ?? true,
-      remoteStorageId: stub.remoteStorageId,
-      remoteStorageUpdatedAt: stub.remoteStorageUpdatedAt,
-      remoteOwnerUsername: stub.remoteOwnerUsername,
-      remoteOwnedByCurrentUser: stub.remoteOwnedByCurrentUser,
-      remoteAccessRole: stub.remoteAccessRole,
-      remoteSharedViaLink: stub.remoteSharedViaLink,
-      remoteHasShareLinks: stub.remoteHasShareLinks,
-      remoteShareToken: stub.remoteShareToken,
-
       // History data from stub
       versionNumber: stub.versionNumber ?? 1,
-      originalFileId: stub.originalFileId ?? stirlingFile.fileId,
+      originalFileId: stub.originalFileId ?? rustlingFile.fileId,
       parentFileId: stub.parentFileId ?? undefined,
       toolHistory: stub.toolHistory ?? [],
-      derivedFromTool: stub.derivedFromTool ?? false,
-      sourceFileIds: stub.sourceFileIds,
-
       // Folder organisation (root when null)
       folderId: stub.folderId ?? null,
-
-      // Cached classification category, if already known (preserved across re-stores).
-      classificationLabels: stub.classificationLabels,
     };
 
     return new Promise((resolve, reject) => {
@@ -186,9 +148,9 @@ class FileStorageService {
   }
 
   /**
-   * Get StirlingFile with full data - for loading into workbench
+   * Get RustlingFile with full data - for loading into workbench
    */
-  async getStirlingFile(id: FileId): Promise<StirlingFile | null> {
+  async getRustlingFile(id: FileId): Promise<RustlingFile | null> {
     const db = await this.getDatabase();
 
     return new Promise((resolve, reject) => {
@@ -198,7 +160,7 @@ class FileStorageService {
 
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
-        const record = request.result as StoredStirlingFileRecord | undefined;
+        const record = request.result as StoredRustlingFileRecord | undefined;
         if (!record) {
           resolve(null);
           return;
@@ -211,27 +173,27 @@ class FileStorageService {
           lastModified: record.lastModified,
         });
 
-        // Convert to StirlingFile with preserved IDs
-        const stirlingFile = createStirlingFile(file, record.fileId);
-        resolve(stirlingFile);
+        // Convert to RustlingFile with preserved IDs
+        const rustlingFile = createRustlingFile(file, record.fileId);
+        resolve(rustlingFile);
       };
     });
   }
 
   /**
-   * Get multiple StirlingFiles - for batch loading
+   * Get multiple RustlingFiles - for batch loading
    */
-  async getStirlingFiles(ids: FileId[]): Promise<StirlingFile[]> {
+  async getRustlingFiles(ids: FileId[]): Promise<RustlingFile[]> {
     const results = await Promise.all(
-      ids.map((id) => this.getStirlingFile(id)),
+      ids.map((id) => this.getRustlingFile(id)),
     );
-    return results.filter((file): file is StirlingFile => file !== null);
+    return results.filter((file): file is RustlingFile => file !== null);
   }
 
   /**
-   * Get StirlingFileStub (metadata only) - for UI browsing
+   * Get RustlingFileStub (metadata only) - for UI browsing
    */
-  async getStirlingFileStub(id: FileId): Promise<StirlingFileStub | null> {
+  async getRustlingFileStub(id: FileId): Promise<RustlingFileStub | null> {
     const db = await this.getDatabase();
 
     return new Promise((resolve, reject) => {
@@ -241,7 +203,7 @@ class FileStorageService {
 
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
-        const record = request.result as StoredStirlingFileRecord | undefined;
+        const record = request.result as StoredRustlingFileRecord | undefined;
         if (!record) {
           resolve(null);
           return;
@@ -254,7 +216,7 @@ class FileStorageService {
         // don't leak through this read path.
         const fresh = this.isThumbnailFresh(record);
 
-        const stub: StirlingFileStub = {
+        const stub: RustlingFileStub = {
           id: record.id,
           name: record.name,
           type: record.type,
@@ -263,24 +225,12 @@ class FileStorageService {
           quickKey: record.quickKey,
           thumbnailUrl: fresh ? record.thumbnail : undefined,
           isLeaf: record.isLeaf,
-          remoteStorageId: record.remoteStorageId,
-          remoteStorageUpdatedAt: record.remoteStorageUpdatedAt,
-          remoteOwnerUsername: record.remoteOwnerUsername,
-          remoteOwnedByCurrentUser: record.remoteOwnedByCurrentUser,
-          remoteAccessRole: record.remoteAccessRole,
-          remoteSharedViaLink: record.remoteSharedViaLink,
-          remoteHasShareLinks: record.remoteHasShareLinks,
-          remoteShareToken: record.remoteShareToken,
           versionNumber: record.versionNumber,
           originalFileId: record.originalFileId,
           parentFileId: record.parentFileId,
           toolHistory: record.toolHistory,
-          derivedFromTool:
-            record.derivedFromTool ?? legacyDerivedFromTool(record),
-          sourceFileIds: record.sourceFileIds,
           folderId: record.folderId ?? null,
           createdAt: record.createdAt || Date.now(),
-          classificationLabels: record.classificationLabels,
         };
 
         resolve(stub);
@@ -289,16 +239,16 @@ class FileStorageService {
   }
 
   /**
-   * Get all StirlingFileStubs (metadata only) - for FileManager browsing
+   * Get all RustlingFileStubs (metadata only) - for FileManager browsing
    */
-  async getAllStirlingFileStubs(): Promise<StirlingFileStub[]> {
+  async getAllRustlingFileStubs(): Promise<RustlingFileStub[]> {
     const db = await this.getDatabase();
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([this.storeName], "readonly");
       const store = transaction.objectStore(this.storeName);
       const request = store.openCursor();
-      const stubs: StirlingFileStub[] = [];
+      const stubs: RustlingFileStub[] = [];
 
       const tobump: FileId[] = [];
       const toexpire: FileId[] = [];
@@ -307,7 +257,7 @@ class FileStorageService {
       request.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest).result;
         if (cursor) {
-          const record = cursor.value as StoredStirlingFileRecord;
+          const record = cursor.value as StoredRustlingFileRecord;
           if (record && record.name && typeof record.size === "number") {
             const fresh = this.isThumbnailFresh(record);
             if (record.thumbnail) {
@@ -323,24 +273,12 @@ class FileStorageService {
               quickKey: record.quickKey,
               thumbnailUrl: fresh ? record.thumbnail : undefined,
               isLeaf: record.isLeaf,
-              remoteStorageId: record.remoteStorageId,
-              remoteStorageUpdatedAt: record.remoteStorageUpdatedAt,
-              remoteOwnerUsername: record.remoteOwnerUsername,
-              remoteOwnedByCurrentUser: record.remoteOwnedByCurrentUser,
-              remoteAccessRole: record.remoteAccessRole,
-              remoteSharedViaLink: record.remoteSharedViaLink,
-              remoteHasShareLinks: record.remoteHasShareLinks,
-              remoteShareToken: record.remoteShareToken,
               versionNumber: record.versionNumber || 1,
               originalFileId: record.originalFileId || record.id,
               parentFileId: record.parentFileId,
               toolHistory: record.toolHistory || [],
-              derivedFromTool:
-                record.derivedFromTool ?? legacyDerivedFromTool(record),
-              sourceFileIds: record.sourceFileIds,
               folderId: record.folderId ?? null,
               createdAt: record.createdAt || Date.now(),
-              classificationLabels: record.classificationLabels,
             });
           }
           cursor.continue();
@@ -368,24 +306,24 @@ class FileStorageService {
    */
   async getHistoryChainStubs(
     originalFileId: FileId,
-  ): Promise<StirlingFileStub[]> {
-    const stubs = await this.getAllStirlingFileStubs();
+  ): Promise<RustlingFileStub[]> {
+    const stubs = await this.getAllRustlingFileStubs();
     return stubs
       .filter((stub) => (stub.originalFileId || stub.id) === originalFileId)
       .sort((a, b) => (a.versionNumber || 1) - (b.versionNumber || 1));
   }
 
   /**
-   * Get leaf StirlingFileStubs only - for unprocessed files
+   * Get leaf RustlingFileStubs only - for unprocessed files
    */
-  async getLeafStirlingFileStubs(): Promise<StirlingFileStub[]> {
+  async getLeafRustlingFileStubs(): Promise<RustlingFileStub[]> {
     const db = await this.getDatabase();
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([this.storeName], "readonly");
       const store = transaction.objectStore(this.storeName);
       const request = store.openCursor();
-      const leafStubs: StirlingFileStub[] = [];
+      const leafStubs: RustlingFileStub[] = [];
       const tobump: FileId[] = [];
       const toexpire: FileId[] = [];
 
@@ -393,7 +331,7 @@ class FileStorageService {
       request.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest).result;
         if (cursor) {
-          const record = cursor.value as StoredStirlingFileRecord;
+          const record = cursor.value as StoredRustlingFileRecord;
           // Only include leaf files (default to true if undefined)
           if (
             record &&
@@ -415,24 +353,12 @@ class FileStorageService {
               quickKey: record.quickKey,
               thumbnailUrl: fresh ? record.thumbnail : undefined,
               isLeaf: record.isLeaf,
-              remoteStorageId: record.remoteStorageId,
-              remoteStorageUpdatedAt: record.remoteStorageUpdatedAt,
-              remoteOwnerUsername: record.remoteOwnerUsername,
-              remoteOwnedByCurrentUser: record.remoteOwnedByCurrentUser,
-              remoteAccessRole: record.remoteAccessRole,
-              remoteSharedViaLink: record.remoteSharedViaLink,
-              remoteHasShareLinks: record.remoteHasShareLinks,
-              remoteShareToken: record.remoteShareToken,
               versionNumber: record.versionNumber || 1,
               originalFileId: record.originalFileId || record.id,
               parentFileId: record.parentFileId,
               toolHistory: record.toolHistory || [],
-              derivedFromTool:
-                record.derivedFromTool ?? legacyDerivedFromTool(record),
-              sourceFileIds: record.sourceFileIds,
               folderId: record.folderId ?? null,
               createdAt: record.createdAt || Date.now(),
-              classificationLabels: record.classificationLabels,
             });
           }
           cursor.continue();
@@ -476,7 +402,7 @@ class FileStorageService {
       fileIds.forEach((id) => {
         const request = store.get(id);
         request.onsuccess = () => {
-          const record = request.result as StoredStirlingFileRecord | undefined;
+          const record = request.result as StoredRustlingFileRecord | undefined;
           if (!record) return;
           record.folderId = folderId;
           store.put(record);
@@ -525,7 +451,7 @@ class FileStorageService {
           const cursor = (event.target as IDBRequest)
             .result as IDBCursorWithValue | null;
           if (!cursor) return;
-          const record = cursor.value as StoredStirlingFileRecord;
+          const record = cursor.value as StoredRustlingFileRecord;
           record.folderId = null;
           cursor.update(record);
           cleared += 1;
@@ -538,9 +464,9 @@ class FileStorageService {
   }
 
   /**
-   * Delete StirlingFile - single operation, no sync issues
+   * Delete RustlingFile - single operation, no sync issues
    */
-  async deleteStirlingFile(id: FileId): Promise<void> {
+  async deleteRustlingFile(id: FileId): Promise<void> {
     const db = await this.getDatabase();
 
     return new Promise((resolve, reject) => {
@@ -554,9 +480,9 @@ class FileStorageService {
   }
 
   /**
-   * Delete multiple StirlingFiles in a single transaction
+   * Delete multiple RustlingFiles in a single transaction
    */
-  async deleteMultipleStirlingFiles(ids: FileId[]): Promise<void> {
+  async deleteMultipleRustlingFiles(ids: FileId[]): Promise<void> {
     if (ids.length === 0) return;
     const db = await this.getDatabase();
 
@@ -584,7 +510,7 @@ class FileStorageService {
         const getRequest = store.get(id);
 
         getRequest.onsuccess = () => {
-          const record = getRequest.result as StoredStirlingFileRecord;
+          const record = getRequest.result as StoredRustlingFileRecord;
           if (record) {
             record.thumbnail = thumbnail;
             record.thumbnailStoredAt = Date.now();
@@ -650,7 +576,7 @@ class FileStorageService {
       }
 
       // Calculate our actual IndexedDB usage from file metadata
-      const stubs = await this.getAllStirlingFileStubs();
+      const stubs = await this.getAllRustlingFileStubs();
       used = stubs.reduce((total, stub) => total + (stub?.size || 0), 0);
       fileCount = stubs.length;
 
@@ -686,7 +612,7 @@ class FileStorageService {
 
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
-          const record = request.result as StoredStirlingFileRecord | undefined;
+          const record = request.result as StoredRustlingFileRecord | undefined;
           if (record) {
             const blob = new Blob([record.data], { type: record.type });
             const url = URL.createObjectURL(blob);
@@ -712,7 +638,7 @@ class FileStorageService {
       const transaction = db.transaction([this.storeName], "readwrite");
       const store = transaction.objectStore(this.storeName);
 
-      const record = await new Promise<StoredStirlingFileRecord | undefined>(
+      const record = await new Promise<StoredRustlingFileRecord | undefined>(
         (resolve, reject) => {
           const request = store.get(fileId);
           request.onsuccess = () => resolve(request.result);
@@ -743,23 +669,23 @@ class FileStorageService {
   /**
    * Persist output files as versions of their inputs: mark each input non-leaf (unless the
    * outputs are v1 originals, i.e. nothing was versioned) and store each output with its stub.
-   * This is the durable half of {@link consumeFiles}, shared so a versioned result can be written
-   * even when the input isn't in the active workspace (e.g. a policy run recovered after a reload).
+   * This is the durable half of {@link consumeFiles}, shared so a versioned
+   * result can be written even when the input isn't in the active workspace.
    * Storage-only callers must bump the IndexedDB revision afterwards so the file views re-read;
    * {@link consumeFiles} instead updates workspace state via its dispatch.
    */
   async persistVersionedOutputs(
     inputFileIds: FileId[],
-    outputStirlingFiles: StirlingFile[],
-    outputStirlingFileStubs: StirlingFileStub[],
+    outputRustlingFiles: RustlingFile[],
+    outputRustlingFileStubs: RustlingFileStub[],
   ): Promise<void> {
-    if (outputStirlingFiles.length !== outputStirlingFileStubs.length) {
+    if (outputRustlingFiles.length !== outputRustlingFileStubs.length) {
       throw new Error(
-        `Mismatch between output files (${outputStirlingFiles.length}) and stubs (${outputStirlingFileStubs.length})`,
+        `Mismatch between output files (${outputRustlingFiles.length}) and stubs (${outputRustlingFileStubs.length})`,
       );
     }
 
-    const allV1 = outputStirlingFileStubs.every(
+    const allV1 = outputRustlingFileStubs.every(
       (stub) => stub.versionNumber === 1,
     );
     if (!allV1) {
@@ -774,8 +700,8 @@ class FileStorageService {
     }
 
     await Promise.all(
-      outputStirlingFiles.map((file, i) =>
-        this.storeStirlingFile(file, outputStirlingFileStubs[i]).catch(
+      outputRustlingFiles.map((file, i) =>
+        this.storeRustlingFile(file, outputRustlingFileStubs[i]).catch(
           (error) =>
             console.error(
               "Failed to persist output file to storage:",
@@ -797,7 +723,7 @@ class FileStorageService {
       const transaction = db.transaction([this.storeName], "readwrite");
       const store = transaction.objectStore(this.storeName);
 
-      const record = await new Promise<StoredStirlingFileRecord | undefined>(
+      const record = await new Promise<StoredRustlingFileRecord | undefined>(
         (resolve, reject) => {
           const request = store.get(fileId);
           request.onsuccess = () => resolve(request.result);
@@ -835,7 +761,7 @@ class FileStorageService {
    */
   async updateFileMetadata(
     fileId: FileId,
-    updates: Partial<StoredStirlingFileRecord>,
+    updates: Partial<StoredRustlingFileRecord>,
   ): Promise<boolean> {
     try {
       const db = await this.getDatabase();
@@ -847,7 +773,7 @@ class FileStorageService {
         const getRequest = store.get(fileId);
         getRequest.onsuccess = () => {
           const record = getRequest.result as
-            StoredStirlingFileRecord | undefined;
+            StoredRustlingFileRecord | undefined;
           if (!record) {
             // Don't commit anything; caller wants false.
             return;

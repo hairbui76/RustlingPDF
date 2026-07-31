@@ -10,12 +10,12 @@ import {
   ToolWorkflowTitle,
   ToolWorkflowTitleProps,
 } from "@app/components/tools/shared/ToolWorkflowTitle";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 import type { TooltipTip } from "@app/types/tips";
 import type { ExecuteDisabledReason } from "@app/hooks/tools/shared/toolOperationTypes";
 
 export interface FilesStepConfig {
-  selectedFiles: StirlingFile[];
+  selectedFiles: RustlingFile[];
   isCollapsed?: boolean;
   minFiles?: number;
   onCollapsedClick?: () => void;
@@ -62,7 +62,6 @@ export interface ExecuteButtonConfig {
   /** Raw override for tools with fully custom disable logic (e.g. Compare, ShowJS). */
   disabled?: boolean;
   testId?: string;
-  showCloudBadge?: boolean;
   /** Suppress the automatic "(this file)" / "(N files)" scope hints in the button text. */
   disableScopeHints?: boolean;
 }
@@ -163,11 +162,6 @@ export function createToolFlow<TParams = unknown>(
                   disabledReason={effectiveDisabledReason}
                   loadingText={eb.loadingText}
                   submitText={eb.text}
-                  showCloudBadge={
-                    eb.showCloudBadge ??
-                    config.review.operation.willUseCloud ??
-                    false
-                  }
                   data-testid={eb.testId}
                   data-tour="run-button"
                 />

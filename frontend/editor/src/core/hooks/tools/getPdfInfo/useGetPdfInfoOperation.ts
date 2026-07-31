@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import apiClient from "@app/services/apiClient";
 import { useFileContext } from "@app/contexts/file/fileHooks";
 import { ToolOperationHook } from "@app/hooks/tools/shared/useToolOperation";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 import { extractErrorMessage } from "@app/utils/toolErrorHandler";
 import { PdfInfoReportEntry, INFO_JSON_FILENAME } from "@app/types/getPdfInfo";
 import type { GetPdfInfoParameters } from "@app/hooks/tools/getPdfInfo/useGetPdfInfoParameters";
@@ -49,7 +49,7 @@ export const useGetPdfInfoOperation = (): GetPdfInfoOperationHook => {
   }, []);
 
   const executeOperation = useCallback(
-    async (_params: GetPdfInfoParameters, selectedFiles: StirlingFile[]) => {
+    async (_params: GetPdfInfoParameters, selectedFiles: RustlingFile[]) => {
       if (selectedFiles.length === 0) {
         setErrorMessage(t("noFileSelected", "No file loaded"));
         return;
@@ -81,7 +81,7 @@ export const useGetPdfInfoOperation = (): GetPdfInfoOperationHook => {
               formData,
             );
 
-            const stub = selectors.getStirlingFileStub(file.fileId);
+            const stub = selectors.getRustlingFileStub(file.fileId);
             const entry: PdfInfoReportEntry = {
               fileId: file.fileId,
               fileName: file.name,
@@ -94,7 +94,7 @@ export const useGetPdfInfoOperation = (): GetPdfInfoOperationHook => {
             };
             aggregated.push(entry);
           } catch (error) {
-            const stub = selectors.getStirlingFileStub(file.fileId);
+            const stub = selectors.getRustlingFileStub(file.fileId);
             aggregated.push({
               fileId: file.fileId,
               fileName: file.name,

@@ -1,14 +1,11 @@
 # `GET /api/v1/config/login-disclaimer`
 
-Rust compatibility contract for Java's `LoginDisclaimerController`.
-
 ## Request and response
 
 - Optional query parameter `lang` selects a locale.
 - A successful response is JSON with `enabled`, `showInAnonymousMode`, `content`,
   and `format: "markdown"`.
-- The legacy `security.enableLogin` key is ignored (authentication was removed
-  from the product); the agreement is always served openly.
+- The agreement is always served as public configuration.
 - All responses include `Cache-Control: private, no-store` through the shared
   API interceptor.
 
@@ -35,5 +32,4 @@ precedence.
 ## Verification
 
 HTTP tests cover requested/base-locale resolution, disabled agreements,
-oversized file and path-like locale rejection, the ignored legacy
-`security.enableLogin` key, and the API cache policy.
+oversized file and path-like locale rejection, and the API cache policy.

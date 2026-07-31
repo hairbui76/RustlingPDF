@@ -25,7 +25,7 @@ async fn pdf_to_xlsx_route_extracts_a_workbook_or_reports_missing_pdfium()
     let pdf = ruled_table_pdf()?;
     let response = post_multipart(Some(("table.pdf", "application/pdf", &pdf))).await?;
     if response.status() == StatusCode::NOT_IMPLEMENTED {
-        assert!(rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none());
+        assert!(rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none());
         return Ok(());
     }
     let response = require_status(response, StatusCode::OK).await?;
@@ -57,7 +57,7 @@ async fn pdf_to_xlsx_route_extracts_a_workbook_or_reports_missing_pdfium()
 async fn post_multipart(
     file: Option<(&str, &str, &[u8])>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-xlsx-boundary";
+    let boundary = "rustlingpdf-xlsx-boundary";
     let mut body = Vec::new();
     if let Some((filename, content_type, bytes)) = file {
         body.extend_from_slice(

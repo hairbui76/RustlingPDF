@@ -11,4 +11,4 @@ target/
 /resources/pdfium/
 /resources/tools/
 
-**/stirling_thumbnail_handler.dll
+**/rustling_thumbnail_handler.dll

@@ -1,8 +1,5 @@
-import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-// The shared preview only loads the portal tokens; the onboarding modal reads
-// the editor theme tokens (--bg-surface, --onboarding-title, …), so load them
-// here or the modal surface renders transparent over the dark overlay.
+// Load editor theme tokens so the modal surface renders correctly in Storybook.
 import "@app/styles/theme.css";
 import OnboardingModalSlide from "@app/components/onboarding/OnboardingModalSlide";
 import {
@@ -34,21 +31,8 @@ const BASE_PARAMS: SlideFactoryParams = {
     { label: "Linux", url: "#", value: "linux" },
   ],
   onDownloadUrlChange: () => {},
-  selectedRole: null,
-  onRoleSelect: () => {},
-  licenseNotice: {
-    totalUsers: null,
-    freeTierLimit: 5,
-    isOverLimit: false,
-    requiresLicense: false,
-  },
-  loginEnabled: true,
-  firstLoginUsername: "admin",
-  onPasswordChanged: () => {},
-  usingDefaultCredentials: false,
   analyticsError: null,
   analyticsLoading: false,
-  onMfaSetupComplete: () => {},
 };
 
 interface SlideStageProps {
@@ -58,7 +42,7 @@ interface SlideStageProps {
   allowDismiss?: boolean;
   /**
    * Total steps in the flow. Defaults to 1 → a single standalone card with no
-   * progress bar or step pill (how the SaaS checklist items render). Set > 1
+   * progress bar or step pill. Set > 1
    * only to demonstrate the stepped-flow treatment.
    */
   stepCount?: number;
@@ -75,22 +59,13 @@ function SlideStage({
   stepIndex = 0,
 }: SlideStageProps) {
   const merged: SlideFactoryParams = { ...BASE_PARAMS, ...params };
-  // Live role selection so the SecurityCheck dropdown + its gated "Next" button
-  // behave the same way they do in the real flow.
-  const [selectedRole, setSelectedRole] = useState(merged.selectedRole);
 
   const definition = SLIDE_DEFINITIONS[slideId];
-  const slideContent = definition.createSlide({
-    ...merged,
-    selectedRole,
-    onRoleSelect: setSelectedRole,
-  });
+  const slideContent = definition.createSlide(merged);
 
   const runtimeState: OnboardingRuntimeState = {
     ...DEFAULT_RUNTIME_STATE,
     ...runtime,
-    selectedRole,
-    licenseNotice: merged.licenseNotice ?? DEFAULT_RUNTIME_STATE.licenseNotice,
   };
 
   return (
@@ -122,72 +97,11 @@ export const Welcome: Story = { args: { slideId: "welcome" } };
 /** The only stepped example: a multi-step flow shows the step pill + progress
  * bar. Every other story is a standalone single card (no steps). */
 export const SteppedFlowExample: Story = {
-  args: { slideId: "admin-overview", stepCount: 9, stepIndex: 4 },
-};
-
-/** Force a password change on first login (user types current + new). */
-export const FirstLogin: Story = { args: { slideId: "first-login" } };
-
-/** First login when the account is still on the default `stirling` password —
- * the current-password field is hidden. */
-export const FirstLoginDefaultCredentials: Story = {
-  args: {
-    slideId: "first-login",
-    params: { usingDefaultCredentials: true },
-  },
+  args: { slideId: "desktop-install", stepCount: 4, stepIndex: 2 },
 };
 
 /** Desktop app download prompt with an OS picker (dual-icon hero). */
 export const DesktopInstall: Story = { args: { slideId: "desktop-install" } };
-
-/** Role confirmation — the "Next" button stays disabled until a role is picked. */
-export const SecurityCheck: Story = { args: { slideId: "security-check" } };
-
-/** Admin overview with login mode already enabled (diamond hero). */
-export const AdminOverviewLoginEnabled: Story = {
-  args: {
-    slideId: "admin-overview",
-    params: { loginEnabled: true },
-  },
-};
-
-/** Admin overview before login mode is enabled — different body copy. */
-export const AdminOverviewLoginDisabled: Story = {
-  args: {
-    slideId: "admin-overview",
-    params: { loginEnabled: false },
-  },
-};
-
-/** Server license, within the free tier. */
-export const ServerLicense: Story = {
-  args: {
-    slideId: "server-license",
-    params: {
-      licenseNotice: {
-        totalUsers: 3,
-        freeTierLimit: 5,
-        isOverLimit: false,
-        requiresLicense: false,
-      },
-    },
-  },
-};
-
-/** Server license, over the free-tier seat limit — "Upgrade now" CTA. */
-export const ServerLicenseOverLimit: Story = {
-  args: {
-    slideId: "server-license",
-    params: {
-      licenseNotice: {
-        totalUsers: 12,
-        freeTierLimit: 5,
-        isOverLimit: true,
-        requiresLicense: true,
-      },
-    },
-  },
-};
 
 /** Quick tour offer before dropping the user into the tools. */
 export const TourOverview: Story = { args: { slideId: "tour-overview" } };
@@ -202,7 +116,3 @@ export const AnalyticsChoiceError: Story = {
     params: { analyticsError: "Couldn't save your analytics preference." },
   },
 };
-
-/** Two-factor setup (fetches a QR on mount; shows its error state without a
- * backend in Storybook). */
-export const MfaSetup: Story = { args: { slideId: "mfa-setup" } };

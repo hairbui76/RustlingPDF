@@ -110,7 +110,7 @@ async fn require_status(
 }
 
 async fn post_pdf(path: &str, pdf: &[u8]) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-analysis-boundary";
+    let boundary = "rustling-analysis-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"analysis.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )
@@ -201,8 +201,8 @@ fn encrypted_pdf() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     document.trailer.set(
         "ID",
         vec![
-            Object::string_literal("stirling-analysis-encrypted-id"),
-            Object::string_literal("stirling-analysis-encrypted-id"),
+            Object::string_literal("rustling-analysis-encrypted-id"),
+            Object::string_literal("rustling-analysis-encrypted-id"),
         ],
     );
     let state = EncryptionState::try_from(EncryptionVersion::V2 {

@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/decompress-pdf`
 
-Rust compatibility contract for `DecompressPdfController.decompressPdf()`.
+Current contract for decompressing PDF streams.
 
 - Multipart request: required `fileInput` PDF.
 - Success: `200 OK`, `application/pdf`, download name

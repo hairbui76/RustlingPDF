@@ -5,7 +5,7 @@
  * reloads; a module-level version counter lets hooks re-read reactively.
  */
 
-const STORAGE_KEY = "stirling.signing.lastSeenSigned";
+const STORAGE_KEY = "rustling.signing.lastSeenSigned";
 
 type SeenMap = Record<string, number>;
 

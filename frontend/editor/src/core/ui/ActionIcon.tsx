@@ -16,7 +16,7 @@ export type ActionIconAccent =
   | "neutral"
   | "brand"
   | "ai"
-  | "premium"
+  | "highlight"
   | "danger"
   | "success"
   | "warning";

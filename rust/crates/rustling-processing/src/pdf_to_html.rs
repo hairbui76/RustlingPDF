@@ -936,7 +936,7 @@ mod tests {
     #[test]
     fn missing_external_command_uses_native_zip_when_pdfium_is_available()
     -> Result<(), Box<dyn std::error::Error>> {
-        if crate::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
+        if crate::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
             return Ok(());
         }
         let directory = tempdir()?;
@@ -947,7 +947,7 @@ mod tests {
             &input,
             "source.pdf",
             &output,
-            &["/definitely/missing/rustling-pdftohtml".to_owned()],
+            &["/definitely/missing/rustlingpdftohtml".to_owned()],
         )?;
         assert_eq!(backend, PdfToHtmlBackend::NativePdfium);
         let mut archive = ZipArchive::new(File::open(output)?)?;
@@ -1074,7 +1074,7 @@ mod tests {
 
     #[test]
     fn damaged_pdf_returns_an_error_without_panicking() -> Result<(), Box<dyn std::error::Error>> {
-        if crate::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
+        if crate::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_none() {
             return Ok(());
         }
         let directory = tempdir()?;
@@ -1085,7 +1085,7 @@ mod tests {
             &input,
             "damaged.pdf",
             &output,
-            &["/definitely/missing/rustling-pdftohtml".to_owned()],
+            &["/definitely/missing/rustlingpdftohtml".to_owned()],
         );
         assert!(matches!(
             result,

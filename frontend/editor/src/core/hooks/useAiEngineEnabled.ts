@@ -5,7 +5,7 @@ import { useAppConfig } from "@app/contexts/AppConfigContext";
  *
  * Web builds read it straight from the app-config (which already comes from the
  * backend the app talks to). Desktop shadows this (desktop/hooks/useAiEngineEnabled)
- * to read it from the SaaS backend in SaaS mode instead of the local bundled one.
+ * to read it from the legacy web build backend in legacy web build mode instead of the local bundled one.
  */
 export function useAiEngineEnabled(): boolean {
   const { config } = useAppConfig();

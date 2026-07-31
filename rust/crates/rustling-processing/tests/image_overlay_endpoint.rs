@@ -131,7 +131,7 @@ async fn post_overlay(
     image: Option<&[u8]>,
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-image-overlay-boundary";
+    let boundary = "rustling-image-overlay-boundary";
     let mut body = Vec::new();
     if let Some(pdf) = pdf {
         body.extend_from_slice(

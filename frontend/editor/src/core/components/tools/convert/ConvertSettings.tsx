@@ -14,7 +14,6 @@ import { useFileSelection } from "@app/contexts/FileContext";
 import { useFileState } from "@app/contexts/FileContext";
 import { detectFileExtension } from "@app/utils/fileUtils";
 import { usePreferences } from "@app/contexts/PreferencesContext";
-import { useConversionCloudStatus } from "@app/hooks/useConversionCloudStatus";
 import GroupedFormatDropdown from "@app/components/tools/convert/GroupedFormatDropdown";
 import ConvertToImageSettings from "@app/components/tools/convert/ConvertToImageSettings";
 import ConvertFromImageSettings from "@app/components/tools/convert/ConvertFromImageSettings";
@@ -33,7 +32,7 @@ import {
   OUTPUT_OPTIONS,
   FIT_OPTIONS,
 } from "@app/constants/convertConstants";
-import { StirlingFile } from "@app/types/fileContext";
+import { RustlingFile } from "@app/types/fileContext";
 
 interface ConvertSettingsProps {
   parameters: ConvertParameters;
@@ -67,27 +66,12 @@ const ConvertSettings = ({
 
   const { endpointStatus } = useMultipleEndpointsEnabled(allEndpoints);
 
-  // Get comprehensive conversion status (availability + cloud routing)
-  const conversionStatus = useConversionCloudStatus();
-
   const isConversionAvailable = (fromExt: string, toExt: string): boolean => {
-    const conversionKey = `${fromExt}-${toExt}`;
-
-    // In desktop SaaS mode, check combined availability (local OR SaaS)
-    if (conversionStatus.availability[conversionKey] !== undefined) {
-      return conversionStatus.availability[conversionKey];
-    }
-
-    // Fallback to local-only check (web mode or desktop non-SaaS mode)
     const endpointKey = EXTENSION_TO_ENDPOINT[fromExt]?.[toExt];
     if (!endpointKey) return false;
 
     const isAvailable = endpointStatus[endpointKey] === true;
     return isAvailable;
-  };
-
-  const doesConversionUseCloud = (fromExt: string, toExt: string): boolean => {
-    return conversionStatus.cloudStatus[`${fromExt}-${toExt}`] || false;
   };
 
   // Enhanced FROM options with endpoint availability
@@ -134,10 +118,9 @@ const ConvertSettings = ({
     parameters.fromExtension,
     endpointStatus,
     preferences.hideUnavailableConversions,
-    conversionStatus,
   ]);
 
-  // Enhanced TO options with endpoint availability and cloud status
+  // Enhanced TO options with endpoint availability
   const enhancedToOptions = useMemo(() => {
     if (!parameters.fromExtension) return [];
 
@@ -148,14 +131,9 @@ const ConvertSettings = ({
         parameters.fromExtension,
         option.value,
       );
-      const usesCloud = doesConversionUseCloud(
-        parameters.fromExtension,
-        option.value,
-      );
       return {
         ...option,
         enabled,
-        usesCloud,
       };
     });
 
@@ -169,7 +147,6 @@ const ConvertSettings = ({
     parameters.fromExtension,
     endpointStatus,
     preferences.hideUnavailableConversions,
-    conversionStatus,
   ]);
 
   const resetParametersToDefaults = () => {
@@ -219,7 +196,7 @@ const ConvertSettings = ({
   const filterFilesByExtension = (extension: string) => {
     const files = activeFiles
       .map((fileId) => selectors.getFile(fileId))
-      .filter(Boolean) as StirlingFile[];
+      .filter(Boolean) as RustlingFile[];
     return files.filter((file) => {
       const fileExtension = detectFileExtension(file.name);
 
@@ -233,7 +210,7 @@ const ConvertSettings = ({
     });
   };
 
-  const updateFileSelection = (files: StirlingFile[]) => {
+  const updateFileSelection = (files: RustlingFile[]) => {
     const fileIds = files.map((file) => file.fileId);
     setSelectedFiles(fileIds);
   };

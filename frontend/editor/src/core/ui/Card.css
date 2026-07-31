@@ -33,7 +33,7 @@
 }
 
 .sui-card--accent-default::before,
-.sui-card--accent-premium::before,
+.sui-card--accent-highlight::before,
 .sui-card--accent-success::before,
 .sui-card--accent-warning::before,
 .sui-card--accent-danger::before {
@@ -48,7 +48,7 @@
 .sui-card--accent-default::before {
   background: var(--c-primary);
 }
-.sui-card--accent-premium::before {
+.sui-card--accent-highlight::before {
   background: var(--color-purple);
 }
 .sui-card--accent-success::before {

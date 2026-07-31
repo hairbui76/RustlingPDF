@@ -1,6 +1,6 @@
 # `POST /api/v1/general/remove-image-pdf`
 
-Rust compatibility contract for `RemoveImagesController.removeImages()`.
+Current contract for removing PDF images.
 
 - Multipart request: required `fileInput` PDF.
 - Success: `200 OK`, `application/pdf`, download name

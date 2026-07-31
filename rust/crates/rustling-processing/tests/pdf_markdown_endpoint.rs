@@ -32,7 +32,7 @@ async fn rejects_missing_or_invalid_pdf_uploads() -> Result<(), Box<dyn std::err
         StatusCode::BAD_REQUEST
     );
 
-    let boundary = "stirling-pdf-markdown-missing";
+    let boundary = "rustlingpdf-markdown-missing";
     let response = app(1024)
         .oneshot(
             Request::builder()
@@ -50,7 +50,7 @@ async fn rejects_missing_or_invalid_pdf_uploads() -> Result<(), Box<dyn std::err
 }
 
 async fn post_file(content: &[u8], filename: &str) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-markdown-boundary";
+    let boundary = "rustlingpdf-markdown-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

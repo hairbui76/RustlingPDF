@@ -1,0 +1,99 @@
+{
+  "warnings": [
+    {
+      "message": "❓ This PR contains 4 packages with unknown license type \"LGPL-2.1-or-later\" - manual review required",
+      "licenseType": "LGPL-2.1-or-later",
+      "licenseUrl": "",
+      "reason": "Unknown license type",
+      "packageCount": 4,
+      "affectedDependencies": [
+        {
+          "name": "gnutls",
+          "version": "3.7.3",
+          "url": "https://gnutls.org/"
+        },
+        {
+          "name": "libtasn1",
+          "version": "4.18.0",
+          "url": "https://www.gnu.org/software/libtasn1/"
+        },
+        {
+          "name": "libiconv",
+          "version": "",
+          "url": "https://www.gnu.org/software/libiconv/"
+        },
+        {
+          "name": "gettext",
+          "version": "",
+          "url": "https://www.gnu.org/software/gettext/"
+        }
+      ]
+    },
+    {
+      "message": "❓ This PR contains 3 packages with unknown license type \"LGPL-3.0-or-later\" - manual review required",
+      "licenseType": "LGPL-3.0-or-later",
+      "licenseUrl": "",
+      "reason": "Unknown license type",
+      "packageCount": 3,
+      "affectedDependencies": [
+        {
+          "name": "nettle",
+          "version": "3.7.3",
+          "url": "https://www.lysator.liu.se/~nisse/nettle/"
+        },
+        {
+          "name": "libidn2",
+          "version": "2.3.2",
+          "url": "https://www.gnu.org/software/libidn/#libidn2"
+        },
+        {
+          "name": "libunistring",
+          "version": "1.0",
+          "url": "https://www.gnu.org/software/libunistring/"
+        }
+      ]
+    },
+    {
+      "message": "❓ This PR contains 1 package with unknown license type \"libpng-2.0\" - manual review required",
+      "licenseType": "libpng-2.0",
+      "licenseUrl": "",
+      "reason": "Unknown license type",
+      "packageCount": 1,
+      "affectedDependencies": [
+        {
+          "name": "libpng",
+          "version": "1.6.46",
+          "url": "http://www.libpng.org/pub/png/libpng.html"
+        }
+      ]
+    },
+    {
+      "message": "❓ This PR contains 1 package with unknown license type \"GPL-3.0-or-later WITH GCC-exception-3.1\" - manual review required",
+      "licenseType": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "licenseUrl": "",
+      "reason": "Unknown license type",
+      "packageCount": 1,
+      "affectedDependencies": [
+        {
+          "name": "gcc-runtime",
+          "version": "",
+          "url": "https://gcc.gnu.org/"
+        }
+      ]
+    },
+    {
+      "message": "❓ This PR contains 1 package with unknown license type \"LicenseRef-Microsoft-Visual-C++-Runtime\" - manual review required",
+      "licenseType": "LicenseRef-Microsoft-Visual-C++-Runtime",
+      "licenseUrl": "",
+      "reason": "Unknown license type",
+      "packageCount": 1,
+      "affectedDependencies": [
+        {
+          "name": "msvc-runtime",
+          "version": "",
+          "url": "https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files"
+        }
+      ]
+    }
+  ]
+}

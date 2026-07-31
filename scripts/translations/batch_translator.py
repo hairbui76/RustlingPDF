@@ -51,9 +51,9 @@ class BatchTranslator:
 
     def get_translation_prompt(self, language_name: str, language_code: str) -> str:
         """Generate the system prompt for translation."""
-        return f"""You are a professional translator for Stirling PDF, an open-source PDF manipulation tool.
+        return f"""You are a professional translator for RustlingPDF, an open-source PDF manipulation tool.
 
-Translate the following JSON from English to {language_name} ({language_code}) for the Stirling PDF user interface.
+Translate the following JSON from English to {language_name} ({language_code}) for the RustlingPDF user interface.
 
 CRITICAL RULES - MUST FOLLOW EXACTLY:
 
@@ -71,7 +71,7 @@ CRITICAL RULES - MUST FOLLOW EXACTLY:
    - Protocols: API, OAuth2, SAML2, JWT, SMTP, HTTP, HTTPS, SSL, TLS
    - Technologies: Git, GitHub, Google, PostHog, Scarf, LibreOffice, Ghostscript, Tesseract, OCR
    - Technical keywords: URL, URI, DPI, RGB, CMYK, QR
-   - "Stirling PDF" - always keep as-is
+   - "RustlingPDF" - always keep as-is
 
 4. MAINTAIN CONSISTENT TERMINOLOGY:
    - Use the SAME translation for repeated terms throughout

@@ -1,8 +1,8 @@
 # AI engine proxy contract
 
-This contract covers the proprietary Java `AiEngineController` surface ported
-into `rustling-processing`, including both transparent engine proxies and the
-Java-facing multipart workflow state machine.
+This contract covers the optional AI-engine proxy in `rustling-processing`,
+including transparent engine proxies and the multipart workflow state
+machine.
 
 ## Mounted routes
 
@@ -55,7 +55,7 @@ Java-facing multipart workflow state machine.
   `/api/v1/ai/tools/*` namespace are permitted; recursive orchestration and
   arbitrary internal paths are rejected.
 - Preserves Java tool metadata for single/multi-input dispatch and ZIP
-  fan-out. JSON responses and `X-Stirling-Tool-Report` headers become typed
+  fan-out. JSON responses and `X-Rustling-Tool-Report` headers become typed
   report artifacts when an engine resume is requested.
 - Stores every generated or processed output individually under one
   owner-scoped Rust job. The response includes `resultFiles` descriptors and
@@ -73,7 +73,7 @@ Java-facing multipart workflow state machine.
   `extracting_content`, `executing_tool`, `processing`, and nested
   `engine_progress`; upstream heartbeats become named `heartbeat` events.
 - Terminates with exactly one named `result` or `error` event. The timeout is
-  controlled by `stirling.ai.streamTimeoutMs`/
+  controlled by `rustling.ai.streamTimeoutMs`/
   `RUSTLING_AI_STREAMTIMEOUTMS` and defaults to 1,800 seconds.
 - A downstream disconnect drops the workflow future and its upstream reqwest
   response, cancelling engine generation and preventing further turns or tool
@@ -131,14 +131,14 @@ deployments so the engine stays environment-controlled. Pushes carry the
 are strictly serialized through one queue (Java's single-thread executor), so
 overlapping pushes cannot leave the engine on a stale payload.
 
-Payload rules ported from Java: camelCase spellings match the engine's
-tolerant wire contract; unconfigured model identity
-(provider/model/credential fields all at Java defaults with blank keys) is
+Payloads use the engine's camelCase wire contract. Unconfigured model identity
+(provider/model/credential fields all blank) is
 blanked to empty strings so the engine keeps its own env credentials, while a
 section that is configured — or whose identity keys were touched — travels
-as-is so an explicit clear really clears. Settings resolution uses Spring's
-relaxed spellings (`AIENGINE_MODELS_SMARTMODEL`, `AIENGINE_LIMITS_MAXPAGES`,
-…) over the `aiEngine.models/limits` YAML sections with Java's defaults
+as-is so an explicit clear really clears. Settings resolution uses supported
+environment spellings (`AIENGINE_MODELS_SMARTMODEL`,
+`AIENGINE_LIMITS_MAXPAGES`, …) over the `aiEngine.models/limits` YAML sections
+with defaults
 (`anthropic`/`claude-haiku-4-5`, 8192/2048 tokens, maxPages 200,
 maxCharacters 200000, modelMaxConcurrency 32). The historic `rag` section is
 no longer read or pushed: retrieval settings died with the engine's document

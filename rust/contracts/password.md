@@ -1,6 +1,6 @@
 # `POST /api/v1/security/add-password` and `remove-password`
 
-Rust compatibility contract for `PasswordController`.
+Current contract for adding and removing PDF passwords.
 
 ## Add password
 

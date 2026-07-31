@@ -27,6 +27,6 @@
   
   <!-- Footer -->
   <text x="200" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#bdc3c7">
-    Generated for Stirling PDF testing - 400x300px
+    Generated for RustlingPDF testing - 400x300px
   </text>
 </svg>

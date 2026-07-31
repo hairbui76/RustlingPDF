@@ -9,7 +9,6 @@ import {
 } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import { Z_INDEX_AUTOMATE_DROPDOWN } from "@app/styles/zIndex";
 
 interface FormatOption {
@@ -17,7 +16,6 @@ interface FormatOption {
   label: string;
   group: string;
   enabled?: boolean;
-  usesCloud?: boolean;
 }
 
 interface GroupedFormatDropdownProps {
@@ -153,17 +151,6 @@ const GroupedFormatDropdown = ({
                     size="sm"
                     onClick={() => handleOptionSelect(option.value)}
                     disabled={option.enabled === false}
-                    rightSection={
-                      option.usesCloud ? (
-                        <CloudOutlinedIcon
-                          style={{
-                            fontSize: "0.625rem",
-                            marginLeft: "0.25rem",
-                            opacity: 0.7,
-                          }}
-                        />
-                      ) : undefined
-                    }
                     style={{
                       fontSize: "0.75rem",
                       height: "2rem",

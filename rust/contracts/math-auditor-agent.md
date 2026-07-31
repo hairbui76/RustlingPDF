@@ -1,8 +1,7 @@
 # AI Math Auditor agent
 
-`POST /api/v1/ai/tools/math-auditor-agent` ports the public proprietary
-workflow that audits mathematical claims in one PDF and returns the engine's
-JSON `Verdict`.
+`POST /api/v1/ai/tools/math-auditor-agent` audits mathematical claims in one
+PDF and returns the engine's JSON `Verdict`.
 
 ## Request and response
 

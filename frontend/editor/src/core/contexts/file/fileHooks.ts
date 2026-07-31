@@ -9,7 +9,7 @@ import {
   FileContextStateValue,
   FileContextActionsValue,
 } from "@app/contexts/file/contexts";
-import { StirlingFileStub, StirlingFile } from "@app/types/fileContext";
+import { RustlingFileStub, RustlingFile } from "@app/types/fileContext";
 import { FileId } from "@app/types/file";
 
 /**
@@ -38,7 +38,7 @@ export function useFileActions(): FileContextActionsValue {
 /**
  * Hook for current/primary file (first in list)
  */
-export function useCurrentFile(): { file?: File; record?: StirlingFileStub } {
+export function useCurrentFile(): { file?: File; record?: RustlingFileStub } {
   const { state, selectors } = useFileState();
 
   const primaryFileId = state.files.ids[0];
@@ -50,7 +50,7 @@ export function useCurrentFile(): { file?: File; record?: StirlingFileStub } {
     () => ({
       file: primaryFileId ? selectors.getFile(primaryFileId) : undefined,
       record: primaryFileId
-        ? selectors.getStirlingFileStub(primaryFileId)
+        ? selectors.getRustlingFileStub(primaryFileId)
         : undefined,
     }),
     [primaryFileId, primaryFileRecord, selectors],
@@ -100,7 +100,7 @@ export function useFileManagement() {
       addFiles: actions.addFiles,
       removeFiles: actions.removeFiles,
       clearAllFiles: actions.clearAllFiles,
-      updateStirlingFileStub: actions.updateStirlingFileStub,
+      updateRustlingFileStub: actions.updateRustlingFileStub,
       reorderFiles: actions.reorderFiles,
     }),
     [actions],
@@ -129,9 +129,9 @@ export function useFileUI() {
 /**
  * Hook for specific file by ID (optimized for individual file access)
  */
-export function useStirlingFileStub(fileId: FileId): {
+export function useRustlingFileStub(fileId: FileId): {
   file?: File;
-  record?: StirlingFileStub;
+  record?: RustlingFileStub;
 } {
   const { state, selectors } = useFileState();
   const fileRecord = state.files.byId[fileId];
@@ -139,7 +139,7 @@ export function useStirlingFileStub(fileId: FileId): {
   return useMemo(
     () => ({
       file: selectors.getFile(fileId),
-      record: selectors.getStirlingFileStub(fileId),
+      record: selectors.getRustlingFileStub(fileId),
     }),
     [fileId, fileRecord, selectors],
   );
@@ -149,8 +149,8 @@ export function useStirlingFileStub(fileId: FileId): {
  * Hook for all files (use sparingly - causes re-renders on file list changes)
  */
 export function useAllFiles(): {
-  files: StirlingFile[];
-  fileStubs: StirlingFileStub[];
+  files: RustlingFile[];
+  fileStubs: RustlingFileStub[];
   fileIds: FileId[];
 } {
   const { state, selectors } = useFileState();
@@ -158,7 +158,7 @@ export function useAllFiles(): {
   return useMemo(
     () => ({
       files: selectors.getFiles(),
-      fileStubs: selectors.getStirlingFileStubs(),
+      fileStubs: selectors.getRustlingFileStubs(),
       fileIds: state.files.ids,
     }),
     [state.files.ids, state.files.byId, selectors],
@@ -169,8 +169,8 @@ export function useAllFiles(): {
  * Hook for selected files (optimized for selection-based UI)
  */
 export function useSelectedFiles(): {
-  selectedFiles: StirlingFile[];
-  selectedFileStubs: StirlingFileStub[];
+  selectedFiles: RustlingFile[];
+  selectedFileStubs: RustlingFileStub[];
   selectedFileIds: FileId[];
 } {
   const { state, selectors } = useFileState();
@@ -178,7 +178,7 @@ export function useSelectedFiles(): {
   return useMemo(
     () => ({
       selectedFiles: selectors.getSelectedFiles(),
-      selectedFileStubs: selectors.getSelectedStirlingFileStubs(),
+      selectedFileStubs: selectors.getSelectedRustlingFileStubs(),
       selectedFileIds: state.ui.selectedFileIds,
     }),
     [state.ui.selectedFileIds, state.files.byId, selectors],

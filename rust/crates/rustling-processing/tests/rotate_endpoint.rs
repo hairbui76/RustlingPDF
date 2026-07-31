@@ -10,7 +10,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn rotates_every_page_and_preserves_the_browser_contract()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-rotate-boundary";
+    let boundary = "rustling-rotate-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -35,7 +35,7 @@ async fn rotates_every_page_and_preserves_the_browser_contract()
 
 #[tokio::test]
 async fn defaults_the_rotation_angle_to_ninety_degrees() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-default-rotate-boundary";
+    let boundary = "rustling-default-rotate-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -55,7 +55,7 @@ async fn defaults_the_rotation_angle_to_ninety_degrees() -> Result<(), Box<dyn s
 #[tokio::test]
 async fn rejects_invalid_angles_with_the_rotate_api_path() -> Result<(), Box<dyn std::error::Error>>
 {
-    let boundary = "stirling-invalid-rotate-boundary";
+    let boundary = "rustling-invalid-rotate-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,

@@ -5,7 +5,7 @@ tasks:
     desc: "Prepare desktop build dependencies"
     deps:
       - task: ":frontend:prepare"
-        vars: { MODE: desktop }
+        vars: { MODE: core }
       - provisioner
       - stage-sidecar
 

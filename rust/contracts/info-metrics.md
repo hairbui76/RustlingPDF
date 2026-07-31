@@ -1,43 +1,35 @@
-# Info and runtime metrics contract
-
-Rust compatibility contract for upstream Stirling-PDF's Java `MetricsController`
-and its request/WAU filters.
+# Info and runtime metrics
 
 ## Routes
 
 - `GET /api/v1/info/status` and `GET /api/v1/info/health` return
-  `{ "status": "UP", "version": "<application version>" }`. The version is
-  loaded from the repository's authoritative `rust/VERSION` file: the crate's
-  `build.rs` stages a `version.properties` copy into `OUT_DIR` from that
-  committed file (same `version=<x.y.z>` line shape the upstream
-  Gradle-generated artifact used), so a clean checkout compiles and reports
-  the canonical version.
-- `GET /api/v1/info/load[?endpoint=<path>]` and `/load/unique` return the total
-  or unique-session count for GET requests.
-- `GET /api/v1/info/load/all` and `/load/all/unique` return ordered
-  `{ "endpoint": "<path>", "count": <number> }` entries for GET requests.
+  `{ "status": "UP", "version": "<application version>" }`.
+- `GET /api/v1/info/load[?endpoint=<path>]` and `/load/unique` return total or
+  unique-session counts for GET requests.
+- `GET /api/v1/info/load/all` and `/load/all/unique` return ordered endpoint
+  count entries for GET requests.
 - `GET /api/v1/info/requests[?endpoint=<path>]`, `/requests/unique`,
-  `/requests/all`, and `/requests/all/unique` are their POST equivalents.
-- `GET /api/v1/info/uptime` returns Java's `0d 0h 0m 0s` duration format.
-- `GET /api/v1/info/wau` returns `weeklyActiveUsers`, `totalUniqueBrowsers`,
-  `daysOnline`, and ISO-8601 `trackingSince` while login is disabled.
+  `/requests/all`, and `/requests/all/unique` are the POST equivalents.
+- `GET /api/v1/info/uptime` returns a `0d 0h 0m 0s` duration.
+- `GET /api/v1/info/wau` returns `weeklyActiveUsers`,
+  `totalUniqueBrowsers`, `daysOnline`, and ISO-8601 `trackingSince`.
 
-## Collection and configuration
+The canonical application version comes from `rust/VERSION`. The build script
+stages it into the compiled service and the status route reports that value.
 
-The process-local collector mirrors the Java filters: it counts trackable
-requests before dispatch, excludes static and `/api/v1/info/*` paths, groups by
-method/path/session, and treats a missing `JSESSIONID` cookie as `no-session`.
-When `security.enableLogin=false`, non-empty `X-Browser-Id` values are retained
-for seven days for WAU statistics.
+## Collection
 
-`metrics.enabled` (or `METRICS_ENABLED`) defaults to `true`. When disabled, all
-metric query routes except status/health return `403 This endpoint is disabled.`.
-When login is configured, the WAU route returns `404` with Java's no-login-mode
-message. Metrics are process-local, matching Java's default in-memory Micrometer
-registry; counters reset when the Rust service restarts.
+The process-local collector counts eligible requests before dispatch, excludes
+static and `/api/v1/info/*` paths, and groups by method, path, and session.
+Missing `JSESSIONID` cookies use the `no-session` bucket. Non-empty
+`X-Browser-Id` values are retained for seven days for weekly-active statistics.
 
-## Verification
+`metrics.enabled` or `METRICS_ENABLED` defaults to true. When disabled, metric
+query routes other than status and health return
+`403 This endpoint is disabled.`.
 
-Unit tests cover version discovery, request filtering, session uniqueness, and
-browser identifiers. HTTP tests cover health/status, request counting, WAU,
-login-mode rejection, and `metrics.enabled=false`.
+Counters are process-local, leave the service only when a caller requests the
+info routes, and reset on restart. They are not external analytics.
+
+Unit and HTTP tests cover version reporting, filters, uniqueness, browser
+identifiers, request counts, weekly-active output, and disabled metrics.

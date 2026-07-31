@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/remove-blanks`
 
-Rust compatibility contract for `BlankPageController`.
+Current contract for removing blank pages.
 
 ## Request and response
 

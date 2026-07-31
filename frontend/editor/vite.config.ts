@@ -81,7 +81,7 @@ function compressStaticCopyPlugin(): PluginOption {
 // flat per-route files (e.g. dist/compress.html) means every static host - Cloudflare
 // Pages, Docker's bundled static dir, desktop - serves correct previews with NO
 // server-side rendering. Cloudflare Pages serves `compress.html` at `/compress`
-// automatically (clean URLs), and the Spring backend serves the same file.
+// automatically (clean URLs), and the Rust backend serves the same file.
 //
 // Absolute URLs (best for Facebook/X) are used when a canonical base is known:
 // VITE_OG_BASE_URL (custom domain) or CF_PAGES_URL (set automatically by Cloudflare
@@ -159,25 +159,13 @@ function subpathBareRedirectPlugin(subpath: string): PluginOption {
   };
 }
 
-const VALID_MODES = ["core", "proprietary", "desktop", "prototypes"] as const;
-type BuildMode = (typeof VALID_MODES)[number];
-
-const TSCONFIG_MAP: Record<BuildMode, string> = {
-  core: "./tsconfig.core.vite.json",
-  proprietary: "./tsconfig.proprietary.vite.json",
-  desktop: "./tsconfig.desktop.vite.json",
-  prototypes: "./tsconfig.prototypes.vite.json",
-};
-
 export default defineConfig(async ({ mode, command }) => {
   // Dev-only browser-tab label (worktree folder basename) surfaced by the
   // top-level dev tasks so concurrent worktrees have distinguishable tabs.
   // Only injected during `vite` (dev serve) — never baked into a production
   // build — and carries only the folder name, no path/host/user info.
   const devWorktreeLabel =
-    command === "serve"
-      ? (process.env.RUSTLING_DEV_LABEL ?? process.env.STIRLING_DEV_LABEL ?? "")
-      : "";
+    command === "serve" ? (process.env.RUSTLING_DEV_LABEL ?? "") : "";
   // Load env files relative to this config (frontend/editor/), regardless of
   // where the build was invoked from. The previous `process.cwd()` worked when
   // this file lived at frontend/, but after the editor was moved under
@@ -185,28 +173,7 @@ export default defineConfig(async ({ mode, command }) => {
   const env = loadEnv(mode, import.meta.dirname, "");
   const parentEnv = loadEnv(mode, resolve(import.meta.dirname, ".."), "");
 
-  // Effective mode: --mode > RUSTLING_FLAVOR (legacy STIRLING_FLAVOR) >
-  // DISABLE_ADDITIONAL_FEATURES > proprietary.
-  const explicitMode = (VALID_MODES as readonly string[]).includes(mode)
-    ? (mode as BuildMode)
-    : null;
-  const flavor = (
-    process.env.RUSTLING_FLAVOR ??
-    process.env.STIRLING_FLAVOR ??
-    ""
-  ).toLowerCase();
-  const flavorMode: BuildMode | null =
-    flavor === "core" || flavor === "proprietary"
-      ? (flavor as BuildMode)
-      : null;
-  const effectiveMode: BuildMode =
-    explicitMode ??
-    flavorMode ??
-    (process.env.DISABLE_ADDITIONAL_FEATURES === "true"
-      ? "core"
-      : "proprietary");
-
-  const tsconfigProject = TSCONFIG_MAP[effectiveMode];
+  const tsconfigProject = "./tsconfig.core.vite.json";
 
   // Subpath the app is served under (base becomes "/<runSubpath>/"). Empty = root.
   const runSubpath = (env.RUN_SUBPATH || "").replace(/^\/+|\/+$/g, "");
@@ -234,18 +201,15 @@ export default defineConfig(async ({ mode, command }) => {
 
   // Shared between `vite` (dev) and `vite preview` (production-build serve, used
   // in CI/E2E) so the live test suite still resolves /api → :8080.
-  const backendProxyConfig =
-    effectiveMode === "desktop"
-      ? undefined
-      : {
-          "/api": backendProxy,
-          "/oauth2": backendProxy,
-          "/saml2": backendProxy,
-          "/login/oauth2": backendProxy,
-          "/login/saml2": backendProxy,
-          "/swagger-ui": backendProxy,
-          "/v1/api-docs": backendProxy,
-        };
+  const backendProxyConfig = {
+    "/api": backendProxy,
+    "/oauth2": backendProxy,
+    "/saml2": backendProxy,
+    "/login/oauth2": backendProxy,
+    "/login/saml2": backendProxy,
+    "/swagger-ui": backendProxy,
+    "/v1/api-docs": backendProxy,
+  };
 
   return {
     define: {

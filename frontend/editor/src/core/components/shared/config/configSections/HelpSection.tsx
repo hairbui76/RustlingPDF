@@ -6,19 +6,15 @@ import LocalIcon from "@app/components/shared/LocalIcon";
 import { requestStartTour } from "@app/constants/events";
 
 interface HelpSectionProps {
-  isAdmin: boolean;
   onRequestClose: () => void;
 }
 
-const HelpSection: React.FC<HelpSectionProps> = ({
-  isAdmin,
-  onRequestClose,
-}) => {
+const HelpSection: React.FC<HelpSectionProps> = ({ onRequestClose }) => {
   const { t } = useTranslation();
 
-  const startTour = (tourType: "tools" | "admin") => {
+  const startTour = () => {
     onRequestClose();
-    setTimeout(() => requestStartTour(tourType), 300);
+    setTimeout(() => requestStartTour("tools"), 300);
   };
 
   return (
@@ -47,37 +43,11 @@ const HelpSection: React.FC<HelpSectionProps> = ({
                   height="1rem"
                 />
               }
-              onClick={() => startTour("tools")}
+              onClick={startTour}
             >
               {t("settings.help.toolsTour.start", "Start")}
             </Button>
           </Group>
-
-          {isAdmin && (
-            <Group justify="space-between" align="center">
-              <div>
-                <Text fw={600} size="sm">
-                  {t("settings.help.adminTour.title", "Admin Tour")}
-                </Text>
-                <Text size="xs" c="dimmed" mt={4}>
-                  {t(
-                    "settings.help.adminTour.description",
-                    "Explore team management, system settings, and enterprise features.",
-                  )}
-                </Text>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                leftSection={
-                  <LocalIcon icon="person-rounded" width="1rem" height="1rem" />
-                }
-                onClick={() => startTour("admin")}
-              >
-                {t("settings.help.adminTour.start", "Start")}
-              </Button>
-            </Group>
-          )}
         </Stack>
       </Paper>
     </Stack>

@@ -219,7 +219,7 @@ fn page_with_image_and_text() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 
 fn tesseract_present() -> bool {
     if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_TESSERACT_COMMAND")
+        rustling_processing::environment::var_os("RUSTLING_PROCESSING_TESSERACT_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();
@@ -236,7 +236,7 @@ fn tesseract_present() -> bool {
 
 fn ocrmypdf_present() -> bool {
     if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_OCRMYPDF_COMMAND")
+        rustling_processing::environment::var_os("RUSTLING_PROCESSING_OCRMYPDF_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();
@@ -304,7 +304,7 @@ async fn post_ocr(
     )?;
     let runtime_config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
 
-    let boundary = "stirling-ocr-boundary";
+    let boundary = "rustling-ocr-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

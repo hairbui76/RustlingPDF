@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { Button, type ButtonVariant, type ButtonAccent } from "@app/ui/Button";
 import { Tooltip } from "@app/components/shared/Tooltip";
 import { useBackendHealth } from "@app/hooks/useBackendHealth";
-import { CloudBadge } from "@app/components/shared/CloudBadge";
 import type { ExecuteDisabledReason } from "@app/hooks/tools/shared/toolOperationTypes";
 import { useToolActions } from "@app/contexts/ToolActionsContext";
 
@@ -19,7 +18,6 @@ export interface OperationButtonProps {
   fullWidth?: boolean;
   mt?: string;
   type?: "button" | "submit" | "reset";
-  showCloudBadge?: boolean;
   "data-testid"?: string;
   "data-tour"?: string;
 }
@@ -40,8 +38,8 @@ export const operationButtonAccentMap: Record<string, ButtonAccent> = {
   red: "danger",
   green: "success",
   yellow: "warning",
-  violet: "premium",
-  grape: "premium",
+  violet: "highlight",
+  grape: "highlight",
 };
 
 const OperationButton = ({
@@ -56,7 +54,6 @@ const OperationButton = ({
   fullWidth = false,
   mt = "md",
   type = "button",
-  showCloudBadge = false,
   "data-testid": dataTestId,
   "data-tour": dataTour,
 }: OperationButtonProps) => {
@@ -126,11 +123,6 @@ const OperationButton = ({
       {isLoading
         ? loadingText || t("loading", "Loading...")
         : submitText || t("submit", "Submit")}
-      {showCloudBadge && (
-        <Box style={{ position: "absolute", top: 4, right: 4 }}>
-          <CloudBadge />
-        </Box>
-      )}
     </Button>
   );
 

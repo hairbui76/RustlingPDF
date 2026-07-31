@@ -83,27 +83,27 @@ async fn signs_a_pdf_with_an_uploaded_pem_key_and_der_certificate() -> TestResul
 /// Generated with OpenSSL (`ecparam secp521r1` + `req -x509 -sha512`); the
 /// same fixture the `signing_key` unit tests verify against OpenSSL semantics.
 const P521_PKCS8_PEM: &str = "-----BEGIN PRIVATE KEY-----\n\
-MIHuAgEAMBAGByqGSM49AgEGBSuBBAAjBIHWMIHTAgEBBEIBwjfNy3ndVkidl8/i\n\
-V2pPvah68CP9+MDrdk223SvIQTigHgAidxkIXw3spX3uSIZLNIXagXxxEEvkpBiv\n\
-3Z6UNhOhgYkDgYYABAGdFIoAYJTKMikaLqe+tTxctMDRnBVC+kFwgDDunFexpDJf\n\
-fUwlVIqHAJQ0aVoHnQncLFKYb6FX12BVmLjb+syY2AALBAFAiqfJndYEYQ2utLGA\n\
-UWoqkItFKVQRtwpTqHDB72WHcSe41pZJt/XujLiZSTKsFYCLrPLRA6DuJEpamSp0\n\
-sA==\n\
+MIHuAgEAMBAGByqGSM49AgEGBSuBBAAjBIHWMIHTAgEBBEIAK3031O+6D3dCOsa4\n\
+gVjHkYXrVniIAF6uN3tcFs1Go+u6QNwPrBeNmP9SNfjHx8f0qE+oiSY0HaKC5akj\n\
+J8aD/0ahgYkDgYYABAC4n2zhVsx0sFLmLuXreTku4msn+iSUynvHBfTni34dAgwH\n\
+BNy5x/8sfmnEzG4qNXq4XhvDnhIYmL7ofXpnjJ5TZwCcbagap3YMA01gUMsBfrx1\n\
+g1B5gAhG7ea5UBhzGg6ijXW+rcKfJ0IbBeKJXy1j5D20+leKfVZqEtVBuN+a4uWd\n\
+3A==\n\
 -----END PRIVATE KEY-----\n";
 
 const P521_CERTIFICATE_PEM: &str = "-----BEGIN CERTIFICATE-----\n\
-MIICGTCCAXqgAwIBAgIURyuRCEttmk0wOq2ytxrpIgOZlJcwCgYIKoZIzj0EAwQw\n\
-HjEcMBoGA1UEAwwTU3RpcmxpbmcgUC01MjEgVGVzdDAeFw0yNjA3MjUxNDUxMDVa\n\
-Fw0zNjA3MjIxNDUxMDVaMB4xHDAaBgNVBAMME1N0aXJsaW5nIFAtNTIxIFRlc3Qw\n\
-gZswEAYHKoZIzj0CAQYFK4EEACMDgYYABAGdFIoAYJTKMikaLqe+tTxctMDRnBVC\n\
-+kFwgDDunFexpDJffUwlVIqHAJQ0aVoHnQncLFKYb6FX12BVmLjb+syY2AALBAFA\n\
-iqfJndYEYQ2utLGAUWoqkItFKVQRtwpTqHDB72WHcSe41pZJt/XujLiZSTKsFYCL\n\
-rPLRA6DuJEpamSp0sKNTMFEwHQYDVR0OBBYEFAg5plmhxEqSaLrJqbFy8hQkL6hA\n\
-MB8GA1UdIwQYMBaAFAg5plmhxEqSaLrJqbFy8hQkL6hAMA8GA1UdEwEB/wQFMAMB\n\
-Af8wCgYIKoZIzj0EAwQDgYwAMIGIAkIBTCtwawyMW65d7KK1C6rYZcm61/S1uUMC\n\
-4MiORYKcKBlAe/dFgs3gZ6dvLU/rswaau+6NECe0RYvjhTYkBh/aQNYCQgEdm5gs\n\
-0OhBQ0hHKV6fln9/bStY/qH3kOBG1jD60nj8AKV61+EWtRuBX4gmlYMY4CWhTE1U\n\
-amwXixTh3YlrdOneww==\n\
+MIICGDCCAXqgAwIBAgIUBTNIYdYj4SBmyazDvfz55AV8ncwwCgYIKoZIzj0EAwQw\n\
+HjEcMBoGA1UEAwwTUnVzdGxpbmcgUC01MjEgVGVzdDAeFw0yNjA3MzEwNDU5MTJa\n\
+Fw0zNjA3MjgwNDU5MTJaMB4xHDAaBgNVBAMME1J1c3RsaW5nIFAtNTIxIFRlc3Qw\n\
+gZswEAYHKoZIzj0CAQYFK4EEACMDgYYABAC4n2zhVsx0sFLmLuXreTku4msn+iSU\n\
+ynvHBfTni34dAgwHBNy5x/8sfmnEzG4qNXq4XhvDnhIYmL7ofXpnjJ5TZwCcbaga\n\
+p3YMA01gUMsBfrx1g1B5gAhG7ea5UBhzGg6ijXW+rcKfJ0IbBeKJXy1j5D20+leK\n\
+fVZqEtVBuN+a4uWd3KNTMFEwHQYDVR0OBBYEFEuW4ZPl/yZsZXOBRNZYyVPx0wkd\n\
+MB8GA1UdIwQYMBaAFEuW4ZPl/yZsZXOBRNZYyVPx0wkdMA8GA1UdEwEB/wQFMAMB\n\
+Af8wCgYIKoZIzj0EAwQDgYsAMIGHAkECn9btnBDl9q2w2228jmQmEtY2eDvO9khp\n\
+n9facXhwaGYl74WNkSKuL04x9bfhxUjEkw/AhrRI31lP/0xcZggABAJCAYIz/+yT\n\
+HAL7Xnr5CYgIWbjgPC3qD3Hnk4qL5vp0d73kAztqOxsFsNKV/8mUmLOK867fXZC9\n\
+83chm9PFYCM0Bk/0\n\
 -----END CERTIFICATE-----\n";
 
 /// P-521 keys sign through the dedicated pure-Rust path (`ecdsa-with-SHA512`),
@@ -139,8 +139,8 @@ async fn signs_a_pdf_with_a_p521_key_and_its_certificate() -> TestResult {
     let document = Document::load_mem(&signed_pdf)?;
     let signature = signature_dictionary(&document)?;
     // The signer name comes from the committed fixture certificate's CN
-    // ("Stirling P-521 Test"), not from product branding.
-    assert_eq!(signature.get(b"Name")?.as_str()?, b"Stirling P-521 Test");
+    // ("Rustling P-521 Test"), not from product branding.
+    assert_eq!(signature.get(b"Name")?.as_str()?, b"Rustling P-521 Test");
     let byte_range = signature
         .get(b"ByteRange")?
         .as_array()?
@@ -201,7 +201,7 @@ async fn signs_a_pdf_with_an_uploaded_pkcs12_or_pfx_key() -> TestResult {
         let (certificate, key) = self_signed_ecdsa_key_pair(None);
         let private_key = key.private_key_data().ok_or("test key is unavailable")?;
         let key_chain = PrivateKeyChain::new(
-            b"stirling-endpoint-key".as_slice(),
+            b"rustling-endpoint-key".as_slice(),
             PrivateKey::from_der(&private_key)?,
             [Certificate::from_der(certificate.constructed_data())?],
         );
@@ -238,7 +238,7 @@ async fn rejects_wrong_pkcs12_password_and_alias() -> TestResult {
     let (certificate, key) = self_signed_ecdsa_key_pair(None);
     let private_key = key.private_key_data().ok_or("test key is unavailable")?;
     let key_chain = PrivateKeyChain::new(
-        b"stirling-endpoint-key".as_slice(),
+        b"rustling-endpoint-key".as_slice(),
         PrivateKey::from_der(&private_key)?,
         [Certificate::from_der(certificate.constructed_data())?],
     );
@@ -294,7 +294,7 @@ async fn signs_a_pdf_with_an_uploaded_jks_key() -> TestResult {
 #[tokio::test]
 async fn pkcs11_signing_is_desktop_gated_without_echoing_the_pin() -> TestResult {
     let pin = "never-echo-pkcs11-signing-pin";
-    let boundary = "stirling-pkcs11-sign-boundary";
+    let boundary = "rustling-pkcs11-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", "PKCS11");
     append_file_part(
@@ -327,7 +327,7 @@ async fn pkcs11_signing_is_desktop_gated_without_echoing_the_pin() -> TestResult
 
 #[tokio::test]
 async fn windows_store_signing_is_desktop_gated() -> TestResult {
-    let boundary = "stirling-windows-store-sign-boundary";
+    let boundary = "rustling-windows-store-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", "WINDOWS_STORE");
     append_file_part(
@@ -357,8 +357,8 @@ async fn windows_store_signing_is_desktop_gated() -> TestResult {
 #[tokio::test]
 #[ignore = "requires RUSTLING_WINDOWS_TEST_CERT_ALIAS and its CurrentUser private key"]
 async fn signs_with_a_live_windows_store_certificate() -> TestResult {
-    let alias = rustling_processing::env_compat::var("RUSTLING_WINDOWS_TEST_CERT_ALIAS")?;
-    let boundary = "stirling-live-windows-store-sign-boundary";
+    let alias = rustling_processing::environment::var("RUSTLING_WINDOWS_TEST_CERT_ALIAS")?;
+    let boundary = "rustling-live-windows-store-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", "WINDOWS_STORE");
     append_file_part(
@@ -446,7 +446,7 @@ async fn post_jks_sign(
     password: &str,
     alias: Option<&str>,
 ) -> TestResult<axum::response::Response> {
-    let boundary = "stirling-jks-sign-boundary";
+    let boundary = "rustling-jks-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", "JKS");
     append_file_part(
@@ -480,7 +480,7 @@ async fn post_pkcs12_sign(
     password: &str,
     alias: Option<&str>,
 ) -> TestResult<axum::response::Response> {
-    let boundary = "stirling-pkcs12-sign-boundary";
+    let boundary = "rustling-pkcs12-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", cert_type);
     append_file_part(
@@ -513,7 +513,7 @@ async fn post_cert_sign(
     certificate: &[u8],
     values: &[(&str, &str)],
 ) -> TestResult<axum::response::Response> {
-    let boundary = "stirling-cert-sign-boundary";
+    let boundary = "rustling-cert-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", "PEM");
     append_file_part(
@@ -553,7 +553,7 @@ async fn post_encrypted_pem_sign(
     certificate: &[u8],
     password: &str,
 ) -> TestResult<axum::response::Response> {
-    let boundary = "stirling-encrypted-pem-sign-boundary";
+    let boundary = "rustling-encrypted-pem-sign-boundary";
     let mut body = Vec::new();
     append_value_part(&mut body, boundary, "certType", "PEM");
     append_file_part(

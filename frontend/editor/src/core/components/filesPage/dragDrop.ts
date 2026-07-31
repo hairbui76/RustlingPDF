@@ -6,7 +6,7 @@ import { FolderId } from "@app/types/folder";
  * file manager page. Using a custom type avoids clashing with native
  * file/text drags from the OS.
  */
-export const FILES_PAGE_DRAG_TYPE = "application/x-stirling-files-page";
+export const FILES_PAGE_DRAG_TYPE = "application/x-rustling-files-page";
 
 export type FilesPageDragPayload =
   { kind: "files"; fileIds: FileId[] } | { kind: "folder"; folderId: FolderId };

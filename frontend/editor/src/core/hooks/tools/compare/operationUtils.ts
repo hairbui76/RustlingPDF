@@ -1,7 +1,7 @@
 import { pdfWorkerManager } from "@app/services/pdfWorkerManager";
 import { appendWord as sharedAppendWord } from "@app/utils/textDiff";
 import { PARAGRAPH_SENTINEL } from "@app/types/compare";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 import type {
   PDFPageProxy,
   TextContent,
@@ -316,7 +316,7 @@ export const filterTokensForDiff = (
 };
 
 export const extractContentFromPdf = async (
-  file: StirlingFile,
+  file: RustlingFile,
 ): Promise<ExtractedContent> => {
   const arrayBuffer = await file.arrayBuffer();
   const pdfDoc = await pdfWorkerManager.createDocument(arrayBuffer, {

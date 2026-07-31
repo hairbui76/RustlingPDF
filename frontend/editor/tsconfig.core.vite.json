@@ -4,6 +4,5 @@
     "paths": {
       "@app/*": ["./src/core/*"]
     }
-  },
-  "exclude": ["src/proprietary", "src/desktop"]
+  }
 }

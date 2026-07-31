@@ -144,7 +144,7 @@ async fn post_sections(
     widths: &[i64],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-split-sections-boundary";
+    let boundary = "rustling-split-sections-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,

@@ -8,7 +8,7 @@ import { isFileObject } from "@app/types/fileContext";
  * @param stableKey - Optional stable identity key (e.g. fileId). When provided, the blob
  *   URL is only recreated when this key changes, not when the `file` object reference
  *   changes. This prevents spurious URL churn caused by getFiles() creating new
- *   StirlingFile references on every FileContext render.
+ *   RustlingFile references on every FileContext render.
  */
 export function useFileWithUrl(
   file: File | Blob | null,
@@ -17,7 +17,7 @@ export function useFileWithUrl(
   const result = useMemo(() => {
     if (!file) return null;
 
-    // Validate that file is a proper File, StirlingFile, or Blob object
+    // Validate that file is a proper File, RustlingFile, or Blob object
     if (!isFileObject(file) && !(file instanceof Blob)) {
       console.warn("useFileWithUrl: Expected File or Blob, got:", file);
       return null;

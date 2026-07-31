@@ -164,7 +164,7 @@ pub fn add_attachments_to_file_with_limits(
     Ok(())
 }
 
-/// Lists embedded files using the same JSON fields as the Java service.
+/// Lists embedded files using the public attachment JSON fields.
 ///
 /// # Errors
 ///

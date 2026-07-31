@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 ///
 /// Must stay identical to `PROVISIONING_FILE_NAME` in
 /// `frontend/editor/src-tauri/src/commands/connection.rs`.
-const PROVISIONING_FILE_NAME: &str = "stirling-provisioning.json";
+const PROVISIONING_FILE_NAME: &str = "rustling-provisioning.json";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,7 +33,7 @@ fn parse_bool(value: &str) -> bool {
 
 /// Normalise the `--update-mode` argument into the lowercase tokens the app
 /// understands. Empty / whitespace values are treated as "not supplied" so
-/// MSI installs that don't pass STIRLING_UPDATE_MODE behave identically to
+/// MSI installs that don't pass RUSTLING_UPDATE_MODE behave identically to
 /// earlier builds.
 fn parse_update_mode(value: &str) -> Result<Option<&'static str>, String> {
     match value.trim().to_lowercase().as_str() {
@@ -54,11 +54,11 @@ fn parse_update_mode(value: &str) -> Result<Option<&'static str>, String> {
 /// elevated (the all-users branch runs as LocalSystem), so this is deliberately
 /// paranoid:
 ///
-/// - the path's **file name** must be exactly `stirling-provisioning.json`, so a
+/// - the path's **file name** must be exactly `rustling-provisioning.json`, so a
 ///   mangled or hostile `--output` can never turn this into a general-purpose
 ///   elevated delete;
 /// - only the file is removed. The containing directory
-///   (`%APPDATA%\Stirling-PDF` / `%PROGRAMDATA%\Stirling-PDF`) holds the user's
+///   (`%APPDATA%\RustlingPDF` / `%PROGRAMDATA%\RustlingPDF`) holds the user's
 ///   own state — `settings.yml`, `custom_settings.yml`, `logs/` — and is never
 ///   touched, matching the Windows convention of leaving user data behind on
 ///   uninstall;
@@ -67,7 +67,7 @@ fn parse_update_mode(value: &str) -> Result<Option<&'static str>, String> {
 ///
 /// On Windows a symlink planted at the target path is deleted as a link (the
 /// reparse point itself), not followed, so an unprivileged user who pre-creates
-/// `%PROGRAMDATA%\Stirling-PDF` cannot redirect the elevated delete at another
+/// `%PROGRAMDATA%\RustlingPDF` cannot redirect the elevated delete at another
 /// file.
 fn remove_provisioning_file(output: &Path) -> Result<(), String> {
     let file_name = output.file_name().and_then(|name| name.to_str());
@@ -157,7 +157,7 @@ fn main() -> Result<(), String> {
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
     // Treat an empty/whitespace value as "not supplied" (None), matching url and
-    // update-mode. The MSI always passes --login-agreement "[STIRLING_LOGIN_AGREEMENT]",
+    // update-mode. The MSI always passes --login-agreement "[RUSTLING_LOGIN_AGREEMENT]",
     // which expands to "" when the property is unset; that must NOT write
     // loginAgreementEnabled:false and clobber a previously-provisioned true.
     let login_agreement = login_agreement_value
@@ -174,7 +174,7 @@ fn main() -> Result<(), String> {
 
     // Nothing to write — avoid clobbering an existing provisioning file when the
     // MSI is invoked without any provisioning directives
-    // (STIRLING_SERVER_URL / STIRLING_LOGIN_AGREEMENT / STIRLING_UPDATE_MODE).
+    // (RUSTLING_SERVER_URL / RUSTLING_LOGIN_AGREEMENT / RUSTLING_UPDATE_MODE).
     if url.is_none() && login_agreement.is_none() && update_mode.is_none() {
         return Ok(());
     }
@@ -273,7 +273,7 @@ mod tests {
         remove_provisioning_file(&target).expect("removal succeeds");
 
         assert!(!target.exists());
-        assert!(dir.is_dir(), "Stirling-PDF directory must survive");
+        assert!(dir.is_dir(), "RustlingPDF directory must survive");
         assert!(settings.is_file(), "user settings.yml must survive");
         assert!(logs.is_dir(), "logs/ must survive");
         fs::remove_dir_all(&dir).ok();

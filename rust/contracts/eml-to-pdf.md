@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/eml/pdf`
 
-Rust compatibility contract for `ConvertEmlToPDF`.
+Current contract for email-to-PDF conversion.
 
 ## Request and response
 
@@ -32,7 +32,7 @@ data is additionally limited to 200 MiB, matching the shared PDF attachment rout
 aggregate guard. Oversized attachments remain listed in the email summary but are not
 embedded.
 
-## Availability and parity
+## Availability and limitations
 
 Invalid extension, empty input, malformed email content, invalid booleans, and a
 size limit outside `1..=100` return `400`. Missing WeasyPrint returns

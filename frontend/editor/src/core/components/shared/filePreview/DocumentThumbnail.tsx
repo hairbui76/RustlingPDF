@@ -2,12 +2,12 @@ import React from "react";
 import { Box, Center, Loader, Stack, Text } from "@mantine/core";
 import LockIcon from "@mui/icons-material/Lock";
 import { getFileTypeIcon } from "@app/components/shared/filePreview/getFileTypeIcon";
-import { StirlingFileStub } from "@app/types/fileContext";
+import { RustlingFileStub } from "@app/types/fileContext";
 import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { detectFileExtension } from "@app/utils/fileUtils";
 
 export interface DocumentThumbnailProps {
-  file: File | StirlingFileStub | null;
+  file: File | RustlingFileStub | null;
   thumbnail?: string | null;
   isEncrypted?: boolean;
   isLoading?: boolean;

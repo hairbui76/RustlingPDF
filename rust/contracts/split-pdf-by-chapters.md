@@ -1,6 +1,6 @@
 # `POST /api/v1/general/split-pdf-by-chapters`
 
-Rust compatibility contract for `SplitPdfByChaptersController.splitPdf()`.
+Current contract for chapter-based splitting.
 
 ## Request
 

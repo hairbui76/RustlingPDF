@@ -51,7 +51,7 @@ async fn xml_endpoint_is_wired() -> Result<(), Box<dyn std::error::Error>> {
 
 fn libreoffice_present() -> bool {
     if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_SOFFICE_COMMAND")
+        rustling_processing::environment::var_os("RUSTLING_PROCESSING_SOFFICE_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();
@@ -91,7 +91,7 @@ async fn post_pdf_to_office(
     pdf: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-to-office-boundary";
+    let boundary = "rustlingpdf-to-office-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

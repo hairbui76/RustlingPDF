@@ -178,7 +178,7 @@ async fn installed_pdftohtml_keeps_external_precedence() -> Result<(), Box<dyn s
 
 #[tokio::test]
 async fn requires_a_file() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-html-empty";
+    let boundary = "rustlingpdf-html-empty";
     let body = format!("--{boundary}--\r\n").into_bytes();
     let response = app(1024 * 1024)
         .oneshot(
@@ -267,7 +267,7 @@ fn rotated_pdf(rotation: Option<i64>) -> Result<Vec<u8>, Box<dyn std::error::Err
 }
 
 fn native_pdfium_configured() -> bool {
-    rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
+    rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some()
 }
 
 fn pdftohtml_present() -> bool {
@@ -289,7 +289,7 @@ async fn response_bytes(response: Response) -> Result<Vec<u8>, Box<dyn std::erro
 }
 
 async fn post_pdf(router: Router, pdf: &[u8]) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-to-html-boundary";
+    let boundary = "rustlingpdf-to-html-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

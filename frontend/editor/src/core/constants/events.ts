@@ -1,29 +1,12 @@
-import type { LicenseNotice } from "@app/types/types";
-
-export const SERVER_LICENSE_REQUEST_EVENT = "stirling:server-license-requested";
-export const UPGRADE_BANNER_TEST_EVENT = "stirling:upgrade-banner-test";
-export const UPGRADE_BANNER_ALERT_EVENT = "stirling:upgrade-banner-alert";
-export const START_TOUR_EVENT = "stirling:start-tour";
-export const TOUR_STATE_EVENT = "stirling:tour-state";
-
-export interface ServerLicenseRequestPayload {
-  licenseNotice?: Partial<LicenseNotice>;
-  deferUntilTourComplete?: boolean;
-  selfReportedAdmin?: boolean;
-}
+export const UPGRADE_BANNER_TEST_EVENT = "rustling:upgrade-banner-test";
+export const START_TOUR_EVENT = "rustling:start-tour";
+export const TOUR_STATE_EVENT = "rustling:tour-state";
 
 export type UpgradeBannerTestScenario =
   "friendly" | "urgent-admin" | "urgent-user" | null;
 
 export interface UpgradeBannerTestPayload {
   scenario: UpgradeBannerTestScenario;
-}
-
-export interface UpgradeBannerAlertPayload {
-  active: boolean;
-  audience?: "admin" | "user";
-  totalUsers?: number | null;
-  freeTierLimit?: number;
 }
 
 // Open string keyed into the tour registry (see tourRegistry.ts). Kept as a

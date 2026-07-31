@@ -78,7 +78,7 @@ async fn post_math_auditor(
     file: Option<(&[u8], &str)>,
     tolerance: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-math-auditor-boundary";
+    let boundary = "rustling-math-auditor-boundary";
     let mut body = Vec::new();
     if let Some((pdf, content_type)) = file {
         body.extend_from_slice(

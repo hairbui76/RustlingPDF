@@ -67,8 +67,7 @@ endpoints**. There is no Java or JVM at build or run time.
 | **AI-assisted, optional** | Produce page-cited summaries, schema-driven extraction, ordered translation, edit plans, review comments, generated documents, math audits, and classification |
 
 The detailed, code-derived reference lists every registered route and dependency
-requirement in [What RustlingPDF can do](docs/product/features.md). The
-authoritative parity ledger is [rust/PORT_STATUS.md](rust/PORT_STATUS.md).
+requirement in [What RustlingPDF can do](docs/product/features.md).
 
 ## Run it your way
 
@@ -237,9 +236,8 @@ and command overrides.
 | `frontend/editor` | Vite, React, TypeScript, and Mantine application |
 | `SwaggerDoc.json` | OpenAPI snapshot used for catalog and type generation |
 
-The coordinated `Stirling` → `Rustling` rename is complete. `rustling-*` crate
-names and `RUSTLING_*` environment variables are canonical; deprecated
-`STIRLING_*` aliases remain accepted for compatibility with existing installs.
+Crate names use the `rustling-*` namespace and product environment variables
+use the `RUSTLING_*` prefix.
 
 ## Documentation
 
@@ -247,15 +245,5 @@ names and `RUSTLING_*` environment variables are canonical; deprecated
 - [Installation and operator guide](rust/RUNNING_WITH_RUST.md)
 - [CLI contract](rust/contracts/cli.md)
 - [Behavior contracts](rust/contracts)
-- [Port and parity status](rust/PORT_STATUS.md)
 - [Roadmap](ROADMAP.md)
 - [Release process](RELEASING.md)
-
-## Relationship to Stirling-PDF
-
-RustlingPDF is an independent product based on
-[Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF). It began as a
-full Java-to-Rust backend port and now evolves as a standalone repository.
-Stirling-PDF remains an external behavior reference; it is not a fork remote or
-submodule, and RustlingPDF contains no Java/JVM runtime. See [LICENSE](LICENSE)
-for attribution.

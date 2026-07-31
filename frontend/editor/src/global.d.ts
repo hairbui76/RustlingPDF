@@ -21,8 +21,6 @@ declare global {
   interface Window {
     __RUSTLING_PDF_BASE_URL__?: string;
     RUSTLING_PDF_API_BASE_URL?: string;
-    /** @deprecated pre-rename spelling injected by older backends; RUSTLING_PDF_API_BASE_URL wins. */
-    STIRLING_PDF_API_BASE_URL?: string;
     endpointAvailabilityService?: unknown;
   }
 }

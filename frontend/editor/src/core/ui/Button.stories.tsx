@@ -65,7 +65,7 @@ const meta: Meta<typeof Button> = {
         "neutral",
         "brand",
         "ai",
-        "premium",
+        "highlight",
         "danger",
         "success",
         "warning",
@@ -135,7 +135,7 @@ export const Accents: Story = {
             "neutral",
             "brand",
             "ai",
-            "premium",
+            "highlight",
             "danger",
             "success",
             "warning",
@@ -293,46 +293,46 @@ export const Shape: Story = {
   ),
 };
 
-/** `accent="premium"` — a gradient CTA for upgrade moments. The gradient lives
+/** `accent="highlight"` — a gradient CTA for upgrade moments. The gradient lives
  * on the `filled` variant (subtle brighten on hover, nothing flashy);
  * outlined/ghost fall back to a calm violet. */
-export const Premium: Story = {
+export const Highlight: Story = {
   render: () => (
     <div
       style={{ display: "flex", flexDirection: "column", gap: 16, width: 320 }}
     >
       <Button
-        accent="premium"
+        accent="highlight"
         size="lg"
         fullWidth
         leftSection={<Sparkle />}
         text="Upgrade to Processor Plan"
       />
       <Wrap>
-        <Button accent="premium" text="Upgrade" />
-        <Button accent="premium" leftSection={<Sparkle />} text="Go Pro" />
+        <Button accent="highlight" text="Upgrade" />
+        <Button accent="highlight" leftSection={<Sparkle />} text="Go Pro" />
         <Button
-          accent="premium"
+          accent="highlight"
           shape="pill"
           rightSection={<Arrow />}
           text="Get Pro"
         />
         <Button
-          accent="premium"
+          accent="highlight"
           leftSection={<Sparkle />}
           aria-label="Upgrade"
         />
       </Wrap>
       <Wrap>
-        <Button accent="premium" variant="secondary" text="Outlined" />
-        <Button accent="premium" variant="tertiary" text="Ghost" />
-        <Button accent="premium" disabled text="Disabled" />
+        <Button accent="highlight" variant="secondary" text="Outlined" />
+        <Button accent="highlight" variant="tertiary" text="Ghost" />
+        <Button accent="highlight" disabled text="Disabled" />
       </Wrap>
       <Wrap>
         {(["sm", "md", "lg", "xl"] as const).map((size) => (
           <Button
             key={size}
-            accent="premium"
+            accent="highlight"
             size={size}
             leftSection={<Sparkle />}
             text={size}

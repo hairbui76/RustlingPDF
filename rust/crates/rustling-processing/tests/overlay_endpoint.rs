@@ -231,7 +231,7 @@ async fn post_overlay(
     counts: &[i32],
     position: i32,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-overlay-boundary";
+    let boundary = "rustling-overlay-boundary";
     let mut body = Vec::new();
     append_file(&mut body, boundary, "fileInput", base_filename, base);
     for (filename, bytes) in overlays {

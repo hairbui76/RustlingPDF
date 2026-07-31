@@ -4,7 +4,7 @@
  * This abstraction allows the form fill UI to work with different backends:
  * - PdfLibFormProvider: Frontend-only, uses pdf-lib to extract/fill form fields
  *   (used in normal viewer mode to avoid sending large PDFs to the backend)
- * - PdfBoxFormProvider: Backend API, uses PDFBox via REST endpoints
+ * - BackendFormProvider: processing API via REST endpoints
  *   (used in the dedicated formFill tool for full-fidelity form handling)
  *
  * The UI components (FormFieldOverlay, FormFill, FormFieldSidebar) consume

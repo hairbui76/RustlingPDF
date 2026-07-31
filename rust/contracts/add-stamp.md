@@ -21,9 +21,8 @@ The route accepts `multipart/form-data` with:
 - `customColor`: Java-style integer/hex text color, default `#d3d3d3`;
 - `pageNumbers`: RustlingPDF page expression, default `all`.
 
-The Java implementation places grid positions 1–3 at the top and 7–9 at the
-bottom. Rust preserves that actual behavior even though the legacy schema says
-the reverse.
+Grid positions 1–3 are placed at the top and 7–9 at the bottom. This is the
+canonical behavior even though the older schema description says the reverse.
 
 ## Text stamps
 

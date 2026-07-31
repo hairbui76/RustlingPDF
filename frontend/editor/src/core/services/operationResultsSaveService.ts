@@ -1,4 +1,4 @@
-import type { FileId, StirlingFileStub } from "@app/types/fileContext";
+import type { FileId, RustlingFileStub } from "@app/types/fileContext";
 import { downloadFromUrl, DownloadResult } from "@app/services/downloadService";
 
 export interface OperationSaveContext {
@@ -7,7 +7,7 @@ export interface OperationSaveContext {
   downloadLocalPath?: string | null;
   outputFileIds?: string[] | null;
   getFile: (fileId: FileId) => File | undefined;
-  getStub: (fileId: FileId) => StirlingFileStub | undefined;
+  getStub: (fileId: FileId) => RustlingFileStub | undefined;
   markSaved: (fileId: FileId, savedPath?: string) => void;
 }
 

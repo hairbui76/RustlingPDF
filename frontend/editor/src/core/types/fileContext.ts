@@ -29,20 +29,20 @@ export interface ProcessedFileMetadata {
 }
 
 /**
- * StirlingFileStub - Metadata record for files in the active workbench session
+ * RustlingFileStub - Metadata record for files in the active workbench session
  *
  * Contains UI display data and processing state. Actual File objects stored
  * separately in refs for memory efficiency. Supports multi-tool workflows
  * where files persist across tool operations.
  */
 /**
- * StirlingFileStub - Runtime UI metadata for files in the active workbench session
+ * RustlingFileStub - Runtime UI metadata for files in the active workbench session
  *
  * Contains UI display data and processing state. Actual File objects stored
  * separately in refs for memory efficiency. Supports multi-tool workflows
  * where files persist across tool operations.
  */
-export interface StirlingFileStub extends BaseFileMetadata {
+export interface RustlingFileStub extends BaseFileMetadata {
   quickKey?: string; // Fast deduplication key: name|size|lastModified
   thumbnailUrl?: string; // Generated thumbnail blob URL for visual display
   blobUrl?: string; // File access blob URL for downloads/processing
@@ -51,22 +51,12 @@ export interface StirlingFileStub extends BaseFileMetadata {
   insertAfterPageId?: string; // Page ID after which this file should be inserted
   isPinned?: boolean; // Protected from tool consumption (replace/remove)
   isDirty?: boolean; // Has unsaved changes (only for files with localFilePath)
-  /**
-   * Cached classification label ids — the source of truth the Files sidebar
-   * groups by (so it never re-reads PDF bytes); resolve to display names via the
-   * label-display seam. Written when the classify policy runs (SaaS) and CARRIED
-   * FORWARD onto every later version via the stub (see {@code createChildStub} +
-   * the CONSUME_FILES reducer), so a second policy or a tool edit keeps the file
-   * in its label groups instead of dropping to "Other". Undefined for
-   * unclassified files / non-SaaS builds.
-   */
-  classificationLabels?: string[];
   // Note: File object stored in provider ref, not in state
 }
 
 export interface FileContextNormalizedFiles {
   ids: FileId[];
-  byId: Record<FileId, StirlingFileStub>;
+  byId: Record<FileId, RustlingFileStub>;
 }
 
 export function createFileId(): FileId {
@@ -80,13 +70,13 @@ export function createQuickKey(file: File): string {
 }
 
 // RustlingPDF file with embedded UUID - replaces loose File + FileId parameter passing
-export interface StirlingFile extends File {
+export interface RustlingFile extends File {
   readonly fileId: FileId;
   readonly quickKey: string; // Fast deduplication key: name|size|lastModified
 }
 
 // Type guard to check if a File object has an embedded fileId
-export function isStirlingFile(file: File | Blob): file is StirlingFile {
+export function isRustlingFile(file: File | Blob): file is RustlingFile {
   return (
     file instanceof File &&
     "fileId" in file &&
@@ -106,8 +96,8 @@ export function getFormFillFileId(
 ): string | null {
   if (!file) return null;
 
-  if (isStirlingFile(file)) {
-    return `stirling-${file.fileId}`;
+  if (isRustlingFile(file)) {
+    return `rustling-${file.fileId}`;
   }
 
   if (file instanceof File) {
@@ -118,12 +108,12 @@ export function getFormFillFileId(
   return `blob-${(file as any).size || 0}`;
 }
 
-// Create a StirlingFile from a regular File object
-export function createStirlingFile(file: File, id?: FileId): StirlingFile {
+// Create a RustlingFile from a regular File object
+export function createRustlingFile(file: File, id?: FileId): RustlingFile {
   // If the file already has RustlingPDF metadata and we aren't trying to override it,
   // return as–is. When a new id is requested we clone the File so we can embed
   // the fresh identifier without mutating the original object.
-  if (isStirlingFile(file)) {
+  if (isRustlingFile(file)) {
     if (!id || file.fileId === id) {
       return file;
     }
@@ -153,21 +143,21 @@ export function createStirlingFile(file: File, id?: FileId): StirlingFile {
     configurable: false,
   });
 
-  return file as StirlingFile;
+  return file as RustlingFile;
 }
 
-// Extract FileIds from StirlingFile array
-export function extractFileIds(files: StirlingFile[]): FileId[] {
+// Extract FileIds from RustlingFile array
+export function extractFileIds(files: RustlingFile[]): FileId[] {
   return files.map((file) => file.fileId);
 }
 
-// Extract regular File objects from StirlingFile array
-export function extractFiles(files: StirlingFile[]): File[] {
+// Extract regular File objects from RustlingFile array
+export function extractFiles(files: RustlingFile[]): File[] {
   return files as File[];
 }
 
-// Check if an object is a File or StirlingFile (replaces instanceof File checks)
-export function isFileObject(obj: any): obj is File | StirlingFile {
+// Check if an object is a File or RustlingFile (replaces instanceof File checks)
+export function isFileObject(obj: any): obj is File | RustlingFile {
   return (
     obj &&
     typeof obj.name === "string" &&
@@ -178,12 +168,12 @@ export function isFileObject(obj: any): obj is File | StirlingFile {
   );
 }
 
-export function createNewStirlingFileStub(
+export function createNewRustlingFileStub(
   file: File,
   id?: FileId,
   thumbnail?: string,
   processedFileMetadata?: ProcessedFileMetadata,
-): StirlingFileStub {
+): RustlingFileStub {
   const fileId = id || createFileId();
   return {
     id: fileId,
@@ -201,7 +191,7 @@ export function createNewStirlingFileStub(
   };
 }
 
-export function revokeFileResources(record: StirlingFileStub): void {
+export function revokeFileResources(record: RustlingFileStub): void {
   // Only revoke blob: URLs to prevent errors on other schemes
   if (record.thumbnailUrl && record.thumbnailUrl.startsWith("blob:")) {
     try {
@@ -248,7 +238,7 @@ export interface FileContextState {
   // Core file management - lightweight file IDs only
   files: {
     ids: FileId[];
-    byId: Record<FileId, StirlingFileStub>;
+    byId: Record<FileId, RustlingFileStub>;
   };
 
   // Pinned files - files that won't be consumed by tools
@@ -268,11 +258,11 @@ export interface FileContextState {
 // Action types for reducer pattern
 export type FileContextAction =
   // File management actions
-  | { type: "ADD_FILES"; payload: { stirlingFileStubs: StirlingFileStub[] } }
+  | { type: "ADD_FILES"; payload: { rustlingFileStubs: RustlingFileStub[] } }
   | { type: "REMOVE_FILES"; payload: { fileIds: FileId[] } }
   | {
       type: "UPDATE_FILE_RECORD";
-      payload: { id: FileId; updates: Partial<StirlingFileStub> };
+      payload: { id: FileId; updates: Partial<RustlingFileStub> };
     }
   | { type: "REORDER_FILES"; payload: { orderedFileIds: FileId[] } }
 
@@ -283,16 +273,13 @@ export type FileContextAction =
       type: "CONSUME_FILES";
       payload: {
         inputFileIds: FileId[];
-        outputStirlingFileStubs: StirlingFileStub[];
-        /** Replace inputs in place without auto-selecting/reordering the outputs
-         *  (background enforcement). Defaults to false — normal tool behaviour. */
-        silent?: boolean;
+        outputRustlingFileStubs: RustlingFileStub[];
       };
     }
   | {
       type: "UNDO_CONSUME_FILES";
       payload: {
-        inputStirlingFileStubs: StirlingFileStub[];
+        inputRustlingFileStubs: RustlingFileStub[];
         outputFileIds: FileId[];
       };
     }
@@ -324,7 +311,7 @@ export interface FileContextActions {
       selectFiles?: boolean;
       skipUploadTracking?: boolean;
     },
-  ) => Promise<StirlingFile[]>;
+  ) => Promise<RustlingFile[]>;
   addFilesWithOptions: (
     files: File[],
     options?: {
@@ -340,37 +327,36 @@ export interface FileContextActions {
       allowDuplicates?: boolean;
       skipUploadTracking?: boolean;
     },
-  ) => Promise<StirlingFile[]>;
-  addStirlingFileStubs: (
-    stirlingFileStubs: StirlingFileStub[],
+  ) => Promise<RustlingFile[]>;
+  addRustlingFileStubs: (
+    rustlingFileStubs: RustlingFileStub[],
     options?: { insertAfterPageId?: string; selectFiles?: boolean },
-  ) => Promise<StirlingFile[]>;
+  ) => Promise<RustlingFile[]>;
   removeFiles: (
     fileIds: FileId[],
     deleteFromStorage?: boolean,
   ) => Promise<void>;
-  updateStirlingFileStub: (
+  updateRustlingFileStub: (
     id: FileId,
-    updates: Partial<StirlingFileStub>,
+    updates: Partial<RustlingFileStub>,
   ) => void;
   reorderFiles: (orderedFileIds: FileId[]) => void;
   clearAllFiles: () => Promise<void>;
   clearAllData: () => Promise<void>;
 
-  // File pinning - accepts StirlingFile for safer type checking
-  pinFile: (file: StirlingFile) => void;
-  unpinFile: (file: StirlingFile) => void;
+  // File pinning - accepts RustlingFile for safer type checking
+  pinFile: (file: RustlingFile) => void;
+  unpinFile: (file: RustlingFile) => void;
 
   // File consumption (replace unpinned files with outputs)
   consumeFiles: (
     inputFileIds: FileId[],
-    outputStirlingFiles: StirlingFile[],
-    outputStirlingFileStubs: StirlingFileStub[],
-    options?: { silent?: boolean },
+    outputRustlingFiles: RustlingFile[],
+    outputRustlingFileStubs: RustlingFileStub[],
   ) => Promise<FileId[]>;
   undoConsumeFiles: (
     inputFiles: File[],
-    inputStirlingFileStubs: StirlingFileStub[],
+    inputRustlingFileStubs: RustlingFileStub[],
     outputFileIds: FileId[],
   ) => Promise<void>;
   // Selection management
@@ -399,17 +385,17 @@ export interface FileContextActions {
 
 // File selectors (separate from actions to avoid re-renders)
 export interface FileContextSelectors {
-  getFile: (id: FileId) => StirlingFile | undefined;
-  getFiles: (ids?: FileId[]) => StirlingFile[];
-  getStirlingFileStub: (id: FileId) => StirlingFileStub | undefined;
-  getStirlingFileStubs: (ids?: FileId[]) => StirlingFileStub[];
+  getFile: (id: FileId) => RustlingFile | undefined;
+  getFiles: (ids?: FileId[]) => RustlingFile[];
+  getRustlingFileStub: (id: FileId) => RustlingFileStub | undefined;
+  getRustlingFileStubs: (ids?: FileId[]) => RustlingFileStub[];
   getAllFileIds: () => FileId[];
-  getSelectedFiles: () => StirlingFile[];
-  getSelectedStirlingFileStubs: () => StirlingFileStub[];
+  getSelectedFiles: () => RustlingFile[];
+  getSelectedRustlingFileStubs: () => RustlingFileStub[];
   getPinnedFileIds: () => FileId[];
-  getPinnedFiles: () => StirlingFile[];
-  getPinnedStirlingFileStubs: () => StirlingFileStub[];
-  isFilePinned: (file: StirlingFile) => boolean;
+  getPinnedFiles: () => RustlingFile[];
+  getPinnedRustlingFileStubs: () => RustlingFileStub[];
+  isFilePinned: (file: RustlingFile) => boolean;
   getFilesSignature: () => string;
 }
 

@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/pdf/{word,presentation,xml}`
 
-Rust compatibility contract for `ConvertPDFToOffice`.
+Current contract for PDF-to-office conversion.
 
 ## Endpoints
 
@@ -24,8 +24,7 @@ text extractor.)
 
 ## Behavior
 
-The PDF is converted by shelling out to LibreOffice, the same tool the Java
-controller uses via `PDFToFile.processPdfToOfficeFormat`:
+The PDF is converted by shelling out to LibreOffice:
 
 ```
 soffice -env:UserInstallation=file://<profile> --headless --nologo \
@@ -34,16 +33,15 @@ soffice -env:UserInstallation=file://<profile> --headless --nologo \
 
 A fresh temporary `UserInstallation` profile is used per request. The `soffice`
 binary is resolved from `RUSTLING_PROCESSING_SOFFICE_COMMAND` when set, otherwise
-platform defaults. The accepted-format set matches the Java validation list
-(`doc`, `docx`, `odt`, `ppt`, `pptx`, `odp`, `rtf`, `xml`); an unknown value
+platform defaults. The accepted formats are
+`doc`, `docx`, `odt`, `ppt`, `pptx`, `odp`, `rtf`, and `xml`; an unknown value
 returns `400 Bad Request`.
 
-## Parity gaps
+## Limitations
 
-- Java tries `unoconvert` (persistent LibreOffice server) before falling back to
-  `soffice`; the Rust port uses `soffice` directly.
-- Java's `txt:Text` special-casing lives on the `/pdf/text` endpoint, which the
-  Rust port serves via native text extraction, not LibreOffice.
+- Conversion invokes `soffice` directly; it does not use a persistent
+  `unoconvert` server.
+- The `/pdf/text` endpoint uses native text extraction rather than LibreOffice.
 
 ## Availability
 

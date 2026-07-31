@@ -1,4 +1,4 @@
-//! Best-effort push of admin-configured AI settings to the engine.
+//! Best-effort push of configured AI settings to the engine.
 //!
 //! Port of Java `AiEngineConfigSync`: the processor pushes the engine-relevant
 //! `aiEngine.*` configuration (models, limits) to the engine's
@@ -70,7 +70,7 @@ impl AiEngineConfigSync {
             runtime_config.ai_engine_push_settings(),
             base_url,
             Duration::from_secs(timeout_seconds),
-            crate::env_compat::var("RUSTLING_ENGINE_SHARED_SECRET")
+            crate::environment::var("RUSTLING_ENGINE_SHARED_SECRET")
                 .ok()
                 .filter(|value| !value.trim().is_empty()),
             RETRY_DELAY,

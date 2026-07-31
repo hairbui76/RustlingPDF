@@ -220,7 +220,7 @@ fn run_weasyprint(arguments: &[OsString], workspace: &Path) -> Result<(), HtmlTo
 }
 
 fn weasyprint_commands() -> Vec<String> {
-    if let Ok(command) = crate::env_compat::var(WEASYPRINT_COMMAND_ENV)
+    if let Ok(command) = crate::environment::var(WEASYPRINT_COMMAND_ENV)
         && !command.trim().is_empty()
     {
         return vec![command];

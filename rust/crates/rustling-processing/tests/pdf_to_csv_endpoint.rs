@@ -41,7 +41,7 @@ async fn pdf_to_csv_route_extracts_a_ruled_table_or_reports_missing_pdfium()
 async fn post_multipart(
     file: Option<(&str, &str, &[u8])>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-pdf-csv-boundary";
+    let boundary = "rustlingpdf-csv-boundary";
     let mut body = Vec::new();
     if let Some((filename, content_type, bytes)) = file {
         body.extend_from_slice(

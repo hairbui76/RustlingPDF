@@ -78,7 +78,7 @@ async fn auto_crop_detects_rendered_content_when_pdfium_is_available()
     if response.status() == StatusCode::NOT_IMPLEMENTED {
         let body = to_bytes(response.into_body(), usize::MAX).await?;
         assert!(String::from_utf8_lossy(&body).contains("PDFium"));
-        if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+        if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
             return Err(std::io::Error::other(
                 "configured PDFium runtime did not execute auto-crop",
             )
@@ -127,7 +127,7 @@ async fn remove_data_outside_crop_discards_out_of_crop_text()
     if removed.status() == StatusCode::NOT_IMPLEMENTED {
         let body = to_bytes(removed.into_body(), usize::MAX).await?;
         assert!(String::from_utf8_lossy(&body).contains("PDFium"));
-        if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+        if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
             return Err(std::io::Error::other(
                 "configured PDFium runtime did not execute out-of-crop removal",
             )
@@ -191,7 +191,7 @@ async fn removes_patterns_and_shadings_only_reachable_from_out_of_crop_marks()
         )
         .await?;
         if response.status() == StatusCode::NOT_IMPLEMENTED {
-            if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+            if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
                 return Err(std::io::Error::other(
                     "configured PDFium runtime did not execute out-of-crop removal",
                 )
@@ -1818,7 +1818,7 @@ fn the_dangling_name_checker_detects_a_name_no_dictionary_declares()
 #[tokio::test]
 async fn sweeps_a_pdf_corpus_for_dangling_resource_names() -> Result<(), Box<dyn std::error::Error>>
 {
-    let Some(directory) = rustling_processing::env_compat::var_os("RUSTLING_CROP_CORPUS_DIR")
+    let Some(directory) = rustling_processing::environment::var_os("RUSTLING_CROP_CORPUS_DIR")
     else {
         return Ok(());
     };
@@ -3203,7 +3203,7 @@ async fn removes_type3_font_text_outside_the_crop_without_crashing()
     )
     .await?;
     if response.status() == StatusCode::NOT_IMPLEMENTED {
-        if rustling_processing::env_compat::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+        if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
             return Err(std::io::Error::other(
                 "configured PDFium runtime did not execute out-of-crop removal",
             )
@@ -3405,7 +3405,7 @@ async fn post_crop(
     pdf: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-crop-boundary";
+    let boundary = "rustling-crop-boundary";
     let mut body = Vec::new();
     body.extend_from_slice(
         format!(

@@ -129,7 +129,7 @@ async fn post_raw(
     pdf: Option<&[u8]>,
     certificate: Option<&[u8]>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-validate-signature-boundary";
+    let boundary = "rustling-validate-signature-boundary";
     let mut body = Vec::new();
     if let Some(pdf) = pdf {
         append_part(

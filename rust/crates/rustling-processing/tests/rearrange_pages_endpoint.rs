@@ -12,7 +12,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn applies_a_custom_page_order_without_a_browser_change()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-rearrange-custom-boundary";
+    let boundary = "rustling-rearrange-custom-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -39,7 +39,7 @@ async fn applies_a_custom_page_order_without_a_browser_change()
 #[tokio::test]
 async fn creates_distinct_page_nodes_for_duplicate_mode() -> Result<(), Box<dyn std::error::Error>>
 {
-    let boundary = "stirling-rearrange-duplicate-boundary";
+    let boundary = "rustling-rearrange-duplicate-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -64,7 +64,7 @@ async fn creates_distinct_page_nodes_for_duplicate_mode() -> Result<(), Box<dyn 
 #[tokio::test]
 async fn preserves_side_stitch_padding_order_and_distinct_nodes()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-rearrange-booklet-boundary";
+    let boundary = "rustling-rearrange-booklet-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -94,7 +94,7 @@ async fn preserves_side_stitch_padding_order_and_distinct_nodes()
 
 #[tokio::test]
 async fn rejects_unknown_modes_with_the_rearrange_path() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-invalid-rearrange-boundary";
+    let boundary = "rustling-invalid-rearrange-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,

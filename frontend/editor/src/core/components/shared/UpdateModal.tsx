@@ -72,7 +72,7 @@ export interface DesktopInstallCanInstall {
 
 /** Docs URL referenced from the blocked alert. */
 const WINDOWS_INSTALL_DOCS_URL =
-  "https://docs.stirlingpdf.com/Installation/Windows%20Installation/#automated-installation-msi-installer";
+  "https://github.com/hairbui76/RustlingPDF/releases/latest";
 
 interface UpdateModalProps {
   opened: boolean;
@@ -127,7 +127,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
     new Set([0]),
   );
 
-  const { machineType, activeSecurity, licenseType } = machineInfo;
+  const { machineType } = machineInfo;
   useEffect(() => {
     if (!opened) return;
     let cancelled = false;
@@ -136,8 +136,6 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
     updateService
       .getFullUpdateInfo(currentVersion, {
         machineType,
-        activeSecurity,
-        licenseType,
       })
       .then((info) => {
         if (cancelled) return;
@@ -147,7 +145,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [opened, currentVersion, machineType, activeSecurity, licenseType]);
+  }, [opened, currentVersion, machineType]);
 
   const toggleVersion = (index: number) => {
     setExpandedVersions((prev) => {
@@ -430,10 +428,10 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
                 <Text
                   size="sm"
                   component="a"
-                  href={`https://github.com/RustlingPDF-Tools/RustlingPDF/releases/tag/v${updateSummary.latest_version}`}
+                  href={`https://github.com/hairbui76/RustlingPDF/releases/tag/v${updateSummary.latest_version}`}
                   target="_blank"
                   onClick={handleExternalLink(
-                    `https://github.com/RustlingPDF-Tools/RustlingPDF/releases/tag/v${updateSummary.latest_version}`,
+                    `https://github.com/hairbui76/RustlingPDF/releases/tag/v${updateSummary.latest_version}`,
                   )}
                   c="blue"
                   style={{
@@ -449,10 +447,10 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
                 <Text
                   size="sm"
                   component="a"
-                  href="https://github.com/RustlingPDF-Tools/RustlingPDF/releases"
+                  href="https://github.com/hairbui76/RustlingPDF/releases"
                   target="_blank"
                   onClick={handleExternalLink(
-                    "https://github.com/RustlingPDF-Tools/RustlingPDF/releases",
+                    "https://github.com/hairbui76/RustlingPDF/releases",
                   )}
                   c="dimmed"
                   style={{
@@ -616,12 +614,12 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
                         <Group gap={4}>
                           <Button
                             as="a"
-                            href={`https://github.com/RustlingPDF-Tools/RustlingPDF/releases/tag/v${version.version}`}
+                            href={`https://github.com/hairbui76/RustlingPDF/releases/tag/v${version.version}`}
                             target="_blank"
                             variant="tertiary"
                             size="sm"
                             onClick={handleExternalLink(
-                              `https://github.com/RustlingPDF-Tools/RustlingPDF/releases/tag/v${version.version}`,
+                              `https://github.com/hairbui76/RustlingPDF/releases/tag/v${version.version}`,
                             )}
                             rightSection={
                               <OpenInNewIcon style={{ fontSize: 11 }} />

@@ -62,7 +62,7 @@ function ZoomAPIBridgeInner({ documentId }: { documentId: string }) {
     }
   }, []);
 
-  const stubs = selectors.getStirlingFileStubs();
+  const stubs = selectors.getRustlingFileStubs();
   const firstFileStub = stubs[0];
   const firstFileId = firstFileStub?.id;
 

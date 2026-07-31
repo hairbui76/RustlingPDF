@@ -21,10 +21,8 @@ interface StaticOnboardingSlideProps {
 }
 
 /**
- * Renders a single onboarding slide outside the normal step flow — the
- * "interrupt" modals (analytics consent, first-login, MFA, external license
- * notice). Each of these was previously an inline early-return in Onboarding
- * that duplicated the same createSlide + OnboardingModalSlide boilerplate.
+ * Renders a single onboarding slide outside the normal step flow, such as the
+ * analytics-consent prompt.
  *
  * Rendered as its own component (keyed by slideId at the call site) so the
  * slide's internal hooks live in an isolated, stable scope rather than the
@@ -47,8 +45,6 @@ export default function StaticOnboardingSlide({
   const slideContent = definition.createSlide({
     osLabel: "",
     osUrl: "",
-    selectedRole: null,
-    onRoleSelect: () => {},
     ...params,
   });
 

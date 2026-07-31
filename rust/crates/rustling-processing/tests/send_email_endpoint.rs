@@ -105,7 +105,7 @@ async fn post_email(
     text_fields: &[(&str, &str)],
     attachment: Option<(&str, &str, &[u8])>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-rust-smtp-boundary";
+    let boundary = "rustling-rust-smtp-boundary";
     let mut body = Vec::new();
     for (name, value) in text_fields {
         body.extend_from_slice(

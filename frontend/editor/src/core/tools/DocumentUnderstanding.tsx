@@ -71,7 +71,6 @@ const DocumentUnderstanding = (props: BaseToolProps) => {
       endpointEnabled: aiEnabled ? base.endpointEnabled : false,
       paramsValid: base.params.validateParameters(),
       isVisible: operation.response === null,
-      showCloudBadge: false,
     },
     belowExecuteButton:
       !aiEnabled && base.selectedFiles.length > 0 ? (

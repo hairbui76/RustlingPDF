@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 import type { ToolOperationHook } from "@app/hooks/tools/shared/useToolOperation";
 import type { AccessibilityParameters } from "@app/hooks/tools/accessibility/useAccessibilityParameters";
 import {
@@ -46,7 +46,7 @@ export const useAccessibilityOperation = (): AccessibilityOperationHook => {
   const executeOperation = useCallback(
     async (
       _parameters: AccessibilityParameters,
-      selectedFiles: StirlingFile[],
+      selectedFiles: RustlingFile[],
     ) => {
       if (selectedFiles.length === 0) {
         setErrorMessage(t("noFileSelected", "No file loaded"));

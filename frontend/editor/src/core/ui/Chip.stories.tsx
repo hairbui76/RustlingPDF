@@ -7,7 +7,7 @@ const ACCENTS = [
   "neutral",
   "brand",
   "ai",
-  "premium",
+  "highlight",
   "danger",
   "success",
   "warning",
@@ -92,7 +92,7 @@ export const InContext_OpChain: Story = {
       <Chip accent="danger" showDot>
         encrypt-rest
       </Chip>
-      <Chip accent="premium" showDot>
+      <Chip accent="highlight" showDot>
         store-primary
       </Chip>
     </div>

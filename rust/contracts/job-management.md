@@ -1,6 +1,6 @@
-# Asynchronous job management — `JobController`
+# Asynchronous job management
 
-Rust compatibility contract for the single-node portion of Java's general job API.
+Current contract for the single-node job API.
 
 ## Implemented flow
 

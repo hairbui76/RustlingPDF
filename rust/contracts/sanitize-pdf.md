@@ -1,6 +1,6 @@
 # `POST /api/v1/security/sanitize-pdf`
 
-Rust compatibility contract for `SanitizeController.sanitizePDF()`.
+Current contract for sanitizing PDFs.
 
 ## Request
 

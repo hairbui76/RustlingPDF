@@ -1,6 +1,6 @@
 # `POST /api/v1/general/split-pages`
 
-Rust compatibility contract for `SplitPDFController.splitPdf()`.
+Current contract for splitting pages.
 
 ## Request
 

@@ -28,11 +28,7 @@ export interface ConfigColors {
 }
 
 export const useConfigNavSections = (
-  _isAdmin: boolean = false,
-  _runningEE: boolean = false,
-  _loginEnabled: boolean = false,
   onRequestClose: () => void = () => {},
-  _showSettingsWhenNoLogin: boolean = true,
 ): ConfigNavSection[] => {
   const { t } = useTranslation();
 
@@ -61,9 +57,7 @@ export const useConfigNavSections = (
           key: "help",
           label: t("settings.help.label", "Tours"),
           icon: "help-rounded",
-          component: (
-            <HelpSection isAdmin={_isAdmin} onRequestClose={onRequestClose} />
-          ),
+          component: <HelpSection onRequestClose={onRequestClose} />,
         },
       ],
     },
@@ -87,38 +81,6 @@ export const useConfigNavSections = (
           label: t("settings.licenses.frontendLabel", "Frontend Licenses"),
           icon: "code-rounded",
           component: <FrontendThirdPartyLicensesSection />,
-        },
-      ],
-    },
-  ];
-
-  return sections;
-};
-
-// Deprecated: Use useConfigNavSections hook instead
-export const createConfigNavSections = (
-  _isAdmin: boolean = false,
-  _runningEE: boolean = false,
-  _loginEnabled: boolean = false,
-): ConfigNavSection[] => {
-  console.warn(
-    "createConfigNavSections is deprecated. Use useConfigNavSections hook instead for proper i18n support.",
-  );
-  const sections: ConfigNavSection[] = [
-    {
-      title: "Preferences",
-      items: [
-        {
-          key: "general",
-          label: "General",
-          icon: "settings-rounded",
-          component: <GeneralSection />,
-        },
-        {
-          key: "hotkeys",
-          label: "Keyboard Shortcuts",
-          icon: "keyboard-rounded",
-          component: <HotkeysSection />,
         },
       ],
     },

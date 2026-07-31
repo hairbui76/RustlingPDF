@@ -228,7 +228,7 @@ async fn post_images(
     inputs: &[InputImage],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-image-to-pdf-boundary";
+    let boundary = "rustling-image-to-pdf-boundary";
     let mut body = Vec::new();
     for input in inputs {
         body.extend_from_slice(

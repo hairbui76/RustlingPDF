@@ -1,6 +1,6 @@
 # `POST /api/v1/misc/replace-invert-pdf`
 
-Rust compatibility contract for `ReplaceAndInvertColorController`.
+Contract for color replacement, inversion, and color-space conversion.
 
 ## Request and response
 
@@ -10,8 +10,8 @@ Rust compatibility contract for `ReplaceAndInvertColorController`.
   `CUSTOM_COLOR`, `FULL_INVERSION`, `COLOR_SPACE_CONVERSION`
 - `highContrastColorCombination`, `backGroundColor`, `textColor`: accepted but
   only consumed by the text-recoloring modes (see below). The high-contrast
-  combination defaults to `WHITE_TEXT_ON_BLACK`. Custom colors use Java
-  `Color.decode` syntax (`#RRGGBB`, `0xRRGGBB`, decimal, or leading-zero octal).
+  combination defaults to `WHITE_TEXT_ON_BLACK`. Custom colors accept
+  `#RRGGBB`, `0xRRGGBB`, decimal, or leading-zero octal.
 - Success returns the original safe filename suffixed with `_inverted.pdf` as
   `application/pdf`.
 
@@ -19,11 +19,11 @@ Rust compatibility contract for `ReplaceAndInvertColorController`.
 
 ### `FULL_INVERSION`
 
-Ported. Every page is rendered with form data and annotations, its colors are
+Every page is rendered with form data and annotations, its colors are
 inverted channel-by-channel (`255 - value`), and the page is replaced with a
 single RGB image sized to the same PDF page. As with flatten, the result no
 longer contains selectable source text. Pages render at `SYSTEM_MAXDPI`
-(defaulting to the Java application default of 500 DPI); pixel dimensions and
+(defaulting to 500 DPI); pixel dimensions and
 total pixel count are checked before allocation.
 
 `PDFium` is required. A development runtime without a configured library returns
@@ -33,12 +33,8 @@ the pinned native revision.
 
 ### `COLOR_SPACE_CONVERSION`
 
-Ported in pure Rust; no external process is involved, so the mode can no longer
-return `501` for a missing tool. Java (and this port until Ghostscript was removed
-for its AGPL-3.0-or-commercial licence) ran `pdfwrite` with
-`-sProcessColorModel=DeviceCMYK`, `-sColorConversionStrategy=CMYK`,
-`-sColorConversionStrategyForImages=CMYK`, and `-dPDFSETTINGS=/prepress`. The Rust
-implementation converts the same two layers:
+This mode is implemented in-process and does not require an external program.
+It converts two layers:
 
 **Content streams.** Page contents and Form XObjects — nested and shared forms are
 traversed once each — are rewritten operator by operator. `g`/`G` and `rg`/`RG`

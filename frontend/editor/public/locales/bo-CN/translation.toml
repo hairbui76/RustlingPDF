@@ -16,12 +16,7 @@ confirmCloseConfirm = "སྒོ་རྒྱག་པ།"
 confirmCloseDiscard = "བཟོ་བཅོས་བཏོན་བཀོག་ནས་ཁ་བསྡམས"
 confirmCloseMessage = "ཁྱེད་རང་གིས་ཡིག་ཆ་འདི་ཁ་རྒྱག་འདོད་ཡོད་དམ།"
 confirmCloseSave = "སྲུངས་ནས་ཁ་བསྡམས"
-confirmCloseSaveFailed_one = "ནོར་འཁྲུལ་ཡོད་པར་ཉར་ཟིན། {{count}} file སྲུངས་མ་ཐུབ།"
-confirmCloseSaveFailed_other = "Saved with errors. {{count}} files could not be saved."
-confirmCloseSaveFailedTitle = "སྲུང་བ་ཕམ།"
 confirmCloseUnsaved = "ཡིག་ཆ་འདིར་མ་ཉར་པའི་བཟོ་བཅོས་ཡོད།"
-confirmCloseUnsavedList_one = "ཁྱེད་ལ་མ་ཉར་པའི་བཟོ་བཅོས་ཡོད་པའི file {{count}} ཡོད།\n\n{{fileList}}"
-confirmCloseUnsavedList_other = "You have {{count}} files with unsaved changes.\n\n{{fileList}}"
 custom = "རང་བཟོ..."
 customPosition = "ལུགས་མཐུན་གྱི་གནས་བབ།"
 customTextTooltip = "ཤོག་ངོས་ཨང་གྲངས་ཀྱི་གདམ་ཁའི་རང་མོས་སྒྲིག་གཞི། ཨང་གྲངས་ཀྱི་ས་ཆ་འཛིན་མཁན་{n} བེད་སྤྱོད་བྱེད་དགོས། དཔེར་ན་ \"ཤོག་ངོས་{n}\" ཞེས་པ་དེས་\"ཤོག་ངོས་༡\"དང་\"ཤོག་ངོས་༢\"སོགས་སྟོན་རྒྱུ་རེད།"
@@ -38,8 +33,6 @@ encryptedFilesBlocked_one = "ཡིག་ཆ་འདི་གསང་ཨང་
 encryptedFilesBlocked_other = "{{count}} ཡིག་ཆ་གསང་ཨང་བདམས་པ་ཡིན། དང་པོ་དེ་ཚོར་གསང་ཨང་ཕྱིར་འདོར་དགོས།"
 exportAndContinue = "ཕྱིར་གཏོང་དང་མུ་མཐུད་པ།"
 false = "ནོར་འཁྲུལ"
-fileNotSavedToDisk = "སྣོད་སྡེར་ནང་ཉར་མ་བྱས།"
-fileSavedToDisk = "ཡིག་ཆ་དེ་སྣོད་སྡེར་ནང་ཉར་ཟིན།"
 fileSelected = "བདམས་པ།: {{filename}}"
 filesSelected = "{{count}} ཡིག་ཆ་བདམས་པ།"
 font = "ཡིག་གཟུགས་པ།"
@@ -56,7 +49,7 @@ keepWorking = "མུ་མཐུད་དུ་ལས་ཀ་བྱེད་�
 loading = "འཇུག་བཞིན་པ།"
 loginAgreementAccept = "དང་ལེན"
 loginAgreementDecline = "དང་ལེན་མེད"
-loginAgreementProvider = "བརྡ་འཕྲིན་འདི་ནི་ཁྱེད་ཀྱི་དོ་དམ་པས་སྤྲོད་པ་ཡིན་པ་ལས Stirling PDF Inc. མིན།"
+loginAgreementProvider = "བརྡ་འཕྲིན་འདི་ནི་ཁྱེད་ཀྱི་དོ་དམ་པས་སྤྲོད་པ་ཡིན་པ་ལས RustlingPDF མིན།"
 loginAgreementTitle = "ཐོ་འགོད་གྲོས་ཆིངས"
 logOut = "ཕྱིར་ཐོན།"
 marginTooltip = "ཤོག་ངོས་ཨང་གྲངས་དང་ཤོག་ངོས་ཀྱི་མཐའ་མཚམས་བར་ཐག་རིང་།"
@@ -82,8 +75,6 @@ password = "གསང་གྲངས"
 pdfPrompt = "PDF(s) འདེམས།"
 pin = "སྦྱར་ཡིག་(ལག་ཆའི་རྒྱུག་རྗེས་ཤུགས་ལྡན་)"
 pro = "མཁས་པ།"
-processingComplete = "ཁྱེད་ཀྱི་ཡིག་ཆ་གྲ་སྒྲིག་ཟིན།"
-processingCompleteMultiple = "{{count}} ཡིག་ཆ་གྲ་སྒྲིག་ཟིན།"
 property = "རྒྱུ་ནོམ"
 quickPosition = "མགྱོགས་མྱུར་གནས་སྟངས།"
 red = "དམར་པོ"
@@ -114,57 +105,6 @@ username = "མིང་།"
 welcome = "དགའ་བསུ"
 white = "དཀར་པོ"
 yes = "ཡིན"
-
-[account]
-accountSettings = "རྩིས་ཁྲ་སྒྲིག་སྟངས།"
-adminSettings = "འཛིན་སྐྱོང་སྒྲིག་སྟངས། - བེད་སྤྱོད་བྱེད་མཁན་ལ་ལྟ་བ་དང་ཁ་སྣོན་བྱེད།"
-changePassword = "བརྗེ་བའི་གསང་གྲངས་བསྒྱུར་བ།"
-changeUsername = "སྤྱོད་མཁན་གྱི་མིང་བསྒྱུར་བ།"
-changeUsernameDescription = "ཁྱེད་ཀྱི་སྤྱོད་མིང་གསར་སྒྱུར་བྱས། གསར་སྒྱུར་རྗེས་ ཁྱེད་ཐོ་ཁོངས་ནས་ཕྱིར་བཏོན་བྱ་རྒྱུ་ཡིན།"
-confirmNewPassword = "གསང་གྲངས་གསར་པ་གཏན་འཁེལ་བྱེད་པ།"
-newPassword = "གསང་གྲངས་གསར་བ།"
-newUsername = "བཀོལ་སྤྱོད་མིང་གསར་པ།"
-newUsernamePlaceholder = "སྤྱོད་མིང་གསར་པ་འཇུག"
-oldPassword = "གསང་གྲངས་རྙིང་པ།"
-password = "གཏན་འཁེལ་གྱི་གསང་གྲངས།"
-property = "རྒྱུ་ནོམ"
-settingsCompare = "སྒྲིག་སྟངས། བསྡུར་ཚད།"
-signOut = "མིང་རྟགས་བཀོད་པ།"
-syncTitle = "རྩིས་ཁྲ་དང་མཉམ་པའི་དྲ་ངོས་སྒྲིག་སྟངས།"
-syncToAccount = "མཉམ་འབྲེལ། <- དྲ་འབྱེད།"
-syncToBrowser = "མཉམ་འབྲེལ། -> དྲ་འབྱེད།"
-title = "རྩིས་ཁྲ་སྒྲིག་སྟངས།"
-userControlSettings = "སྤྱོད་མཁན་ཚོད་འཛིན་སྒྲིག་སྟངས།"
-webBrowserSettings = "དྲ་ངོས་དྲ་ངོས་སྒྲིག་སྟངས།"
-yourApiKey = "ཁྱེད་ཀྱི་APIལྡེ་མིག"
-
-[account.mfa]
-codeLabel = "ངོས་འཛིན་ཨང་རྟགས"
-codePlaceholder = "6 ཨང་གྲངས་ཀྱི་ཨང་རྟགས་བཙུགས"
-codeRequired = "མུ་མཐུད་དུ་འགྲོ་བའི་ཆེད་ངོས་འཛིན་ཨང་རྟགས་བཙུགས།"
-confirmDisable = "སྤྱོད་སྒོ་བརྒྱབ"
-confirmEnable = "སྤྱོད་སྒོ་ཕྱེ"
-description = "ཁྱེད་ཀྱི་རྩིས་ཐོའི་བདེ་འཇགས་རིམ་པ་ཞིག་ཁ་སྣོན་བྱས།"
-disableButton = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་བརྒྱབ"
-disabled = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་བརྒྱབས།"
-disableDescription = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་བརྒྱབ་བར་ནུས་ལྡན་ངོས་འཛིན་ཨང་རྟགས་བཙུགས།"
-disableFailed = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་བརྒྱབ་མི་ཐུབ། ཨང་རྟགས་ཞིབ་བཤེར་བྱས་ནས་བསྐྱར་དུ་ཚོད་ལྟ་བྱེད།"
-disableTitle = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་བརྒྱབ"
-enableButton = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་ཕྱེ"
-enabled = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་ཕྱེས།"
-enableFailed = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྤྱོད་སྒོ་ཕྱེ་མི་ཐུབ། ཨང་རྟགས་ཞིབ་བཤེར་བྱས་ནས་བསྐྱར་དུ་ཚོད་ལྟ་བྱེད།"
-manualKey = "ལག་སྟར་སྒྲིག་འགོད་ལྡེ་མིག"
-secretWarning = "ལྡེ་མིག་འདི་གསང་བཞག་། དབང་ཆ་ཡོད་པ་གང་རུང་གིས་ནུས་ལྡན་ངོས་འཛིན་ཨང་རྟགས་བཟོ་ཐུབ།"
-setupDescription = "ངོས་འཛིན་app བེད་སྤྱད་ QR ཨང་རྟགས་ཞིབ་བཤེར་བྱས་ནས 6 ཨང་གྲངས་ཀྱི་ཨང་རྟགས་བཙུགས་ནས་ངེས་འཛིན་བྱོས།"
-setupFailed = "ཆ་རྐྱེན་གཉིས་སྒྲིག་འགོད་འགོ་འཛུགས་མི་ཐུབ། བསྐྱར་དུ་ཚོད་ལྟ་བྱེད།"
-setupTitle = "ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་སྒྲིག་འགོད"
-ssoDescription = "Single Sign-On རྩིས་ཐོ་ལ་དོན་གྱི་ ཆ་རྐྱེན་གཉིས་ངོས་འཛིན་དེ་ཁྱེད་ཀྱི་ངོས་འཛིན་སྤྲོད་མཁན་གིས་དོ་དམ་བྱེད།"
-ssoManaged = "ཁྱེད་ཀྱི་ངོས་འཛིན་སྤྲོད་མཁན་བརྒྱུད་ནས MFA སྒྲིག་འགོད།"
-title = "ཆ་རྐྱེན་གཉིས་ཀྱི་ངོས་འཛིན"
-
-[account.overview]
-logOut = "ནང་འཛུལ་ཕྱིར་འཐེན"
-signedInAs = "ནང་འཛུལ་བྱས་པ: {{email}}"
 
 [add-page-numbers]
 tags = "པེ་ཇི་ནེ་ནེཊ། ལ་བེལ། སྒྲིག་སྟངས།"
@@ -576,722 +516,6 @@ success = "སྒྲིག་འགོད་ལེགས་པར་ཉར་ཟ
 title = "འཛིན་སྐྱོང་སྒྲིག་སྟངས།"
 workspace = "ལས་ཀའི་ས་ཆ།"
 
-[admin.settings.advanced]
-description = "ཡར་ཐོན་ཅན་གྱི་ཁྱད་ཆོས་དང་ཚོད་ལྟའི་བྱེད་ནུས་སྒྲིག་བཀོད་བྱས།"
-features = "ཁྱད་ཆོས།"
-processing = "ལས་སྣོན་བྱེད་བཞིན།"
-title = "ཡན་ཐོན་ཅན"
-
-[admin.settings.advanced.disableSanitize]
-description = "ཉེན་བརྡ། བདེ་འཇགས་ཀྱི་ཉེན་ཁ། - དབང་པོ་སྐྱོན་ཅན་གྱི་HTMLགཙང་བཟོ་བྱེད་པ་དེས་XSSཡི་རྨས་སྐྱོན་ལ་སྣེ་ཁྲིད་བྱེད་ཐུབ།"
-label = "HTML གཙང་སྦྲ་མེད་པར་བཟོ་བ།"
-
-[admin.settings.advanced.enableAlphaFunctionality]
-description = "ཚོད་ལྟའི་དང་ཨཱལ་ཕ་སི་ཊིག་ཁྱད་ཆོས་ལ་ནུས་པ་ཐོན་པ་(བརྟན་ལྷིང་མེད་པ་ཡིན་སྲིད།)"
-label = "ཨཱལ་ཕ་ཁྱད་ཆོས་ལ་ནུས་པ་ཐོན་པ།"
-
-[admin.settings.advanced.enableUrlToPDF]
-description = "དྲ་ཚིགས་ཤོག་བུ་དེ་PDFཡིག་ཆ་ལ་སྒྱུར་བ།"
-label = "URL ནས་ PDF ལ་ཤུགས་སྣོན་རྒྱོབ།"
-
-[admin.settings.advanced.endpoints]
-description = "མཇུག་སྡུད་འཛིན་སྐྱོང་དེ་YAMLབརྒྱུད་ནས་སྒྲིག་བཀོད་བྱས་ཡོད། དམིགས་བསལ་གྱི་མཐའ་མཚམས་ལ་འཇུག་ཐུབ་པའམ་བཀོལ་སྤྱོད་བྱེད་མི་ཐུབ་པའི་སྐོར་གྱི་ཞིབ་ཕྲའི་གནས་ཚུལ་ལ་ལྟོས་དང་།"
-label = "མཇུག་སྡོམ།"
-manage = "API Endnags འཛིན་སྐྱོང་།"
-
-[admin.settings.advanced.maxDPI]
-description = "པར་རིས་བཟོ་བཅོས་བྱེད་པའི་ཆེས་མཐོ་བའི་DPI(0 = ཚད་མེད་)"
-label = "ཆེས་མཐོའི་DPI"
-
-[admin.settings.advanced.processExecutor]
-calibre = "ཚད་གཞི།"
-description = "བྱ་རིམ་ལག་བསྟར་བྱེད་མཁན་རེ་རེའི་དུས་ཚོད་ཚད་གཞི་དང་དུས་ཚོད་བཀོད་སྒྲིག་སྒྲིག་བཀོད་བྱེད།"
-ghostscript = "འདྲེ་གདོན་འདྲེ།"
-installApp = "མཉེན་ཆས་སྒྲིག་འཇུག་བྱེད་པ།"
-label = "ལས་སྣོན་ལས་སྣོན་ཚད་གཞི།"
-libreOffice = "LibreOffice"
-ocrMyPdf = "OCRmyPDF"
-pdfToHtml = "PDF ནས་ HTML བར།"
-pythonOpenCv = "ཕའི་ཐོན་ OpenCV །"
-qpdf = "QPDF"
-tesseract = "Tesseract OCR"
-weasyPrint = "ཝེ་སི་པར་སྐྲུན་ཁང་།"
-
-[admin.settings.advanced.processExecutor.sessionLimit]
-description = "ཆེས་མང་བའི་དུས་མཉམ་གྱི་དཔེ་མཚོན།"
-label = "ཚོགས་འདུའི་ཚད་གཞི།"
-
-[admin.settings.advanced.processExecutor.timeout]
-description = "ཆེས་མང་བའི་ལག་བསྟར་དུས་ཚོད།"
-label = "དུས་ཚོད་ཕྱིར་ཐོན་(སྐར་མ་)།"
-
-[admin.settings.advanced.tempFileManagement]
-description = "གནས་སྐབས་ཀྱི་ཡིག་ཆ་གསོག་འཇོག་དང་གཙང་སྦྲ་བྱེད་པའི་སྤྱོད་ཚུལ་བཀོད་སྒྲིག་བྱེད་པ།"
-label = "ཊེམ་པི་ཡིག་ཆ་དོ་དམ།"
-
-[admin.settings.advanced.tempFileManagement.baseTmpDir]
-description = "གནས་སྐབས་ཡིག་ཆའི་གཞི་རྩའི་སྣོད་ཐོ། (སྔོན་སྒྲིག་ཆེད་དུ་སྟོང་པར་བཞག་པ་: java.io.tmpdir/stirling-pdf)"
-label = "གཞི་རྟེན་ཊེམ་པི་སྣོད་ཐོ།"
-placeholder = "སོར་བཞག: java.io.tmpdir/stirling-pdf"
-
-[admin.settings.advanced.tempFileManagement.cleanupIntervalMinutes]
-description = "གཙང་སྦྲ་བྱེད་ཐེངས་མང་དག་ཐེངས་མང་།(སྐར་མ་ཁ་ཤས་ནང་)"
-label = "གཙང་བཟོའི་བར་མཚམས་(སྐར་མ)།"
-
-[admin.settings.advanced.tempFileManagement.cleanupSystemTemp]
-description = "རྒྱ་ཆེ་བའི་མ་ལག་གི་དྲོད་ཚད་སྣོད་ཐོ་གཙང་མ་བཟོ་དགོས་མིན་(དོགས་ཟོན་དང་བཅས་བེད་སྤྱོད་གཏོང་དགོས།)"
-label = "གཙང་བཟོའི་མ་ལག་གི་དུས་བབ།"
-
-[admin.settings.advanced.tempFileManagement.libreofficeDir]
-description = "LibreOffice tempt ཡིག་ཆའི་དཀར་ཆག (སྔོན་སྒྲིག་ཆེད་དུ་སྟོང་པར་བཞག་པ་: bateTMmpDir/librefofce)"
-label = "LibreOffice གནས་སྐབས་སྣོད་ཐོ།"
-placeholder = "སོར་བཞག: baseTmpDir/libreoffice"
-
-[admin.settings.advanced.tempFileManagement.maxAgeHours]
-description = "དྲོད་ཚད་ཡིག་ཆ་གཙང་མ་མ་བཟོས་གོང་ཆུ་ཚོད་ཁ་ཤས་ནང་ཆེས་མཐོ་བའི་ལོ་ཚད།"
-label = "མའེ་ཁི་སི་ལོ་(ཆུ་ཚོད་)།"
-
-[admin.settings.advanced.tempFileManagement.prefix]
-description = "མེ་ཡིག་ཡིག་ཆའི་མིང་ལ་སྔོན་འཇུག་པ།"
-label = "Temp ཡིག་ཆའི་སྔོན་འཇུག་།"
-
-[admin.settings.advanced.tempFileManagement.startupCleanup]
-description = "མཉེན་ཆས་འགོ་འཛུགས་སྐབས་དྲོད་ཚད་ཡིག་ཆ་རྙིང་པ་གཙང་མ་བཟོས།"
-label = "འགོ་འཛུགས་གཙང་བཟོ།"
-
-[admin.settings.advanced.tempFileManagement.systemTempDir]
-description = "མ་ལག་གི་དུས་ཚོད་ཀྱི་སྣོད་ཐོ་གཙང་མ་བཟོ་དགོས། (གལ་ཏེ་གཙང་བཟོ་མ་ལག་ལག་བསྟར་བྱེད་ཐུབ་ན་རྐྱངམ་གཅིག་བེད་སྤྱོད་བྱེད།)"
-label = "མ་ལག"
-placeholder = "མ་ལག་སྐབས་བཞག་དཀར་ཆག་ལམ"
-
-[admin.settings.advanced.tessdataDir]
-description = "OCR སྐད་ཡིག་ཡིག་ཆའི་ཆེད་དུ་ཊེ་སི་ཌེ་ཊ་སྣོད་ཐོ་ལ་ལམ་ལུགས།"
-downloadButton = "འདེམས་པའི་སྐད་ཡིག་ཕབ་ལེན།"
-downloadErrorGeneric = "ཕབ་ལེན་མ་ཐུབ: {{message}} འཕྲལ་བར་བསྒུག་ནས་ལོག་སྐྱར་ཚོད་ལྟ་བྱོས།"
-downloadErrorNetwork = "དྲ་བ་ནོར་འཁྲུལ་ལས་ཕབ་ལེན་མ་ཐུབ། མཐུད་སྦྲེལ་ཞིབ་བཤེར་བྱས་ནས་ལོག་སྐྱར་ཚོད་ལྟ་བྱོས།"
-downloadErrorPermission = "tessdata སྣོད་འཛིན་འུར་བྱེད་མི་ཐུབ: {{message}} འུར་བྱེད་རུང་བའི་སྣོད་འཛིན་ཞིག་འདེམས་ (དཔེར་ན་ application data folder འོག་ཏུ) ཡང་ན་དབང་ཚད་བསྒྱུར།"
-downloadErrorServer = "tessdata སྐད་ཡིག་ཕབ་ལེན་བྱེད་པའི་སྐབས་ server ནོར་འཁྲུལ་བྱུང་། འཕྲལ་བར་བསྒུག་ནས་ལོག་སྐྱར་ཚོད་ལྟ་བྱོས།"
-downloadErrorTitle = "ཕབ་ལེན་མ་ཐུབ།"
-downloadInvalidBody = "འདེམས་པའི་སྐད་ཡིག་ཁ་ཤས་ཕབ་ལེན་འབྱོར་མི་ཐུབ། གསར་སྒྱུར་བྱས་ནས་ཐོ་ཡིག་ནས་འདེམས་རོགས།"
-downloadInvalidTitle = "འདེམས་པ་ནུས་མེད།"
-downloadLabel = "tessdata སྐད་ཡིག་ཁ་སྣོན་ཕབ་ལེན་བྱོས།"
-downloadMissingBody = "ཉུང་མཐར་སྐད་ཡིག་གཅིག་རང་ཕབ་ལེན་བྱེད་པར་འདེམས་གནང་།"
-downloadMissingTitle = "སྐད་ཡིག་གཅིག་ཡང་མ་འདེམས།"
-downloadNothingFound = "སྐད་ཡིག་ཁ་སྣོན་མ་རྙེད།"
-downloadPlaceholder = "སྐད་ཡིག་འདེམས།"
-downloadSuccessBody = "འདེམས་པའི་ tessdata སྐད་ཡིག་ཉར་ཚགས་བྱས་ཟིན།"
-downloadSuccessTitle = "སྐད་ཡིག་ཕབ་ལེན་བྱས་ཟིན།"
-installedLanguages = "སྒྲིག་འཇུག་བྱས་པའི་ tessdata སྐད་ཡིག"
-label = "ཊེས་སི་ཌ་ཊ་ཐོ་གཞུང་།"
-loadingLanguages = "སྒྲིག་འཇུག་བྱས་པའི་ tessdata སྐད་ཡིག་འཇུག་བཞིན..."
-manualLinks = "ལག་ཐོག་ཕབ་ལེན: འབྲེལ་མཐུད་དེ་ཚོ་སྣུན་ནས་ ཡིག་ཆ་དེ་ཚོ་ར་ tessdata སྣོད་འཛིན་ནང་བཞག།"
-noLanguages = "སྒྲིག་བཀོད་ཟིན་པའི་སྣོད་འཛིན་ནང་ tessdata སྐད་ཡིག་མ་རྙེད།"
-permissionNotice = "tessdata འགྲུལ་ལམ་འུར་བྱེད་མི་ཐུབ། ཕབ་ལེན་ཚུལ་དེ་བརྡ་འཚོལ་ཆས་ནས་ཁ་ཕྱེའོ། .traineddata ཡིག་ཆ་དེ་རང་ལས་ tessdata སྣོད་འཛིན་ནང་ཉར་ཚགས་བྱོས།"
-
-[admin.settings.badge]
-clickToUpgrade = "མནན་ནས་པར་འཆར་ཞིབ་ལྟ"
-
-[admin.settings.connections]
-connect = "འབྲེལ་བ"
-description = "ཕྱི་ཕྱོགས་ཀྱི་བདེན་དཔང་མཁོ་སྤྲོད་བྱེད་མཁན་OAuth2དང་SAMLལ་སྒྲིག་བཀོད་བྱེད།"
-disconnect = "མཐུད་མཚམས་ཆད་པ།"
-disconnected = "མཁོ་སྤྲོད་བྱེད་མཁན་གྱིས་འབྲེལ་བ་ཆད་པ་ལེགས་འགྲུབ་བྱུང་བ།"
-disconnectError = "མཐུད་མཚམས་ཆད་མ་ཐུབ་པ།"
-documentation = "ཡིག་གཞུང་ལ་ལྟ།"
-imageResolutionFull = "ཆ་ཚང (ཐོག་མའི་ཆེ་ཆུང)"
-imageResolutionReduced = "ཆུང་བཟོ (མང་མཐའ 1200px)"
-linkedServices = "འབྲེལ་མཐུད་ཞབས་ཞུ།"
-mobileScannerConvertToPdf = "པར་རིས་ PDF ལ་བརྗེ་སྒྱུར"
-mobileScannerConvertToPdfDesc = "ཡར་འཇུག་བྱས་པའི་པར་རིས་རང་འགུལ་ངང་ PDF རྣམ་གཞག་ལ་བརྗེ་སྒྱུར། མ་འགོ་སློངས་ན་པར་རིས་ཐོག་མའི་སྣང་ཚུལ་ལས་བཟུང་།"
-mobileScannerImageResolution = "པར་རིས་ཞིབ་ཚད"
-mobileScannerImageResolutionDesc = "ཡར་འཇུག་བྱས་པའི་པར་རིས་ཀྱི་ཞིབ་ཚད། “Reduced” ནི 1200px མང་མཐའ་བར་ཆེ་ཆུང་བསྡུས་ནས་ཡིག་ཆའི་ཆ་ཚད་ཆུང་བཟོ།"
-mobileScannerPageFormat = "ཤོག་ངོས་རྣམ་གཞག"
-mobileScannerPageFormatDesc = "བརྗེ་སྒྱུར་བྱས་པའི་པར་རིས་ཀྱི་ PDF ཤོག་ངོས་ཆེ་ཆུང། “Keep” ནི པར་རིས་ཐོག་མའི་རྒྱ་ཁྱོན་སྲུངས།"
-mobileScannerStretchToFit = "འཚམ་བཟོས་སྣར"
-mobileScannerStretchToFitDesc = "པར་རིས་ཤོག་ངོས་ཡོངས་སྐོར་ལ་ཁེངས་པར་སྣར། མ་འགོ་སློངས་ན་ པར་རིས་དབྱིབས་སྒྲིག་སྲུངས་ནས་དཀྱིལ་དུ་བཞག"
-pageFormatA4 = "A4 (210×297mm)"
-pageFormatKeep = "བཞག (ཐོག་མའི་རྒྱ་ཁྱོན)"
-pageFormatLetter = "Letter (8.5×11in)"
-title = "འབྲེལ་མཐུད།"
-unlinkedServices = "འབྲེལ་མཐུད་མེད་པའི་ཞབས་ཞུ།"
-
-[admin.settings.connections.mobileScanner]
-description = "སྤྱོད་མཁན་ཚོས QR ཨང་ཡིག་བསྣུན་ནས་ཁ་པར་ཐབས་འཕྲུལ་ནས་ཡིག་ཆ་ཡར་འཇུག་བྱ་ཆོག"
-enable = "QR ཡར་འཇུག་འགོ་སློང"
-imageResolutionFull = "ཆ་ཚང (ཐོག་མའི་ཆེ་ཆུང)"
-imageResolutionReduced = "ཆུང་བཟོ (མང་མཐའ 1200px)"
-label = "ཁ་པར་ཡར་འཇུག"
-link = "མ་ལག་རིམ་སྒྲིག་ནང་སྒྲིག"
-mobileScannerConvertToPdf = "པར་རིས་ PDF ལ་བརྗེ་སྒྱུར"
-mobileScannerConvertToPdfDesc = "ཡར་འཇུག་བྱས་པའི་པར་རིས་རང་འགུལ་ངང་ PDF རྣམ་གཞག་ལ་བརྗེ་སྒྱུར། མ་འགོ་སློངས་ན་པར་རིས་ཐོག་མའི་སྣང་ཚུལ་ལས་བཟུང་།"
-mobileScannerImageResolution = "པར་རིས་ཞིབ་ཚད"
-mobileScannerImageResolutionDesc = "ཡར་འཇུག་པར་རིས་ཀྱི་ཞིབ་ཚད། “Reduced” ནི 1200px མང་མཐའ་དང་མཉེན།"
-mobileScannerPageFormat = "ཤོག་ངོས་རྣམ་གཞག"
-mobileScannerPageFormatDesc = "PDF ཤོག་ངོས་ཆེ་ཆུང། “Keep” ནི པར་རིས་ཐོག་མའི་རྒྱ་ཁྱོན་སྲུངས།"
-mobileScannerStretchToFit = "འཚམ་བཟོས་སྣར"
-mobileScannerStretchToFitDesc = "པར་རིས་ཤོག་ངོས་ཡོངས་སྐོར་ལ་ཁེངས་པར་སྣར། མ་འགོ་སློངས་ན་པར་རིས་དཀྱིལ་དུ་བཞག་ནས་དབྱིབས་སྒྲིག་སྲུངས།"
-note = "དྲན་འདྲི: Frontend URL སྒྲིག་འགོད་དགོས། "
-pageFormatA4 = "A4 (210×297mm)"
-pageFormatKeep = "བཞག (ཐོག་མའི་རྒྱ་ཁྱོན)"
-pageFormatLetter = "Letter (8.5×11in)"
-
-[admin.settings.connections.oauth2]
-label = "OAuth2"
-
-[admin.settings.connections.oauth2.autoCreateUser]
-description = "རང་འགུལ་གྱིས་OAuth2ནང་འཛུལ་ཐོག་མའི་ཐོག་སྤྱོད་མཁན་གྱི་རྩིས་ཁྲ་བཟོས།"
-label = "རང་འགུལ་གྱིས་སྤྱོད་མཁན་གསར་སྐྲུན་བྱེད་པ།"
-
-[admin.settings.connections.oauth2.blockRegistration]
-description = "OAuth2 བརྒྱུད་ནས་སྤྱོད་མཁན་གྱི་ཐོ་འགོད་གསར་པ་གཏན་འགོག་བྱེད་པ།"
-label = "སྒོ་བརྒྱབ་པའི་ཐོ་འགོད་བྱེད་པ།"
-
-[admin.settings.connections.oauth2.clientId]
-description = "ཁྱེད་རང་གི་མཁོ་སྤྲོད་བྱེད་མཁན་ནས་OAuth2ཚོང་ཤག་གི་ཨང་རྟགས།"
-label = "ཚོང་ཤག་ངོ་སྤྲོད།"
-
-[admin.settings.connections.oauth2.clientSecret]
-description = "OAuth2 མཁོ་སྤྲོད་བྱེད་མཁན་གྱིས་གསང་བ་གསང་བ།"
-label = "ཚོང་ཤག་གསང་བ།"
-
-[admin.settings.connections.oauth2.enabled]
-description = "སྤྱོད་མཁན་ཚོར་OAuth2མཁོ་སྤྲོད་བྱེད་མཁན་བཀོལ་ནས་བདེན་དཔང་བྱེད་ཐུབ།"
-label = "OAuth2 ལྕོགས་ཅན་བཟོས་པ།"
-
-[admin.settings.connections.oauth2.issuer]
-description = "OAuth2 མཁོ་སྤྲོད་བྱེད་མཁན་URL"
-label = "སྤྲོད་མཁན་URL"
-
-[admin.settings.connections.oauth2.provider]
-description = "བདེན་དཔང་ཆེད་དུ་བེད་སྤྱོད་གཏོང་བའི་OAuth2མཁོ་སྤྲོད་བྱེད་མཁན་དེ།"
-label = "མཁོ་སྤྲོད་བྱེད་མཁན།"
-
-[admin.settings.connections.oauth2.scopes]
-description = "ཉེན་ཁའི་དབྱེ་འབྱེད་བྱས་པའི་OAuth2ཁྱབ་ཁོངས་ཀྱི་ཐོ་གཞུང་ལ་རེ་ཞུ་བྱེད་དགོས། (དཔེར་ན། ཁ་ཕྱེ་བ། གསལ་ཆ། གློག་འཕྲིན།)"
-label = "OAuth2 ཁྱབ་ཁོངས།"
-
-[admin.settings.connections.oauth2.useAsUsername]
-description = "OAuth2 ནི་སྤྱོད་མཁན་གྱི་མིང་ལྟར་བེད་སྤྱོད་གཏོང་བའི་ཐོབ་ཐང་ཡིན། (དཔེར་ན། གློག་འཕྲིན་དང་། ཆུང་བ།)"
-label = "སྤྱོད་མཁན་གྱི་མིང་ལྟར་བེད་སྤྱོད་བྱེད་པ།"
-
-[admin.settings.connections.saml2]
-label = "SAML2"
-
-[admin.settings.connections.saml2.autoCreateUser]
-description = "རང་འགུལ་གྱིས་SAML2ནང་འཛུལ་དང་པོའི་ཐོག་སྤྱོད་མཁན་གྱི་རྩིས་ཁྲ་གསར་བཟོ་བྱེད།"
-label = "རང་འགུལ་གྱིས་སྤྱོད་མཁན་གསར་སྐྲུན་བྱེད་པ།"
-
-[admin.settings.connections.saml2.blockRegistration]
-description = "SAML2 བརྒྱུད་ནས་སྤྱོད་མཁན་གྱི་ཐོ་འགོད་གསར་པ་འགོག་ཐུབ།"
-label = "སྒོ་བརྒྱབ་པའི་ཐོ་འགོད་བྱེད་པ།"
-
-[admin.settings.connections.saml2.enabled]
-description = "སྤྱོད་མཁན་ཚོར་SAML2མཁོ་སྤྲོད་བྱེད་མཁན་བཀོལ་ནས་བདེན་དཔང་བྱེད་ཐུབ།"
-label = "SAML2 ལྕོགས་ཅན་བཟོས་པ།"
-
-[admin.settings.connections.saml2.provider]
-description = "SAML2 མཁོ་སྤྲོད་མིང་།"
-label = "མཁོ་སྤྲོད་བྱེད་མཁན།"
-
-[admin.settings.connections.saml2.registrationId]
-description = "SAML2 ཐོ་འགོད་ངོས་འཛིན་བྱེད་མཁན།"
-label = "ཐོ་འགོད་ལག་འཁྱེར།"
-
-[admin.settings.connections.ssoAutoLogin]
-description = "བདེན་དཔང་དགོས་སྐབས་རང་འགུལ་གྱིས་SSOནང་འཛུལ་ལ་བསྐྱར་གཏོང་བྱེད་དགོས།"
-enable = "SSO རང་འགུལ་ནང་འཛུལ་ཤུགས་སྣོན་རྒྱོབ།"
-label = "SSO རང་འགུལ་ནང་འཇུག།"
-
-[admin.settings.database]
-actions = "བྱ་བ།"
-backupCreated = "གྲབས་ཉར་བཟོས་ལེགས་འགྲུབ།"
-backupDescription = "དོ་དམ་སྒེའུ་ཁུང་ ནས་ H2 གྲབས་ཉར་ཐད་ཀར་དུ་འཛིན་སྐྱོང་བྱེད་པ།"
-backupFailed = "གྲབས་ཉར་བཟོས་མ་ཐུབ།"
-backupTitle = "གྲབས་ཉར་དང་བསྐྱར་གསོ"
-chooseFile = ".sql གྲབས་ཉར་ཡིག་ཆ་ཞིག འདེམས།"
-codeMismatch = "གཏན་འཁེལ་ཨང་གྲངས་མི་མཚུངས།"
-codeMismatchBody = "མུ་མཐུད་བྱེད་པར་ མངོན་པ་དང་དོ་མཉམ་ངེས་པར་ཨང་གྲངས་ནང་འཇུག་གནང་།"
-configuration = "གཞི་གྲངས་མཛོད་སྒྲིག་བཀོད།"
-confirmCodeLabel = "མུ་མཐུད་བྱེད་པར་གཏན་འཁེལ་ཨང་གྲངས་ནང་འཇུག"
-confirmImport = "ནང་འཇུག་གཏན་འཁེལ"
-confirmImportTitle = "གཞི་གྲངས་མཛོད་ནང་འཇུག་གཏན་འཁེལ།"
-createBackup = "གྲབས་ཉར་བཟོ"
-created = "བཟོས་པ།"
-delete = "སུབ།"
-deleteConfirm = "གྲབས་ཉར་འདི་སུབ་དམ། འདི་ལོག་མི་ཐུབ།"
-deleteConfirmAction = "གྲབས་ཉར་སུབ།"
-deleteFailed = "གྲབས་ཉར་སུབ་མ་ཐུབ།"
-deleteSuccess = "གྲབས་ཉར་སུབ་ཟིན།"
-deleteTitle = "གྲབས་ཉར་སུབ།"
-description = "ཁེ་ལས་བཀོལ་སྤྱོད་ཀྱི་ཆེད་དུ་སྒེར་གྱི་གཞི་གྲངས་མཛོད་ཀྱི་མཐུད་ཁ་སྒྲིག་སྟངས་སྒྲིག་བཀོད་བྱེད།"
-download = "ཕབ་ལེན།"
-downloadFailed = "གྲབས་ཉར་ཕབ་ལེན་མ་ཐུབ།"
-embedded = "ནང་འཇུག H2"
-enterCode = "གོང་གི་མངོན་པའི་ཨང་གྲངས་ནང་འཇུག"
-external = "ཕྱིའི་གཞི་གྲངས་མཛོད"
-fileName = "ཡིག་ཆ།"
-h2Hint = "གྲབས་ཉར་དང་བསྐྱར་གསོ་ལྕོགས་གྲུབ་བྱེད་པར་ གཞི་གྲངས་མཛོད་མཚན་གྲངས་ H2 ལ་བཀོད་ནས་ རང་མོས་གཞི་གྲངས་མཛོད་བཀག་པ།"
-h2Only = "གྲབས་ཉར་ནི་ ནང་འཇུག H2 གཞི་གྲངས་མཛོད་ཁོ་ནར་ཡོད།"
-import = "ནང་འཇུག།"
-importFailed = "གྲབས་ཉར་ནང་འཇུག་མ་ཐུབ།"
-importFromUpload = "ཡར་འཇུག་ནང་འཇུག"
-importSuccess = "གྲབས་ཉར་ནང་འཇུག་ལེགས་འགྲུབ།"
-loadError = "གཞི་གྲངས་མཛོད་གྲབས་ཉར་འཇུག་མ་ཐུབ།"
-manageBackups = "གྲབས་ཉར་འཛིན་སྐྱོང་"
-noBackups = "ད་དུང་གྲབས་ཉར་མ་རྙེད།"
-overwriteWarning = "ཉེན་བརྡ་: འདིས་མིག་སྔའི་གཞི་གྲངས་མཛོད་ལ་ཚབ་བྱེད་འགྲོ།"
-overwriteWarningBody = "ཡར་འཇུག་བྱས་པའི་གྲབས་ཉར་གྱིས་དངོས་ཡོད་གཞི་གྲངས་ཚང་མ་ཚབ་བྱེད་འགྲོ། འགུལ་སྤྱོད་འདི་ལོག་མི་ཐུབ།"
-refresh = "གསར་སྒྱུར"
-selectFile = "ནང་འཇུག་བྱེད་པར་ .sql ཡིག་ཆ་ཞིག་འདེམས།"
-size = "ཆེ་ཆུང་།"
-title = "གཞི་གྲངས་རྟེན་གཞི།"
-unavailable = "མིག་སྔའི་གཞི་གྲངས་མཛོད་སྒྲིག་བཀོད་ལ་ གྲབས་ཉར་ཐོ་ཡིག་བྱེད་མི་ཐུབ།"
-uploadTitle = "ཡར་འཇུག་དང་ནང་འཇུག"
-version = "H2 ཐོན་རིམ།"
-
-[admin.settings.database.customUrl]
-description = "JDBC མཐུད་སྣེ་ཆ་ཚང་། (དཔེར་ན། jdbc:postgresql:/localhost:5432/postgres) གལ་ཏེ་མཁོ་སྤྲོད་བྱས་ན། གཤམ་གྱི་མཐུད་ཁའི་སྒྲིག་སྟངས་རེ་རེར་བེད་སྤྱོད་བྱེད་ཀྱི་མེད།"
-label = "དམིགས་བསལ་གྱི་གཞི་གྲངས་མཛོད་ཀྱི་URL"
-
-[admin.settings.database.enableCustom]
-description = "སྔོན་སྒྲིག་བཙུགས་པའི་གཞི་གྲངས་མཛོད་ཀྱི་ཚབ་ཏུ་རང་ཉིད་ཀྱི་རང་སྒྲིག་གྲངས་མཛོད་བཀོད་སྒྲིག་བེད་སྤྱོད་བྱེད།"
-label = "སྒྲིག་གཞིའི་གྲངས་ཐོ་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.database.hostName]
-description = "གཞི་གྲངས་མཛོད་ཀྱི་སར་བར་གྱི་གཙོ་བདག་མིང་། (གལ་ཏེ་URL སྤྲད་ན་བེད་སྤྱོད་མི་བྱེད།)"
-label = "གཙོ་སྐྱོང་མིང་།"
-
-[admin.settings.database.name]
-description = "གཞི་གྲངས་མཛོད་ཀྱི་མིང་།(གལ་ཏེ་རང་མོས་ཀྱི་URLསྤྲད་ན་བེད་སྤྱོད་མི་བྱེད།)"
-label = "གཞི་གྲངས་མཛོད་མིང་།"
-
-[admin.settings.database.password]
-description = "གཞི་གྲངས་མཛོད་ཀྱི་བདེན་དཔང་གསང་གྲངས།"
-label = "གསང་གྲངས"
-placeholder = "གཞི་གྲངས་མཛོད་གསང་གྲངས་བཙུགས"
-
-[admin.settings.database.port]
-description = "གཞི་གྲངས་མཛོད་སར་བར་གྱི་མཐུད་ཁ་(གལ་ཏེ་URLསྤྲད་ན་བེད་སྤྱོད་མི་བྱེད།)"
-label = "མཚོ་ཁ"
-
-[admin.settings.database.type]
-description = "གཞི་གྲངས་མཛོད་ཀྱི་རིགས། (གལ་ཏེ་རང་མོས་ཀྱི་URL སྤྲད་ན་བེད་སྤྱོད་མི་བྱེད།)"
-label = "གཞི་གྲངས་མཛོད་རིགས།"
-
-[admin.settings.database.username]
-description = "གཞི་གྲངས་གཞི་གྲངས་བདེན་དཔང་སྤྱོད་མཁན་གྱི་མིང་།"
-label = "མིང་།"
-
-[admin.settings.endpoints]
-description = "API མཐའ་མཚམས་དང་མཐའ་མཚམས་སྡེ་ཚན་གང་ཡོད་མེད་ཚོད་འཛིན་བྱེད།"
-management = "མཇུག་སྡུད་དོ་དམ།"
-title = "API མཇུག་སྒྲིལ།"
-userDefaults = "སྤྱོད་མཁན་གདམ་གའི་སྔོན་སྒྲིག"
-userDefaultsDescription = "སྤྱོད་མཁན་གདམ་གའི་སྔོན་སྒྲིག་གནས་ཐང་སྒྲིག་འགོད་བྱེད། སྤྱོད་མཁན་རེ་རེས་རང་དོན་གཞི་སྒྲིག་ནས་འདི་ཚོ་བཅོས་ཆོག"
-
-[admin.settings.endpoints.defaultHideUnavailableConversions]
-description = "སྤྱོད་མི་ཆོག་པའི་བརྗེ་བསྒྱུར་གདམ་ག་དེ་ཚོ་སྐྱོན་ཟོལ་སྟོན་མ་བྱས་པར་སྦ་བཞག"
-label = "སྔོན་སྒྲིག་ལ་སྤྱོད་མི་ཆོག་པའི་བརྗེ་བསྒྱུར་སྦ་བཞག"
-
-[admin.settings.endpoints.defaultHideUnavailableTools]
-description = "སྤྱོད་མི་ཆོག་པའི་ལག་ཆ་དེ་ཚོ་སྐྱོན་ཟོལ་སྟོན་མ་བྱས་པར་སྦ་བཞག"
-label = "སྔོན་སྒྲིག་ལ་སྤྱོད་མི་ཆོག་པའི་ལག་ཆ་སྦ་བཞག"
-
-[admin.settings.endpoints.groupsToRemove]
-description = "མཇུག་འབྲས་སྡེ་ཚན་དེ་མེད་པར་བཟོ་བའི་སྡེ་ཚན་འདེམས།"
-label = "དབང་པོ་སྐྱོན་ཅན་གྱི་མཇུག་བསྡུའི་སྡེ་ཚན།"
-placeholder = "བཀག་སྡོམ་བྱ་བའི་ཚོ་ཁག་འདེམས"
-
-[admin.settings.endpoints.toRemove]
-description = "མཐའ་མ་རེ་རེ་ལ་དབང་པོ་སྐྱོན་ཅན་འདེམས།"
-label = "དབང་པོ་སྐྱོན་ཅན་གྱི་མཇུག་སྡོམ།"
-placeholder = "བཀག་སྡོམ་བྱ་བའི་endpoint འདེམས"
-
-[admin.settings.enterpriseRequired]
-message = "{{featureName}} ལ་ལྟ་སྤྱོད་བྱེད་པར་ཚོང་འབྲེལ་ཆོག་ཐམ་དགོས། ཁྱེད་རང་ད་ལྟ་སྟོན་མའི་གཞི་གྲངས་ལ་ལྟ་བཞིན་ཡོད།"
-title = "ཚོང་འབྲེལ་ཆོག་ཐམ་དགོས"
-
-[admin.settings.features]
-description = "གདམ་གའི་ཁྱད་ཆོས་དང་བྱེད་ནུས་སྒྲིག་བཀོད་བྱེད།"
-title = "ཁྱད་ཆོས"
-
-[admin.settings.features.serverCertificate]
-description = "\"Sign with Stirling-PDF\" བྱེད་ནུས་ལ་སར་བར་གྱི་ལག་འཁྱེར་བཟོ་སྟངས་སྒྲིག་བཀོད་བྱེད།"
-label = "སར་བར་ལག་ཁྱེར།"
-
-[admin.settings.features.serverCertificate.enabled]
-description = "\"Sign in Sign-PDF\" གདམ་ཁ་ལ་སར་བར་གྱི་ཕྱོགས་ཀྱི་ལག་འཁྱེར་ལྕོགས་ཅན་བཟོ་ཐུབ།"
-label = "སར་བར་ལག་ཁྱེར་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.features.serverCertificate.organizationName]
-description = "ཐོན་ཟིན་པའི་ལག་ཁྱེར་གྱི་སྒྲིག་འཛུགས་མིང་།"
-label = "རྩ་འཛུགས་མིང་།"
-
-[admin.settings.features.serverCertificate.regenerateOnStartup]
-description = "ཞུ་གཏུག་འགོ་འཛུགས་རེ་རེར་ལག་འཁྱེར་གསར་པ་བསྐྲུན་དགོས།"
-label = "འགོ་འཛུགས་སྐབས་བསྐྱར་གསོ་བྱེད།"
-
-[admin.settings.features.serverCertificate.validity]
-description = "ཉིན་གྲངས་ཀྱི་གྲངས་འབོར། ལག་འཁྱེར་དེ་ནུས་ལྡན་ཡིན།"
-label = "ལག་འཁྱེར་ནུས་ལྡན་(ཉིན་མོ།)།"
-
-[admin.settings.general]
-description = "ཚོང་རྟགས་བཟོ་སྟངས་དང་སྔོན་སྒྲིག་སྤྱོད་ཚུལ་ཚུད་པའི་མ་ལག་ཆ་ཚང་གི་བཀོལ་སྤྱོད་སྒྲིག་སྟངས་སྒྲིག་བཀོད་བྱེད།"
-system = "མ་ལག"
-title = "མ་ལག་སྒྲིག་བཀོད།"
-ui = "སྤྱོད་མཁན་གྱི་མཐུད་ཁ།"
-
-[admin.settings.general.appName]
-description = "མིང་དེ་དྲ་ངོས་ཀྱི་མཆོང་ལྡེ་དང་དྲ་ཚིགས་ཀྱི་ཤོག་ངོས་སུ་བཀྲམ་ཡོད།"
-label = "སྙན་ཞུའི་མིང་།"
-
-[admin.settings.general.appNameNavbar]
-description = "མིང་དེ་འགྲུལ་བཞུད་ཕྲ་རིང་ནང་མངོན་ཡོད།"
-label = "Navbar རྟགས་མ།"
-
-[admin.settings.general.customHTMLFiles]
-description = "སྲོལ་རྒྱུན་གྱི་ཡིག་ཆ་སྣོད་ཐོ་ནས་རང་མོས་ལྟར་གྱི་HTMLཡིག་ཆ་སྤྲོད་ཆོག"
-label = "རང་མོས་HTMLཡིག་ཆ།"
-
-[admin.settings.general.customMetadata]
-label = "ལུགས་མཐུན་མེ་ཊ་ཌ་ཏ།"
-
-[admin.settings.general.customMetadata.author]
-description = "སྔོན་སྒྲིག་རྩོམ་པ་པོ། PDF metadata (དཔེར་ན། སྤྱོད་མཁན་གྱི་མིང་།)"
-label = "སྔོན་སྒྲིག་རྩོམ་པ་པོ།"
-
-[admin.settings.general.customMetadata.autoUpdate]
-description = "ལས་སྣོན་བྱས་པའི་ཡིག་ཆ་ཚང་མའི་ཐོག་རང་འགུལ་གྱིས་PDF metatata གསར་བརྗེ་བྱེད།"
-label = "རང་འགུལ་གསར་བཅོས་ཀྱི་ཚད་གཞི།"
-
-[admin.settings.general.customMetadata.creator]
-description = "PDF metatata ཡི་སྔོན་སྒྲིག་གསར་གཏོད་པ།"
-label = "སྔོན་སྒྲིག་གསར་གཏོད།"
-
-[admin.settings.general.customMetadata.producer]
-description = "PDF metatata ཡི་སྔོན་སྒྲིག་ཐོན་སྐྱེད་པ།"
-label = "སྔོན་སྒྲིག་ཐོན་སྐྱེད་པ།"
-
-[admin.settings.general.customPaths]
-description = "མདོང་ལམ་ལས་སྣོན་དང་ཕྱིའི་ལག་ཆའི་ཆེད་དུ་རང་སྒྲིག་ཡིག་ཆའི་མ་ལག་གི་འགྲོ་ལམ་སྒྲིག་བཀོད་བྱེད་པ།"
-label = "ལམ་འགྲོ་ལམ་ལུགས།"
-
-[admin.settings.general.customPaths.operations]
-label = "ཕྱིའི་ལག་ཆའི་ལམ།"
-
-[admin.settings.general.customPaths.operations.unoconvert]
-description = "ཡིག་ཆ་སྒྱུར་བཀོད་ཀྱི་ཆེད་དུ་LibreOffice ནས་Oconcorvert (སྔོན་སྒྲིག་ཆེད་དུ་སྟོང་པར་བཞག་པ་: /opt/venv/bin/octurntert)"
-label = "མེད་ཐབས་མེད་པ་ལག་བསྟར་བྱེད་ཐུབ།"
-
-[admin.settings.general.customPaths.operations.weasyprint]
-description = "HTMLནས་PDFབསྒྱུར་བའི་ཆེད་དུ་WasyPrintནས་ལག་བསྟར་བྱེད་ཐུབ།"
-label = "WasyPrint ལག་བསྟར་བྱེད་ཐུབ་པ།"
-
-[admin.settings.general.customPaths.pipeline]
-label = "མདོང་ལམ་ངོས་འཛིན།"
-
-[admin.settings.general.customPaths.pipeline.finishedFoldersDir]
-description = "ལས་སྣོན་བྱས་པའི་PDFs ཐོན་ཚད་ཡོད་པའི་སྣོད་ཐོ། (སྔོན་སྒྲིག་ལ་སྟོང་པ་སྟོང་པ་: /pipeline/finishedFolders)"
-label = "མཇུག་སྒྲིལ། སྣོད་ཐོ་ཐོ་གཞུང་།"
-
-[admin.settings.general.customPaths.pipeline.pipelineDir]
-description = "Base directory for pipeline resources (leave empty for default: /pipeline)"
-label = "Pipeline Directory"
-
-[admin.settings.general.customPaths.pipeline.watchedFoldersDir]
-description = "སྣོད་ཐོ་དེ་PDFནང་དུ་འོང་བའི་མདོང་ལམ་གྱི་ལྟ་རྟོག་བྱེད་ཆས་(སྔོན་སྒྲིག་ལ་སྟོང་པར་བཞག་པ་: /pipeline/whatedFolders)"
-label = "བལྟ་བའི་སྣོད་ཆས་སྣོད་ཐོ།"
-
-[admin.settings.general.customPaths.pipeline.watchedFoldersDirs]
-description = "Directories where pipeline monitors for incoming PDFs (one per line or comma-separated; leave empty for default: /pipeline/watchedFolders)"
-label = "Watched Folders Directories"
-
-[admin.settings.general.defaultLocale]
-description = "བེད་སྤྱོད་པ་གསར་པའི་ཆེད་དུ་སྔོན་སྒྲིག་སྐད་ཡིག་(དཔེར་ན། en_US, es_ES)"
-label = "སྔོན་སྒྲིག ས་ཁུལ།"
-
-[admin.settings.general.fileUploadLimit]
-description = "ཆེས་མཐོ་བའི་ཡིག་ཆ་ཡར་བསྐུར་ཚད་(དཔེར་ན། 100MB, 1GB)"
-label = "File Upload ཚད་གཞི།"
-
-[admin.settings.general.frontendUrl]
-description = "Frontend ཡི་ Base URL (དཔེར་ https://pdf.example.com) ཡིན། གློག་རྡུལ་ཡིག་འཕྲིན་དང་ ཁ་པར QR ཡར་འཇུག་ལམ་ལ་སྤྱོད་དགོས། སྟོང་པར་བཞག་ན་ backend URL སྤྱོད།"
-label = "Frontend URL"
-
-[admin.settings.general.hideDisabledTools]
-description = "མདུན་ངོས་ནས་སྤྱོད་མི་རུང་བའི་ལག་ཆ་སྦ།"
-label = "སྤྱོད་མི་རུང་བའི་ལག་ཆ་སྦ།"
-
-[admin.settings.general.hideDisabledTools.googleDrive]
-description = "སྤྱོད་བཅུག་མེད་པར Google Drive གནོན་མཆན་སྦ།"
-label = "Google Drive སྦ།"
-
-[admin.settings.general.hideDisabledTools.mobileScanner]
-description = "སྤྱོད་བཅུག་མེད་པར ཁ་པར QR འཚོལ་བྱེད་གནོན་མཆན་སྦ།"
-label = "ཁ་པར་འཚོལ་བྱེད་སྦ།"
-
-[admin.settings.general.homeDescription]
-description = "དྲ་ངོས་སུ་སྟོན་པའི་འགྲེལ་བཤད་ཚིག་དེབ།"
-label = "ཁྱིམ་གྱི་འགྲེལ་བཤད།"
-
-[admin.settings.general.languages]
-description = "སྤྱོད་མཁན་གྱིས་འདེམས་ཐུབ་པའི་སྐད་ཡིག (སྐད་ཡིག་ཚང་མ་ལག་བསྟར་བྱེད་པར་སྟོང་པ་སྟོང་པ་)"
-label = "སྐད་ཆ།"
-placeholder = "སྐད་ཡིག་འདེམས་པ།"
-
-[admin.settings.general.logoStyle]
-classic = "སྔར་སྲོལ་གྱི་ཆ་ནས།"
-classicAlt = "སྔར་སྲོལ་གྱི་རྟགས་མཚན།"
-description = "སར་བར་འདིའི་སྟེང་དུ་སྤྱོད་མཁན་ཚང་མའི་ཆེད་དུ་སྔོན་སྒྲིག་མཚོན་རྟགས་བཟོ་སྟངས་སྒྲིག་དགོས། བེད་སྤྱོད་པ་ཚོས་ཁོང་ཚོའི་སྒེར་གྱི་དགའ་ཕྱོགས་ནང་ལ་སྒྲིག་བཀོད་འདི་ལས་བརྒལ་ཐུབ།"
-label = "རྟགས་མཚན་བཟོ་ལྟ།"
-modern = "དེང་རབས"
-modernAlt = "དེང་རབས་ཀྱི་མཚོན་རྟགས།"
-
-[admin.settings.general.showUpdate]
-description = "ཐོན་རིམ་གསར་པ་ཐོབ་པའི་སྐབས་ལ་བརྡ་ཐོ་བཀྲམ་སྟོན་བྱེད།"
-label = "བརྡ་ཐོ་གསར་བཅོས་བྱེད་པ།"
-
-[admin.settings.general.showUpdateOnlyAdmin]
-description = "དོ་དམ་པ་ཁོ་ནར་ཚད་བཀག་བྱས་པའི་བརྡ་ཐོ་གསར་བརྗེ་བྱེད་པ།"
-label = "འཛིན་སྐྱོང་པ་ཁོ་ནར་གསར་བརྗེ་སྟོན་དགོས།"
-
-[admin.settings.legal]
-description = "ཁྲིམས་ཡིག་གི་ཡིག་ཆ་དང་སྲིད་ཇུས་ཀྱི་འབྲེལ་མཐུད་སྒྲིག་བཀོད་བྱེད་པ།"
-title = "ཁྲིམས་ལུགས་ཡིག་ཆ།"
-
-[admin.settings.legal.accessibilityStatement]
-description = "འཛུལ་སྤྱོད་གསལ་བསྒྲགས་ལ་ URL ཡང་ན་ཡིག་ཆའི་མིང་།"
-label = "འཛུལ་ཞུགས་ཐུབ་ཚད།"
-
-[admin.settings.legal.cookiePolicy]
-description = "ཀུ་ཀི་སྲིད་ཇུས་ལ་URLཡང་ན་ཡིག་ཆའི་མིང་།"
-label = "ཀུ་ཀི་སྲིད་ཇུས།"
-
-[admin.settings.legal.disclaimer]
-message = "ཁྱེད་རང་གིས་ཁྲིམས་ལུགས་ཀྱི་ཡིག་ཆ་འདི་དག་ལ་སྒྱུར་བཅོས་བཏང་ནས་ཁྲིམས་ལུགས་དང་སྒྲིག་གཞི་ཚང་མར་མཐུན་སྒྲིལ་བྱེད་པའི་འགན་འཁྲི་ཆ་ཚང་འཁུར་དགོས། གལ་ཏེ་(༡) ཁྱེད་རང་གིས་སྒེར་གྱི་གནས་ཚུལ་དང་སྒེར་གྱི་གནས་ཚུལ་བཀོལ་སྤྱོད་བྱེད་ཀྱི་ཡོད་ན། (༢) ཁྱེད་རང་ཡུ་རོབ་མནའ་འབྲེལ་གྱི་དབང་ཚད་ཕྱི་རོལ་དུ་ཡོད་ཅིང་། ཁྱེད་རང་གི་ས་གནས་ཀྱི་ཁྲིམས་ལུགས་ཀྱི་འགན་འཁྲི་ཤེས་དགོས། སི་ཊར་ལིང་-PDFདང་དེའི་འཕེལ་རྒྱས་གཏོང་མཁན་ཚོས་ཁྱེད་ཀྱི་ཁྲིམས་མཐུན་གྱི་འགན་འཁྲི་ལ་འགན་འཁྲི་མེད་པར་བསམ་གྱི་ཡོད།"
-title = "བཅའ་ཁྲིམས་ཀྱི་འགན་འཁྲིའི་ཉེན་བརྡ།"
-
-[admin.settings.legal.impressum]
-description = "URL ཡང་ན་ཡིག་ཆའི་མིང་ལ་ཡིད་འཐད་བྱེད་ཀྱི་ཡོད། (ཁྲིམས་ཁང་ཁ་ཤས་ལ་དགོས་མཁོ་ཡོད།)"
-label = "ཚད་གཞི།"
-
-[admin.settings.legal.loginAgreement]
-defaultLocaleHint = "— སྐད་ཡིག་ཞིག་ལ་ཡིག་ཆ་མེད་ན་ཚབ་སྦེ་བཀོལ།"
-defaultLocaleLink = "སོར་བཞག་སྐད་ཡིག་སྒྲིག་འགོད"
-description = "ཐོ་འགོད་བྱས་རྗེས་སྤྱོད་མཁན་གྱིས་དང་ལེན་བྱ་དགོས་པའི་ངེས་གསལ་བརྡ་འཕྲིན་སྟོན། ཚིག་ཡིག་ནི་སྤྱོད་མཁན་རེ་རེའི་སྐད་ཡིག་ལྟར་སྟོན་བྱེད།"
-discardConfirm = "ཁྱེད་ལ་སྲུངས་མེད་པའི་བསྒྱུར་བ་ཡོད་པས་བོར་འགྲོ་རེད། དེ་ཡང་སྐད་ཡིག་བརྗེ་དམ།"
-editLabel = "Markdown"
-emptyPreview = "ད་ཚུན་སྔོན་ལྟ་མི་འདུག"
-language = "སྐད་ཡིག"
-languageHelp = "སྐད་ཡིག་རེ་རེའི་ཡིག་ཆ་སོ་སོ་ཡོད། སྤྱོད་མཁན་ཞིག་གི་སྐད་ཡིག་ལ་ཡིག་ཆ་མེད་ན། གྲོས་ཆིངས་ནི་སོར་བཞག་སྐད་ཡིག་གྱི་ཡིག་ཆར་ཚབ་སྦེ་འགྱུར། དེ་ཡང་མེད་ན་ཚབ་ཚིག་ཡིག་བཀོལ།"
-loadError = "{{locale}} ཡི་གྲོས་ཆིངས་མངོན་གསལ་ཕམ་པ། སྐད་ཡིག་བརྗེས་ནས་སྐྱར་ལོག་བྱས་ནས་ཚོད་ལྟ་བྱེད།"
-previewLabel = "སྔོན་ལྟ"
-restartNote = "གྲོས་ཆིངས་འགོད་པ་དང་བཤོལ་བ་ནི་སྒོ་འབྱེད་བསྐྱར་མ་འགོར་རྗེས་ལ་བྱུང་བ་ཡིན། འོག་གི་ཚིག་ཡིག་བསྒྱུར་བ་ནི་འཕྲལ་ལས་ལྟར་སྤྱོད་འགྱུར།"
-save = "ཚིག་ཡིག་ཉར་ཚགས"
-saved = "ཉར་ཚགས་ཟིན"
-savedBody = "{{locale}} ཡི་ཐོ་འགོད་གྲོས་ཆིངས་གསར་བསྒྱུར་བྱས་ཟིན།"
-textDescription = "customFiles/disclaimer/{{locale}}.md ལ་ཉར་ཚགས་བྱས་པ་དང་ ཐོ་འགོད་ཤུལ་མའི་ཐེངས་རྗེས་སྟོན་ཡོང་། སྐད་ཡིག་འདི་བསུབ་དགོས་ན་སྟོང་པར་བཞག"
-title = "ཐོ་འགོད་གྲོས་ཆིངས"
-
-[admin.settings.legal.loginAgreement.anonymous]
-label = "མིང་མེད (no-login) ཐབས་ལམ་ནས་སྟོན"
-
-[admin.settings.legal.loginAgreement.enabled]
-label = "ཐོ་འགོད་གྲོས་ཆིངས་སྤྱོད་ནུས་བཟོ"
-
-[admin.settings.legal.privacyPolicy]
-description = "URL ཡང་ན་ཡིག་ཆའི་མིང་། སྒེར་གྱི་སྲིད་ཇུས་ལ།"
-label = "སྒེར་གྱི་སྲིད་ཇུས།"
-
-[admin.settings.legal.termsAndConditions]
-description = "URL ཡང་ན་ཡིག་ཆའི་མིང་ལ་ཆ་རྐྱེན་ཚང་བ།"
-label = "ཆ་རྐྱེན་དང་ཆ་རྐྱེན།"
-
-[admin.settings.loginDisabled]
-message = "འཛིན་སྐྱོང་སྒྲིག་སྟངས་བསྒྱུར་བཅོས་བྱེད་པར་ནང་འཇུག་ཐབས་ལམ་ལག་བསྟར་བྱེད་དགོས། ཁྱེད་རང་གི་ཁོར་ཡུག་ཡང་ན་བདེ་འཇགས་ལ་བདེ་འཇགས་ཀྱི་བདེ་འཇགས་སྒྲིག་འཇུག་བྱེད་རོགས། སྒྲིག་སྟངས་ནང་བདེན་པ་ཡིན།"
-readOnly = "གཤམ་གྱི་སྒྲིག་སྟངས་ཀྱིས་གཞི་གྲངས་ལ་དཔེ་མཚོན་གྱི་རིན་ཐང་སྟོན་གྱི་ཡོད། ནང་འཇུག་ཐབས་ལམ་ཤུགས་སྣོན་བྱས་ནས་སྒྲིག་བཀོད་ངོ་མ་ལྟ་རྒྱུ་དང་རྩོམ་སྒྲིག་བྱེད་དགོས།"
-title = "ནང་འཇུག་ཐབས་ལམ་དགོས་པ།"
-
-[admin.settings.mail]
-description = "གློག་འཕྲིན་བརྡ་ཐོ་གཏོང་བའི་ཆེད་དུ་SMTPསྒྲིག་སྟངས་སྒྲིག་བཀོད་བྱེད།"
-smtp = "SMTP བཀོད་སྒྲིག།"
-title = "སྦྲག་སྲིད་ཞབས་ཞུ་བ།"
-
-[admin.settings.mail.enabled]
-description = "གློག་འཕྲིན་བརྡ་ཐོ་དང་SMTPབྱེད་ནུས་ནུས་ལྡན་བཟོ་བ།"
-label = "སྦྲག་ཡིག་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.mail.enableInvites]
-description = "བདག་སྐྱོང་བ་ཚོར་རང་འགུལ་གྱིས་བཟོས་པའི་གསང་གྲངས་ཡོད་པའི་གློག་འཕྲིན་བརྒྱུད་ནས་སྤྱོད་མཁན་ཚོར་གདན་འདྲེན་ཞུ་ཆོག"
-label = "གློག་འཕྲིན་གྱི་མགྲོན་འབོད་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.mail.from]
-description = "བསྐུར་མཁན་ལྟར་བེད་སྤྱོད་གཏོང་དགོས་པའི་གློག་འཕྲིན་ཁ་བྱང་།"
-label = "ཁ་བྱང་ནས།"
-
-[admin.settings.mail.frontendUrl]
-description = "མདུན་གྱི་ཆེད་དུ་གཞི་རྩའི་URL (དཔེར་ན། https://pdf.example.com) གློག་འཕྲིན་ནང་གདན་ཞུའི་འབྲེལ་མཐུད་བཟོ་བར་བེད་སྤྱོད་བྱས། རྒྱབ་ཕྱོགས་ཀྱི་URLབེད་སྤྱོད་བྱེད་པར་སྟོང་པར་བཞག་རོགས།"
-label = "མདུན་གྱི་URL"
-
-[admin.settings.mail.frontendUrlNote]
-link = "མ་ལག་རིམ་སྒྲིག་ནང་སྒྲིག"
-note = "དྲན་འདྲི: Frontend URL སྒྲིག་འགོད་དགོས། "
-
-[admin.settings.mail.host]
-description = "ཁྱེད་རང་གི་SMTPཞབས་ཞུའི་མགྲོན་ཁང་གི་མིང་ཡང་ན་IPཁ་བྱང་།"
-label = "SMTP གཙོ་བོ།"
-
-[admin.settings.mail.password]
-description = "SMTP བདེན་དཔང་བྱེད་པའི་གསང་གྲངས་།"
-label = "SMTP གསང་གྲངས་།"
-placeholder = "SMTP གསང་གྲངས་བཙུགས"
-
-[admin.settings.mail.port]
-description = "SMTPམཐུད་ཁའི་མཐུད་ཁའི་ཨང་གྲངས། (སྤྱིར་བཏང་དུ་25, 465, ཡང་ན་587)"
-label = "SMTP མཚོ་ཁ།"
-
-[admin.settings.mail.username]
-description = "SMTP བདེན་དཔང་ཆེད་དུ་སྤྱོད་མཁན་གྱི་མིང་།"
-label = "SMTP བེད་སྤྱོད་མིང་།"
-
-[admin.settings.mcp]
-apikeyNote = "Clients send a Stirling API key in the X-API-KEY header (or Authorization: Bearer <key>). The key maps to its owning Stirling user - only provisioned accounts get in, and actions are audited as that user. Manage keys under Account > API Keys."
-description = "Expose Stirling's PDF tools and AI agents to MCP clients over an OAuth-protected endpoint."
-title = "MCP Server"
-
-[admin.settings.mcp.acceptedAudiences]
-description = "Extra token audience values accepted besides the Resource ID (comma or space separated). Leave blank for strict RFC 8707. Needed for IdPs that cannot mint resource audiences - e.g. Supabase's OAuth server always issues aud=authenticated."
-label = "Additional accepted audiences (optional)"
-
-[admin.settings.mcp.allowedOps]
-description = "If set, ONLY these operation ids are exposed (an allow-list; comma or space separated). Leave blank to expose all enabled tools except any blocked below."
-label = "Allowed tools"
-
-[admin.settings.mcp.blockedOps]
-description = "Operation ids to hide from MCP (comma or space separated), e.g. add-password remove-password. Leave blank to expose all enabled tools."
-label = "Blocked tools"
-
-[admin.settings.mcp.enabled]
-description = "When off (default), no /mcp endpoint, metadata, or MCP beans are loaded."
-label = "Enable MCP Server"
-
-[admin.settings.mcp.guide]
-step1 = "Enter your OAuth issuer + resource ID above, Save, and restart."
-step1ApiKey = "Create an API key under Account > API Keys (each user uses their own)."
-step2 = "In your MCP client add a"
-step2b = "server pointing at:"
-step3 = "The client auto-discovers OAuth from:"
-step3ApiKey = "Send the key in an"
-step3ApiKeyb = "header (or Authorization: Bearer <key>). No OAuth or metadata discovery is used."
-step4 = "Approve the sign-in; the client retries with a token. Tools appear grouped: convert, pages, misc, security, ai."
-step4ApiKey = "Tools appear grouped: convert, pages, misc, security, ai - and every call is audited as the key's owner."
-tip = "Tip: register the resource ID as an allowed audience in your IdP. Tested with MCP Inspector and Claude Desktop."
-tipApiKey = "Tip: API-key mode needs no external IdP - simplest for self-host. The key maps to its owning Stirling user."
-title = "Connect an MCP client"
-
-[admin.settings.mcp.issuerUri]
-description = "Your OAuth2 authorization server (must publish /.well-known/openid-configuration). Required when enabled."
-label = "OAuth Issuer URL"
-
-[admin.settings.mcp.jwksUri]
-description = "Leave blank to discover it from the issuer. Set only if your IdP serves keys at a non-standard URL."
-label = "JWKS URL (optional)"
-placeholder = "Auto-discovered from issuer"
-
-[admin.settings.mcp.mode]
-description = "OAuth needs an external IdP. API key uses a Stirling per-user API key (X-API-KEY) - simplest for self-host."
-label = "Authentication mode"
-
-[admin.settings.mcp.requireAccount]
-description = "Only let tokens through if their subject maps to a provisioned, enabled Stirling user."
-label = "Require an existing Stirling account"
-
-[admin.settings.mcp.resourceId]
-description = "This server's public /mcp URL. Tokens must list it in their audience (RFC 8707) or they are rejected."
-label = "Resource ID"
-
-[admin.settings.mcp.scopes]
-description = "Require mcp.tools.read for read ops and mcp.tools.write for write/AI ops."
-label = "Enforce OAuth scopes"
-
-[admin.settings.mcp.usernameClaim]
-description = "JWT claim matched against a Stirling username (e.g. sub, email, preferred_username)."
-label = "Username claim"
-
-[admin.settings.plan.noData]
-message = "དུས་འདིར་འཆར་གཞིའི་གནད་སྡུད་མི་འཐོབ།"
-title = "གནད་སྡུད་མི་འཐོབ"
-
-[admin.settings.premium]
-description = "ཁྱེད་རང་གི་ཁེ་སྤོགས་ཡང་ན་ཁེ་ལས་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་སྒྲིག་དགོས།"
-license = "ཆོག་མཆན་བཀོད་སྒྲིག།"
-noInput = "ལག་འཁྱེར་ལྡེ་མིག་ཡང་ན་ཡིག་ཆ་ཞིག་འདོན་སྤྲོད་གནང་རོགས།"
-title = "ཁེ་སྤོགས་དང་ཁེ་ལས།"
-
-[admin.settings.premium.currentLicense]
-file = "ཁུངས། ཆོག་མཆན་ཡིག་ཆ་ ({{path}})"
-key = "ཡོང་ཁུངས།: ཆོག་མཆན་ལྡེ་མིག།"
-noInput = "ལག་འཁྱེར་གྱི་ལྡེ་མིག་འདོན་སྤྲོད་བྱེད་པའམ་ཡང་ན་ལག་འཁྱེར་ཡིག་ཆ་ཡར་བསྐུར་རོགས།"
-success = "ལེགས་འགྲུབ"
-title = "ཤུགས་ལྡན་ལག་ཁྱེར།"
-type = "རིགས། {{type}}"
-
-[admin.settings.premium.enabled]
-description = "ཁེ་ལས་པ་/ཁེ་ལས་ཀྱི་ཁྱད་ཆོས་ལ་ཆོག་མཆན་གྱི་ལྡེ་མིག་ཞིབ་བཤེར་བྱེད་པར་ནུས་པ་འདོན་དགོས།"
-label = "གོང་ཚད་མཐོ་ཤོས་ཀྱི་ཁྱད་ཆོས་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.premium.file]
-choose = "ཆོག་མཆན་ཡིག་ཆ་འདེམས།"
-description = "ཁྱེད་རང་གི་ .lic དང་ .cert ཆོག་མཆན་ཡིག་ཆ་དེ་དྲ་རྒྱའི་ཕྱི་རོལ་གྱི་ཉོ་སྒྲུབ་ནས་ཡར་བསྐུར་རོགས།"
-label = "ལག་འཁྱེར་ཡིག་ཆ།"
-selected = "བདམས་པ།: {{filename}} ({{size}})"
-successMessage = "ཆོག་མཆན་ཡིག་ཆ་ཡར་བསྐུར་ནས་མཐར་ཕྱིན་པར་ཤུགས་སྣོན་བྱས། བསྐྱར་དུ་འགོ་འཛུགས་མི་དགོས།"
-
-[admin.settings.premium.inputMethod]
-file = "ལག་འཁྱེར་ཡིག་ཆ།"
-text = "ཆོག་མཆན་ལྡེ་མིག"
-
-[admin.settings.premium.key]
-description = "ཁྱེད་རང་གི་རིན་གོང་ཡང་ན་ཁེ་ལས་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་བླུགས་རོགས། ལྡེ་མིག་ཅིག་སྤྲོད་སྐབས་རིན་གོང་མཐོ་ཤོས་ཀྱི་ཁྱད་ཆོས་རང་འགུལ་གྱིས་ལག་བསྟར་བྱེད་ཐུབ།"
-label = "ཆོག་མཆན་ལྡེ་མིག"
-success = "ཆོག་མཆན་གྱི་ལྡེ་མིག་ཉར་ཚགས་བྱས།"
-successMessage = "ཁྱེད་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་དེ་ལེགས་འགྲུབ་བྱུང་ཡོད། བསྐྱར་དུ་འགོ་འཛུགས་མི་དགོས།"
-
-[admin.settings.premium.key.overwriteWarning]
-line1 = "ཁྱེད་རང་གི་ད་ལྟའི་ཆོག་མཆན་ལྡེ་མིག་དེ་མེད་པར་བཟོ་རྒྱུ་དེ་མེད་པར་བཟོ་མི་ཐུབ།"
-line2 = "ཁྱེད་རང་གིས་ས་ཆ་གཞན་དུ་རྒྱབ་སྐྱོར་མ་བྱས་ན་ཁྱེད་རང་གི་སྔོན་མའི་ཆོག་མཆན་དེ་གཏན་འཇགས་སུ་ཤོར་འགྲོ་གི་རེད།"
-line3 = "གལ་ཆེ་བ། ཆོག་མཆན་ལྡེ་མིག་སྒེར་གྱི་དང་བདེ་འཇགས་ལྡན་པར་བྱ་དགོས། མི་མང་ལ་དེ་དག་ནམ་ཡང་མཉམ་སྤྱོད་བྱེད་མི་རུང་།"
-title = "⚠️ ཉེན་བརྡ། ད་ཡོད་ཀྱི་ཆོག་མཆན་ཤེས་རྟོགས་བྱུང་བ།"
-
-[admin.settings.premium.licenseKey]
-info = "གལ་ཏེ་ཁྱེད་ལ་ཐད་ཀར་ཉོ་སྒྲུབ་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་ཡང་ན་ལག་འཁྱེར་ཡིག་ཆ་ཡོད་ན།"
-toggle = "ཆོག་མཆན་ལྡེ་མིག་ཡང་ན་ལག་འཁྱེར་ཡིག་ཆ་ཡོད་དམ།"
-
-[admin.settings.premium.movedFeatures]
-auditLogging = "<0>རྩིས་ཞིབ་དྲན་ཐོ</0> (ENTERPRISE) - བདེ་འཇགས"
-customMetadata = "<0>རང་སྒྲིག Metadata</0> (PRO) - སྤྱིར་བཏང"
-databaseConfiguration = "<0>Database སྒྲིག་འགོད</0> (ENTERPRISE) - Database"
-message = "གོང་ཚད་དང་ཁེ་ལས་ཀྱི་ཁྱད་ཆོས་དེ་ད་ལྟ་ཁོང་ཚོའི་སྡེ་ཚན་ནང་སྒྲིག་འཛུགས་བྱས་ཡོད།"
-title = "གོང་ཚད་མཐོ་བའི་ཁྱད་ཆོས།"
-
-[admin.settings.privacy]
-analytics = "དབྱེ་ཞིབ་དང་རྗེས་འདེད་བྱེད་པ།"
-description = "སྒེར་གྱི་གནས་ཚུལ་དང་གནས་ཚུལ་བསྡུ་རུབ་སྒྲིག་སྟངས་སྒྲིག་བཀོད་བྱས།"
-searchEngine = "འཚོལ་ཞིབ་འཕྲུལ་ཆས་མཐོང་ཐུབ་ཚད།"
-title = "གསང་བ"
-
-[admin.settings.privacy.enableAnalytics]
-description = "མིང་མེད་པའི་བེད་སྤྱོད་དབྱེ་ཞིབ་བསྡུ་རུབ་བྱས་ནས་ལག་ལེན་ཡར་རྒྱས་གཏོང་བར་ཕན་ཐོགས།"
-label = "དབྱེ་ཞིབ།"
-
-[admin.settings.privacy.googleVisibility]
-description = "འཚོལ་ཞིབ་འཕྲུལ་ཆས་ལ་མཉེན་ཆས་འདིའི་དཀར་ཆག་བཟོ་ཆོག"
-label = "Google མཐོང་ཐུབ་པ།"
-
-[admin.settings.privacy.metricsEnabled]
-description = "ལས་ཀའི་བྱེད་ནུས་དང་བེད་སྤྱོད་ཚད་གཞི་བསྡུ་རུབ་བྱེད་པར་ནུས་པ་ཡོད། འཛིན་སྐྱོང་པ་ལ་APIམཐའ་མཚམས་མཁོ་སྤྲོད་བྱེད།"
-label = "ཚད་གཞི།"
-
 [admin.settings.restart]
 later = "བསྐྱར་དུ་འགོ་འཛུགས་བྱས།"
 message = "སྒྲིག་སྟངས་ལེགས་འགྲུབ་བྱུང་ཡོད། བསྒྱུར་བཅོས་ལ་ཕན་ནུས་ལྡན་པའི་ཆེད་དུ་སར་བར་ཡང་བསྐྱར་འགོ་འཛུགས་དགོས།"
@@ -1299,324 +523,12 @@ now = "བསྐྱར་དུ་འགོ་འཛུགས།"
 question = "ཁྱེད་རང་གིས་ད་ལྟ་ཡང་ན་རྗེས་སུ་སར་བར་དེ་བསྐྱར་དུ་འགོ་འཛུགས་འདོད་དམ།"
 title = "བསྐྱར་དུ་འགོ་འཛུགས་དགོས་པ།"
 
-[admin.settings.security]
-authentication = "བདེན་དཔང་།"
-description = "བདེན་དཔང་དང་། ནང་འཇུག་བྱ་སྤྱོད། བདེ་འཇགས་སྲིད་ཇུས་བཅས་སྒྲིག་བཀོད་བྱེད་དགོས།"
-title = "ཉེན་སྲུང"
-
-[admin.settings.security.audit]
-hideDetails = "ཞིབ་བཤེར་གནས་རིམ་གྱི་ཞིབ་ཕྲ་སྦ།"
-label = "རྩིས་ཞིབ་དྲན་ཐོ།"
-showDetails = "ཞིབ་བཤེར་གནས་རིམ་གྱི་ཞིབ་ཕྲ་མངོན་པ།"
-
-[admin.settings.security.audit.advancedOptions]
-description = "འོག་གི་འདེམས་ཚན་ཚུ་གིས་ལས་སྦྱོར་དུས་ཚོད་དང་དྲན་ཚད་བེད་སྤྱོད་འཕར། དགོས་ངེས་ཡོད་ཚེ་ཙམ་སྤྱོད།"
-title = "མཐོ་རིམ་འདེམས་ཚན།"
-
-[admin.settings.security.audit.captureFileHash]
-description = "ཡར་འཇོག་པའི PDF ཡིག་ཆའི SHA-256 hash ཕྱིར་འདོན་བྱས་ནས ཆེད་དུས་ལྟ་བ། ཞིབ་བཤེར་གནས་རིམ་ལས་རང་བཞིན།"
-label = "ཡིག་ཆ Hash ཐོ་འགོད (SHA-256)"
-
-[admin.settings.security.audit.captureOperationResults]
-description = "ཐབས་ལམ་ལས་སློབ་འབྲས་ཐོ་འགོད། གཏན་འབེབས་མ་བྱེད་པ: ཐོ་འགོད་ཁུངས་དང་སྣོད་སྡེར་སྤྱོད་ཚད་ཆེ་བཟོགས།"
-label = "བཀོལ་སྤྱོད་མཇུག་འབྲས་ཐོ་འགོད"
-
-[admin.settings.security.audit.capturePdfAuthor]
-description = "ལས་སྦྱོར་བྱེད་སྐབས PDF ཡིག་ཆ་ནས རྩོམ་པ་པོའི་ཁང་འདེམས་ཕྱིར་འདོན། PDF འགོད་འགྲེལ་དགོས་པས ཕྱིར་འགྱངས་འཕར། ཞིབ་བཤེར་གནས་རིམ་ལས་རང་བཞིན།"
-label = "PDF རྩོམ་པ་པོའི་གཞི་གྲངས་ཐོ་འགོད"
-
-[admin.settings.security.audit.enabled]
-description = "སྒྲིག་ལམ་དང་བདེ་འཇགས་ལ་ལྟ་སྐུལ་བྱེད་པའི་སྤྱོད་མཁན་གྱི་བྱ་སྤྱོད་དང་མ་ལག་གི་བྱུང་རིམ་ལ་རྗེས་འདེད་བྱེད་པ།"
-label = "རྩིས་ཞིབ་དྲན་ཐོ་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.security.audit.level]
-description = "0=OFF, 1=གཞི་གྲངས། ༢=གནས་སྟངས། 3=VERBOSE"
-label = "རྩིས་ཞིབ་རིམ་པ་།"
-
-[admin.settings.security.audit.levelDetails]
-basic = "PDF ཡིག་ཆའི་བཀོལ་སྤྱོད (སྲབ་བཟོ་, དབྱེ་, མཉམ་སྒྲིལ་ སོགས) དང་སྒྲིག་སྟངས་བཅོས་བཟོ། ཐོ་འགོད: བཀོལ་སྤྱོད་གནས་སྟངས (མཐར་འཁྱོལ/མཐར་མ་འཁྱོལ), ཐབས་ལམ་ཞུགས་གྲངས་, དུས་ཚོད། ཐོ་འགོད་ཁུངས་ཆུང་།"
-off = "ཞིབ་བཤེར་ཐོ་འགོད་མེད། བདེ་འཇགས་ཀྱི་གལ་ཆེ་བྱུང་ལས་ཙམ་ཐོ་འགོད།"
-standard = "BASIC བྱུང་ལས་ལ་ཁ་པར་སྣོན: སྤྱོད་མཁན་ཐོ་འགོད/ཕྱིར་འཐེན, རྩིས་ཐོ་བཅོས་བཟོ, སྤྱིར་བཏང་ GET ཞུ་འབུལ། ཐོ་འགོད་སྐད་སྒྲ་མར་ཆུང་བཟོ་བའི་ཆེད་དུ རྟག་པའི་བསྒུག་ཞུ (/auth/me, /app-config, /health སོགས) མི་ཚང་། མང་ཆེ་བའི་གཞི་འཇུག་ཚང་མར་འཚམ།"
-verbose = "STANDARD བྱུང་ལས་ལ་ཁ་པར་སྣོན: རྟག་པའི་བསྒུག་ཞུ་དང་ GET ཞུ་འབུལ་ཚང་, དུས་ཚོད་ཞིབ་ཕྲ། ཉེན་བརྡ: ཐོ་འགོད་མང་དྲགས་དང་ལས་རིམ་ལེགས་སྒྲིག་ལ་ཤུགས་ཤུལ།"
-
-[admin.settings.security.audit.retentionDays]
-description = "རྩིས་ཞིབ་ཀྱི་དྲན་ཐོ་ཉར་ཚགས་བྱེད་པའི་ཉིན་གྲངས་ཀྱི་གྲངས་འབོར།"
-label = "རྩིས་ཞིབ་བཀག་སྡོམ།(ཉིན་མོ།)"
-
-[admin.settings.security.csrfDisabled]
-description = "ས་ཁོངས་བརྒལ་བའི་རེ་འདུན་རྫུན་བཟོ་སྲུང་སྐྱོབ།"
-label = "CSRF སྲུང་སྐྱོབ།"
-
-[admin.settings.security.enableLogin]
-description = "མཉེན་ཆས་ལ་མ་འཛུལ་གོང་སྤྱོད་མཁན་ཚོས་ནང་འཛུལ་བྱེད་དགོས།"
-label = "ནང་འཇུག་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.security.htmlUrlSecurity]
-advanced = "ཡར་ཐོན་ཅན་གྱི་སྒྲིག་སྟངས།"
-description = "HTML ལས་སྣོན་གྱི་URL འཛུལ་སྤྱོད་ཚད་བཀག་སྒྲིག་བཀོད་བྱས་ནས་SSRF འཇབ་རྒོལ་འགོག་ཐུབ།"
-label = "HTML URL བདེ་འཇགས།"
-networkBlocking = "དྲ་རྒྱ་བཀག་པ།"
-
-[admin.settings.security.htmlUrlSecurity.allowedDomains]
-description = "གྲལ་རིམ་རེ་ལ་ཁྱབ་ཁོངས་གཅིག (དཔེར་ན། cdn.exeample.com) གནས་ཚད་མཐོ་ཤོས་ཡིན་པའི་སྐབས་ལ་ཁྱབ་ཁོངས་འདི་དག་རྐྱངམ་གཅིག་ཆོག་མཆན་སྤྲོད་དགོས།"
-label = "ཁྱབ་ཁོངས་ཀྱི་ཁྱབ་ཁོངས་(དཀར་པོའི་ཐོ་འགོད།)"
-
-[admin.settings.security.htmlUrlSecurity.blockCloudMetadata]
-description = "བཀག་པའི་སྤྲིན་པ་མཁོ་སྤྲོད་བྱེད་མཁན་གྱི་མེ་ཊ་གྲངས་ཐོ་(169.254.169.254)"
-label = "བཀག་སྡོམ་གྱི་སྤྲིན་པ་མེ་ཊ་ཊ་མཇུག་འགོད།"
-
-[admin.settings.security.htmlUrlSecurity.blockedDomains]
-description = "ཐིག་རེ་ལ་ཁྱབ་ཁོངས་གཅིག (དཔེར་ན། malius.com) བཀག་སྡོམ་གྱི་ཁྱབ་ཁོངས་ཁ་སྣོན་བྱེད།"
-label = "བཀག་སྡོམ་བྱས་པའི་ཁྱབ་ཁོངས་(ནག་པོ)"
-
-[admin.settings.security.htmlUrlSecurity.blockLinkLocal]
-description = "བཀག་སྡོམ། ས་གནས་ཀྱི་ཁ་བྱང་། (169.254.x.x, fe80:/10)"
-label = "སྦྲེལ་མཐུད་ས་གནས་ཀྱི་ཁ་བྱང་བཀག་པ།"
-
-[admin.settings.security.htmlUrlSecurity.blockLocalhost]
-description = "ས་གནས་ཀྱི་གཙོ་སྐྱོང་དང་བསྐྱར་ལོག་ཁ་བྱང་བཀག་པ། (127.x.x.x, ::1)"
-label = "ས་གནས་གཙོ་བོ།"
-
-[admin.settings.security.htmlUrlSecurity.blockPrivateNetworks]
-description = "བཀག་སྡོམ་གྱི་RFC 1918 སྒེར་གྱི་དྲ་རྒྱ། (10.x.x.x, 192.168.x.x, 172.16-31.x.x)"
-label = "སྒེར་གཉེར་དྲ་བ།"
-
-[admin.settings.security.htmlUrlSecurity.enabled]
-description = "HTMLཡི་ཆེད་དུ་URLབདེ་འཇགས་ཚད་བཀག་ལ་PDFབསྒྱུར་བཅོས་ལ་ཕན་ཐོགས།"
-label = "URLབདེ་འཇགས་ལྕོགས་ཅན་བཟོ་བ།"
-
-[admin.settings.security.htmlUrlSecurity.internalTlds]
-description = "ཐིག་རེ་ལ་TLDགཅིག་(དཔེར་ན། .local, .intarnal) TLD བཀོད་རིས་འདི་དག་དང་མཉམ་དུ་བཀག་སྡོམ་གྱི་ཁྱབ་ཁོངས་ཡོད།"
-label = "ནང་ཁུལ་གྱི་TLDs"
-
-[admin.settings.security.htmlUrlSecurity.level]
-description = "མཐོ་ཤོས་: ཐོ་གཞུང་དཀར་པོ། མེཌི་ཡམ་: ནང་ཁུལ་གྱི་དྲ་རྒྱ། བཀག་སྡོམ། ཚད་བཀག་མེད།"
-label = "བདེ་འཇགས་རིམ་པ་།"
-max = "ཆེས་མཐོ་ཤོས།"
-medium = "བར་འདུམ་(ནང་ཁུལ་བཀག་བཅོས།)"
-off = "ཕྱི་རོལ་དུ་(ཚད་བཀག་མེད།)"
-
-[admin.settings.security.initialLogin]
-label = "ཐོག་མའི་ནང་འཛུལ་བྱེད་པ།"
-
-[admin.settings.security.initialLogin.password]
-description = "ཐོག་མའི་འཛིན་སྐྱོང་རྩིས་ཁྲའི་གསང་གྲངས་དེ།"
-label = "ཐོག་མའི་གསང་གྲངས།"
-
-[admin.settings.security.initialLogin.username]
-description = "ཐོག་མའི་འཛིན་སྐྱོང་རྩིས་ཁྲའི་སྤྱོད་མཁན་གྱི་མིང་།"
-label = "ཐོག་མའི་སྤྱོད་མཁན་གྱི་མིང་།"
-
-[admin.settings.security.jwt]
-label = "JWT བཀོད་སྒྲིག།"
-
-[admin.settings.security.jwt.allowedClockSkewSeconds]
-description = "Token བདེན་སྦྱོར་སྐབས་མཁོ་མཁྲེགས/སར་བར་དུས་ཚོད་འགྱིང་འཕྱོར་ལ་ཆོག་ཐམ (སྔོན་སྒྲིག: 60 སྐར་ཆ)"
-label = "དུས་ཆེན་འགྱིང་འཕྱོར་ཆོག་ཐམ (སྐར་ཆ)"
-
-[admin.settings.security.jwt.desktopTokenExpiryMinutes]
-description = "Desktop མཁོ་མཁྲེགས་ལ་སྤྱོད་པའི Access Token གི་དུས་ཚོད (སྐར་མ)། Desktop གློག་རིག་བྱ་རིམ་དེ་ཚོ་ནི User-Agent བརྒྱུད་ནས་རང་འགུལ་ངོས་འཛིན་བྱས་ཏེ UX ལེགས་པར་བྱ་བའི་དུས་ཡུན་རིང་བ་ཐོབ། (སྔོན་སྒྲིག: 43200 = 30 ཉིམ)"
-label = "Desktop Token དུས་ཡོལ (སྐར་མ)"
-
-[admin.settings.security.jwt.enableKeyCleanup]
-description = "རང་འགུལ་གྱིས་དུས་ཚོད་རྫོགས་པའི་JWTལྡེ་མིག་རྩ་མེད་བཟོ་བ།"
-label = "ལྡེ་མིག་གཙང་མ་བཟོ་དགོས།"
-
-[admin.settings.security.jwt.enableKeyRotation]
-description = "རང་འགུལ་གྱིས་JWTརྟགས་བཀོད་པའི་ལྡེ་མིག་དུས་མཚམས་སུ་འཁོར་བ།"
-label = "གལ་ཆེའི་འཁོར་སྐྱོད་ཤུགས་སྣོན་བྱེད་པ།"
-
-[admin.settings.security.jwt.persistence]
-description = "JWTལྡེ་མིག་ཉར་ཚགས་བྱས་ནས་སར་བར་གྱི་བསྐྱར་འཛུགས་ལ་མུ་མཐུད་གནས་ཐུབ།"
-label = "སྲོག་ཤིང་གི་གནད་འགག་ཅན་དུ་འགྱུར་བ།"
-
-[admin.settings.security.jwt.refreshGraceMinutes]
-description = "Token དུས་ཡོལ་བྱས་པའི་རྗེས་སྐར་མ་དེ་ཚོར་ནང་བསྐྱར་གསོ་ཆོག (སྔོན་སྒྲིག: 15 སྐར་མ, མང་མཐའ 3 པ་ཚོད་ལྟ)"
-label = "བསྐྱར་གསོ་གནང་དུས (སྐར་མ)"
-
-[admin.settings.security.jwt.secureCookie]
-description = "JWT ཀུ་ཀིའི་ཆེད་དུ་HTTPS དགོས།"
-label = "བདེ་འཇགས་ཀུ་ཀི།"
-
-[admin.settings.security.jwt.tokenExpiryMinutes]
-description = "ཝེབ་མཁོ་མཁྲེགས་ལ་སྤྱོད་པའི Access Token གི་དུས་ཚོད (སྐར་མ) (སྔོན་སྒྲིག: 1440 = 24 ཆུ་ཚོད)"
-label = "ཝེབ Token དུས་ཡོལ (སྐར་མ)"
-
-[admin.settings.security.loginAttemptCount]
-description = "རྩིས་ཁྲའི་བཀག་སྡོམ་མ་བྱས་པའི་སྔོན་ལ་ནང་འཇུག་ཚོད་ལྟ་བྱེད་མ་ཐུབ་པའི་ཆེས་མང་བའི་གྲངས་འབོར།"
-label = "ནང་འཛུལ་ལས་ཞུགས་ཚད་གཞི།"
-
-[admin.settings.security.loginMethod]
-all = "ཐབས་ལམ་ཚང་མ།"
-description = "སྤྱོད་མཁན་ནང་འཇུག་གི་ཆེད་དུ་བེད་སྤྱོད་གཏོང་བའི་བདེན་དཔང་བྱེད་ཐབས་དེ།"
-label = "ནང་འཇུག་ཐབས་ལམ།"
-normal = "མིང་དང་གསང་གྲངས་རྐྱངམ་གཅིག་ཡིན།"
-oauth2 = "OAuth2 གཅིག་པུ།"
-saml2 = "SAML2 གཅིག་པུ།"
-
-[admin.settings.security.loginResetTimeMinutes]
-description = "ནང་འཇུག་ཚོད་ལྟ་འཐུས་ཤོར་མ་བྱུང་གོང་གི་དུས་ཚོད།"
-label = "ནང་འཇུག་བསྐྱར་སྒྲིག་དུས་ཚོད།"
-
-[admin.settings.security.ssoNotice]
-message = "OAuth2 དང་ SAML2 བདེན་དཔང་སྤྲོད་མཁན་དེ་ཚོ་འཛིན་སྐྱོང་སྟབས་བདེ་བའི་ཆེད་དུ་མཐུད་ཁའི་རེའུ་མིག་ལ་སྤོ་རུ་བཅུག་ཡོད།"
-title = "SSO/SAML སྒྲིག་སྟངས་འཚོལ་གྱི་ཡོད་དམ།"
-
-[admin.settings.security.xFrameOptions]
-deny = "Deny (Prevents all framing)"
-description = "Controls whether the application can be embedded in iframes"
-disabled = "Disabled (No X-Frame-Options header)"
-label = "X-Frame-Options"
-sameorigin = "Same Origin (Allow framing from same domain)"
-
-[admin.settings.storage]
-description = "སར་བར་གསོག་འཇོག་དང་མཉམ་སྤྱོད་གདམ་ག་ཚོད་འཛིན།"
-title = "ཡིག་ཆའི་གསོག་འཇོག་དང་མཉམ་སྤྱོད"
-
-[admin.settings.storage.enabled]
-description = "མཁོ་སྤྲོད་པས་སར་བར་དུ་ཡིག་ཆ་ཉར་ཚགས་བྱེད་ཆོག."
-label = "སར་བར་ཡིག་ཆ་ཉར་ཚགས་ལྕོགས་འགུལ"
-
-[admin.settings.storage.sharing.email]
-description = "གློག་འཕྲིན་གྲངས་འཛིན་དང་མཉམ་སྤྱོད་ཆོག."
-label = "གློག་འཕྲིན་མཉམ་སྤྱོད་ལྕོགས་འགུལ"
-mailLink = "ཡིག་འཕྲིན་སྒྲིག་འགོད"
-mailNote = "ཡིག་འཕྲིན་སྒྲིག་འགོད་དགོས། "
-
-[admin.settings.storage.sharing.enabled]
-description = "མཁོ་སྤྲོད་པས་ཉར་ཚགས་ཡིག་ཆ་མཉམ་སྤྱོད་ཆོག."
-label = "མཉམ་སྤྱོད་ལྕོགས་འགུལ"
-
-[admin.settings.storage.sharing.links]
-description = "ནང་འཇུག་བྱས་པའི་འབྲེལ་ཐག་བརྒྱུད་ནས་མཉམ་སྤྱོད་ཆོག."
-frontendUrlLink = "མ་ལག་སྒྲིག་འགོད་ནང་སྒྲིག"
-frontendUrlNote = "Frontend URL དགོས། "
-label = "མཉམ་སྤྱོད་འབྲེལ་ཐག་ལྕོགས་འགུལ"
-
-[admin.settings.storage.signing.enabled]
-description = "མཁོ་སྤྲོད་པས་མི་སྣ་མང་མཉམ་ཞུགས་ཀྱི་ཡིག་ཆ་མཛུབ་འགན་ལས་འཁུར་བཟོ་ཆོག དགོས་ནས་སར་བར་ཡིག་ཆ་ཉར་ཚགས་ལྕོགས་འགུལ་ཡོད་དགོས་རེད།"
-label = "ཚོགས་མི་མཛུབ་འགན (Alpha) ལྕོགས་འགུལ"
-
-[admin.settings.telegram]
-description = "Telegram bot འབྲེལ་མཐུད་ དབང་བཀག་ དང་ལྟོས་ལན་སྤྱོད་ཚུལ་སྒྲིག་འགོད།"
-title = "Telegram Bot"
-
-[admin.settings.telegram.accessControl]
-description = "bot དང་འབྲེལ་བ་བྱེད་ཆོག་པའི་སྤྱོད་མཁན་དང་རྒྱུད་ལམ་གང་དག་ཚོད་འཛིན།"
-title = "དབང་བཀག"
-
-[admin.settings.telegram.allowChannelIDs]
-description = "bot དང་འབྲེལ་བ་བྱེད་ཆོག་པའི Telegram རྒྱུད་ལམ ID འཇུག"
-label = "ཆོག་པའི་རྒྱུད་ལམ ID"
-placeholder = "རྒྱུད་ལམ ID ཁ་སྣོན་བྱས་ནས Enter མནན"
-
-[admin.settings.telegram.allowUserIDs]
-description = "bot དང་འབྲེལ་བ་བྱེད་ཆོག་པའི Telegram སྤྱོད་མཁན ID འཇུག"
-label = "ཆོག་པའི་སྤྱོད་མཁན ID"
-placeholder = "སྤྱོད་མཁན ID ཁ་སྣོན་བྱས་ནས Enter མནན"
-
-[admin.settings.telegram.botToken]
-description = "BotFather ཡིས་བྱིན་པའི API token ཡིན།"
-label = "Bot Token"
-
-[admin.settings.telegram.botUsername]
-description = "Telegram bot ཡི་མིང་ཉིད་མི་སྤྱོད་གཙོ།"
-label = "Bot མིང་ཉིད"
-
-[admin.settings.telegram.customFolderSuffix]
-description = "གླེང་མོལ ID ཡིག་སྣོད་འཇུག་ཡིག་ལ་ཟུར་མཐའ་ཁས་སྣོན་བྱས་ནས་གླེང་མོལ་རེ་རེའི་ཡར་འཇུག་ཁ་གཏན་བཟོ།"
-label = "ཡིག་སྣོད་ཟུར་མཐའ་སྲས་སྒྲིག་སྤྱོད"
-
-[admin.settings.telegram.enableAllowChannelIDs]
-description = "འགོ་སློངས་ན་ ཐོ་ཡིག་ནང་གི་ ID རྐྱང་བ་ཙམ་གྱིས bot སྤྱོད་ཆོག"
-label = "རྒྱུད་ལམ ID དམིགས་བསལ་ཆོག"
-
-[admin.settings.telegram.enableAllowUserIDs]
-description = "འགོ་སློངས་ན་ ཐོ་ཡིག་དུ་འཇུག་པའི་སྤྱོད་མཁན ID རྐྱང་བ་ཙམ་གྱིས bot སྤྱོད་ཆོག"
-label = "སྤྱོད་མཁན ID དམིགས་བསལ་ཆོག"
-
-[admin.settings.telegram.enabled]
-description = "ཁྱེད་ཀྱིས་སྒྲིག་འགོད་བྱས་ Telegram bot བརྒྱུད་པར་སྤྱོད་མཁན་ཚོས Stirling PDF དང་འབྲེལ་བ་བྱེད་ཆོག"
-label = "Telegram Bot འགོ་སློང"
-
-[admin.settings.telegram.feedback]
-description = "bot ཡིས་དུས་ག་དུས་སྤྱོད་མཁན་དང་རྒྱུད་ལམ་ལ་ལྟོས་ལན་གཏོང་དགོས་པ་འདེམས།"
-title = "ལྟོས་ལན་འཕྲིན་དོན"
-
-[admin.settings.telegram.feedback.channel]
-title = "རྒྱུད་ལམ་ལྟོས་ལན་སྒྲིག་ལམ"
-
-[admin.settings.telegram.feedback.channel.errorMessage]
-description = "རྒྱུད་ལམ་ལ་ཞིབ་ཕྲ་ནོར་འཁྲུལ་འཕྲིན་དོན་མངོན་པ།"
-label = "ནོར་འཁྲུལ་འཕྲིན་དོན་མངོན་པ (རྒྱུད་ལམ)"
-
-[admin.settings.telegram.feedback.channel.errorProcessing]
-description = "རྒྱུད་ལམ་ལ་ལས་སྒྲུབ་ནོར་འཁྲུལ་འཕྲིན་དོན་གཏོང་།"
-label = "ལས་སྒྲུབ་ནོར་འཁྲུལ་མངོན་པ (རྒྱུད་ལམ)"
-
-[admin.settings.telegram.feedback.channel.noValidDocument]
-description = "རྒྱུད་ལམ་ཡར་འཇུག་སྐབས་ “ནུས་ལྡན་ཡིག་ཆ་མེད” ཟེར་བའི་ལྟོས་ལན་མངོན་པ་བཀག"
-label = "“ནུས་ལྡན་ཡིག་ཆ་མེད” མངོན་པ (རྒྱུད་ལམ)"
-
-[admin.settings.telegram.feedback.general.enabled]
-description = "bot ཡིས་ལྟོས་ལན་འཕྲིན་དོན་གཏོང་མིན་ཚོད་འཛིན།"
-label = "ལྟོས་ལན་འགོ་སློང"
-
-[admin.settings.telegram.feedback.user]
-title = "སྤྱོད་མཁན་ལྟོས་ལན་སྒྲིག་ལམ"
-
-[admin.settings.telegram.feedback.user.errorMessage]
-description = "སྤྱོད་མཁན་ལ་ཞིབ་ཕྲ་ནོར་འཁྲུལ་འཕྲིན་དོན་མངོན་པ།"
-label = "ནོར་འཁྲུལ་འཕྲིན་དོན་མངོན་པ (སྤྱོད་མཁན)"
-
-[admin.settings.telegram.feedback.user.errorProcessing]
-description = "སྤྱོད་མཁན་ལ་ལས་སྒྲུབ་ནོར་འཁྲུལ་འཕྲིན་དོན་གཏོང་།"
-label = "ལས་སྒྲུབ་ནོར་འཁྲུལ་མངོན་པ (སྤྱོད་མཁན)"
-
-[admin.settings.telegram.feedback.user.noValidDocument]
-description = "སྤྱོད་མཁན་ཡར་འཇུག་སྐབས་ “ནུས་ལྡན་ཡིག་ཆ་མེད” ཟེར་བའི་ལྟོས་ལན་མངོན་པ་བཀག"
-label = "“ནུས་ལྡན་ཡིག་ཆ་མེད” མངོན་པ (སྤྱོད་མཁན)"
-
-[admin.settings.telegram.pipelineInboxFolder]
-description = "pipeline དཀར་ཆག་འོག་གི་ཡིག་སྣོད་དུ Telegram ཡིག་ཆ་འཇུག་བྱས་པ་ཉར་བ།"
-label = "ནང་ཡིག་སྣོད"
-
-[admin.settings.telegram.pollingIntervalMillis]
-description = "Telegram གསར་བརྗེ་ཞིབ་བཤེར་བར་མཚམས།"
-label = "འཚོལ་ཞིབ་བར་མཚམས (ms)"
-
-[admin.settings.telegram.processing]
-description = "Telegram ཡར་འཇུག་གྱི་འཚོལ་ཞིབ་བར་མཚམས་དང་ལས་སྒྲུབ་དུས་ཚོད་ཐོན་པ་ཚོད་འཛིན།"
-title = "ལས་སྒྲུབ"
-
-[admin.settings.telegram.processingTimeoutSeconds]
-description = "ལས་སྒྲུབ་ལས་ཀ་ཞིབ་བཤེར་བསྒུག་དགོས་པའི་དུས་ཚོད་མང་མཐའ།"
-label = "ལས་སྒྲུབ་དུས་ཚོད་ཐོན་པ (སྐར་ཆ)"
-
 [admin.settings.unsavedChanges]
 cancel = "རྩོམ་སྒྲིག།"
 discard = "དཀའ་ངལ་གྱི་འགྱུར་བ།"
 hint = "ཁྱོད་ལ་མི་སྐྱོབ་པའི་འགྱུར་བ་ཡོད།"
 message = "ཁྱོད་ལ་མ་སྐྱོབ་པའི་འགྱུར་བ་ཡོད། ཁྱེད་རང་དེ་ཚོ་བེད་སྤྱོད་གཏོང་འདོད་དམ།"
 title = "གསོག་འཇོག་མེད་པའི་འགྱུར་བ།"
-
-[adminOnboarding]
-adminTools = "མཐའ་མར་ང་ཚོ་ལ་མ་ལག་གི་བྱེད་སྒོ་རྗེས་འདེད་བྱེད་པའི་ཆེད་དུ་<strong>རྩིས་ཞིབ་</strong> ལྟ་བུའི་ཡར་ཐོན་འཛིན་སྐྱོང་ལག་ཆ་ཡོད།"
-configButton = "མ་ལག་སྒྲིག་སྟངས་དང་འཛིན་སྐྱོང་ཚོད་འཛིན་ཚང་མར་འཛུལ་ཞུགས་བྱེད་པར་<strong>རིམ་སྒྲིག་</strong> མཐེབ་གཞོང་ལ་སྣུན་དགོས།"
-connectionsSection = "མཐུད་སྣེ</strong> ཚན་པ་འདིས་ནང་འཇུག་ཐབས་ལམ་སྣ་ཚོགས་ལ་རྒྱབ་སྐྱོར་བྱེད་ཀྱི་ཡོད། དེའི་ནང་Google དང་ GitHub ལྟ་བུའི་སྒེར་གྱི་SSO དང་SAML མཁོ་སྤྲོད་བྱེད་མཁན་དང་།"
-databaseSection = "ཡར་ཐོན་ཅན་གྱི་ཐོན་སྐྱེད་ཁོར་ཡུག་ལ་ང་ཚོར་<strong>ཕྱི་ཕྱོགས་ཀྱི་གནས་སྡུད་གཞི་གྲངས་ hookups</strong> ལ་སྒྲིག་སྟངས་ཡོད་སྟབས་ཁྱེད་ཀྱིས་ཁྱེད་ཀྱི་ད་ལྟའི་རྨང་གཞིའི་སྒྲིག་བཀོད་དང་མཉམ་སྒྲིག་བྱེད་ཐུབ།"
-settingsOverview = "འདི་<strong>སྒྲིག་བཀོད་སྒྲོམ་</strong>ཡིན། འཛིན་སྐྱོང་སྒྲིག་སྟངས་དེ་ཚོ་འགྲུལ་བཞུད་སྟབས་བདེ་ཆེད་དུ་སྡེ་ཚན་ལྟར་སྒྲིག་འཛུགས་བྱེད་ཀྱི་ཡོད།"
-systemCustomization = "ང་ཚོ་ལ་UI བསྒྱུར་བཅོས་བྱེད་པའི་ཐབས་ལམ་རྒྱ་ཆེ་བ་ཡོད། མ་ལག་སྒྲིག་སྟངས་</strong> མཉེན་ཆས་མིང་དང་སྐད་ཡིག་བསྒྱུར་ཐུབ།"
-teamsAndUsers = "འཛིན་སྐྱོང་ <strong>རུ་ཁག་</strong> དང་སྤྱོད་མཁན་རེ་རེ་འདིར་ཡོད། ཁྱེད་ཀྱིས་སྤྱོད་མཁན་གསར་པ་རྣམས་གློག་འཕྲིན་བརྒྱུད་ནས་མགྲོན་འབོད་བྱེད་ཐུབ།"
-welcome = "<strong>འཛིན་སྐྱོང་སྐོར་སྐྱོད་</strong>ལ་ཕེབས་པར་དགའ་བསུ་ཞུ། མ་ལག་འཛིན་སྐྱོང་པ་ལ་ཡོད་པའི་ཁེ་ལས་ཀྱི་ཁྱད་ཆོས་དང་སྒྲིག་བཀོད་ཤུགས་ལྡན་དེ་ཚོ་འཚོལ་ཞིབ་བྱེད།"
-wrapUp = "དེ་ནི་འཛིན་སྐྱོང་སྐོར་སྐྱོད་ཡིན། ཁྱེད་ཀྱིས་ཁེ་ལས་དེ་སི་ཊིར་ལིང་པི་ཌི་ཨེཕ་དེ་སྒྲིག་འཛུགས་ཀྱི་ཐབས་ཤེས་ཤུགས་ཆེན་དང་སྒྲིག་བཀོད་བྱེད་ཐུབ་པའི་ཐབས་ཤེས་ཤིག་ལ་ངོས་འཛིན་བྱེད་པའི་ཁྱད་ཆོས་མཐོང་ཡོད། ཡུལ་སྐོར་འདི་ལ་དུས་ནམ་ཡང་<strong>རོགས་རམ་</strong> དཀར་ཆག་ནས་འཛུལ་ཐུབ།"
-
-[adminUserSettings]
-admin = "འཛིན་སྐྱོང་།"
-title = "སྤྱོད་མཁན་ཚོད་འཛིན་སྒྲིག་སྟངས།"
-
-[agents]
-stirling_name = "Stirling"
 
 [analytics]
 learnMore = "ང་ཚོའི་དབྱེ་ཞིབ་སྐོར་ལ་མང་ཙམ་ཤེས་དགོས།"
@@ -1706,139 +618,6 @@ convertToPdfA3bTooltipHeader = "PDF/A-3b སྒྱུར་བཅོས།"
 convertToPdfA3bTooltipTitle = "དེས་ཅི་ཞིག་བྱེད།"
 tags = "མཉམ་སྦྲེལ་དང་བཅོམ་པ། ཡིག་འབྲུ།"
 title = "སྦྲེལ་མཐུད་ཁ་སྣོན།"
-
-[audit]
-configureAudit = "ཞིབ་བཤེར་ཐོ་འགོད་སྒྲིག་འགོད"
-configureAuditMessage = "Security & Authentication ས་ཁོངས་ནང་ཞིབ་བཤེར་ཐོ་འགོད་གནས་རིམ་, ཉར་བརྟན་དུས་ཚོད་ དང་སྒྲིག་སྟངས་གཞན་པ་རྣམས་སྒྲིག"
-disabled = "རྩིས་ཞིབ་ཀྱི་ཤིང་གཅོད་མི་ནུས་པ།"
-disabledMessage = "ཁྱེད་རང་གི་མཉེན་ཆས་སྒྲིག་བཀོད་ནང་རྩིས་ཞིབ་ཀྱི་ཐོ་འགོད་བྱེད་ནས་མ་ལག་གི་བྱུང་རིམ་ལ་རྗེས་འདེད་གཏོང་ཐུབ།"
-enterpriseRequired = "ཁེ་ལས་ཀྱི་ཆོག་མཆན་དགོས་པ།"
-enterpriseRequiredMessage = "རྩིས་ཞིབ་ཐོ་འགོད་མ་ལག་ནི་ཁེ་ལས་ཀྱི་ཁྱད་ཆོས་ཤིག་རེད། རྩིས་ཞིབ་ཀྱི་དྲན་ཐོ་དང་དབྱེ་ཞིབ་ལ་འཛུལ་ཞུགས་བྱེད་པར་ཁེ་ལས་ཀྱི་ཆོག་མཆན་ལ་ཡར་རྒྱས་བཏང་རོགས།"
-goToSettings = "ཞིབ་བཤེར་སྒྲིག་སྟངས་ལ་འགྲོ།"
-notAvailable = "རྩིས་ཞིབ་མ་ལག་མེད།"
-notAvailableMessage = "རྩིས་ཞིབ་མ་ལག་དེ་སྒྲིག་བཀོད་བྱས་མེད་པའམ་ཡང་ན་ཐོབ་ཐུབ་ཀྱི་མེད།"
-
-[audit.charts]
-byType = "རིགས་པའི་བྱེད་སྒོ།"
-byUser = "སྤྱོད་མཁན་གྱིས་བྱེད་སྒོ།"
-day = "ཉིན"
-error = "ནོར་འཁྲུལ་གྱི་བཀལ་བའི་རེའུ་མིག"
-month = "ཟླ་བ"
-noData = "དུས་ཚོད་འདིའི་ཆེད་དུ་གནས་སྡུད་མེད"
-overTime = "དུས་ཐོག་ཏུ་བྱུང་བ།"
-title = "རྩིས་ཞིབ་མཛུབ་ཁྲིད།"
-week = "གཟའ་འཁོར"
-
-[audit.clearData]
-cancel = "ཕྱིར་འཐེན"
-codeDoesNotMatch = "ཨང་རྟགས་མ་མཐུན"
-codePlaceholder = "ཨང་རྟགས་ནཱ་ལ་འཇུག"
-confirmationCode = "གཏན་འཁེལ་ཨང་རྟགས"
-confirmationRequired = "ཞིབ་བཤེར་གནས་སྡུད་ཡོངས་སུ་སུབ"
-confirmMessage = "འདིས་ཞིབ་བཤེར་ཐོ་འགོད་ཡོངས་སུ་རྟག་པར་སུབ། མུ་མཐུད་དུ་བཅུག་ནས་འོག་གི་གཏན་འཁེལ་ཨང་རྟགས་འཇུག"
-confirmTitle = "སུབ་རེད་པར་གཏན་འཁེལ་གནང་"
-deleteButton = "སུབ"
-enterCode = "གཏན་འཁེལ་ཨང་རྟགས"
-enterCodeBelow = "གོང་ལ་མངོན་པ་དང་འདྲ་བའི་ཐོབ་གྲངས་འོག་ཏུ་འཇུག (ཆེ་ཆུང་ཁྱད་པར་བྱེད)"
-initiateDelete = "གནས་སྡུད་ཡོངས་སུ་སུབ"
-irreversible = "ལོག་མི་རུང་།"
-success = "མཐར་འཁྱོལ"
-successMessage = "ཞིབ་བཤེར་གནས་སྡུད་ཡོངས་སུ་ལེགས་ཤོས་སྦས་ཟིན།"
-warning1 = "བྱ་གཞི་འདི་ཕྱིར་ལོག་མི་རུང་།"
-warning2 = "ཞིབ་བཤེར་གནས་སྡུད་སུབ་པས བདེ་འཇགས་བྱུང་ལས་, སྤྱོད་མཁན་ལས་འཆར་, ཡིག་ཆ་བཀོལ་སྤྱོད་སོགས་དང་ལྡན་པའི་ལོ་རྒྱུས་ཞིབ་བཤེར་ཐོ་འགོད་ཚང་མ་དངོས་མཛོད་ནས་རྟག་པར་སུབ་འགྱོ་བ།"
-
-[audit.error]
-title = "འཛོལ་བའི་རྩིས་ཞིབ་མ་ལག།"
-
-[audit.events]
-actions = "བྱ་སྤྱོད།"
-author = "རྩོམ་པ་པོ"
-clearFilters = "དྭངས་མ"
-details = "ཞིབ་ཆ"
-documentName = "ཡིག་ཆ"
-endDate = "མཇུག་གི་ཚེས་གྲངས།"
-error = "འཛོལ་བའི་དངོས་བྱུང་བྱུང་བ།"
-eventDetails = "བྱེད་སྒོའི་ཞིབ་ཕྲ།"
-fileHash = "ཡིག་ཆ Hash"
-filterByType = "ཚགས་རླུང་ལ་རིགས་པ།"
-filterByUser = "བཀོལ་སྤྱོད་པས་ཚགས་རླུང་།"
-ipAddress = "IPཁ་བྱང་།"
-noEvents = "བྱུང་རིམ་གང་ཡང་མཐོང་མ་བྱུང་།"
-startDate = "འགོ་ཚུགས་ཚེས་གྲངས།"
-timestamp = "དུས་ཚོད།"
-title = "རྩིས་ཞིབ་བྱེད་སྒོ།"
-type = "རིགས"
-user = "བེད་སྤྱོད།"
-viewDetails = "ཞིབ་ཕྲའི་གནས་ཚུལ་ལ་ལྟོས།"
-
-[audit.export]
-description = "རྩིས་ཞིབ་བྱུང་རིམ་CSV ཡང་ན་JSON རྩ་སྒྲིག་ལ་ཕྱིར་གཏོང་བྱེད། ཕྱིར་གཏོང་བྱས་པའི་གཞི་གྲངས་ཚད་བཀག་བྱེད་པར་ཚགས་རླུང་བེད་སྤྱོད་བྱེད།"
-error = "ཕྱིར་གཏོང་གི་གྲངས་གཞི་མ་འདང་བ།"
-exportButton = "ཕྱིར་གཏོང་གྲངས་ཐོ་།"
-fieldAuthor = "རྩོམ་པ་པོ (PDF ནས)"
-fieldDate = "ཚེས་གྲངས"
-fieldDocumentName = "ཡིག་ཆའི་མིང་"
-fieldFileHash = "ཡིག་ཆ Hash (SHA-256)"
-fieldIpAddress = "IP ཤག་གནས"
-fieldOperationResults = "བཀོལ་སྤྱོད་མཇུག་འབྲས"
-fieldOutcome = "མཇུག་འབྲས (མཐར་འཁྱོལ/མཐར་མ་འཁྱོལ)"
-fieldTool = "ལག་ཆ"
-fieldUsername = "ལག་ལེན་པའི་མིང་"
-filters = "ཚགས་རླུང་(གདམ་ག)།"
-format = "ཕྱིར་གཏོང་རྣམ་གྲངས།"
-selectFields = "ཚང་དུ་བཙུགས་ནིའི་ཁག་འདེགས་"
-title = "ཕྱིར་གཏོང་རྩིས་ཞིབ་གྲངས་ཐོ།"
-
-[audit.filters]
-last30Days = "ཉིན་30 སྔོན་མ"
-last7Days = "ཉིན་7 སྔོན་མ"
-quickPresets = "སྔོན་སྒྲིག་མྱུར་པོ"
-thisMonth = "ཟླ་འདི"
-today = "དེ་རིང་"
-
-[audit.stats]
-activeUsers = "ཤུགས་ལ་ཡོད་པའི་སྤྱོད་མཁན"
-attention = "དགོས་འདོད་དམིགས་བསལ་དགོས"
-avgLatency = "ཆ་སྙོམས་ཕྱིར་འགྱངས"
-error = "ཚད་རྩིས་ཕབ་ལེན་ནོར་འཁྲུལ"
-excellent = "ཧ་ཅང་ལེགས"
-good = "ལེགས་པ"
-noData = "N/A"
-successRate = "མཐར་འཁྱོལ་པོར་ཚད"
-totalEvents = "བྱུང་ལས་བསྡོམས"
-vsLastPeriod = "དུས་ཚོད་སྔོན་མའི་དང་མཉམ"
-
-[audit.systemStatus]
-captureBySettings = "སྒྲིག་སྟངས་ནས་སྤྱོད་བཅུག"
-capturedFields = "ཐོ་འགོད་བྱས་པའི་ཁག"
-date = "ཚེས་གྲངས"
-days = "ཉིན།"
-disabled = "ཞ་བོ"
-documentName = "ཡིག་ཆའི་མིང་"
-enabled = "ལྕོགས་ཅན་བཟོ་བ།"
-fileHash = "ཡིག་ཆ Hash"
-level = "རྩིས་ཞིབ་རིམ་པ་།"
-pdfAuthor = "PDF རྩོམ་པ་པོ"
-retention = "བདག་གཉེར་དུས་ཡུན།"
-status = "རྩིས་ཞིབ་དྲན་ཐོ།"
-title = "མ་ལག་གི་གནས་བབ།"
-tool = "ལག་ཆ"
-totalEvents = "ཁྱོན་བསྡོམས་བྱུང་རིམ།"
-username = "ལག་ལེན་‍പའི་མིང་"
-
-[audit.tabs]
-clearData = "གནས་སྡུད་བསལ།"
-dashboard = "མཛུབ་ཁྲིད་སྟེགས་བུ།"
-events = "རྩིས་ཞིབ་བྱེད་སྒོ།"
-export = "ཕྱི་ཚོང"
-
-[auth]
-accessDenied = "འཛུལ་སྤྱོད་ཁས་མ་བླངས་པ།"
-insufficientPermissions = "ཁྱེད་ལ་བྱ་སྤྱོད་འདི་སྒྲུབ་པའི་ཆོག་མཆན་མེད།"
-
-[auth.displayName]
-guest = "མགྲོན་པོ"
-user = "སྤྱོད་མཁན"
 
 [auto-rename]
 description = "རང་འགུལ་གྱིས་ཁྱེད་ཀྱི་PDFནང་དོན་ནས་མིང་དེ་འཚོལ་ནས་ཡིག་ཆའི་མིང་ལྟར་བེད་སྤྱོད་བྱེད་ཀྱི་ཡོད།"
@@ -1993,37 +772,6 @@ title = "རང་འགུལ་ཆ་སྒྲིག་PDF"
 [backendHealth]
 checking = "རྒྱབ་ཕྱོགས་ཀྱི་གནས་ཚུལ་ལ་ཞིབ་བཤེར་བྱེད་པ།"
 offline = "དྲ་ལམ་ཕྱི་རོལ་དུ།"
-online = "རྒྱབ་ཕྱོགས་དྲ་རྒྱ།"
-starting = "རྒྱབ་ཕྱོགས་ནས་འགོ་བཙུགས་པ་རེད།"
-wait = "སྐུ་མཁྱེན། རྒྱབ་ཕྱོགས་དེ་འགོ་འཛུགས་ཚར་བར་སྒུག་ནས་བསྐྱར་དུ་ཚོད་ལྟ་བྱེད་རོགས།"
-
-[backendStartup]
-notFoundTitle = "རྗེས་ལུས་མ་རྙེད་པ།"
-retry = "ངལ་གསོ་ཡང་བསྐྱར་བྱེད་པ།"
-unreachable = "མཉེན་ཆས་དེ་ད་ལྟ་རྒྱབ་ཕྱོགས་ལ་མཐུད་མི་ཐུབ། རྒྱབ་ཕྱོགས་ཀྱི་གནས་བབ་དང་དྲ་རྒྱའི་མཐུད་ལམ་ལ་ཞིབ་བཤེར་བྱས་རྗེས་ཡང་བསྐྱར་ཚོད་ལྟ་བྱེད་དགོས།"
-
-[billing]
-basedOnUsers = "(ད་ལྟའི་སྤྱོད་མཁན་)"
-currentSeats = "ད་ལྟའི་རྐུབ་སྟེགས།"
-manageBilling = "དངུལ་འབོར་དོ་དམ་བྱེད་པ།"
-minimumSeats = "ཆེས་ཆུང་ཤོས།"
-newSeatCount = "རྐུབ་སྟེགས་གསར་བ།"
-newSeatCountDescription = "ཁྱེད་རང་གི་ཁེ་ལས་ཀྱི་ཆོག་མཆན་གྱི་གདན་ཐོབ་འདེམས་དགོས།"
-notEnterprise = "ཁེ་ལས་ཀྱི་ཆོག་མཆན་ཁོ་ནའི་ཆེད་དུ་གདན་ས་དོ་དམ་བྱེད་ཆོག་པ་རེད།"
-preparingUpdate = "གདན་ས་གསར་བརྗེ་གྲ་སྒྲིག་བྱེད་པ།"
-seatCountTooLow = "གདན་ས་གྲངས་འདི་ཉུང་མཐར {{minimum}} དགོས། (ད་ལྟའི་སྤྱོད་མཁན་གྲངས)"
-seatCountUnchanged = "གདན་ས་མི་འདྲ་བ་འདེམས་དགོས།"
-seatsUpdated = "རྐུབ་སྟེགས་གསར་བརྗེ།"
-seatsUpdatedMessage = "ཁྱེད་ཀྱི་ཁེ་ལས་གདན་ས་དེ་{{seats}} ལ་གསར་བརྗེ་བྱས་ཡོད།"
-stripePortalRedirect = "ཁྱེད་རང་སི་ཊི་རི་པི་ཡི་དངུལ་འབབ་ཀྱི་སྒོ་ཕྱེ་ས་ལ་སླར་ཡང་བཀོད་སྒྲིག་བྱས་ཏེ་གདན་ས་བརྗེ་སྒྱུར་དེ་བསྐྱར་ཞིབ་དང་གཏན་འཁེལ་བྱེད་རྒྱུ་རེད། དངུལ་འབོར་དེ་རང་འགུལ་གྱིས་རྩིས་རྒྱག་རྒྱུ་རེད།"
-updateEnterpriseSeats = "ཁེ་ལས་ཀྱི་གདན་ས་གསར་བཅོས།"
-updateProcessing = "ལས་སྣོན་གསར་བརྗེ།"
-updateProcessingMessage = "ཁྱེད་ཀྱི་གདན་ས་གསར་བརྗེ་དེ་ལས་སྣོན་བྱེད་བཞིན་ཡོད། སྐར་མ་འགའ་ཤས་ནང་གསར་བརྗེ་གནང་རོགས།"
-updateSeats = "གདན་ས་གསར་བཅོས།"
-whatHappensNext = "རྗེས་མ་གང་འབྱུང་གི་རེད།"
-
-[billing.portal]
-error = "དངུལ་གཏོང་སྒོ་ཕྱེ་མ་ཐུབ་པ།"
 
 [bookletImposition]
 paperSizeNote = "ཤོག་བུའི་ཆེ་ཆུང་ནི་ཁྱེད་ཀྱི་ཤོག་ངོས་དང་པོ་ནས་རང་འགུལ་གྱིས་འབྱུང་བ་རེད།"
@@ -2551,7 +1299,7 @@ bullet1 = "PEMདང་། PKCS12། JKS། སར་བར་གྱི་ལག
 bullet2 = "PDF ཐོག་མིང་རྟགས་སྟོན་པའམ་ཡང་ན་སྦས་སྐུང་བྱེད་པའི་གདམ་ག།"
 bullet3 = "རྒྱུ་མཚན་དང་ས་གནས་དང་མིང་རྟགས་བཀོད་པའི་མིང་ཁ་སྣོན་བྱེད།"
 bullet4 = "མཐོང་ཐུབ་པའི་མཚན་རྟགས་བཀོད་དགོས་མིན་ཤོག་ལྷེ་གང་འདེམས་དགོས།"
-bullet5 = "'Sign with Stirling-PDF' གདམ་ཁ་སྟབས་བདེ་ལ་སར་བར་གྱི་ལག་འཁྱེར་བེད་སྤྱོད་བྱེད་དགོས།"
+bullet5 = "'Sign with RustlingPDF' གདམ་ཁ་སྟབས་བདེ་ལ་སར་བར་གྱི་ལག་འཁྱེར་བེད་སྤྱོད་བྱེད་དགོས།"
 text = "PDF ལ་མིང་རྟགས་བཀོད་པར་ཁྱེད་ལ་དྲ་རྒྱའི་ལག་ཁྱེར་དགོས། (དཔེར་ན། PEM, PKCS12, ཡང་ན་ JKS ལྟ་བུ) ཁྱེད་ཀྱིས་མིང་རྟགས་དེ་ཡིག་ཆའི་སྟེང་མཐོང་ཐུབ་པ་བྱ་ཆོག་པའམ་ཡང་ན་བདེ་འཇགས་ཆེད་དུ་མཐོང་མི་ཐུབ་པའི་གནས་སུ་འཇོག་ཐུབ།"
 title = "མཚན་རྟགས་ཁ་སྣོན་བྱེད་པ།"
 
@@ -2562,17 +1310,6 @@ bullet3 = "ཡིག་ཆ་དེ་མིང་རྟགས་བཀོད་
 bullet4 = "བདེན་དཔང་ཆེད་རང་སྒྲིག་ལག་འཁྱེར་བེད་སྤྱོད་གཏོང་ཐུབ།"
 text = "ཁྱེད་ཀྱིས་མིང་རྟགས་བརྟག་དཔྱད་བྱེད་སྐབས་ལག་ཆ་དེས་ཁྱེད་ལ་དེ་དག་ནུས་ལྡན་ཡིན་མིན་དང་། ཡིག་ཆ་དེ་ལ་མིང་རྟགས་བཀོད་པ། མིང་རྟགས་བཀོད་པ།"
 title = "མཚན་རྟགས་ལ་ཞིབ་བཤེར་བྱེད་པ།"
-
-[changeCreds]
-changeUsername = "ཁྱེད་རང་གི་སྤྱོད་མཁན་གྱི་མིང་གསར་བརྗེ། ཁྱེད་རང་གསར་བརྗེ་བྱས་རྗེས་ཕྱིར་ཐོན་འགྲོ་གི་རེད།"
-credsUpdated = "རྩིས་ཁྲ་གསར་བརྗེ་བྱས།"
-description = "འགྱུར་བ་སྲུང་བ། ཡང་བསྐྱར་ནང་འཇུག་གནང་རོགས།"
-error = "སྤྱོད་མཁན་གྱི་མིང་གསར་བརྗེ་བྱེད་མི་ཐུབ། ཁྱེད་རང་གི་གསང་གྲངས་བདེན་དཔང་བྱས་ནས་བསྐྱར་དུ་ཚོད་ལྟ་གནང་རོགས།"
-header = "ཁྱེད་རང་གི་རྩིས་ཁྲའི་ཞིབ་ཕྲའི་གནས་ཚུལ་གསར་བཅོས་བྱས།"
-newUsername = "བཀོལ་སྤྱོད་མིང་གསར་པ།"
-oldPassword = "ད་ལྟའི་གསང་གྲངས།"
-ssoManaged = "ཁྱེད་རང་གི་ཁ་བྱང་དེ་ཁྱེད་རང་གི་ངོས་འཛིན་སྤྲོད་མཁན་གྱིས་འཛིན་སྐྱོང་བྱེད་ཀྱི་ཡོད།"
-title = "ཡིག་ཚགས་བསྒྱུར་བ།"
 
 [changeMetadata]
 filenamePrefix = "མེ་ཏོག"
@@ -2726,73 +1463,6 @@ title = "འཕོ་འགྱུར།"
 
 [changePermissions.tooltip.warning]
 text = "ཆོག་མཆན་འདི་དག་འགྱུར་བ་མེད་པར་བཟོ་བར། བདག་པོའི་གསང་ཚིག་སྒྲིག་པའི་ཆེད་དུ་གསང་གྲངས་ཁ་སྣོན་བྱེད་པའི་ལག་ཆ་སྤྱོད་དགོས།"
-
-[chat.actions]
-copy = "འཕྲིན་དོན་འདྲ་བཤུས"
-
-[chat.fab]
-close = "Close chat"
-open = "Open Stirling AI assistant"
-
-[chat.header]
-agentMenu = "Stirling agent འདེམས་ཚན"
-clearChat = "གླེང་མོལ་བཤོལ"
-
-[chat.input]
-disclaimer = "AI can make mistakes. Be sure to verify the output before sharing."
-placeholder = "གང་བྱེད་དགོས?"
-send = "འཕྲིན་དོན་གཏོང"
-
-[chat.progress]
-analyzing = "ཁྱེད་ཀྱི་ཞུ་བ་ཞིབ་འཇུག་བཞིན..."
-calling_engine = "AI བསམ་བློ་བཏང་བཞིན..."
-executing_tool_generic = "ལག་ཆ་སྒྲུབ་བཞིན..."
-executing_tool_generic_step = "ལག་ཆ་སྒྲུབ་བཞིན ({{total}} རིམ་པ་ནས {{step}})..."
-executing_tool_single = "{{tool}} སྒྲུབ་བཞིན..."
-executing_tool_step = "{{tool}} སྒྲུབ་བཞིན ({{total}} རིམ་པ་ནས {{step}})..."
-extracting_content = "ཁྱེད་ཀྱི་ཡིག་ཆ་ནས་ནང་དོན་འདོན་བཞིན..."
-processing = "འདོན་ཟོས་ནང་དོན་བཟོ་སྒྱུར་བཞིན..."
-ranForMinutes_one = "Ran for 1 minute"
-ranForMinutes_other = "Ran for {{count}} minutes"
-ranForMinutesSeconds = "Ran for {{minutes}} min, {{seconds}} sec"
-ranForSeconds_one = "Ran for 1 second"
-ranForSeconds_other = "Ran for {{count}} seconds"
-thinking = "བསམ་བློ་བཏང་བཞིན..."
-whole_doc_compression_round = "མཆན་ཚོགས་སྒྲིག..."
-whole_doc_read_done = "ཡིག་ཆ་ཀློག་པ་མཇུག་བསྡུས..."
-whole_doc_read_started = "ཡིག་ཆ་ཀློག་བཞིན..."
-whole_doc_slice_done = "ཡིག་ཆ་ཀློག་བཞིན... ({{percent}}% མཇུག་བསྡུས)"
-
-[chat.quickActions]
-browseYourFiles = "ཁྱེད་ཀྱི་ཡིག་ཆ་ལྟ"
-compressMany = "ཡིག་ཆ་འདི་ཚོ་སྲབ་བཟོ"
-compressOne = "ཡིག་ཆ་འདི་སྲབ་བཟོ"
-convertMany = "ཡིག་ཆ་འདི་ཚོ་ PDF ལ་བསྒྱུར"
-convertOne = "ཡིག་ཆ་འདི་ PDF ལ་བསྒྱུར"
-heading = "འགོ་སློང"
-mergeMany = "{{count}} ཡིག་ཆ་འདི་ཚོ་མཉམ་སྦྱོར་བྱས་ནས 1 བཟོ"
-moreFiles = "+{{count}} མང་བ"
-openFromComputer = "རྩིས་འཁོར་ནས་ཁ་ཕྱེ"
-removeFile = "{{name}} སྤོར"
-splitOne = "ཡིག་ཆ་འདི་བགར"
-
-[chat.responses]
-cannot_continue = "གནད་དོན་ཞིག་བྱུང མུ་མཐུད་མི་ཐུབ།"
-cannot_do = "དེ་བྱ་མི་ཐུབ།"
-done = "ཚར།"
-need_clarification = "ཁ་གསལ་བརྗོད་རོགས།"
-not_found = "འཚོལ་བཤེར་བྱས་པ་མ་ཐོབ།"
-processing = "བཟོ་སྒྲིག་བཞིན་པ ({{outcome}})..."
-unsupported_capability = "ཁྱབ་ཚད་རྒྱབ་སྐྱོར་མེད: {{capability}}"
-usage_limit_reached = "You've reached your usage limit. Check your plan options to keep going."
-
-[chat.toolsUsed]
-summary_one = "ལག་ཆ་ 1 སྒྲུབ་ཟིན"
-summary_other = "ལག་ཆ་ {{count}} སྒྲུབ་ཟིན"
-unknownTool = "མི་ཤེས་པའི་ལག་ཆ་"
-
-[cloudBadge]
-tooltip = "བཀོལ་སྤྱོད་འདིས་ཁྱེད་ཀྱི cloud credits སྤྱོད།"
 
 [color.eyeDropper]
 tooltip = "བརྙན་ཡོལ་ནས་ཁ་དོག་འདེམས"
@@ -3009,59 +1679,6 @@ tags = "མཆིལ་མ་ཆུང་ཆུང་དང་ཆུང་ཆུ
 plan = "འཆར་གཞི"
 team = "Team"
 
-[config.account.overview]
-confirmDelete = "ངའི་རྩིས་ཁྲོད་སུབ"
-deleteAccount = "རྩིས་ཁྲོད་སུབ"
-deleteAccountTitle = "རྩིས་ཁྲོད་སུབ"
-deleteFailed = "རྩིས་ཁྲོད་སུབ་ཐབས་ཕམ་"
-deleteFailedTitle = "རྩིས་ཁྲོད་སུབ་མི་ཐུབ"
-deleteWarning = "འགུལ་བ་འདི་རྟག་པ་ཡིན་ཞིང་གསོར་བཅོས་མི་ཐུབ། ཁྱེད་ཀྱི་གནས་ཡུལ་ཡོངས་སུ་སུབ་བཏང་"
-enterEmailConfirm = "བསུབ་པ་གཏན་ཁེལ་བྱ་དགོས་པས། འོག་ལུ་ཁྱེད་ཀྱི་གློག་ཡིག་གནས་ཚུལ ({{email}}) འཇུག:"
-guestDescription = "ཁྱེད་རང་མགྲོན་པོ་ཞིག་ཡིན་པའི་ཆ་ནས་མིང་རྟགས་བཀོད་ཡོད། ཁྱེད་རང་གི་ཁ་བྱང་དེ་གོང་དུ་ཡར་རྒྱས་གཏོང་རྒྱུར་བསམ་གཞིག་བྱོས།"
-label = "སྤྱིར་བཤད"
-manageAccountPreferences = "ཁྱེད་རང་གི་རྩིས་ཁྲའི་འདོད་མོས་ལ་དོ་དམ་བྱེད་པ།"
-signedInAs = "ད་ལྟ་ནང་འཇུག་མིང་"
-title = "རྩིས་ཁྲ་སྒྲིག་སྟངས།"
-
-[config.account.profilePicture]
-description = "ཁྱེད་ཀྱི་རྩིས་ཁྲོད་ལ་རང་དོན་སྒྲིག་པར་རིས་ཞིག་ཡར་འཇུག་བྱོས།"
-help = "PNG, JPG, ཡང་ན WebP འབོར་ 2MB བརྒྱབ་ཆོག"
-remove = "སུབ"
-sizeError = "2MB ལས་ཆུང་བའི་རིས་པ་ཞིག་འདེམས་"
-switchedToCustom = "རང་སྒྲིག་མགོ་རིས་ལ་བསྒྱུར་ཟིན། ད་ལྟ་ཁྱེད་རང་གི་རིས་ཡར་འཇུག་ཆོག"
-title = "མགོ་རིས"
-upload = "ཡར་འཇུག"
-useCustom = "རང་སྒྲིག་རིས་སྤྱོད"
-usingProvider = "{{provider}} མགོ་རིས་སྤྱོད་བཞིན"
-
-[config.account.profilePicture.cropper]
-cropError = "རིས་དྲས་གཅོད་ཕམ་པ། ཡང་བསྐྱར་ཚོད་ལྟས་"
-invalidImage = "རིས་ཡིག་ཆ་ནུས་མེད། PNG, JPG ཡང་ན WebP ཡིག་ཆ་གཏན་འཁེལ་ཅན་འདེམས་"
-processing = "དྲས་གཅོད་བཟོ་བའི་སྒོ..."
-save = "དྲས་གཅོད་བྱས་པའི་རིས་སྲུང་"
-sizeErrorAfterCrop = "དྲས་གཅོད་བྱས་པའི་རིས་ཆེན་པོ་དྲགས། ཆུང་བཟོ་དང་ ཡང་ན་དྲས་གཅོད་ཁུལ་ཆུང་བཟོས་"
-title = "མགོ་རིས་དྲས་གཅོད"
-zoom = "རྒྱས་ཚད"
-
-[config.account.security]
-changePassword = "གསང་ཨང་བསྒྱུར"
-description = "གསང་ཨང་དང་བདེ་འཇགས་སྒྲིག་འགོད་སྐྱོང་"
-title = "གསང་ཨང་དང་བདེ་འཇགས"
-update = "གསང་ཨང་གསར་སྒྱུར"
-
-[config.account.upgrade]
-description = "ཁྱེད་རང་གི་ལོ་རྒྱུས་སྲུང་སྐྱོབ་བྱེད་པར་ཁྱེད་རང་གི་ཁ་བྱང་འབྲེལ་མཐུད་བྱས་ནས་ཁྱད་ཆོས་མང་བ་ཐོབ་ཐུབ།"
-email = "གློག་འཕྲིན།"
-emailPassword = "ཡང་ན་ཁྱེད་རང་གི་གློག་འཕྲིན་དང་གསང་གྲངས་འཇུག་པ།"
-emailPlaceholder = "ཁྱེད་རང་གི་གློག་འཕྲིན་ནང་འཇུག་བྱེད།"
-linkWith = "འབྲེལ་མཐུད་བྱེད་པ།"
-password = "གསང་གྲངས་(གདམ་ག)།"
-passwordNote = "གློག་འཕྲིན་བདེན་དཔང་ཁོ་ན་བེད་སྤྱོད་གཏོང་བར་སྟོང་པར་བཞག་དགོས།"
-passwordPlaceholder = "གསང་གྲངས་སྒྲིག་འཇུག་བྱེད་པ།"
-socialLogin = "སྤྱི་ཚོགས་རྩིས་ཁྲ་དང་མཉམ་དུ་ཡར་རྒྱས་བཏང་བ།"
-title = "མགྲོན་པོའི་རྩིས་ཁྲ་ཡར་རྒྱས་གཏོང་བ།"
-upgradeButton = "རིམ་སྤོར་རྩིས་ཁྲ།"
-
 [config.apiKeys]
 copyKeyAriaLabel = "API ལྡེ་མིག་འདྲ་བཤུས།"
 description = "ཁྱེད་ཀྱི་APIལྡེ་མིག་དེ་སི་ཊར་ལིང་གི་PDFལག་ཆའི་སྒྲིག་ཆས་ལ་འཛུལ་ཞུགས་བྱེད་པར་ཡིན། ཁྱེད་རང་གི་ལས་གཞི་ལ་འདྲ་བཤུས་བྱེད་པའམ་ཡང་ན་གསར་པ་བསྐྲུན་ཆེད་དུ་གསར་བརྗེ་བྱེད་དགོས།"
@@ -3095,10 +1712,10 @@ title = "གསར་བརྗེའི་APIལྡེ་མིག"
 warning = "⚠️ ཉེན་བརྡ། བྱ་སྤྱོད་འདིས་API ལྡེ་མིག་གསར་པ་བཟོས་ནས་ཁྱེད་ཀྱི་སྔོན་གྱི་ལྡེ་མིག་དེ་ནུས་མེད་བཟོ་ཐུབ།"
 
 [config.mcp]
-description = "Model Context Protocol (MCP) lets AI assistants like Claude use your Stirling PDF tools directly. Connect a client once and your assistant can convert, edit, secure and process documents on your behalf."
-guestInfo = "Guest users can't connect MCP clients. Create an account to use the MCP server and let your AI assistant run Stirling PDF tools on your behalf."
+description = "Model Context Protocol (MCP) lets AI assistants like Claude use your RustlingPDF tools directly. Connect a client once and your assistant can convert, edit, secure and process documents on your behalf."
+guestInfo = "Guest users can't connect MCP clients. Create an account to use the MCP server and let your AI assistant run RustlingPDF tools on your behalf."
 navLabel = "MCP Server"
-tip = "Every action your assistant runs is performed as your account and counts towards your usage, just like using Stirling PDF directly."
+tip = "Every action your assistant runs is performed as your account and counts towards your usage, just like using RustlingPDF directly."
 title = "MCP Server"
 viewApiKeys = "View API keys"
 
@@ -3115,7 +1732,7 @@ label = "Your MCP endpoint"
 
 [config.mcp.setup]
 addTo = "Add to"
-hint = "Pick your client, paste the snippet into the file shown, then restart it. You'll sign in with your Stirling account on first use - no keys to copy."
+hint = "Pick your client, paste the snippet into the file shown, then restart it. You'll sign in with your Rustling account on first use - no keys to copy."
 title = "Connect your AI assistant"
 
 [config.overview]
@@ -3127,8 +1744,6 @@ warning = "རིམ་སྒྲིག་ཉེན་བརྡ།"
 
 [config.overview.sections]
 basic = "གཞི་རྩའི་སྒྲིག་བཀོད།"
-integration = "མཉམ་སྡེབ་སྒྲིག་བཀོད།"
-security = "བདེ་འཇགས་སྒྲིག་བཀོད།"
 system = "མ་ལག་སྒྲིག་བཀོད།"
 
 [convert]
@@ -3256,24 +1871,6 @@ description = "ཀུ་ཀི་འདི་དག་དྲ་ཚིགས་�
 posthog = "རྗེས་ཀྱི་ཧོག་དབྱེ་ཞིབ།"
 scarf = "སི་ཀར་ཕི་པིག་སེལ།"
 
-[credits.modal]
-advancedMonitoring = "མཐོ་རིམ་ལྟ་སྲུང་"
-allInOneWorkspace = "ཡོངས་ཀྱིས་སྒྲུབ་པའི PDF ལས་གནས (viewer, ལག་ཆ & agent)"
-apiSandbox = "API sandbox"
-dedicatedSupportSlas = "དམིགས་བསལ་རོགས་རམ་ & SLAs"
-fasterThroughput = "མགྱོགས་ཚད 10x མགྱོགས་པ"
-fullyPrivateFiles = "གང་གིས་ཀྱང་སྒེར་དབང་ཡིག་ཆ"
-largeFileProcessing = "ཡིག་ཆ་ཆེན་པོ་ལས་སྦྱོར"
-orgWideAccess = "སྤྱི་ཚོགས་ཡོངས་ཁྱབ་དོན་སྤྱོད་ཚད"
-premiumAiModels = "མཐོ་རིམ AI དཔེ་མཚོན"
-prioritySupport = "གཙོ་རིམ་རོགས་རམ"
-privateDocCloud = "སྒེར་དབང་ཡིག་ཆ Cloud"
-ragFineTuning = "RAG + fine-tuning"
-secureApiAccess = "བདེ་འཇགས API དོན་སྤྱོད"
-standardThroughput = "ཚད་ལྡན་མགྱོགས་ཚད"
-unlimitedApiAccess = "API དོན་སྤྱོད་ཚད་མེད"
-unlimitedSeats = "ཚོགས་མི་ཚད་མེད"
-
 [crop]
 autoCrop = "རང་འགུལ་གྱིས་ས་ཞིང་དཀར་པོའི་བར་སྟོང་།"
 noFileSelected = "འདེབས་འཛུགས་བྱེད་འགོ་ཚུགས་པར་PDFཡིག་ཆ་འདེམས།"
@@ -3324,29 +1921,8 @@ precision = "ངེས་གཏན་གྱི་གནས་ཡུལ་ལ་�
 resize = "ཟུར་ཁུག་དང་མཐའ་མཚམས་ཀྱི་ལག་ཆ་དེ་ཚད་གཞི་ཆེ་རུ་གཏོང་བར་འདྲུད་རོགས།"
 title = "སོན་འདེབས་བྱེད་སྟངས།"
 
-[database]
-backupCreated = "གཞི་གྲངས་མཛོད་ཀྱི་རྒྱབ་རྟེན་ལེགས་འགྲུབ་བྱུང་བ།"
-fileName = "ཡིག་ཆའི་མིང་།"
-title = "གཞི་གྲངས་མཛོད་ནང་འདྲེན་/ཕྱིར་གཏོང་།"
-
 [defaultApp]
-setDefault = "སྔོན་སྒྲིག་སྒྲིག་འཇུག་བྱེད་པ།"
 title = "སྔོན་སྒྲིག་PDFམཉེན་ཆས་ལྟར་སྒྲིག་དགོས།"
-
-[defaultApp.error]
-message = "སྔོན་སྒྲིག་PDFའཛིན་སྐྱོང་བྱེད་མཁན་སྒྲིག་མ་ཐུབ་པ།"
-title = "ནོར་འཁྲུལ"
-
-[defaultApp.prompt]
-message = "ཁྱེད་རང་གི་སྔོན་སྒྲིག་མཉེན་ཆས་PDFཡིག་ཆ་ཁ་ཕྱེ་བའི་ཆེད་དུ་PDF stirling PDF བཟོས།"
-
-[defaultApp.settingsOpened]
-message = "ཝིན་ཌོ་སྒྲིག་སྟངས་ནང་ 'PDF' འཚོལ་ཞིབ་བྱས་ནས་ཁྱེད་ཀྱི་སྔོན་སྒྲིག་མཉེན་ཆས་ལྟར་སི་ཊར་ལིང་ PDF འདེམས།"
-title = "སྒྲིག་སྟངས་སྒོ་ཕྱེས་པ།"
-
-[defaultApp.success]
-message = "སི་ཊར་ལིང་PDFནི་ད་ལྟ་ཁྱེད་ཀྱི་སྔོན་སྒྲིག་PDFརྩོམ་སྒྲིག་པ་ཡིན།"
-title = "སྔོན་སྒྲིག་མཉེན་ཆས་ཆ་ཚན་ཆ་ཚང་།"
 
 [desktopUpdate]
 downloading = "གསར་སྒྱུར་ཕབ་ལེན་བཞིན་པ..."
@@ -3361,7 +1937,7 @@ updateFailedMessage = "གསར་སྒྱུར་ཕབ་ལེན་ཡང
 
 [desktopUpdate.blocked]
 docsLink = "འཇུག་ཐབས་ཡིག་ཆ་ལྟ"
-message = "Stirling-PDF ལ་འཕྲུལ་ཆས་འདིའི་སྟེང་རང་ཉིད་ལ་གསར་སྒྱུར་བྱེད་པའི་དབང་ཆ་མེད།"
+message = "RustlingPDF ལ་འཕྲུལ་ཆས་འདིའི་སྟེང་རང་ཉིད་ལ་གསར་སྒྱུར་བྱེད་པའི་དབང་ཆ་མེད།"
 title = "དོ་དམ་པའི་དབང་ཆ་དགོས།"
 
 [devAirgapped]
@@ -3372,9 +1948,6 @@ tags = "API,development,documentation,developer,REST,integration,endpoints,progr
 
 [devFolderScanning]
 tags = "automation,folder,scanning,watch folder,hot folder,automatic processing,batch,monitor folder,auto process,folder monitoring"
-
-[devSsoGuide]
-tags = "SSO,single sign-on,authentication,SAML,OAuth,OIDC,login,enterprise,identity provider,IdP"
 
 [dropdownList]
 searchPlaceholder = "འཚོལ..."
@@ -3553,14 +2126,10 @@ addFiles = "ཡིག་ཆ་ཁ་སྣོན་བྱེད།"
 [fileManager]
 active = "གྲུང་པོ"
 addToUpload = "Upload ལ་ཁ་སྣོན་བྱེད།"
-changesNotUploaded = "བཟོ་བཅོས་ཡར་འཇུག་མ་བྱས"
 clearAll = "ཚང་མ་བསལ་བ།"
 clearSelection = "འདེམས་སྒྲུག་གསལ་པོ་བྱེད་པ།"
 closeAllFiles = "ཡིག་ཆ་ཚང་མ་ཁ་བསྡམས"
 closeFile = "ཡིག་ཚགས་ཉེ་བ།"
-cloudFile = "Cloud ཡིག་ཆ"
-copyCreated = "པར་འདེབས་འདི་ཐབས་འཕྲུལ་འདིའི་ཐོག་ཉར་ཟིན།"
-copyFailed = "པར་འདེབས་བཟོ་མ་ཐུབ།"
 delete = "སུབ་པ"
 deleteAll = "ཚང་མ་བསུབ་པ།"
 deleteSelected = "བསུབས་པ་བསུབ་པ།"
@@ -3576,22 +2145,12 @@ fileSize = "ཆེ་ཆུང"
 filesSelected = "ཡིག་ཆ 1 འདེམས་སྒྲུག་བྱས།"
 filesStored = "ཡིག་ཆ15གསོག་འཇོག་བྱས་ཟིན།"
 fileVersion = "པར་གཞི"
-filterAll = "ཡོངས"
-filterLocal = "རང་ས"
-filterSharedByMe = "ངས་མཉམ་སྤྱོད"
-filterSharedWithMe = "ང་ལ་མཉམ་སྤྱོད"
 googleDrive = "Google སྒུལ་ཤུགས།"
 googleDriveNotAvailable = "གྷུ་གྷལ་སྒུལ་ཆས་གཅིག་སྒྲིལ་མེད་པ།"
 googleDriveShort = "བསྐོར་བ"
 hideHistory = "ལོ་རྒྱུས་སྦ་བ།"
 lastModified = "མཐའ་མའི་བཟོ་བཅོས་བྱས།"
-lastSynced = "མཉམ་བསྒྲིག་ཐེངས་མཇུག"
-leaveShare = "ངའི་ཐོའི་ནས་བསུབ"
-leaveShareFailed = "མཉམ་སྤྱོད་ཡིག་ཆ་བསུབ་མ་ཐུབ།"
-leaveShareSuccess = "ཁྱེད་ཀྱི་མཉམ་སྤྱོད་ཐོ་ཡིག་ནས་བསུབ་ཟིན།"
 loadingFiles = "ཡིག་ཆ།..."
-localOnly = "རང་ས་པོ་ཙམ"
-makeCopy = "པར་འདེབས་བྱེད"
 mobileShort = "ཁ་པར"
 mobileUpload = "ཁ་པར་ཡར་འཇུག"
 mobileUploadNotAvailable = "ཁ་པར་ཡར་འཇུག་མ་འགོ་སློངས།"
@@ -3603,34 +2162,11 @@ openFile = "ཁ་ཕྱེ་བའི་ཡིག་ཆ།"
 openFiles = "ཁ་ཕྱེ་བའི་ཡིག་ཆ།"
 openInFileEditor = "ཡིག་ཆའི་རྩོམ་སྒྲིག་པ་ནང་ཁ་ཕྱེ།"
 openInPageEditor = "ཤོག་ངོས་རྩོམ་སྒྲིག་པར་ཁ་ཕྱེ།"
-owner = "བདག་པོ"
-ownerUnknown = "མ་ཤེས"
 recent = "ཉེ་ཆར"
-removeBoth = "གཉིས་ཀ་ནས་བསུབ"
-removeFilePrompt = "ཡིག་ཆ་འདི་ཐབས་འཕྲུལ་འདི་དང་ཁྱེད་ཀྱི་སར་བར་གཉིས་ཀ་ལ་ཉར་ཡོད། གནས་ས་གང་ནས་བསུབ་དགོས?"
-removeFileTitle = "ཡིག་ཆ་བསུབ"
-removeLocalOnly = "ཐབས་འཕྲུལ་འདི་པོ་ཙམ"
-removeServerFailed = "སར་བར་ནས་ཡིག་ཆ་བསུབ་མ་ཐུབ།"
-removeServerOnly = "སར་བར་པོ་ཙམ"
-removeServerOnlyPrompt = "ཡིག་ཆ་འདི་ཁྱེད་ཀྱི་སར་བར་ནང་ཙམ་ཉར་ཡོད། སར་བར་ནས་བསུབ་དགོས་སམ?"
-removeServerSuccess = "སར་བར་ནས་བསུབ་ཟིན།"
-removeSharedPrompt = "ཡིག་ཆ་འདི་ཁྱེད་ལ་མཉམ་སྤྱོད་བྱས་ཟིན། ཐབས་འཕྲུལ་འདིའམ མཉམ་སྤྱོད་ཐོ་ཡིག་ནས་བསུབ་ཆོག."
-removeSharedServerOnlyBlockedPrompt = "ཡིག་ཆ་འདི་ཁྱེད་ལ་མཉམ་སྤྱོད་བྱས་པ་དང་སར་བར་ཙམ་སྟེང་ཉར་ཡོད།"
-removeSharedServerOnlyPrompt = "ཡིག་ཆ་འདི་ཁྱེད་ལ་མཉམ་སྤྱོད་བྱས་པ་དང་སར་བར་ཙམ་སྟེང་ཉར་ཡོད། ཁྱེད་ཀྱི་ཐོ་ཡིག་ནས་བསུབ་དགོས་སམ?"
 restore = "བསྐྱར་གསོ"
-saveSelected = "ཉར་ཚགས་བྱས།"
 searchFiles = "ཡིག་ཆ་འཚོལ་ཞིབ་..."
 selectAll = "ཚང་མ་འདེམས།"
 selectedCount = "{{count}} བདམས་པ།"
-share = "མཉམ་སྤྱོད"
-shared = "མཉམ་སྤྱོད"
-sharedByYou = "ཁྱེད་ཀྱིས་མཉམ་སྤྱོད"
-sharedEditNoticeBody = "སར་བར་ཡིག་ཆ་འདིའི་རྩོམ་སྒྲིག་དབང་ཆ་མེད། ཁྱེད་ཀྱིས་བཟོ་བཅོས་བྱས་པ་དེ་རང་ས་དུ་ཉར་ཡོད་པའི་ཀླད་ཀོར་པར་འདེབས་སྦེ་ཉར་ཚགས་བྱེད།"
-sharedEditNoticeConfirm = "གོ་སོང་"
-sharedEditNoticeTitle = "སར་བར་མངོན་མཐོང་ཙམ"
-sharedWithYou = "ཁྱེད་ལ་མཉམ་སྤྱོད"
-shareSelected = "འདེམས་པ་མཉམ་སྤྱོད"
-sharing = "མཉམ་སྤྱོད"
 showAll = "ཚང་མ་སྟོན་དང་།"
 showHistory = "ལོ་རྒྱུས།"
 sortByDate = "ཚེས་གྲངས་ཀྱིས་དབྱེ་བ།"
@@ -3638,14 +2174,10 @@ sortByName = "མིང་གིས་དབྱེ་བ།"
 sortBySize = "ཚད་གཞི་ལྟར་དབྱེ་བ།"
 storage = "ཤོང་ཚད"
 storageState = "གསོག་འཇོག"
-synced = "མཉམ་བསྒྲིག"
 title = "Upload PDF ཡིག་ཆ།"
 toolChain = "ལག་ཆས་བཀོལ་སྤྱོད་བྱས།"
 unsupported = "རྒྱབ་སྐྱོར་མེད་པ།"
 unzip = "ཟིཔ།"
-updateOnServer = "སར་བར་གསར་སྒྱུར"
-uploadSelected = "འདེམས་པ་ཡར་འཇུག"
-uploadToServer = "སར་བར་ཡར་འཇུག"
 versionHistory = "Version history"
 
 [files]
@@ -3701,9 +2233,6 @@ closeViewer = "མཐོང་ཆས་ཁ་རྒྱག"
 delete = "Delete"
 moreActions = "More actions"
 openInViewer = "མཐོང་ཆས་ནང་ཁ་ཕྱེ"
-savedToServer = "Saved to server"
-updateOnServer = "Update on server"
-uploadToServer = "Upload to server"
 versionHistory = "Version history"
 
 [filesPage]
@@ -3721,9 +2250,6 @@ closeDetails = "ཞིབ་ཕྲ་ཁ་རྒྱག"
 create = "གསར་བཟོ"
 cycleBlocked = "སྣོད་འགེངས་རང་ཉིད་ཀྱི་ཡན་ལག་སྣོད་འགེངས་ནང་སྤོ་མི་ཐུབ།"
 delete = "སུབ"
-deleteFilesChoiceBody = "Some of these files are saved both on this device and in the cloud. Where should they be deleted from?"
-deleteFilesCloudBody_one = "Delete 1 file from the cloud? This cannot be undone."
-deleteFilesCloudBody_other = "Delete {{count}} files from the cloud? This cannot be undone."
 deleteFilesError = "Could not delete. Try again."
 deleteFilesLocalBody_one = "Delete 1 file from this device? This cannot be undone."
 deleteFilesLocalBody_other = "Delete {{count}} files from this device? This cannot be undone."
@@ -3746,7 +2272,6 @@ download = "ཕབ་ལེན"
 downloadAll = "ཚང་མ་ཕབ་ལེན"
 downloadVersion = "པར་གཞི་འདི་ཕབ་ལེན"
 dropOverlay = "ཡིག་ཆ་བཀོག་ནས་ཡར་འཇུག"
-dropOverlaySub = "ཡིག་ཆ་ཚང་མ Local ནས་འགོ་བཙུགས། 'Move to' ཡང་ན 'Save to cloud' བེད་སྤྱོད་ནས་སྣོད་འགེངས་ནང་སྒྲིག་འགོད་བྱེད།"
 file = "ཡིག་ཆ"
 fileInfo = "File info"
 fileMenu = "ཡིག་ཆའི་བྱ་བ"
@@ -3758,42 +2283,28 @@ inPath = "{{path}} ནང་"
 inWorkspace = "ཁ་ཕྱེས"
 inWorkspaceAria = "ལས་གནས་ནང་ཡོད་ཟིན"
 loading = "མངོན་གསལ་བཞིན་པ…"
-localFoldersUnavailable = "སྣོད་འགེངས་ཚང་མ cloud ཙམ་ཡིན་པས—སྣོད་འགེངས་ནང་སྒྲིག་འགོད་བྱ་དགོས་ན་ཡིག་ཆ་ཞིག cloud ལ་ཉར།"
-moveSkippedRemote_one = "{{count}} file couldn't be moved on the server (no permission or already deleted)."
-moveSkippedRemote_other = "{{count}} files couldn't be moved on the server (no permission or already deleted)."
 moveTo = "སྤོ་བསྒྱུར…"
 myFiles = "ངའི་ཡིག་ཆ"
 newFolder = "སྣོད་འགེངས་གསར་པ"
-newFolderStorageDisabled = "སར་བར་སྣོད་འགེངས་ཉར་གསོག་སྤྱོད་མེད། དོ་དམ་པ་ལ་དབང་སྤྲོད་རོགས།"
-newFolderTabUnavailable = "སྣོད་འགེངས་གསར་པ་བཟོ་ནས All ཡང་ན Cloud ལ་སོར་བརྗེ།"
-offlineNoFolderEdits = "སར་བར་སྣོད་འགེངས་མཉམ་འགྲིག་མེད་པས—སྣོད་འགེངས་བཟོ་བཅོས་མི་ཆོག ནང་འཛུལ་དང་ཉར་གསོག་སྒྲིག་འགོད་ཞིབ་བཤེར།"
 open = "ཁ་ཕྱེ"
 openVersionInWorkspace = "ལས་གནས་ནང་ཁ་ཕྱེ"
-originFilter = "ཁུངས་གཏན་འབེབས"
-refresh = "སར་བར་ནས་གསར་སྒྱུར"
 remove = "སུབ"
 removeVersion = "པར་གཞི་སུབ"
 rename = "མིང་བསྐྱར་བཏགས"
 renameFolder = "སྣོད་འགེངས་མིང་བསྐྱར་བཏགས"
 resizeFolderTree = "སྣོད་འགེངས་རྩ་འབྲེལ་ཆེ་ཆུང་བཟོ (arrow keys, Shift ཕལ་ཆེར་གོམ་པ; ཐེབས་ཚར་གཉིས་གནོན་ནས་རང་འགུལ་སྒྲིག)"
 save = "སྲུངས"
-saveToServer = "སར་བར་ཉར"
-saveToServerDisabledHint = "སར་བར་ལ་ཉར་བ་འདི་སར་བར་འདིར་སྤྱོད་མེད། དོ་དམ་པ་ལ་དབང་སྤྲོད་རོགས།"
 search = "འཚོལ"
 searchPlaceholder = "སྣོད་འགེངས་འདི་དང་ཡན་ལག་སྣོད་འགེངས་ནང་འཚོལ"
 selectAll = "སྤྱིར་འདེམས"
 selectAllHint = "མཐེབ་གནོན་ནས་ཚང་མ་འདེམས། ཕན་བསླབ: Ctrl (ཡང་ན Cmd) བཟུང་ནས་ཡིག་ཆ་རྡོག་རྡོག་སྣོན ཡང་ན Shift བཟུང་ནས་ཁྱབ་ཁོངས་འདེམས།"
 selectedCount = "{{count}} འདེམས་ཟིན"
 selectFile = "ཡིག་ཆ {{name}} འདེམས"
-shareDisabledHint = "ཡིག་ཆ་མཉམ་སྤྱོད་སྤྱོད་མེད། དོ་དམ་པ་ལ་དབང་སྤྲོད་རོགས།"
-shareManage = "མཉམ་སྤྱོད་དོ་དམ"
 showDetails = "ཞིབ་ཕྲ་མངོན"
-signInRequired = "Sign in to use cloud storage."
 summary_one = "{{count}} item"
 summary_other = "{{count}} items"
 tree = "སྣོད་འགེངས"
 upload = "ཡར་འཇུག"
-uploadedToLocal = "ཡར་འཇུག་བྱས་པ་ཚང་མ Local ནས་འགོ་བཙུགས། 'Save to cloud' བེད་སྤྱོད་ནས་སྣོད་འགེངས་ནང་བཙུགས།"
 uploadFromMobile = "སྒུལ་ཁུངས་ནས་ཡར་འཇུག"
 versionActions = "པར་གཞི་བྱ་བ"
 versionCollapse = "བར་གྱི་པར་གཞི་སྡུར་བྱེད"
@@ -3816,47 +2327,19 @@ name = "མིང"
 size = "ཆེ་ཆུང"
 type = "རིགས"
 
-[filesPage.deleteScope]
-cloud = "Cloud only"
-cloudHint = "Deletes from the server. A copy stays on this device."
-device = "This device only"
-deviceHint = "Removes the local copy. The cloud copy is kept."
-everywhere = "Everywhere"
-everywhereHint = "Deletes the file from this device and the cloud."
-
 [filesPage.empty]
 hint = "ཤོག་ངོས་འདི་ནང་གང་རུང་དུ་ PDF བཀོག་ནས་ཡར་འཇུག ཡང་ན 'སྣོད་འགེངས་གསར' མཐེབ་གནོན་ནས་ཡིག་ཆ་སྒྲིག་འགོད་བྱས་ཆོག"
 newFolderCta = "སྣོད་འགེངས་བཟོ"
 title = "སྣོད་འགེངས་འདི་སྟོང་པ"
 uploadCta = "ཡིག་ཆ་ཡར་འཇུག"
 
-[filesPage.empty.cloud]
-hint = "ཡིག་ཆ་ཞིག་ཡར་འཇུག་བྱས་ནས་འགོ་རྩོམ ཡང་ན་སྣོད་འགེངས་བཟོ་ནས་སྒྲིག་འགོད་བྱེད།"
-offlineHint = "cloud མཛོད་མངོན་བྱེད་ལ་སླར་མཐུད།"
-offlineTitle = "cloud ཡིག་ཆ་ཡིག་མཛོད་མེད།"
-title = "cloud ཡིག་ཆ་ད་དུང་མེད"
-
-[filesPage.empty.local]
-hint = "ཡར་འཇུག་མ་བྱས་པའི་ཡིག་ཆ་ཚང་མ་འདིར་སྲུངས། ཡིག་ཆ་བཀོག་ནས་ཁ་སྣོན།"
-title = "Local ཙམ་གྱི་ཡིག་ཆ་མེད"
-
 [filesPage.empty.recent]
 hint = "ཁྱེད་ཀྱིས་ཁ་ཕྱེ་བ་དང་ཞུན་དག་བྱས་པ་ཚང་མ་འདིར་མངོན།"
 title = "ད་དུང་བཟོ་བཅོས་མི་བྱས"
 
-[filesPage.empty.shared]
-hint = "གལ་སྲིད་མི་ཞིག་གིས་འབྲེལ་མཐུད་བརྒྱུད་ནས་མཉམ་སྤྱོད་བྱས་ན་ འདིར་མངོན།"
-title = "ཁྱེད་དང་མཉམ་སྤྱོད་མེད"
-
-[filesPage.empty.sharedByMe]
-hint = "ཡིག་ཆ་གང་རུང་ནས་མཉམ་སྤྱོད་འབྲེལ་མཐུད་བཟོ ཡང་ན་ལས་མཐུན་པ་ཞིག་འབུལ་ནས་འདིར་མངོན།"
-title = "ཁྱེད་ཀྱིས་ད་དུང་ཡིག་ཆ་མཉམ་སྤྱོད་མ་བྱས།"
-
 [filesPage.error]
 actionFailed = "{{action}} བྱ་མ་ཐུབ།"
 actionFailedDetail = "{{action}} བྱ་མ་ཐུབ: {{message}}"
-cloudDeleteFailed_one = "Couldn't delete 1 file from the cloud."
-cloudDeleteFailed_other = "Couldn't delete {{count}} files from the cloud."
 deleteFolderFailed = "སྣོད་འགེངས་སུབ་མ་ཐུབ།"
 deleteFolderFailedDetail = "སྣོད་འགེངས་སུབ་མ་ཐུབ: {{message}}"
 folderAppearanceFailed = "སྣོད་འགེངས་ཚོར་སྣང་བསྒྱུར་མ་ཐུབ།"
@@ -3902,15 +2385,6 @@ newFolderPlaceholder = "སྣོད་འགེངས་མིང"
 newFolderToggle = "སྣོད་འགེངས་གསར་པ་བཟོ…"
 title = "སྣོད་འགེངས་ལ་སྤོ་བསྒྱུར"
 
-[filesPage.origin]
-all = "ཁུངས་ཡོངས"
-cloud = "Cloud"
-cloudHint = "Stirling སར་བར་ནང་ཉར"
-local = "Local"
-localHint = "མི་སྣང་ཆས་འདི་ནང་ཙམ་ཉར"
-shared = "མཉམ་སྤྱོད"
-sharedHint = "འབྲེལ་མཐུད་བརྒྱུད་ནས་མཉམ་སྤྱོད"
-
 [filesPage.sort]
 modifiedAsc = "དུས་རྙིང་བ་སོང་མ"
 modifiedDesc = "ཉེ་ཆར་སྔོན"
@@ -3919,23 +2393,13 @@ nameDesc = "མིང Z→A"
 sizeAsc = "ཆུང་བ་སྔོན"
 sizeDesc = "ཆེ་བ་སྔོན"
 
-[filesPage.syncError]
-client = "སྣོད་འགེངས་མཉམ་འགྲིག་ཕམ།"
-network = "སར་བར་ལ་འགྲོ་མ་ཐུབ།"
-server = "སར་བར་ནང་སྣོད་འགེངས་མཉམ་འགྲིག་སྐྱོན།"
-
 [filesPage.tabName]
-local = "Local"
 recent = "Recent"
-shared = "ང་ལ་མཉམ་སྤྱོད"
-sharedByMe = "ངས་མཉམ་སྤྱོད"
 
 [filesPage.tabs]
 all = "ཚང་མ"
 ariaLabel = "ཡིག་ཆ་ལྟ་ཚུལ"
 recent = "Recent"
-shared = "ང་ལ་མཉམ་སྤྱོད"
-sharedByMe = "ངས་མཉམ་སྤྱོད"
 
 [filesPage.treeMenu]
 actions = "{{name}} ཡི་སྣོད་འགེངས་བྱ་བ"
@@ -3958,38 +2422,13 @@ title = "ཡིག་ཆ་ནས་PDFབར།"
 
 [fileUpload]
 dropFilesHere = "འདིར་ཡིག་ཆ་འཇོག་པའམ་ཡང་ན་ཡར་བསྐུར་བའི་མཐེབ་ལ་སྣུན་དགོས།"
-dropFilesHereOpen = "འདིར་ཡིག་ཆ་འཇོག་པའམ་ཡང་ན་ཁ་ཕྱེ་བའི་མཐེབ་ལ་སྣུན་དགོས།"
 filesAvailable = "ཡིག་ཆ།"
 loadFromStorage = "དངོས་ཟོག་གསོག་འཇོག་ཁང་ནས་བླུགས་པ།"
 noFilesInStorage = "གསོག་འཇོག་ནང་ཡིག་ཆ་མེད། ཡིག་ཆ་འགའ་ཤས་སྔོན་ལ་འཇོག་དགོས།"
-noFilesInStorageOpen = "གསོག་འཇོག་ནང་ཡིག་ཆ་མེད། དང་པོ་ཡིག་ཆ་ཁ་ཤས་ཁ་ཕྱེ།"
-open = "འབྱེད"
-openFile = "ཁ་ཕྱེ་བའི་ཡིག་ཆ།"
-openFiles = "ཁ་ཕྱེ་བའི་ཡིག་ཆ།"
 selectFromStorage = "གསོག་འཇོག་ཁང་ནས་འདེམས།"
 upload = "Upན།"
 uploadFile = "Upload ཡིག་ཆ།"
 uploadFiles = "ཡིག་ཆ།"
-
-[firstLogin]
-allFieldsRequired = "ས་ཞིང་ཚང་མ་དགོས།"
-changePassword = "བརྗེ་བའི་གསང་གྲངས་བསྒྱུར་བ།"
-confirmPassword = "གསང་གྲངས་གསར་པ་གཏན་འཁེལ་བྱེད་པ།"
-currentPassword = "ད་ལྟའི་གསང་གྲངས།"
-enterCurrentPassword = "ད་ལྟའི་གསང་གྲངས་ནང་འཇུག་བྱེད་པ།"
-enterNewPassword = "གསང་གྲངས་གསར་པ་བཙུགས།(ཡིག་འབྲུ་8)།"
-error = "ནོར་འཁྲུལ"
-loggedInAs = "ནང་འཛུལ་བྱས་ན།"
-newPassword = "གསང་གྲངས་གསར་བ།"
-passwordChangedSuccess = "གསང་གྲངས་ལེགས་འགྲུབ་བྱུང་བ། ཡང་བསྐྱར་ནང་འཇུག་གནང་རོགས།"
-passwordChangeFailed = "གསང་གྲངས་བསྒྱུར་མ་ཐུབ་པ། མིག་སྔའི་གསང་གྲངས་ལ་ཞིབ་བཤེར་གནང་རོགས།"
-passwordMustBeDifferent = "གསང་གྲངས་གསར་པ་དེ་ད་ལྟའི་གསང་གྲངས་དང་མི་འདྲ་བ་ཡིན་དགོས།"
-passwordsDoNotMatch = "གསང་གྲངས་གསར་པ་མི་མཐུན་པ།"
-passwordTooShort = "གསང་གྲངས་ཉུང་མཐར་ཡིག་འབྲུ་བརྒྱད་ཡིན་དགོས།"
-reEnterNewPassword = "གསང་གྲངས་གསར་པ་བསྐྱར་དུ་ནང་འཇུག་བྱེད་པ།"
-title = "ཐེངས་དང་པོར་ནང་འཇུག་བྱེད་པ།"
-welcomeMessage = "བདེ་འཇགས་ཀྱི་རྒྱུ་མཚན་ལ་བརྟེན་ནས་ཁྱེད་ཀྱིས་ནང་འཇུག་ཐོག་མ་ལ་གསང་གྲངས་བསྒྱུར་དགོས།"
-welcomeTitle = "དགའ་བསུ!"
 
 [flatten]
 submit = "ཕྲ་མོ།"
@@ -4034,7 +2473,6 @@ title = "'Flatten གྱི་རྣམ་པ་ཁོ་ན་' ཞེས་པ
 title = "PDFs ཕ་ལེཊ་ཊེན་སི་སྐོར།"
 
 [footer]
-discord = "མི་མཐུན་པ།"
 issues = "གྷི་ཊི་ཧབ།"
 
 [formFill]
@@ -4145,85 +2583,6 @@ images = "པར་རིས།"
 javaScript = "JavaScript"
 layers = "བང་རིམ།"
 multimedia = "རྒྱ་གར།"
-
-[groupSigning.steps]
-back = "ཕྱིར་ལོག"
-completed = "མཇུག་བསྡུས"
-current = "མིག་སྔའི"
-stepLabel = "རིམ་པ {{number}}"
-
-[groupSigning.steps.configureDefaults]
-continue = "བསྐྱར་ཞིབ་ལ་མུ་མཐུད"
-invisible = "མཛུབ་འགན་རྣམས་མཐོང་མི་རུང (metadata ཙམ)"
-locationLabel = "གནས་ཡུལ:"
-preview = "སྔོན་ལྟ"
-reasonLabel = "རྒྱུ་མཚན:"
-title = "མཛུབ་འགན་སྒྲིག་འགོད"
-visible = "མཛུབ་འགན་རྣམས་ {{page}} ཤོག་ངོས་སྟེང་མཐོང་རུང"
-
-[groupSigning.steps.review]
-document = "ཡིག་ཆ"
-dueDate = "དུས་བཀག (གདམ་ཁ)"
-dueDatePlaceholder = "དུས་བཀག་འདེམས..."
-invisible = "མཐོང་མི་རུང (metadata ཙམ)"
-location = "གནས་ཡུལ:"
-logo = "ལས་རྟགས:"
-logoHidden = "ལས་རྟགས་མེད"
-logoShown = "Stirling PDF ལས་རྟགས་མངོན"
-participantCount_one = "{{count}} participant will sign in order"
-participantCount_other = "{{count}} participants will sign in order"
-participants = "ཞུགས་མཁན"
-reason = "རྒྱུ་མཚན:"
-send = "མཛུབ་འགན་ཞུ་གཏོང"
-signatureSettings = "མཛུབ་འགན་སྒྲིག་འགོད"
-title = "ལས་འཁུར་ཞིབ་བཤེར"
-titleShort = "ཞིབ་བཤེར་དང་གཏོང"
-visibility = "མཐོང་རུང་གནས:"
-visible = "{{page}} ཤོག་ངོས་སྟེང་མཐོང་རུང"
-
-[groupSigning.steps.selectDocument]
-continue = "ཞུགས་མཁན་འདེམས་ལ་མུ་མཐུད"
-noFile = "མཛུབ་འགན་ལས་འཁུར་བཟོ་བར ཁྱེད་ཀྱི་འགུལ་སྤྱོད་ཡིག་ཆ་ནས PDF ཡིག་ཆ་གཅིག་འདེམས་རོགས།"
-selectedFile = "འདེམས་ཟིན་པའི་ཡིག་ཆ"
-title = "ཡིག་ཆ་འདེམས"
-
-[groupSigning.steps.selectParticipants]
-continue = "མཛུབ་འགན་སྒྲིག་འགོད་ལ་མུ་མཐུད"
-count_one = "{{count}} participant selected"
-count_other = "{{count}} participants selected"
-label = "ཞུགས་མཁན་འདེམས"
-placeholder = "མཛུབ་འགན་ལ་ཞུགས་པའི་མི་སྣ་འདེམས..."
-title = "ཞུགས་མཁན་འདེམས"
-
-[groupSigning.tooltip]
-header = "ཚོགས་མི་མཛུབ་འགན་སྐོར"
-
-[groupSigning.tooltip.finalization]
-bullet1 = "མཛུབ་འགན་ཚང་མ་ཁྱེད་ཀྱིས་བཀོད་པའི་ཞུགས་མཁན་གྱི་རིམ་པ་ལྟར་འཇུག"
-bullet2 = "དགོས་ཚེ་མཛུབ་འགན་ཕྱོགས་མེད་ཀྱིས་མཇུག་བསྡུ་ཆོག"
-bullet3 = "མཇུག་བསྡུས་ཟིན་པའི་རྗེས་ལས་ལས་འཁུར་བཅོས་མི་ཐུབ"
-description = "མཇུག་བསྡུས་པས་མཛུབ་འགན་ཡོངས་ཀྱིས་གཅིག་པའི་མཛུབ་འགན་PDF བཟོ་བྱེད། འདི་བསྐྱར་མེད།"
-title = "མཇུག་བསྡུས་ལས་སྐྱོད"
-
-[groupSigning.tooltip.roles]
-bullet1 = "བདག་པོ (ཁྱེད): ལས་འཁུར་བཟོ, མཛུབ་འགན་སྔོན་སྒྲིག, ཡིག་ཆ་མཇུག་བསྡུ"
-bullet2 = "ཞུགས་མཁན: མཛུབ་འགན་བཟོ, ལག་འཁྱེར་འདེམས, PDF སྟེང་བཞག"
-bullet3 = "ཞུགས་མཁན་ཚོས མཐོང་རུང་/རྒྱུ་མཚན/གནས་ཡུལ སྒྲིག་འགོད་བཅོས་མི་ཐུབ"
-description = "ཁྱེད་ཀྱིས་ཞུགས་མཁན་ཚང་མའི་མཛུབ་འགན་མངོན་སྟོན་སྒྲིག་ཚོད་འཛིན་བྱེད།"
-title = "ཞུགས་མཁན་ལས་འགན"
-
-[groupSigning.tooltip.sequential]
-bullet1 = "ཞུགས་མཁན་དང་པོས་མཛུབ་འགན་བཀལ་བྱས་རྗེས་གཉིས་པས་ཡིག་ཆར་འཛུལ་ཆོག"
-bullet2 = "ཁྲིམས་ལྡན་གྲོས་མཐུན་གྱི་རིམ་པ་ལ་འཚམ"
-bullet3 = "ཐོ་ཡིག་ནས་འདྲུད་ནས་ཞུགས་མཁན་རིམ་པ་བརྗེ་ཆོག"
-description = "ཞུགས་མཁན་ཚོས་ཁྱེད་ཀྱིས་བཀོད་པའི་རིམ་པ་ལྟར་མཛུབ་འགན་བཀལ། རེ་ཞུགས་མཁན་རེ་ལ་རིམ་པ་ཡོངས་ནས་གསར་བརྡ་འབྱོར།"
-title = "རིམ་པ་རིམ་པའི་མཛུབ་འགན"
-
-[guestBanner]
-dismiss = "དར་ཆ་ཕྱིར་འབུད་བྱེད་པ།"
-message = "ཁྱེད་རང་གི་ལས་ཀ་གསོག་འཇོག་བྱེད་པར་རིན་མེད་ཀྱི་རྩིས་ཁྲ་བཟོས་ནས་ཁྱད་ཆོས་མང་བ་འཛུལ་ཐུབ་པ་དང་ལས་གཞི་ལ་རྒྱབ་སྐྱོར་བྱེད་དགོས།"
-signUp = "རིན་མེད་དུ་མིང་ཐོ་འགོད་པ།"
-title = "ཁྱེད་རང་གིས་མགྲོན་པོ་ལྟར་སི་ཊར་ལིང་PDFབེད་སྤྱོད་བྱེད་ཀྱི་ཡོད།"
 
 [home.addAttachments]
 desc = "PDF ནས་ནང་འཇུག་བྱས་པའི་ཡིག་ཆ་ (མཐུད་སྣེ) ཁ་སྣོན་ཡང་ན་མེད་པར་བཟོ་དགོས།"
@@ -4338,11 +2697,6 @@ desc = "རང་འགུལ་སྣོད་ཀྱི་པར་བཤེར
 tags = "རང་འགུལ་ཅན་དང་བྱང་ཆུ། པར་སྐྲུན།"
 title = "རང་འགུལ་ཅན་གྱི་སྣོད་བཅུད་པར་བཤུས།"
 
-[home.devSsoGuide]
-desc = "SSO ལམ་སྟོན་ལ་འབྲེལ་མཐུད་བྱེད།"
-tags = "SSO,single sign-on,authentication,SAML,OAuth,OIDC,login,enterprise,identity provider,IdP"
-title = "SSO ལམ་སྟོན།"
-
 [home.editTableOfContents]
 desc = "PDFཡིག་ཆའི་ནང་དེབ་མཚོན་དང་ནང་དོན་གྱི་རེའུ་མིག་ཁ་སྣོན་ཡང་ན་རྩོམ་སྒྲིག་བྱས།"
 tags = "དེབ་རྟགས། ནང་དོན། རྩོམ་སྒྲིག།"
@@ -4412,7 +2766,6 @@ tags = "བཀོད་སྒྲིག གཞི་སྒྲིག མཉམ་�
 title = "ཤོག་ངོས་མང་པོའི་བཀོད་སྒྲིག།"
 
 [home.pdfCommentAgent]
-desc = "AI ལ་ཞུ་བ་བྱས་ནས ཁྱེད་ཀྱི་སྙན་བཀོད་ལྟར PDF ལ་སྦྱར་མཆན་གྱི་མཆན་བཀོད་བསྣན"
 tags = "AI,agent,མཆན,མཆན་བཀོད,སྦྱར་མཆན,སྐྱར་ཞིབ,ལན་ལུང,མཆན"
 title = "AI མཆན་ཁ་སྣོན"
 
@@ -4510,10 +2863,6 @@ desc = "པར་བཤུས་བྱས་པའི་པར་རིས་ད
 tags = "རྟོག་བཟོ།ས་ལྗོངས།པར་རིས།"
 title = "བརྟག་དཔྱད་དང་ཁ་ཕྲལ་པར་ལེན་བྱས་པའི་པར་རིས།"
 
-[home.sharedSign]
-desc = "གཞན་ལས་མིང་རྟགས་ཞུ་བ་དང་ མིང་རྟགས་ལས་ཚོགས་ལ་རྗེས་འཇུག་བྱེད།"
-title = "མཉམ་སྤྱོད་མིང་རྟགས"
-
 [home.showJS]
 desc = "འཚོལ་ཞིབ་དང་ JS གང་རུང་ཞིག་ PDF ནང་དུ་བཙུགས་ཡོད།"
 tags = "javascript, གསང་གྲངས་དང་།"
@@ -4584,39 +2933,11 @@ title = "PDF ནས་པར་རིས།"
 [infoBanner]
 dismiss = "འདོར"
 
-[invite]
-acceptError = "རྩིས་ཁྲ་བཟོ་མ་ཐུབ་པ།"
-accountFor = "རྩིས་ཁྲ་བཟོ་རྒྱུ།"
-alreadyHaveAccount = "ད་ལྟ་རྩིས་ཁྲ་ཞིག་ཡོད་དམ།"
-choosePassword = "གསང་གྲངས་འདེམས།"
-confirmPassword = "གསང་གྲངས་གཏན་འཁེལ་བྱེད་པ།"
-confirmPasswordPlaceholder = "གསང་གྲངས་བསྐྱར་དུ་ནང་འཇུག་བྱེད་པ།"
-createAccount = "རྩིས་ཁྲ་བཟོས།"
-creating = "རྩིས་ཁྲ་གསར་བཟོ།..."
-email = "གློག་འཕྲིན་ཁ་བྱང་།"
-emailPlaceholder = "ཁྱེད་རང་གི་གློག་འཕྲིན་ཁ་བྱང་ནང་འཇུག་བྱེད།"
-emailRequired = "གློག་འཕྲིན་ཁ་བྱང་དགོས་པ།"
-goToLogin = "ནང་འཛུལ་ལ་འགྲོ།"
-invalidEmail = "ནུས་མེད་གློག་འཕྲིན་ཁ་བྱང་།"
-invalidInvitation = "ནུས་མེད་གདན་ཞུ།"
-invalidToken = "ནུས་མེད་གདན་ཞུའི་འབྲེལ་མཐུད།"
-linkExpires = "འབྲེལ་མཐུད་དུས་ཚོད་རྫོགས་པ།"
-passwordMismatch = "གསང་གྲངས་མི་མཐུན་པ།"
-passwordPlaceholder = "གསང་གྲངས་ནང་འཇུག་བྱེད་པ།"
-passwordRequired = "གསང་གྲངས་དགོས།"
-signIn = "མཚན་རྟགས་བཀོད་པ།"
-validating = "མགྲོན་འབོད་ལ་ཁུངས་གཏུག་བྱེད་པ།"
-validationError = "གདན་ཞུའི་འབྲེལ་མཐུད་ལ་ཁུངས་སྐྱེལ་མ་ཐུབ་པ།"
-welcome = "སི་ཊར་ལིང་PDFལ་ཕེབས་པར་དགའ་བསུ་ཞུ།"
-welcomeSubtitle = "ཁྱེད་རང་གི་རྩིས་ཁྲའི་སྒྲིག་བཀོད་ཚང་མ་འགོ་འཛུགས་དགོས།"
-welcomeTitle = "ཁྱེད་རང་གདན་འདྲེན་ཞུས་ཡོད།"
-
 [landing]
 addFiles = "ཡིག་ཆ་ཁ་སྣོན་བྱེད།"
 heroSubtitle = "འགོ་སློང་བྱེད་དུ PDF ཞིག་འདྲུད་ནས་བཙུགས་ ཡང་ན་ ཡོད་པའི་ PDF ཞུགས་སྣོན་བྱས།"
-heroTitle = "Stirling PDF"
+heroTitle = "RustlingPDF"
 mobileUpload = "ཁ་པར་ནས་ཡར་འཇུག"
-openFromComputer = "གློག་ཀླད་ནས་ཁ་ཕྱེ་བ།"
 uploadFromComputer = "གློག་ཀླད་ནས་ཡར་བླངས།"
 
 [language]
@@ -4633,73 +2954,6 @@ terms = "ཆ་རྐྱེན་དང་ཆ་རྐྱེན།"
 
 [licenses]
 title = "གསུམ་པའི་ཕྱོགས་ནས་ཆོག་མཆན།"
-
-[localMode]
-toolUnavailable = "ལག་ཆ་འདི་ལ་རྩིས་ཁྲོད་དགོས། Stirling Cloud ལ་ནང་འཇུག ཡང་ན་རང་དབང་ཞབས་ཞུ་ལ་མཐུད་ནས་སྤྱོད།"
-
-[localMode.toolPicker]
-message = "ལག་ཆ་ཡོངས་འབྱེད་པར་ནང་འཇུག་བྱོས།"
-signIn = "ནང་འཇུག"
-
-[login]
-accountCreatedSuccess = "རྩིས་ཁྲ་ལེགས་འགྲུབ་བྱུང་། ཁྱེད་རང་ད་ལྟ་ནང་དུ་མིང་རྟགས་བཀོད་ཆོག"
-backToSignIn = "ནང་འཇུག་ལ་ཕྱིར་ལོག"
-changePasswordWarning = "ཐེངས་དང་པོར་ནང་འཛུལ་བྱས་རྗེས་གསང་གྲངས་བསྒྱུར་རོགས།"
-createAccount = "Create an account"
-credentialsUpdated = "ཁྱེད་ཀྱི་ཆོག་མཆན་ཡིག་ཆ་གསར་བརྗེ་བྱས་ཡོད། ཡང་བསྐྱར་མིང་རྟགས་བཀོད་རོགས་གནང་།"
-defaultCredentials = "སྔོན་སྒྲིག་ནང་འཇུག་ཡིག་ཆ།"
-email = "གློག་འཕྲིན།"
-enterEmail = "ཁྱེད་རང་གི་གློག་འཕྲིན་ནང་འཇུག་བྱེད།"
-enterEmailForMagicLink = "ཁྱེད་རང་གི་གློག་འཕྲིན་ནང་འཇུག་བྱས་ནས་མཆོད་རྟེན་གྱི་འབྲེལ་མཐུད་བྱེད།"
-enterMfaCode = "6 ཨང་གྲངས་ཀྱི་ཨང་རྟགས་བཙུགས"
-enterPassword = "གསང་གྲངས་ནང་འཇུག་བྱེད་པ།"
-enterUsername = "སྤྱོད་མཁན་གྱི་མིང་ནང་འཇུག་བྱེད་པ།"
-failedToSignIn = "{{provider}} བེད་སྤྱད་ནས་ནང་འཇུག་མ་ཐུབ་པ: {{message}}"
-forgotPassword = "ཁྱེད་རང་གི་གསང་གྲངས་བརྗེད་སོང་ངམ།"
-loggingIn = "ཤིང་བཟོ་བ།..."
-logIn = "དྲན་ཐོ།"
-login = "ནང་འཇུག"
-magicLinkSent = "མེ་ཇིག་དྲ་སྦྲེལ་དེ་{{email}} ལ་བཏང་ཡོད། གློག་འཕྲིན་ལ་ལྟས་ཏེ་སྦྲེལ་མཐུད་སྣུན་ནས་ནང་འཇུག་གནང་རོགས།"
-mfaCode = "ངོས་འཛིན་ཨང་རྟགས"
-mfaRequired = "ཆ་རྐྱེན་གཉིས་ཨང་རྟགས་དགོས"
-or = "ཡང་ན"
-password = "གསང་གྲངས"
-passwordChangedSuccess = "གསང་གྲངས་ལེགས་འགྲུབ་བྱུང་བ། ཁྱེད་རང་གི་གསང་གྲངས་གསར་པས་ནང་འཇུག་གནང་རོགས།"
-passwordResetSent = "གསང་གྲངས་བསྐྱར་སྒྲིག་སྦྲེལ་མཐུད་དེ་{{email}} ལ་བཏང་ཡོད། གློག་འཕྲིན་ལ་ལྟས་ནས་བཀོད་སྒྲིག་ལ་བཅོལ།"
-passwordUpdatedSuccess = "ཁྱེད་ཀྱི་གསང་ཨང་གསར་སྒྱུར་ལེགས་འགྲུབ།"
-pleaseEnterBoth = "གློག་འཕྲིན་དང་གསང་གྲངས་གཉིས་ཀ་འཇུག་རོགས་གནང་།"
-pleaseEnterEmail = "ཁྱེད་རང་གི་གློག་འཕྲིན་ཁ་བྱང་བླུགས་རོགས།"
-resetHelp = "གསང་ཨང་བསྐྱར་སྒྲིག་བྱེད་པར་བདེ་འཇགས་འབྲེལ་མཐུད་རྒྱག་ཐོབ་བྱེད་ལུ་ཁྱེད་ཀྱི་གློག་ཡིག་ནང་འཇུག་བྱོས། འབྲེལ་མཐུད་དུས་འདས་ཡོད་ན་གསར་པ་ཞིག་ཞུ་བ་བྱོས།"
-resetYourPassword = "གསང་ཨང་བསྐྱར་སྒྲིག"
-sending = "བཏང་..."
-sendMagicLink = "མེ་ཇིག་དྲ་སྦྲེལ་གཏོང་།"
-sendResetLink = "བསྐྱར་སྒྲིག་འབྲེལ་མཐུད་བཏང་"
-sessionExpired = "ཁྱེད་རང་གི་ཚོགས་ཐུན་དུས་ཚོད་རྫོགས་ཡོད། ཡང་བསྐྱར་མིང་རྟགས་བཀོད་རོགས་གནང་།"
-signin = "མཚན་རྟགས་བཀོད་པ།"
-signingIn = "མིང་རྟགས་བཀོད་པ།..."
-signInWith = "ནང་དུ་ཞུགས་པ།"
-title = "མཚན་རྟགས་བཀོད་པ།"
-unexpectedError = "རྗེས་འགྲོ་མ་ངེས་པའི་ནོར་འཁྲུལ: {{message}}"
-updatePassword = "གསང་ཨང་གསར་སྒྱུར"
-useEmailInstead = "གློག་འཕྲིན་བརྒྱུད་ནས་ནང་འཛུལ་བྱེད་པ།"
-useMagicLink = "དེའི་ཚབ་ཏུ་མུན་ནག་གི་སྦྲེལ་མཐུད་བེད་སྤྱོད་བྱེད།"
-username = "མིང་།"
-youAreLoggedIn = "ཁྱེད་རང་ནང་འཛུལ་འདུག"
-
-[login.slides.edit]
-alt = "PDF རྩོམ་སྒྲིག་བྱས།"
-subtitle = "ཁྱེད་རང་ལ་PDFs བསྐྱར་བཟོ་དང་། རྟགས་མཚན། ཀློག་པ། བཀོལ་སྤྱོད་བྱེད་པར་རོགས་བྱེད་པའི་ལག་ཆ་བཅུ་ཕྲག་ལྷག་ཙམ་ཡོད་ན།"
-title = "ཁྱེད་ལ་དགོས་པའི་ཆ་འཕྲིན་དེ་བསྟན་/བརྟན་པོར་ཡོང་བར་PDFsརྩོམ་སྒྲིག་བྱེད།"
-
-[login.slides.overview]
-alt = "PDF སྤྱི་བསྡོམས།"
-subtitle = "ཡིག་ཆ་སྒྱུར་བ་དང་། རྟགས་བཀོད། གསར་བརྗེ། དོ་དམ་བཅས་བྱེད་པའི་PDFཡི་སྒེར་གྱི་གནས་ཚུལ་གྱི་སྤྲིན་པའི་ཁང་མིག་གཅིག་དང་། དེ་བཞིན་ལག་ཆ་གཞན་༥༠ལྷག་ཡོད།"
-title = "ཁྱེད་རང་གི་PDFདགོས་མཁོ་ཚང་མར་ཁྱེད་རང་གི་ཚོང་ཁང་གཅིག་གིས་ཉོ་ཆ་རྒྱག་དགོས།"
-
-[login.slides.secure]
-alt = "བདེ་འཇགས་ཀྱི་PDFs"
-subtitle = "གསང་གྲངས་ཁ་སྣོན་དང་། ནང་དོན་གསར་བརྗེ། ལག་འཁྱེར་ལ་སྟབས་བདེ་པོའི་ངང་འཛིན་སྐྱོང་བྱེད།"
-title = "ཁྱེད་རང་གི་PDFནང་དུ་ཚོར་ཤུགས་ཆེ་བའི་ཆ་འཕྲིན་སྲུང་སྐྱོབ་བྱེད་དགོས།"
 
 [margin]
 large = "ཤིན་ཏུ་ཆེན་པོ"
@@ -4804,42 +3058,6 @@ title = "PDF སྣ་མང་ལག་ཆ།"
 
 [navbar]
 search = "བཤེར་འཚོལ"
-
-[oauth.error]
-message = "བདེན་དཔང་དེ་གྲུབ་འབྲས་ཐོབ་མེད། ཁྱོད་ཀྱིས་སྒེའུ་ཁུང་འདི་ཁ་རྒྱག་ནས་བསྐྱར་དུ་ཚོད་ལྟ་བྱེད་ཐུབ།"
-title = "བདེན་དཔང་མ་ཐུབ་པ།"
-
-[oauth.success]
-message = "ཁྱེད་ཀྱིས་སྒེའུ་ཁུང་འདི་ཁ་རྒྱག་ནས་སི་ཊར་ལིང་PDFལ་ལོག་ཐུབ།"
-title = "བདེན་དཔང་ལམ་ལྷོང་།"
-
-[oauthConsent]
-approve = "Allow access"
-approving = "Allowing..."
-decisionFailed = "Could not submit your decision. Please try again."
-deny = "Deny"
-denying = "Denying..."
-loadFailed = "This authorisation request is invalid or has expired. Close this tab and try connecting again from the app."
-loading = "Loading authorisation request..."
-missingId = "Missing authorisation request. Start the connection from your app and try again."
-redirecting = "Returning you to the app..."
-requesting = "{{app}} wants to access your Stirling PDF account"
-scopesIntro = "This will allow {{app}} to:"
-signedInAs = "Signed in as {{name}}"
-signInButton = "Sign in to continue"
-signInPrompt = "Sign in to your Stirling PDF account to continue connecting the app."
-title = "Authorise access"
-unknownApp = "A third-party application"
-
-[oauthConsent.access]
-actAsYou = "Act as you - everything {{app}} does runs under your account and counts towards your usage"
-tools = "Use your Stirling PDF tools on your behalf - convert, edit, sign, secure and process your documents"
-
-[oauthConsent.scope]
-email = "See your email address"
-openid = "Confirm your identity"
-phone = "See your phone number"
-profile = "See your basic profile information"
 
 [ocr]
 desc = "གཙང་བཟོའི་བརྟག་དཔྱད་དང་PDFནང་དུ་པར་རིས་ནས་ཡིག་ཆ་ཤེས་རྟོགས་བྱེད་པ་དང་ཡིག་ཆ་ལྟར་ཡང་བསྐྱར་ཁ་སྣོན་བྱེད།"
@@ -4951,53 +3169,11 @@ download = "ཕབ་ལེན →"
 next = "རྗེས་མ་ →"
 showMeAround = "ང་ལ་སྟོན་དང་།"
 skipForNow = "ད་ལྟ་མཆོང་།"
-skipTheTour = "སྐོར་སྐྱོད་ལ་བསྐྱོད་པ།"
 
 [onboarding.desktopInstall]
 body = "སི་ཊར་ལིང་གིས་ཀམ་པུ་ཊར་གྱི་མཉེན་ཆས་ལྟར་ལས་ཀ་ཡག་ཤོས་བྱེད་ཀྱི་ཡོད། ཁྱེད་ཀྱིས་དེ་དྲ་རྒྱ་ལས་ཕྱིར་སྤྱོད་ཐུབ་པ་དང་། ཡིག་ཆ་མགྱོགས་པོ་འཛུལ་ཐུབ་པ། དེ་བཞིན་ཁྱེད་རང་གི་གློག་ཀླད་ཐོག་ས་གནས་སུ་རྩོམ་སྒྲིག་བྱེད་ཐུབ།"
 title = "ཕབ་ལེན"
 titleWithOs = "{{osLabel}} ལ་ཕབ་ལེན།"
-
-[onboarding.mfa]
-authenticationCode = "ར་སྤྲོད་ཨང་རྟགས"
-qrCodeLoading = "ཁྱེད་ཀྱི QR ཨང་རྟགས་བསྐྲུན་བཞིན་པ…"
-
-[onboarding.planOverview]
-adminBodyLoginDisabled = "ནང་འཇུག་ཐབས་ལམ་ལྕོགས་ཅན་བཟོ་རྗེས་སྤྱོད་མཁན་དོ་དམ་, སྒྲིག་བཀོད་དང་སར་བར་གྱི་བདེ་འཇགས་གནས་བབ་ལ་ལྟ་ཞིབ་བྱེད་ཐུབ། ཁྱེད་ཀྱི་སར་བར་ནང་གི་མི་དང་པོ <strong>{{freeTierLimit}}</strong> ལ་སི་ཊར་ལིང་དེ་རིན་མེད་དུ་བཀོལ་ཆོག"
-adminBodyLoginEnabled = "འཛིན་སྐྱོང་པ་ཡིན་པའི་ཐོག་ནས་སྤྱོད་མཁན་དོ་དམ་, སྒྲིག་བཀོད་དང་སར་བར་གྱི་བདེ་འཇགས་གནས་བབ་ལ་ལྟ་ཞིབ་བྱེད་ཐུབ། ཁྱེད་ཀྱི་སར་བར་ནང་གི་མི་དང་པོ <strong>{{freeTierLimit}}</strong> ལ་སི་ཊར་ལིང་དེ་རིན་མེད་དུ་བཀོལ་ཆོག"
-adminTitle = "འཛིན་སྐྱོང་སྤྱི་བསྡོམས།"
-userBody = "རུ་མི་གདན་འདྲེན་ཞུ་བ་དང་། ལས་འགན་སྤྲོད་པ། ཁྱེད་ཀྱི་ཡིག་ཆ་བདེ་འཇགས་ལྡན་པའི་ལས་ཀའི་ས་ཆ་གཅིག་ཏུ་སྒྲིག་འཛུགས་བྱེད་དགོས། ཁྱེད་རང་གཅིག་པོ་བེད་སྤྱོད་ལས་བརྒལ་བར་འཕེལ་རྒྱས་འགྲོ་རྒྱུར་གྲ་སྒྲིག་ཡོད་པའི་སྐབས་ལ་ནང་འཇུག་ཐབས་ལམ་ལ་ནུས་ཤུགས་སྤྲོད་དགོས།"
-userTitle = "འཆར་གཞིའི་སྤྱི་བསྡོམས།"
-
-[onboarding.saas.freeEditor]
-freeLine = "The editor is now <free>completely free</free>."
-premium = "We've added loads of new features, including <strong>Policies</strong> and <strong>Agent Chat</strong>."
-title = "Welcome to Stirling"
-
-[onboarding.saas.team]
-addButton = "Add"
-createBody = "Work on documents together: teammates share files, automations and your plan. Add the first member by email to create your team."
-createTitle = "Create your team"
-inviteBody = "Everyone on your team shares files, automations and your plan. Add teammates by email and they'll get an invitation."
-inviteTitle = "Invite members to your team"
-
-[onboarding.saas.usage]
-body = "Automations, AI and API requests draw from your free allowance. Manual editing never counts against it."
-title = "Your free Processor allowance"
-
-[onboarding.securityCheck]
-message = "ཉེ་ཆར་མཉེན་ཆས་དེ་ལ་འགྱུར་བ་ཆེན་པོ་བྱུང་ཡོད། ཁྱེད་ཀྱི་གསབ་ལེན་བདག་པོའི་དོ་སྣང་དགོས་སྲིད། ཁྱེད་རང་གི་ལས་འགན་མུ་མཐུད་དུ་གཏན་འཁེལ་གནང་རོགས།"
-roleAdmin = "སྐྱོང་འཛིན"
-rolePlaceholder = "ཁྱེད་ཀྱི་ལས་འགན་གཏན་འཁེལ"
-roleUser = "སྤྱོད་མཁན"
-
-[onboarding.serverLicense]
-freeBody = "ང་ཚོའི <strong>Open-Core</strong> ཆོག་མཆན་ནས་སར་བར་རེ་ལ་སྤྱོད་མཁན་<strong>{{freeTierLimit}}</strong> བར་རིན་མེད་དུ་ཆོག་པ་ཡིན། མ་ཆད་པར་འཕེལ་རྒྱས་བྱ་ཆེད་ Stirling Server འཆར་གཞི་ལ་<strong>སྡོད་སྒྲིག་མཐའ་མེད</strong> དང་ <strong>SSO support</strong> སྤྲོད་པ་དེ་ $99/server/mo རིན་གོང་ཡིན།"
-freeTitle = "སར་བར་ལག་ཁྱེར།"
-overLimitBody = "ང་ཚོའི་ཆོག་མཆན་ནས་སར་བར་རེ་ལ་སྤྱོད་མཁན་<strong>{{freeTierLimit}}</strong> བར་རིན་མེད་དུ་ཆོག་པ་ཡིན། ཁྱེད་ལ་<strong>{{overLimitUserCopy}}</strong> Stirling སྤྱོད་མཁན་ཡོད། མ་ཆད་པར་མུ་མཐུད་བྱ་དགོས་ན་ Stirling Server འཆར་གཞི་ལ་རིམ་སྤོར་བྱོས། <strong>སྡོད་སྒྲིག་མཐའ་མེད</strong> དང་ PDF ཡིག་གཟུགས་རྩོམ་སྒྲིག དེ་བཞིན་འཛིན་སྐྱོང་ཆ་ཚང་ $99/server/mo རིན་གོང་ཡིན།"
-overLimitTitle = "སར་བར་ཆོག་མཆན་དགོས་པ།"
-seePlans = "འཆར་གཞི་ལ་གཟིགས།"
-upgrade = "ད་ལྟ་རིམ་སྤོར་ →"
 
 [onboarding.tourOverview]
 body = "PDF V2 གྲུ་གཟིངས་ལ་ལག་ཆ་བཅུ་ཕྲག་མང་པོ་དང་བཀོད་སྒྲིག་གསར་པ་བསྐྲུན་ཡོད། ཁྱེད་ལ་དགོས་མཁོའི་ཁྱད་ཆོས་གང་འགྱུར་བ་དང་གང་འཚོལ་དགོས་མིན་ལ་མགྱོགས་པོ་ལྟ་སྐོར་བྱེད་དགོས།"
@@ -5255,271 +3431,6 @@ title = "ཤོག་ངོས་ཁྱབ་ཁོངས།"
 bullet1 = "<strong>all</strong> → ཤོག་ངོས་ཚང་མ་འདེམས་པ།"
 title = "དམིགས་བསལ་མིང་ཚིག།"
 
-[payg.activity]
-docs = "docs"
-empty = "No billable activity yet this period."
-subtitle = "Only AI and automation draw from your budget. Everyday tools are free and aren't listed here."
-title = "Recent billable activity"
-
-[payg.cap]
-amount = "Cap amount"
-custom = "Custom"
-docsEstimate = "≈ {{docs}} processed PDFs / month"
-docsRate = "at {{rate}} / PDF"
-noCapDesc = "Usage is billed without an upper limit. You can re-enable a cap at any time."
-noCapLabel = "No cap"
-noneShort = "No cap"
-perMonth = "/ month"
-save = "Update cap"
-subtitle = "Set your maximum spend. We convert this to PDFs using the current price tier."
-title = "Monthly spending cap"
-
-[payg.checkout]
-connecting = "Connecting to Stripe…"
-errorTitle = "Stripe error"
-
-[payg.checkout.error]
-startFailed = "Couldn't start checkout session"
-
-[payg.checkout.mock]
-backend = "Backend is in mock mode; no real Stripe session was created."
-continue = "Continue with mock subscription"
-noKey = "VITE_STRIPE_PUBLISHABLE_KEY is unset. Real iframe mounts here once configured."
-title = "Stripe Embedded Checkout (mock mode)"
-
-[payg.confirm]
-body = "Your team can now run automation, AI, and API operations beyond your 500 free PDFs."
-capValue = "{{symbol}}{{amount}} / month"
-noCap = "No cap"
-note = "You can change your cap, cancel, or open the Stripe customer portal any time from this page."
-summaryLabel = "Monthly ceiling"
-title = "Welcome to the Processor plan"
-
-[payg.docHelp]
-billable = "Only automation runs, AI tools, and API calls count. Manual tools in the editor are always free."
-chains = "Running the same file through several steps of one automation counts it once, not once per step."
-perFile = "Each file you process counts as one PDF. Very long or very large files can count as more than one."
-refunds = "If a job fails on its first step, the PDF is credited back automatically."
-toggle = "What counts as a PDF?"
-
-[payg.error]
-body = "We couldn't reach the billing service. Refresh the page to try again."
-title = "Couldn't load your plan"
-
-[payg.free.cta]
-benefit1Body = "chain tools, schedule runs, batch process"
-benefit1Title = "Automation pipelines"
-benefit2Body = "summarise, classify, redact, AI-OCR"
-benefit2Title = "AI tools"
-benefit3Body = "call any Stirling endpoint programmatically"
-benefit3Title = "API access"
-button = "Turn on Processor →"
-reassurance = "No minimum · Set a $0 cap to test · Cancel anytime"
-subtitle = "Keep going past your 500 free PDFs with automation, AI, and the API. Set a monthly ceiling, so you stay in control."
-title = "Turn on the Processor plan"
-
-[payg.free.editor]
-eyebrow = "Editor plan · Always free"
-
-[payg.free.header]
-freeBody = "View, edit, merge, split, sign, watermark, compress, convert and manual OCR — as much as you want, no matter where you trigger it."
-freeTitle = "Unlimited PDF editing"
-
-[payg.free.hero]
-capSuffix = "/ {{limit}} free PDFs"
-metaCategories = "Automation · AI · API requests"
-
-[payg.free.member]
-ownerOnly = "Only your team owner can turn on Processor. Manual tools stay free for you to use as much as you like."
-
-[payg.free.proc]
-eyebrow = "Processor plan · metered"
-
-[payg.free.state]
-approachingLimit = "Approaching limit"
-limitReached = "Limit reached"
-plentyLeft = "Plenty left"
-
-[payg.gates]
-ai = "AI tools (AI Create, suggestions, AI-OCR)"
-automation = "Automations & pipelines"
-client = "Browser-only tools (viewer, page editor, file management)"
-offsite = "Server tools (compress, OCR, convert, watermark…)"
-pauses = "pauses at cap"
-title = "What happens when the cap is reached"
-
-[payg.header]
-eyebrow = "Processor plan · {{start}} – {{end}}"
-freeBody = "View, edit, merge, split, sign, watermark, compress, convert and manual OCR — as much as you want, no matter where you trigger it."
-freeLabel = "Always free"
-freeTitle = "Unlimited PDF editing"
-meterBody = "{{limit}} free PDFs to start, then billed per PDF up to your cap."
-meterLabel = "Metered"
-meterTitle = "Automation · AI · API"
-
-[payg.member]
-askLeader = "Only your team owner can change the cap."
-
-[payg.members]
-docs = "PDFs"
-subtitle = "Billable PDFs each teammate has processed this period."
-title = "Team member usage"
-
-[payg.role]
-leader = "Team owner"
-member = "Member"
-
-[payg.signupRequired]
-body = "Stirling PDF gives every signed-up account 500 free operations, enough to keep most workflows humming without paying a cent. You're currently using Stirling as a guest, which doesn't include billable tools like AI, automations, or hosted processing."
-cancel = "Not now"
-cta = "Sign up free"
-subtext = "Creating an account is free and takes a few seconds. No credit card required."
-title = "Sign up to use {{category}}"
-
-[payg.signupRequired.category]
-ai = "AI features"
-api = "this tool"
-automation = "automations"
-default = "this feature"
-
-[payg.spendCapMeter]
-capSuffix = "/ {{amount}} cap"
-metaCategories = "Automation · AI · API spend"
-resets = "Resets each billing period"
-
-[payg.state]
-degraded = "Cap reached"
-full = "Healthy"
-warned = "Approaching cap"
-
-[payg.stripe]
-open = "Open billing portal"
-subtitle = "Receipts, invoices, payment method, billing currency."
-title = "Manage billing in Stripe"
-
-[payg.stripe.toast.unavailable]
-body = "Billing portal isn't available right now. Try again in a moment."
-title = "Billing portal unavailable"
-
-[payg.upgrade]
-backAria = "Back"
-closeAria = "Close"
-
-[payg.upgrade.button]
-cancel = "Cancel"
-continue = "Continue →"
-finish = "Finish"
-
-[payg.upgrade.cap]
-help = "We'll never charge above this. Set $0 if you want to keep everything free while testing."
-title = "Set your monthly spend ceiling"
-usdNote = "Estimated in USD. You can adjust your cap any time after subscribing, in your own currency."
-
-[payg.upgrade.checkout]
-capValue = "{{symbol}}{{amount}} / month"
-edit = "Edit"
-help = "Stripe handles your card details. Stirling never sees them."
-loading = "Loading checkout…"
-noCap = "No cap"
-title = "Add your payment method"
-
-[payg.upgrade.help]
-aiBody = "summarise, classify, redact, AI-OCR"
-aiTitle = "AI tools"
-apiBody = "programmatic access to any Stirling endpoint"
-apiTitle = "API calls"
-automationBody = "chained tools or scheduled runs that don't need clicks"
-automationTitle = "Automation pipelines"
-footnote = "Manual tools (viewing, editing, merging, splitting, watermarking, compressing, manual OCR) are always free, even past 500. The distinction is the type of work, not where you click."
-title = "What we count toward billing"
-
-[payg.upgrade.promise]
-body = "You only pay for automation pipelines, AI tools, and API calls, the work that goes beyond a single click. Edit, merge, split, sign, compress as much as you want, no charge."
-highlight = "Manual tools stay free, always."
-
-[payg.upgrade.steps]
-cap = "Set monthly ceiling"
-payment = "Add payment method"
-
-[payg.upgrade.title]
-confirm = "You're subscribed"
-default = "Upgrade to Processor plan"
-
-[payg.usage]
-breakdown = "AI {{ai}} • Automation {{automation}} • API {{api}}"
-capLine = "{{cap}}/mo cap"
-estBill = "≈ {{amount}} so far this period"
-firstFree = "First {{free}} free"
-noCap = "No monthly cap"
-ofLimitProcessed = "/ {{limit}} PDFs processed"
-processed = "PDFs processed"
-resetsIn = "Resets in {{days}} days"
-resetsTomorrow = "Resets tomorrow"
-thisPeriod = "This billing period"
-
-[payment]
-canCloseWindow = "ཁྱོད་ཀྱིས་ད་ལྟ་སྒེའུ་ཁུང་འདི་ཁ་རྒྱག་ཐུབ།"
-error = "དངུལ་སྤྲོད་པའི་ནོར་འཁྲུལ།"
-generatingLicense = "ཁྱེད་རང་གི་ལག་འཁྱེར་ལྡེ་མིག་བསྐྲུན་པ།"
-licenseActivated = "ཆོག་མཆན་དེ་ཤུགས་བསྒྱུར་བྱས། ཁྱེད་ཀྱི་ལག་འཁྱེར་གྱི་ལྡེ་མིག་ཉར་ཚགས་བྱས་ཡོད། ཁྱེད་ཀྱི་ཐོ་འགོད་བྱས་པའི་གློག་འཕྲིན་ཁ་བྱང་ལ་གཏན་འཁེལ་གྱི་གློག་འཕྲིན་བཏང་ཡོད།"
-licenseDelayed = "གླ་ཆ་ལེགས་འགྲུབ་བྱུང་། ཁྱེད་ཀྱི་ཆོག་མཆན་ཐོབ་བཞིན་ཡོད། ཁྱེད་རང་ལ་ཆོག་མཆན་གྱི་ལྡེ་མིག་ཡོད་པའི་གློག་འཕྲིན་ཞིག་འབྱོར་རྒྱུ་རེད། སྐར་མ་བཅུའི་ནང་མ་ཐོབ་ན་རྒྱབ་སྐྱོར་གནང་རོགས།"
-licenseDelayedMessage = "ཁྱེད་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་བཟོ་བཞིན་ཡོད། ཁྱེད་རང་གི་གློག་འཕྲིན་དེ་མགྱོགས་པོ་བརྟག་དཔྱད་བྱེད་པའམ་ཡང་ན་རྒྱབ་སྐྱོར་གནང་རོགས།"
-licenseInstructions = "འདི་ཁྱེད་ཀྱི་གཞི་བཙུགས་ལ་ཁ་སྣོན་བྱས་ཡོད། ཁྱེད་རང་གི་གློག་འཕྲིན་ནང་ལ་ཡང་འདྲ་བཤུས་ཤིག་ཐོབ་རྒྱུ་རེད།"
-licenseKey = "ཁྱོད་ཀྱི་ལག་འཁྱེར་ལྡེ་མིག།"
-licensePollingError = "གླ་ཆ་ལེགས་འགྲུབ་བྱུང་ཡོད་ཀྱང་། ང་ཚོས་ཁྱེད་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་རང་འགུལ་གྱིས་ཕྱིར་ལེན་ཐུབ་ཀྱི་མེད། ཁྱེད་རང་གི་གློག་འཕྲིན་ཡང་ན་འབྲེལ་གཏུག་རྒྱབ་སྐྱོར་དེ་དངུལ་སྤྲོད་པའི་གཏན་འཁེལ་གྱི་ཐོག་ནས་བརྟག་དཔྱད་གནང་རོགས།"
-licenseRetrievalError = "གླ་ཆ་ལེགས་འགྲུབ་བྱུང་ཡོད་ཀྱང་ཆོག་མཆན་སླར་ལེན་དེ་ཕམ་སོང། ཁྱེད་ལ་གློག་འཕྲིན་བརྒྱུད་ནས་ཁྱེད་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་ཐོབ་རྒྱུ་རེད། སྐར་མ་བཅུའི་ནང་ཚུད་མ་ཐོབ་ན་རྒྱབ་སྐྱོར་གནང་རོགས་གནང་།"
-licenseSaveError = "ཆོག་མཆན་ལྡེ་མིག་གསོག་འཇོག་མ་ཐུབ་པ། ཁྱེད་རང་གི་ལག་འཁྱེར་གྱི་ལྡེ་མིག་གིས་རྒྱབ་སྐྱོར་བྱེད་ནས་ཤུགས་སྣོན་གཏོང་རོགས།"
-monthly = "ཟླ་རེར།"
-paymentCanceled = "དངུལ་སྤྲོད་རྒྱུ་མེད་པར་བཟོས་ཡོད། ཉེས་འཛུགས་གང་ཡང་བཏང་མེད།"
-perMonth = "/ཟླ་བ"
-preparing = "ཁྱེད་རང་གི་དངུལ་བཏོན་གྲ་སྒྲིག་བྱེད་པ།"
-redirecting = "བདེ་འཇགས་ལྡན་པའི་དངུལ་བཏོན་པར་བསྐྱར་གཏོང་བྱེད་པ་..."
-success = "གླ་ཆ་ལེགས་འགྲུབ་བྱུང་།"
-successMessage = "ཁྱེད་ཀྱི་མངགས་ཉོ་དེ་ལེགས་འགྲུབ་བྱུང་ཡོད། ཁྱེད་ལ་གཏན་འཁེལ་གྱི་གློག་འཕྲིན་ཞིག་མགྱོགས་པོ་ཐོབ་རྒྱུ་རེད།"
-syncError = "གླ་ཆ་ལེགས་འགྲུབ་བྱུང་ཡོད་ཀྱང་ཆོག་མཆན་གྱི་དུས་མཉམ་ལམ་ལྷོང་མ་བྱུང་། ཁྱེད་ཀྱི་ཆོག་མཆན་དེ་མགྱོགས་པོ་གསར་བརྗེ་བྱ་རྒྱུ་རེད། གལ་ཏེ་གནད་དོན་མུ་མཐུད་གནས་ན་རྒྱབ་སྐྱོར་འབྲེལ་བ་གནང་རོགས།"
-syncingLicense = "ཁྱེད་རང་གི་ཡར་རྒྱས་བཏང་བའི་ཆོག་མཆན་མཉམ་སྒྲིག"
-upgradeComplete = "རིམ་སྤོར་འཐུས་ཚང་།"
-upgradeCompleteMessage = "ཁྱེད་ཀྱི་མངགས་ཉོ་དེ་ལེགས་འགྲུབ་བྱུང་ཡོད། ཁྱེད་ཀྱི་ད་ལྟའི་ཆོག་མཆན་ལྡེ་མིག་དེ་གསར་བརྗེ་བྱས་ཡོད།"
-upgradeSuccess = "གླ་ཆ་ལེགས་འགྲུབ་བྱུང་། ཁྱེད་ཀྱི་མངགས་ཉོ་དེ་ཡར་རྒྱས་བཏང་ཡོད། ཆོག་མཆན་དེ་ཁྱེད་ཀྱི་གསབ་ལེན་ཐོག་ལ་གསར་བརྗེ་བྱས་ཡོད། ཁྱེད་ལ་གཏན་འཁེལ་གྱི་གློག་འཕྲིན་ཞིག་མགྱོགས་པོ་ཐོབ་རྒྱུ་རེད།"
-upgradeTitle = "{{planName}} ལ་རིམ་སྤོར"
-yearly = "ལོ་རེ་རེ།"
-
-[payment.emailStage]
-continue = "མུ་མཐུད"
-description = "ང་ཚོས་འདི་བེད་སྤྱད་ནས་ཁྱེད་ཀྱི་ལག་འཁྱེར་གྱི་ལྡེ་མིག་དང་དངུལ་འབབ་བསྐུར་རྒྱུ་ཡིན།"
-emailLabel = "གློག་འཕྲིན་ཁ་བྱང་།"
-emailPlaceholder = "yk@e@email.com"
-modalTitle = "འགོ་འཛུགས་ - {{planName}}"
-
-[payment.paymentStage]
-modalTitle = "དངུལ་སྤྲོད་མཇུག་སྒྲིལ་ - {{planName}}"
-
-[payment.planStage]
-billedYearly = "{{currency}}{{amount}} ལོ་རེའི་དངུལ་འབབ"
-modalTitle = "དངུལ་འབབ་དུས་ཡུན་འདེམས་པ་ - {{planName}}"
-savePercent = "{{percent}}% ཉར་ཐུབ།"
-savingsAmount = "{{amount}} ཉར་ཐུབ།"
-selectMonthly = "ཟླ་རེར་འདེམས།"
-selectYearly = "ལོ་རེ་འདེམས་པ།"
-
-[pdfCommentAgent]
-submit = "མཆན་བཟོ"
-
-[pdfCommentAgent.error]
-emptyPrompt = "AI ག་ལ་མཆན་བཀོད་དགོས་ཞེས་གསལ་བཤད་བྱོས"
-failed = "མཆན་བཟོ་ཕམ"
-tooLong = "སྙན་བཀོད་མང་དྲགས་ (མང་མཐའ {{max}} ཡིག་འབྲུ)"
-
-[pdfCommentAgent.prompt]
-label = "AI ག་ལ་མཆན་བཀོད་དགོས?"
-placeholder = "དཔེར་ན་ མི་གསལ་པའི་ཚེས་གྲངས་ཚང་མར་རྟགས་བཀོད་ནས གསལ་བཤད་བསམ་འཆར་འདོན"
-
-[pdfCommentAgent.results]
-title = "མཆན་བཀོད་ཟིན་པའི PDF"
-
-[pdfCommentAgent.settings]
-title = "མཆན་ཁ་བཀོད"
-
 [pdfOrganiser]
 placeholder = "(དཔེར་ན། 1,3,2 ཡང་ན་ 4-8,2,10-12 ཡང་ན་ 2n-1)"
 tags = "གཉིས་ལྡན་གཉིས་ལྡན་གྱི་སྒྱུ་རྩལ།"
@@ -5761,496 +3672,8 @@ title = "འཕོ་འགྱུར།"
 tags = "རང་འགུལ་ཅན་དང་།"
 title = "མདོང་ལམ།"
 
-[plan]
-contact = "འབྲེལ་གཏུག་གནང་།"
-current = "ད་ལྟའི་འཆར་གཞི།"
-featureComparison = "ཁྱད་ཆོས་བསྡུར་བ།"
-from = "ནས"
-hideComparison = "སྦ་བའི་ཁྱད་ཆོས་བསྡུར་བ།"
-licensedSeats = "ཆོག་མཆན་ཡོད་པ: {{count}} རྐུབ་སྟེགས"
-manage = "དོ་དམ"
-perMonth = "/ཟླ་བ"
-perSeat = "/རྐུབ་སྟེགས"
-popular = "དར་སྲོལ་ཆེན་པོ"
-selectPlan = "འཆར་གཞི་འདེམས་པ།"
-showComparison = "ཁྱད་ཆོས་ཚང་མ་བསྡུར་བ།"
-upgrade = "ལེགས་བཅོས"
-withServer = "+ ཞབས་ཞུ་འཆར་གཞི།"
-
-[plan.api]
-large = "བཀོལ་གྲངས 5,000"
-medium = "བཀོལ་གྲངས 1,000"
-small = "བཀོལ་གྲངས 500"
-xsmall = "བཀོལ་གྲངས 100"
-
-[plan.availablePlans]
-subtitle = "ཁྱེད་རང་གི་དགོས་མཁོ་དང་འཚམ་པའི་འཆར་གཞི་འདེམས།"
-title = "འཆར་གཞི།"
-
-[plan.enterprise]
-highlight1 = "དམིགས་བསལ་གྱི་རིན་གོང་གཏན་འབེབས་བྱེད་པ།"
-highlight2 = "བློ་བརྟན་འགྱུར་མེད་ཀྱིས་རྒྱབ་སྐྱོར་བྱེད་པ།"
-highlight3 = "ཆེས་གསར་བའི་ཁྱད་ཆོས།"
-name = "ཁེ་ལས།"
-requiresServer = "ཞབས་ཞུ་དགོས་མཁོ།"
-requiresServerMessage = "ཁེ་ལས་ལ་རིམ་སྤོར་མ་བྱེད་གོང་སྔོན་ལ་སར་བར་གྱི་འཆར་གཞི་ལ་རིམ་སྤོར་གནང་རོགས།"
-
-[plan.feature]
-api = "API འགྲོ་འོང་།"
-automation = "རང་འགུལ་ལག་ཆའི་ལས་ཀའི་འགྲོ་ལམ།"
-customPricing = "སྒེར་གྱི་རིན་གོང་།"
-fileSize = "ཡིག་ཚགས་ཆེ་ཆུང་གི་ཚད་གཞི།"
-pdfTools = "གཞི་རྩའི་PDFལག་ཆ།"
-priority = "གཙོ་གནད་རྒྱབ་སྐྱོར།"
-title = "གཟུགས་དབྱིབས"
-
-[plan.features]
-allPdfOperations = "PDF བཀོལ་སྤྱོད་ཡོངས"
-auditing = "རྩིས་ཞིབ"
-communitySupport = "མི་སྡེ་རྒྱབ་སྐྱོར"
-customPdfMetadata = "རང་སྒྲིག PDF Metadata"
-editingTextInPdfs = "PDF ནང་ཡིག་དཔར་ཞུན་དག"
-externalDatabase = "ཕྱི་ཁའི Database"
-googleDriveIntegration = "Google Drive མཐུད"
-prometheusSupport = "Prometheus རྒྱབ་སྐྱོར"
-regularUpdates = "དུས་མཐུན་གསར་སྒྱུར"
-saml = "SAML"
-secureLoginSupport = "བདེ་འཇགས་ནང་འཛུལ་རྒྱབ་སྐྱོར"
-selfHostedDeployment = "རང་འཛིན་སྤེལ་སྟངས"
-sso = "SSO"
-unlimitedUsers = "སྤྱོད་མཁན་ཚང་མ"
-upToFiveUsers = "སྤྱོད་མཁན 5 ཚན་ཚོད"
-upToFiveUsersLowercase = "སྤྱོད་མཁན 5 ཚན་ཚོད"
-usageTracking = "བཀོལ་སྤྱོད་འཚོར"
-usersLimitedToSeats = "སྤྱོད་མཁན་ seats ལྟར་ཚད་བཀག"
-
-[plan.free]
-forever = "རྟག་པར་རང་དབང་།"
-highlight1 = "གཟའ་འཁོར་རེར་ཚད་གཞི་ཅན་གྱི་ལག་ཆའི་བེད་སྤྱོད་ཚད་གཞི།"
-highlight2 = "ལག་ཆ་ཚང་མར་འཛུལ་ཐུབ་པ།"
-highlight3 = "སྤྱི་ཚོགས་རྒྱབ་སྐྱོར།"
-included = "བཅས་པ་ཚུད་ཡོད།"
-name = "རང་མོས"
-
-[plan.freeLimit]
-cta = "View Processor Plan"
-dismiss = "Maybe Later"
-message = "That's your whole free allowance for automation, AI and the API. Seriously impressive! Keep the momentum going for just pennies a day."
-title = "Woah, {{total}} PDFs Processed!"
-
-[plan.highlights]
-advancedIntegrations = "མཐུན་སྒྲིག་མཐོ་རིམ"
-allBasicFeatures = "གཞི་རྩ་ཁྱད་ཆོས་ཡོངས"
-cancelAnytime = "དུས་ཚོད་གང་རུང་ཆད་སྒོ"
-customPdfMetadata = "རང་སྒྲིག PDF Metadata"
-editingTextInPdfsCaps = "Editing text in PDFs"
-enterpriseFeatures = "Enterprise ཁྱད་ཆོས (SAML, རྩིས་ཞིབ)"
-perSeatLicensing = "seat རེ་རེའི་ཆོག་ཐམ"
-saveWithAnnualBilling = "ལོ་རིམ་གླ་སྒྲིག་བྱས་ནས་ཉོན་ཆས"
-selfHosted = "རང་འཛིན"
-selfHostedOnInfrastructure = "ཁྱེད་རང་གི་གཞི་བརྩི་སྟེང་རང་འཛིན"
-ssoOAuth = "SSO (OAuth2/OIDC)"
-unlimitedUsers = "སྤྱོད་མཁན་ཚང་མ"
-upToFiveUsers = "སྤྱོད་མཁན 5 ཚན་ཚོད"
-usageTrackingPrometheus = "བཀོལ་སྤྱོད་འཚོར དང་ Prometheus"
-
-[plan.licenseWarning]
-body = "ཁྱེད་ལ་{{total}} སྤྱོད་མཁན་ཡོད་པ་ཡིན་ན་ཡང་། རིན་མེད་གནས་ཚད་ནི་སར་བར་རེ་ལ་{{limit}} ཙམ་རང་ལ་རྒྱབ་སྐྱོར་བྱེད། Stirling PDF ཚགས་པའི་ངང་འགྲོ་བར་རིམ་སྤོར་བྱོས།"
-cta = "འཆར་གཞི་ལ་གཟིགས།"
-overLimit = "{{limit}} ལས་མང་བ"
-title = "རིན་མེད་རང་གཉེར་གྱི་ཚད་བཀག་བསླེབས་པ།"
-
-[plan.period]
-month = "ཟླ་བ"
-
-[plan.pro]
-highlight1 = "ཚད་མེད་ལག་ཆའི་བེད་སྤྱོད་ཚད་མེད་པ།"
-highlight2 = "ཡར་ཐོན་ཅན་གྱི་PDFལག་ཆ།"
-highlight3 = "ཆུ་རྟགས་མེད།"
-name = "མཁས་པ།"
-
-[plan.spendCap]
-cta = "View Spending Limit"
-dismiss = "Not Now"
-message = "You've made the most of this month's cap. That's a load of automation, AI and API work! Bump it up whenever you like to keep going."
-title = "You're on a Roll!"
-
-[plan.static]
-activateLicense = "ཁྱེད་རང་གི་ཆོག་མཆན་ལ་ཤུགས་སྣོན་རྒྱག་དགོས།"
-contactToUpgrade = "ཁྱེད་རང་གི་འཆར་གཞི་རིམ་སྤོར་ཡང་ན་སྒྲིག་སྒྱུར་བྱེད་པར་ང་ཚོར་འབྲེལ་བ་བྱོས།"
-getLicense = "སར་བར་ཆོག་མཆན་ཐོབ།"
-monthlyBilling = "ཟླ་རེའི་བྷི་ལིང་།"
-selectPeriod = "དངུལ་འབབ་འདེམས།"
-upgradeToEnterprise = "ཁེ་ལས་ལ་རིམ་སྤོར་བྱེད་པ།"
-upTo = "བར་དུ།"
-yearlyBilling = "ལོ་རེའི་དངུལ་བུན།"
-
-[plan.static.billingPortal]
-message = "ཁྱེད་རང་གིས་ཁྱེད་རང་གི་གློག་འཕྲིན་ཁ་བྱང་དེ་Stripe བྱུང་འཛིན་དྲ་ཚིགས་ནང་བདེན་དཔང་བྱེད་དགོས། ཁྱེད་རང་གི་གློག་འཕྲིན་ལ་ལྟ་ཞིབ་བྱས་ནས་ནང་འཇུག་འབྲེལ་མཐུད་ལ་ལྟོས།"
-title = "གློག་འཕྲིན་བདེན་དཔང་དགོས་པ།"
-
-[plan.static.licenseActivation]
-activate = "ཆོག་མཆན་སྤྲོད་པ།"
-checkoutOpened = "མཆོང་ལྡེ་གསར་པའི་ནང་Cheeout ཁ་ཕྱེ་བ།"
-doLater = "ངས་རྗེས་སུ་འདི་ལྟར་བྱེད།"
-enterKey = "ཁྱེད་རང་གི་འཆར་གཞི་དེ་ཤུགས་སྣོན་གཏོང་ཆེད་གཤམ་གྱི་ཆོག་མཆན་ལྡེ་མིག་བླུགས་རོགས།"
-instructions = "ཁྱེད་རང་གི་ཉོ་ཆ་དེ་Stripe མཆོང་ལྡེ་ནང་མཇུག་སྒྲིལ་དགོས། ཁྱེད་ཀྱི་དངུལ་སྤྲོད་ཚར་རྗེས་ཁྱེད་ཀྱི་ཆོག་མཆན་ལྡེ་མིག་ཡོད་པའི་གློག་འཕྲིན་ཐོབ་རྒྱུ་རེད།"
-keyDescription = "ཁྱེད་རང་གི་གློག་འཕྲིན་ནས་ཆོག་མཆན་ལྡེ་མིག་དེ་སྦྱར་དགོས།"
-success = "ལག་འཁྱེར་སྒུལ་ཤུགས་ལྡན་པ།"
-successMessage = "ཁྱེད་ཀྱི་ཆོག་མཆན་དེ་ལེགས་འགྲུབ་བྱུང་ཡོད། ཁྱོད་ཀྱིས་ད་ལྟ་སྒེའུ་ཁུང་འདི་ཁ་རྒྱག་ཐུབ།"
-
-[policies]
-deleteConfirmBody = "This removes the policy and its workflow. Documents already processed are not affected."
-deleteConfirmTitle = "Delete {{label}} policy?"
-
-[policies.activity]
-enforced = "བཀོལ་སྤྱོད་ཚར།"
-enforcing = "བཀོལ་སྤྱོད་བཞིན..."
-failed = "བཀོལ་སྤྱོད་ཕམ་པ།"
-outputsUnavailable = "སྲིད་བྱང་མཇུག་འབྲས་དེ་རྣམས་ད་དུང་ཕབ་ལེན་མི་ཐུབ།"
-partialOutputsUnavailable = "སྲིད་བྱང་མཇུག་འབྲས་ཁ་ཤས་ད་དུང་ཕབ་ལེན་མི་ཐུབ།"
-retrying = "ཁོམ་མེད་པས་ ཡང་བསྐྱར་ཚོད་ལྟ་བཞིན..."
-runNotFound = "བཀོལ་སྤྱོད་འགུལ་སྐྱོད་དེ་ད་དུང་མ་རྙེད།"
-step = "རིམ་པ {{current}}/{{total}}"
-timedOut = "མཇུག་མ་བསྡུ་བའི་སྔོན་དུ་ བཀོལ་སྤྱོད་དུས་ཚོད་ཡོལ་བ།"
-
-[policies.catalog]
-compliance = "Compliance"
-ingestion = "Ingestion"
-retention = "Retention"
-routing = "Routing"
-security = "Security"
-
-[policies.detail]
-close = "སྒོ་བསྡམས"
-editSettings = "Edit Settings"
-enforces = "Enforces"
-managedByOrg = "Managed by your organisation. Contact a team leader to change this policy."
-noActivityDescription = "Documents will appear here once this policy runs."
-noActivityTitle = "No activity yet"
-onEveryUpload = "On every upload"
-originalsNote = "Originals stay untouched • Enforced version saved alongside"
-pause = "Pause"
-recentActivity = "Recent Activity"
-resume = "Resume"
-retry = "Retry"
-showLess = "Show less"
-showMore = "Show more"
-statActive = "Active"
-statDataProcessed = "Data processed"
-statDocsEnforced = "Docs enforced"
-statusActive = "Active"
-statusPaused = "Paused"
-
-[policies.enforcement]
-applying = "{{names}} བཀོལ་སྤྱོད་བཞིན"
-applyingProgress = "{{names}} བཀོལ་སྤྱོད་བཞིན ({{done}}/{{total}})"
-exportFailureBody = "བདེ་འཇགས་སྲིད་བྱང་བཀོལ་སྤྱོད་ཐབས་མེད། ཡིག་ཆ་དེ་རྣམས་བསྒྱུར་བ་མེད་པར་ ཕྱིར་འདྲེན་བཟོ་བྱས།"
-exportFailureTitle = "བཀོལ་སྤྱོད་མེད་པར་ཕྱིར་འདྲེན་བཟོ།"
-failureBody = "{{total}} ཡིག་ཆ་ནས་ {{failures}} དག་བཟོ་བ་བྱས་མི་ཐུབ་པས་ བསྒྱུར་བ་མེད་པར་ ཕྱིར་འདྲེན་བཟོ་བྱས།"
-failureTitle = "བཀོལ་སྤྱོད་ཆ་ཚང་མེད་པར་ཕྱིར་འདྲེན་བཟོ།"
-printPolicyAppliedBody = "འདི་ PDF ཞིག་སྲིད་བྱང་གཅིག་ལ་འཚམ་པར་གསར་བཅོས་བྱས་ཟིན། བཟོ་བཅོས་ལ་བསྐྱར་ཞིབ་བྱས་ནས་ ཡང་བསྐྱར་དཔར་བྱེད།"
-printPolicyAppliedTitle = "དཔར་བྱེད་སྔོན་ལ་ སྲིད་བྱང་བཀོལ་སྤྱོད"
-queued = "+{{count}} གྲལ་ཐོ་ནང་བཞག"
-successTitle = "{{names}} བཀོལ་སྤྱོད་ཚར།"
-summaryMore = "{{first}} དང་ {{second}} དེ་ལས་མང་བ་ {{more}}"
-summaryTwo = "{{first}} དང་ {{second}}"
-
-[policies.enforcement.triggerVerb]
-convert = "བརྗེ་སྒྱུར་སྔོན་ལ་ བཀོལ་སྤྱོད"
-default = "བཀོལ་སྤྱོད"
-export = "ཕྱིར་འདྲེན་བཟོ་སྔོན་ལ་ བཀོལ་སྤྱོད"
-input = "ནང་འདྲེན་སྐབས་ བཀོལ་སྤྱོད"
-print = "དཔར་བྱེད་སྔོན་ལ་ བཀོལ་སྤྱོད"
-
-[policies.fields]
-selectedCount = "{{count}} selected"
-
-[policies.pii]
-account = "རྩིས་ཐོའི་ཨང་ (མཚོན་བྱེད་ཡོད་པ)"
-card = "Credit / debit དངུལ་ཤོག"
-email = "གློག་ཡིག་ཁ་བྱང་"
-fieldLabel = "PII to redact"
-iban = "IBAN"
-phone = "ཁ་པར་ཨང་"
-placeholder = "Select PII types"
-routing = "US routing numbers (ABA)"
-ssn = "Social Security ཨང་"
-
-[policies.sidebar]
-activeCount = "{{count}} active"
-infoAriaLabel = "What is a policy?"
-infoTooltip = "A policy is a fixed set of tools that runs automatically whenever it's triggered — for example when a new document arrives — enforcing rules like redacting PII with no manual steps."
-loading = "Loading…"
-railAriaLabel = "{{label}} policy — {{status}}"
-railSuffixActive = " (Active)"
-railSuffixPaused = " (Paused)"
-setUp = "Set up"
-title = "Policies"
-upgradeToEnterprise = "Upgrade to enterprise"
-
-[policies.status]
-active = "Active"
-paused = "Paused"
-setup = "Set up"
-
-[policies.toolConfig]
-enableAriaLabel = "Enable {{tool}}"
-infoAriaLabel = "What does {{tool}} do?"
-
-[policies.toolConfig.info]
-redact = "Social Security དང་དངུལ་ཤོག་ཨང་ལྟ་བུ་ལྟ་བུའི་གསང་བའི་ཞིབ་ཕྲ་རང་འགུལ་གྱིས་འཚོལ་ཏེ་ནག་པོར་སྒྲིག་པས་ ཡིག་ཆ་ནང་ལྟ་མི་ཐུབ།"
-sanitize = "ཡིག་ཆ་ནས་སྦས་པའི JavaScript བསུབ་པས་ མི་ཞིག་ཁ་ཕྱེས་སྐབས་རང་འགུལ་ངང་གང་ཡང་འགུལ་བྱེད་མི་ཚུགས།"
-watermark = "ཤོག་ངོས་རེ་རེ་ལ་མཐོང་ཐུབ་པའི་མཚོན་རྟགས་ (e.g. \"Confidential\") བཀོད་བཀྲམ་བྱེད།"
-
-[policies.wizard]
-allDocTypesDescription = "Enable the Classification policy to filter by document type."
-allDocTypesTitle = "All document types"
-back = "Back"
-builderDesc = "Build the sequence of tools this policy runs on each document."
-clear = "Clear"
-close = "སྒོ་བསྡམས"
-continue = "Continue"
-docTypesLabel = "Document types"
-edit = "Edit"
-editTitle = "Edit {{label}} Policy"
-enablePolicy = "Enable Policy"
-filenameAutoNumber = "Auto-number"
-filenamePositionAria = "Filename position"
-filenamePrefix = "Prefix"
-filenameSuffix = "Suffix"
-filenameTextAria = "Filename text"
-filenameTextPlaceholder = "Text to add (optional)"
-lockedDescription = "Contact a team leader to change this policy."
-lockedTitle = "Managed by your organisation"
-maxRetriesLabel = "Max retries"
-noToolsError = "Add at least one configured tool to the workflow first."
-outputAsLabel = "Output as"
-outputFilenameSubhead = "Output filename"
-outputModeAria = "Output mode"
-outputNewFile = "New file"
-outputNewVersion = "New version"
-outputRetriesLabel = "Output & retries"
-outputSubhead = "Output"
-retryDelayAria = "Retry delay minutes"
-retryDelayLabel = "Retry delay (min)"
-runOnExport = "Export"
-runOnLabel = "Run on"
-runOnSubhead = "Run on"
-runOnUpload = "Upload"
-saveChanges = "Save Changes"
-saveError = "Couldn't save the policy. Please try again."
-setupClassification = "Set up Classification"
-setupTitle = "Set up {{label}} Policy"
-sourcesDesc = "Choose where this policy runs and which document types it applies to."
-sourcesLabel = "Sources"
-stepOf = "Step {{step}} of {{total}}"
-toolChainDesc = "Configure the tools this policy runs on each document."
-typesSelected = "{{count}} types selected"
-
 [printFile]
 title = "པར་སྐྲུན།"
-
-[provider.googledrive]
-name = "Google Drive"
-scope = "ཡིག་ཆ་འདྲེན་འཇུག"
-
-[provider.googledrive.apiKey]
-description = "Google Cloud Console ནས་ Google Picker API ཡི Google API Key"
-label = "API Key"
-
-[provider.googledrive.appId]
-description = "Google Cloud Console ནས་ Google Drive App ID"
-label = "App ID"
-
-[provider.googledrive.clientId]
-description = "Google Cloud Console ནས་ Google OAuth 2.0 Client ID"
-label = "Client ID"
-
-[provider.googledrive.enabled]
-description = "སྤྱོད་མཁན་ཚོས Google Drive ནས་ཐད་ཀར་ཡིག་ཆ་ནང་འཇུག་བྱེད་ཆོག"
-label = "Google Drive ཡིག་ཆ་འདེམས་བྱེད་སྤྱོད་བཅུག"
-
-[provider.oauth2.generic]
-name = "Generic OAuth2"
-scope = "SSO"
-
-[provider.oauth2.generic.autoCreateUser]
-description = "OAuth2 ཐོ་འཇུག་ཐེངས་དང་པོར user རྩིས་ཐོ་རང་འབྱུང་གསར་བཟོ"
-label = "User རང་འབྱུང་གསར་བཟོ"
-
-[provider.oauth2.generic.blockRegistration]
-description = "OAuth2 བརྒྱུད་ནས user ཐོ་འགོད་གསར་པ་བཀག"
-label = "ཐོ་འགོད་བཀག"
-
-[provider.oauth2.generic.clientId]
-description = "ཁྱེད་ཀྱི Provider ནས་ OAuth2 Client ID"
-label = "Client ID"
-
-[provider.oauth2.generic.clientSecret]
-description = "ཁྱེད་ཀྱི Provider ནས་ OAuth2 Client Secret"
-label = "Client Secret"
-
-[provider.oauth2.generic.enabled]
-description = "རང་མོས OAuth2 provider བེད་སྤྱོད་ནས་དཔང་བཅོས་སྤྱོད་བཅུག"
-label = "Generic OAuth2 སྤྱོད་བཅུག"
-
-[provider.oauth2.generic.issuer]
-description = "OpenID Connect Discovery (/.well-known/openid-configuration) ལྟར་རྒྱུན་འཁོར་ཡོད་པའི Provider"
-label = "Issuer URL"
-
-[provider.oauth2.generic.provider]
-description = "OAuth2 provider མིང་ (དཔེར་ན་ Azure AD, Okta)"
-label = "Provider མིང་"
-
-[provider.oauth2.generic.scopes]
-description = "Comma-separated OAuth2 scopes"
-label = "Scopes"
-
-[provider.oauth2.generic.useAsUsername]
-description = "username ལ་སྤྱོད་ཀྱི་ཁག"
-label = "Username ལ་སྤྱོད"
-
-[provider.oauth2.github]
-scope = "ཐོ་འཇུག་དཔང་བཅོས"
-
-[provider.oauth2.github.clientId]
-description = "GitHub Developer Settings ནས་ OAuth2 Client ID"
-label = "Client ID"
-
-[provider.oauth2.github.clientSecret]
-description = "GitHub Developer Settings ནས་ OAuth2 Client Secret"
-label = "Client Secret"
-
-[provider.oauth2.github.scopes]
-description = "Comma-separated OAuth2 scopes"
-label = "Scopes"
-
-[provider.oauth2.github.useAsUsername]
-description = "username ལ་སྤྱོད་ཀྱི་ཁག (email, login, name)"
-label = "Username ལ་སྤྱོད"
-
-[provider.oauth2.google]
-scope = "ཐོ་འཇུག་དཔང་བཅོས"
-
-[provider.oauth2.google.clientId]
-description = "Google Cloud Console ནས་ OAuth2 Client ID"
-label = "Client ID"
-
-[provider.oauth2.google.clientSecret]
-description = "Google Cloud Console ནས་ OAuth2 Client Secret"
-label = "Client Secret"
-
-[provider.oauth2.google.scopes]
-description = "Comma-separated OAuth2 scopes"
-label = "Scopes"
-
-[provider.oauth2.google.useAsUsername]
-description = "username ལ་སྤྱོད་ཀྱི་ཁག (email, name, given_name, family_name)"
-label = "Username ལ་སྤྱོད"
-
-[provider.oauth2.keycloak]
-scope = "SSO"
-
-[provider.oauth2.keycloak.clientId]
-description = "Keycloak ནས་ OAuth2 Client ID"
-label = "Client ID"
-
-[provider.oauth2.keycloak.clientSecret]
-description = "Keycloak ནས་ OAuth2 Client Secret"
-label = "Client Secret"
-
-[provider.oauth2.keycloak.issuer]
-description = "Keycloak realm གྱི OpenID Connect Discovery endpoint གི URL"
-label = "Issuer URL"
-
-[provider.oauth2.keycloak.scopes]
-description = "Comma-separated OAuth2 scopes"
-label = "Scopes"
-
-[provider.oauth2.keycloak.useAsUsername]
-description = "username ལ་སྤྱོད་ཀྱི་ཁག (email, name, given_name, family_name, preferred_username)"
-label = "Username ལ་སྤྱོད"
-
-[provider.saml2]
-name = "SAML2"
-scope = "SSO (SAML)"
-
-[provider.saml2.autoCreateUser]
-description = "SAML2 ཐོ་འཇུག་ཐེངས་དང་པོར user རྩིས་ཐོ་རང་འབྱུང་གསར་བཟོ"
-label = "User རང་འབྱུང་གསར་བཟོ"
-
-[provider.saml2.blockRegistration]
-description = "SAML2 བརྒྱུད་ནས user ཐོ་འགོད་གསར་པ་བཀག"
-label = "ཐོ་འགོད་བཀག"
-
-[provider.saml2.enabled]
-description = "SAML2 དཔང་བཅོས་སྤྱོད་བཅུག (Enterprise ཁོ་ན)"
-label = "SAML2 སྤྱོད་བཅུག"
-
-[provider.saml2.idpCert]
-description = "Certificate འགྲུལ་ལམ (དཔེར་ན་ classpath:okta.cert)"
-label = "IDP Certificate"
-
-[provider.saml2.idpIssuer]
-description = "Provider ཡི ID"
-label = "IDP Issuer"
-
-[provider.saml2.idpMetadataUri]
-description = "Provider ཡི metadata ཡི URI"
-label = "IDP Metadata URI"
-
-[provider.saml2.idpSingleLoginUrl]
-description = "SSO འགོ་འཛུགས་ཀྱི URL"
-label = "IDP Single Login URL"
-
-[provider.saml2.idpSingleLogoutUrl]
-description = "SLO འགོ་འཛུགས་ཀྱི URL"
-label = "IDP Single Logout URL"
-
-[provider.saml2.privateKey]
-description = "ཁྱེད་ཀྱི Private Key འགྲུལ་ལམ"
-label = "Private Key"
-
-[provider.saml2.provider]
-description = "ཁྱེད་ཀྱི SAML2 provider མིང་"
-label = "Provider མིང་"
-
-[provider.saml2.registrationId]
-description = "ཁྱེད་ཀྱི Service Provider (SP) གློག་རིམ་མིང་"
-label = "Registration ID"
-
-[provider.saml2.spCert]
-description = "signing certificate འགྲུལ་ལམ"
-label = "SP Certificate"
-
-[provider.smtp]
-name = "SMTP ཡིག་འཕྲིན"
-scope = "Email བརྡ་ཐོ"
-
-[provider.smtp.enabled]
-description = "Email བརྡ་ཐོ་དང SMTP ལས་འགན་སྤྱོད་བཅུག"
-label = "ཡིག་འཕྲིན་སྤྱོད་བཅུག"
-
-[provider.smtp.from]
-description = "སྐུར་མཁན་ལ་སྤྱོད་པའི email ཤག་གནས"
-label = "From ཤག་གནས"
-
-[provider.smtp.host]
-description = "ཁྱེད་ཀྱི SMTP ཞབས་ཞུ་ཆས་ཀྱི hostname ཡང་ན IP ཤག་གནས"
-label = "SMTP Host"
-
-[provider.smtp.password]
-description = "SMTP དཔང་བཅོས་ཀྱི password"
-label = "SMTP Password"
-
-[provider.smtp.port]
-description = "SMTP མཐུད་ལམ port ཨང་ (སྤྱིར 25, 465, ཡང་ན 587)"
-label = "SMTP Port"
-
-[provider.smtp.username]
-description = "SMTP དཔང་བཅོས་ཀྱི username"
-label = "SMTP Username"
 
 [quickAccess]
 allTools = "ལག་ཆ"
@@ -6732,78 +4155,8 @@ placeholder = "མིང་ཚིག་འཚོལ་ཞིབ་ནང་འ�
 searching = "འཚོལ་ཞིབ།"
 title = "འཚོལ་ཞིབ་PDF"
 
-[selfHosted.offline]
-hideTools = "མི་འཐོབ་ལག་ཆ་སྦེད་ ▴"
-messageNoFallback = "ཁྱེད་ཀྱི་ཞབས་ཞུ་དྲྭ་ཐོག་ལ་ཕྱིར་འབྱོར་མ་བྱས་བར་ལག་ཆ་མི་འཐོབ།"
-messageWithFallback = "ལག་ཆ་ཁ་ཤས་ལ་ཞབས་ཞུ་མཐུད་དགོས།"
-showTools = "མི་འཐོབ་ལག་ཆ་ལྟ་ ▾"
-title = "ཁྱེད་ཀྱི Stirling-PDF ཞབས་ཞུ་ལ་མཐུད་མི་ཐུབ"
-toolNotAvailableLocally = "ཁྱེད་ཀྱི Stirling-PDF ཞབས་ཞུ་ཨོླཕ་ལ་ཡིན་པས \"{{endpoint}}\" རང་གནས་རྒྱབ་སྟེགས་ནང་མི་འཐོབ།"
-
-[session]
-expired = "ཁྱེད་རང་གི་ཚོགས་ཐུན་དུས་ཚོད་རྫོགས་ཡོད། ཤོག་བུ་གསར་བཟོ་བྱས་ནས་བསྐྱར་དུ་ཚོད་ལྟ་གནང་རོགས།"
-
-[sessionManagement.tooltip]
-header = "མཛུབ་འགན་ལས་འཁུར་དོ་དམ"
-
-[sessionManagement.tooltip.addParticipants]
-bullet1 = "ཞུགས་མཁན་གསར་པ་ཚོས་མཛུབ་འགན་རིམ་པའི་མཇུག་ཏུ་ཁ་སྣོན"
-bullet2 = "ལས་འཁུར་མཇུག་བསྡུས་རྗེས་ཞུགས་མཁན་ཁ་སྣོན་མི་ཐུབ"
-bullet3 = "ཞུགས་མཁན་རེ་རེ་ལ་ཁོང་ཚོའི་རྗེས་རུ་གསར་བརྡ་འབྱོར"
-description = "མཇུག་བསྡུ་སྔོན་ལ་དུས་གང་རུང་ལས་ལས་འཁུར་ན་ཞུགས་མཁན་ཁ་སྣོན་ཆོག."
-title = "ཞུགས་མཁན་ཁ་སྣོན"
-
-[sessionManagement.tooltip.finalization]
-bullet1 = "<b>མཇུག་བསྡུས་པ་ཡོངས</b>: ཞུགས་མཁན་ཚང་མ་མཛུབ་འགན་བཀལ་ཟིན"
-bullet2 = "<b>མཇུག་བསྡུས་པ་ཕྱོགས་མེད</b>: ཞུགས་མཁན་ཁ་ཤས་ད་མ་མཛུབ་འགན"
-bullet3 = "མཛུབ་འགན་མི་བཀལ་མི་ཚོ་མཇུག་ཡིག་ཆ་ནས་བུ་གཏོར་བྱེད"
-bullet4 = "མཇུག་བསྡུས་རྗེས མཛུབ་འགན་PDF འགུལ་སྤྱོད་ཡིག་ཆ་ནང་འཇུག་ཆོག"
-description = "མཇུག་བསྡུས་པས་མཛུབ་འགན་ཡོངས་ཀྱིས་གཅིག་པའི་མཛུབ་འགན་PDF བཟོ་བྱེད། འདི་བསྐྱར་མེད།"
-title = "ལས་འཁུར་མཇུག་བསྡུས"
-
-[sessionManagement.tooltip.participantRemoval]
-bullet1 = "མཛུབ་འགན་བཀལ་ཟིན་པའི་ཞུགས་མཁན་བསུབ་མི་ཐུབ"
-bullet2 = "བསུབ་ཟིན་པའི་ཞུགས་མཁན་ལ་གསར་བརྡ་མི་འབྱོར"
-bullet3 = "མཛུབ་འགན་རིམ་པ་རང་འགུལ་གྱིས་བཅོས"
-description = "ཞུགས་མཁན་ཚོ་མཛུབ་འགན་བཀལ་མ་སྔོན་ལས་ལས་འཁུར་ནས་བསུབ་ཆོག."
-title = "ཞུགས་མཁན་བསུབ"
-
-[sessionManagement.tooltip.signatureOrder]
-bullet1 = "མཛུབ་འགན་རེ་རེ་བསྟུན་པར PDF ལ་འཇུག"
-bullet2 = "རྗེས་མའི་མཛུབ་འགན་པས་སྔོན་མའི་མཛུབ་འགན་ལྟ་ཆོག"
-bullet3 = "ཁྲིམས་ལྡན་གྲོས་མཐུན་དང་ལག་ལེན་ལ་གལ་ཆེ།"
-description = "ཁྱེད་ཀྱིས་ལས་འཁུར་བཟོས་སྐབས་བཀོད་པའི་རིམ་པས་སོ་སོ་ཇི་ལྟར་མཛུབ་འགན་བཀལ་དགོས་ཆེད་གཏན་འཁེལ།"
-title = "མཛུབ་འགན་རིམ་པ"
-
 [settings]
 close = "ཁ་རྒྱག"
-
-[settings.configuration]
-advanced = "ཡན་ཐོན་ཅན"
-database = "གཞི་གྲངས་རྟེན་གཞི།"
-endpoints = "མཇུག་སྡོམ།"
-features = "ཁྱད་ཆོས"
-mcp = "MCP Server"
-storageSharing = "ཡིག་ཆའི་གསོག་འཇོག་དང་མཉམ་སྤྱོད"
-systemSettings = "མ་ལག་སྒྲིག་བཀོད།"
-title = "བཀོད་སྒྲིག།"
-
-[settings.connection]
-localDescription = "ཁྱེད་ཀྱིས་རྩིས་ཁྲོད་མེད་པར་རང་གནས་རྒྱབ་སྟེགས་སྤྱོད་བཞིན། སྤྱི་དྲ་སྔོན་འགྲོའི་ལས་སྦྱོར་དམ་རང་དབང་ཞབས་ཞུ་དགོས་པའི་ལག་ཆ་ཁ་ཤས་མི་འཐོབ།"
-logout = "དྲན་ཐོ།"
-server = "སར་བར།"
-signIn = "ནང་འཇུག"
-title = "འབྲེལ་མཐུད་ཐབས་ལམ།"
-user = "ནང་འཛུལ་བྱས་ན།"
-
-[settings.connection.mode]
-local = "རང་གནས་ཙམ།"
-saas = "སྟར་ལིང་སྤྲིན་པ།"
-selfhosted = "རང་གིས་རང་ལ་མགྲོན་ཁང་།"
-
-[settings.developer]
-apiKeys = "APIལྡེ་མིག"
-title = "གོང་འཕེལ་གཏོང་མཁན།"
 
 [settings.general]
 autoUnzip = "རང་འགུལ་གྱིས་APIལན་འདེབས།"
@@ -6812,11 +4165,6 @@ autoUnzipFileLimit = "རང་འགུལ་གྱིས་ཡིག་ཚག�
 autoUnzipFileLimitDescription = "ཆེས་མང་བའི་ཡིག་ཆའི་གྲངས་འབོར།"
 autoUnzipFileLimitTooltip = "གལ་ཏེ་ZIPནང་དུ་ཡིག་ཆ་མང་པོ་ཡང་ན་ཉུང་བ་ཡོད་ན། ZIPs ཆེ་བ་འདོན་ཆེད་དུ་མཐོ་རུ་བཅུག"
 autoUnzipTooltip = "རང་འགུལ་གྱིས་APIབཀོལ་སྤྱོད་ནས་ཕྱིར་ལོག་པའི་ZIPཡིག་ཆ་འཐེན་ཐུབ། ZIP ཡིག་ཆ་དེ་དག་བཟོད་སྒོམ་བྱེད་མི་ཐུབ་པ་རེད། འདིས་རང་འགུལ་ལས་ཀའི་འགྲོ་ལུགས་ལ་ཤུགས་རྐྱེན་ཐེབས་མི་ཐུབ།"
-defaultPdfEditor = "སྔོན་སྒྲིག་PDFརྩོམ་སྒྲིག་པ།"
-defaultPdfEditorActive = "སི་ཊར་ལིང་PDFནི་ཁྱེད་ཀྱི་སྔོན་སྒྲིག་PDFརྩོམ་སྒྲིག་པ་ཡིན།"
-defaultPdfEditorChecking = "ཞིབ་བཤེར་བྱེད་པ་..."
-defaultPdfEditorInactive = "མཉེན་ཆས་གཞན་ཞིག་ནི་སྔོན་སྒྲིག་ལྟར་སྒྲིག་ཡོད།"
-defaultPdfEditorSet = "ད་ལྟ་སྔོན་སྒྲིག་བྱས་ཟིན།"
 defaultStartupView = "མཉེན་ཆས་འགོ་སློང་སྐབས་སྔོན་སྒྲིག་མཐོང་རིས"
 defaultStartupViewDescription = "མཉེན་ཆས་འགོ་སློང་སྐབས་གཡོན་ཕྱོགས་ཀྱི་མཆོང་ལྡེ་གང་ཞིག་འགུལ་སྐྱོད་ཡོད་པར་བཟོ་ནའི་གདམ་གསེས་བྱ།"
 defaultToolPickerMode = "སྔོན་སྒྲིག་ལག་ཆ་འཐུ་མཁན་གྱི་ཐབས་ལམ།"
@@ -6830,24 +4178,12 @@ hideUnavailableTools = "མེད་པའི་ལག་ཆ་སྦ་བ།"
 hideUnavailableToolsDescription = "ཁྱེད་རང་གི་གསབ་ལེན་ཆས་ཀྱིས་དེ་དག་སེར་པོ་སྟོན་པའི་ཚབ་ཏུ་ལག་ཆ་དེ་དག་མེད་པར་བཟོ་བའི་ལག་ཆ་དེ་དག་མེད་པར་བཟོ་དགོས།"
 language = "སྐད་ཡིག"
 languageDescription = "མངོན་འཆར་སྐད་ཡིག་འདེམས"
-logout = "ཕྱིར་ཐོབ།"
-setAsDefault = "སྔོན་སྒྲིག་ལྟར་སྒྲིག་དགོས།"
 theme = "དབྱིབས"
 themeDark = "ནག་པོ"
 themeDescription = "དཀར་པོའི་ཐབས་ལམ་དང་ནག་པོའི་ཐབས་ལམ་བར་བསྒྱུར"
 themeLight = "དཀར་པོ"
 themeSystem = "System"
 title = "སྤྱིར་བཏང་གི"
-user = "བེད་སྤྱོད།"
-
-[settings.general.enableFeatures]
-action = "སྒྲིག་བཀོད།"
-and = "དང་"
-benefit = "བཀོལ་སྤྱོད་པའི་ལས་འགན་དང་། རུ་ཁག་གི་མཉམ་ལས། འཛིན་སྐྱོང་ཚོད་འཛིན། ཁེ་ལས་ཀྱི་ཁྱད་ཆོས་བཅས་ཡོད།"
-dismiss = "འབུད་པ"
-intro = "ཁྱེད་རང་གི་སྒྲིག་འཛུགས་ལ་སྤྱོད་མཁན་གྱི་བདེན་དཔང་དང་། རུ་ཁག་འཛིན་སྐྱོང་། དེ་བཞིན་ལས་ཀའི་ས་ཁོངས་ཀྱི་ཁྱད་ཆོས་བཅས་ལག་བསྟར་བྱེད་དགོས།"
-learnMore = "ཡིག་ཚགས་ནང་དུ་མང་ཙམ་ཤེས་དགོས།"
-title = "མ་ལག་འཛིན་སྐྱོང་པ་ལ།"
 
 [settings.general.mode]
 fullscreen = "བརྙན་ཤེལ་ཆ་ཚང་།"
@@ -6868,22 +4204,12 @@ managedByAdmin = "སྐྱོང་འཛིན་གྱིས་དོ་ད�
 modeAuto = "གསར་སྒྱུར་རང་འགུལ་འཇུག"
 modeDisabled = "གསར་སྒྱུར་ཞིབ་བཤེར་མ་བྱེད"
 modePrompt = "གསར་སྒྱུར་འཇུག་སྔོན་ལ་དྲིས"
-serverNeedsUpdate = "སར་བར་དེ་དོ་དམ་པས་གསར་སྒྱུར་བྱ་དགོས།"
 title = "མཉེན་ཆས་གསར་བརྗེ།"
 updateBehavior = "གསར་སྒྱུར་སྤྱོད་སྟངས"
 updateBehaviorDescription = "གསར་སྒྱུར་འཇུག་སྔོན་ལ་དྲིས་པ། ཡང་ན་རང་འགུལ་འཇུག་ཡང་ན་གསར་སྒྱུར་ཞིབ་བཤེར་ཡོད་མེད་བརྗེ་བ།"
-updateBehaviorError = "གསར་སྒྱུར་སྤྱོད་སྟངས་བཟོ་མ་ཐུབ"
-updateBehaviorErrorLocked = "སྒྲིག་འགོད་འདི་དོ་དམ་པས་བཀག་སྡོམ་བྱས་ཡོད།"
-updateBehaviorLockedDescription = "ཁྱེད་ཀྱི་འཕྲུལ་ཆས་འདི་སྟེང་གསར་སྒྱུར་གཙོ་འཁོར་གྱི་སྟངས་ལ་ Stirling-PDF ཡིས་འགོ་འཛུགས་བྱས་ཡོད། བཅོས་དག་བྱེད་པར་དོ་དམ་པ་ལ་འབྲེལ་བ།"
-updateBehaviorSaved = "གསར་སྒྱུར་སྤྱོད་སྟངས་སྲུངས་ཟིན།"
+updateBehaviorLockedDescription = "ཁྱེད་ཀྱི་འཕྲུལ་ཆས་འདི་སྟེང་གསར་སྒྱུར་གཙོ་འཁོར་གྱི་སྟངས་ལ་ RustlingPDF ཡིས་འགོ་འཛུགས་བྱས་ཡོད། བཅོས་དག་བྱེད་པར་དོ་དམ་པ་ལ་འབྲེལ་བ།"
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
 viewDetails = "ཞིབ་ཕྲའི་གནས་ཚུལ་ལ་ལྟོས།"
-
-[settings.general.versionInfo]
-description = "Desktop དང་ Server ཐོན་རིམ་ཞིབ་ཕྲ"
-desktop = "Desktop ཐོན་རིམ"
-server = "Server ཐོན་རིམ"
-title = "ཐོན་རིམ་ཆ་འཕྲིན"
 
 [settings.general.zoomLevel]
 auto = "རང་འགུལ"
@@ -6893,11 +4219,6 @@ fitWidth = "ཞེང་ཚད་ལ་འཚམ"
 [settings.help]
 label = "ལམ་སྟོན"
 title = "རོགས་རམ"
-
-[settings.help.adminTour]
-description = "ཚོགས་ཆུང་དོ་དམ་, རིམ་ལུགས་སྒྲིག་སྟངས་, ཚོང་ལས་ཁྱད་ཆོས་སོགས་ལ་ཞིབ་འཇུག་བྱེད"
-start = "འགོ་རྩོམ"
-title = "དོ་དམ་པའི་ལམ་སྟོན"
 
 [settings.help.toolsTour]
 description = "ཡིག་ཆ་ཡར་འཇུག་, ལག་ཆས་འདེམས་, འགྲུབ་འབྲས་ལ་བསྐྱར་ཞིབ་བྱེད་པའི་རིམ་པ་ལམ་སྟོན"
@@ -6934,203 +4255,11 @@ manage = "Manage"
 description = "Policies and legal information for this service."
 title = "Legal Documents"
 
-[settings.licensingAnalytics]
-audit = "རྩིས་ཞིབ་པ།"
-plan = "འཆར་གཞི"
-title = "ཆོག་མཆན་དང་དབྱེ་ཞིབ།"
-usageAnalytics = "བེད་སྤྱོད་དབྱེ་ཞིབ།"
-
-[settings.planBilling]
-currentPlan = "མིག་སྔའི་གྲལ་གཞི"
-loading = "ཐོ་རྩིས་སྤྲོད་ཆ་འཕྲིན་ཕབ་ལེན་བརྒྱབ་བཞིན..."
-notAvailable = "གྲལ་གཞི་དང་ཐོ་རྩིས་སྤྲོད་ནི་ Stirling Cloud (SaaS mode) ལ་མཐུད་ཡོད་དུས་ཙམ་སྤྱོད་ཆོག"
-title = "གྲལ་གཞི་དང་ཐོ་རྩིས་སྤྲོད"
-
-[settings.planBilling.billing]
-manageBilling = "ཐོ་རྩིས་སྤྲོད་དོ་དམ"
-nextBillingDate = "ཐོ་རྩིས་སྤྲོད་ཉེ་མཐར་གྱི་ཚེས།"
-overageCost = "དང་པོའི་ཚད་ལས་བརྒལ་གླ་ཆ: {{amount}} ({{credits}} credits)"
-
-[settings.planBilling.credits]
-estimatedCost = "ཐོབ་བྱུང་གླ་ཆ: {{amount}}"
-freeTierInfo = "Free གྲལ་གཞིར ཟླ་རེར {{freeCredits}} credits ཚུད། Team ལ་རིམ་སྤར་བྱས་ནས {{teamCredits}} credits/ཟླ དང pay-as-you-go ཚད་ལས་བརྒལ་ཐོ་རྩིས།"
-included = "{{count}} credits/ཟླ (ཚུད)"
-noOverage = "ཟླ་འདིར ཚད་ལས་བརྒལ་གླ་ཆ་མེད། ཁྱེད་ཀྱིས་ཚུད་པའི {{count}} credits སྤྱོད་བཞིན།"
-overage = "+ {{count}} overage"
-overageInfo = "Overage credits ཡི་གླ་ཆ་ཡིན་ {{price}} དང་ credit རེ་རེ་ལ། ཟླ་རེའི་ཁེལ་འཐུས་ལས་བརྒལ་བའི་སྤྱོད་ཚད་ཙམ་ལ་གླ་ཆ་སྤྲོད།"
-title = "credits སྤྱོད་ཚད"
-
-[settings.planBilling.errors]
-fetchFailed = "ཐོ་རྩིས་སྤྲོད་གནས་སྡུད་ལེན་མ་ཐུབ"
-retry = "བསྐྱར་འབྱེད"
-
-[settings.planBilling.status]
-active = "ཤུགས་ལ་"
-canceled = "ཆ་མེད་བཟོས"
-pastDue = "དུས་ལས་ཡོལ།"
-trial = "ཚོད་ལྟ"
-
-[settings.planBilling.team]
-managedByTeam = "ཚོགས་པས་དོ་དམ"
-memberCount_one = "{{count}} team member"
-memberCount_other = "{{count}} team members"
-memberCount_zero = "no team members"
-
-[settings.planBilling.tier]
-enterprise = "ལས་སྡེ་ཆེན"
-enterpriseDescription = "ལས་སྡེ་ཆེན་དོན་གྱི་རང་མོས་ཁྱད་ཆོས་དང་རོགས་རམ"
-free = "Free"
-freeDescription = "ཟླ་རེར credits 50"
-team = "ཚོགས་པ"
-teamBadge = "ཚོགས་པ"
-teamDescription = "500 credits/ཟླ ཚུད་པ། ཞབས་ཞུ་མཚམས་མེད་པར ཚད་ལས་བརྒལ་ཐོ་རྩིས་རང་འགུལ།"
-teamTooltipCredits = "Team གྲལ་གཞིར {{credits}} credits/ཟླ ཚུད།"
-teamTooltipFineprint = "ཚུད་པའི credits ལས་བརྒལ་བའི་སྤྱོད་ཚད་ཙམ་ལ་གླ་ཆ་སྤྲོད།"
-teamTooltipOverage = "{{price}}/credit གི་ཚད་ལས་བརྒལ་གླ་ཆ་རང་འགུལ་གྱིས ཞབས་ཞུ་མཚམས་མེད་པར་བྱེད།"
-
-[settings.planBilling.trial]
-daysRemaining = "ཉིན་{{days}} ལྷག་ལུས"
-daysRemainingFull = "ཁྱེད་ཀྱི་ཚོད་ལྟ་ {{days}} ཉིན་ནང་མཇུག་སྒྲིལ"
-endDate = "དུས་ཡོལ: {{date}}"
-endsOn = "ཚོད་ལྟ་མཇུག"
-title = "Free ཚོད་ལྟ་བྱེད་བཞིན"
-
-[settings.planBilling.upgrade]
-cta = "Team ལ་རིམ་སྤར"
-featureApi = "རང་འགུལ་གྱི་ API དོན་སྤྱོད"
-featureCredits = "ཟླ་རེར {{teamCredits}} credits (Free ལ {{freeCredits}})"
-featureMembers = "ཚོགས་མི་ཚད་མེད"
-featureSupport = "གཙོ་རིམ་རོགས་རམ"
-featureThroughput = "ལས་སྦྱོར་མགྱོགས་ཚད་མགྱོགས་པ"
-opensInBrowser = "Browser ནང་སྒོ་ཕྱེས་ནས རིམ་སྤར་ཚར་བར་བྱེད"
-subtitle = "Team ལ་རིམ་སྤར་བྱས་ནས:"
-title = "ཁྱེད་ཀྱི་གྲལ་གཞི་རིམ་སྤར"
-
-[settings.policiesPrivacy]
-legal = "ཁྲིམས་ཀྱི"
-privacy = "གསང་བ"
-title = "སྲིད་ཇུས་དང་གསང་བ།"
-
 [settings.preferences]
 title = "འདོད་པ།"
 
 [settings.search]
 placeholder = "སྒྲིག་འགོད་ཤོག་ངོས་འཚོལ..."
-
-[settings.security]
-description = "ཁྱེད་རང་གི་རྩིས་ཁྲ་དེ་བདེ་འཇགས་ཡོང་བའི་ཆེད་དུ་གསང་གྲངས་གསར་བརྗེ་བྱེད་དགོས།"
-title = "ཉེན་སྲུང"
-
-[settings.security.password]
-confirm = "གསང་གྲངས་གསར་པ་གཏན་འཁེལ་བྱེད་པ།"
-confirmPlaceholder = "གསང་གྲངས་གསར་བའི་ནང་བསྐྱར་དུ་འཇུག་པ།"
-current = "ད་ལྟའི་གསང་གྲངས།"
-currentPlaceholder = "ད་ལྟའི་གསང་གྲངས་ནང་འཇུག་བྱེད་པ།"
-error = "གསང་གྲངས་གསར་བརྗེ་བྱེད་མི་ཐུབ། ད་ལྟའི་གསང་གྲངས་དེ་བདེན་དཔང་བྱས་ནས་བསྐྱར་དུ་ཚོད་ལྟ་གནང་རོགས།"
-mismatch = "གསང་གྲངས་གསར་པ་མི་མཐུན་པ་དང་།"
-new = "གསང་གྲངས་གསར་བ།"
-newPlaceholder = "གསང་གྲངས་གསར་པ་བཙུགས།"
-required = "ས་ཁོངས་ཚང་མ་དགོས་པ་རེད།"
-ssoDisabled = "གསང་གྲངས་བསྒྱུར་བཅོས་དེ་ཁྱེད་ཀྱི་ངོ་བོ་སྤྲོད་མཁན་གྱིས་འཛིན་སྐྱོང་བྱེད་ཀྱི་ཡོད།"
-subtitle = "གསང་གྲངས་བརྗེ་དགོས། ཁྱེད་རང་གསར་བརྗེ་བྱས་རྗེས་ཕྱིར་ཐོན་འགྲོ་གི་རེད།"
-success = "གསང་གྲངས་གསར་བརྗེ་ལེགས་འགྲུབ་བྱུང་། ཡང་བསྐྱར་མིང་རྟགས་བཀོད་རོགས་གནང་།"
-update = "གསང་གྲངས་གསར་བཅོས་བྱེད་པ།"
-
-[settings.securityAuth]
-connections = "འབྲེལ་མཐུད།"
-security = "ཉེན་སྲུང"
-telegram = "Telegram"
-title = "བདེ་འཇགས་དང་བདེན་དཔང་།"
-
-[settings.team]
-title = "ཚོགས་པ"
-
-[settings.tooltips]
-enableLoginFirst = "ནང་འཇུག་ཐབས་ལམ་ཐོག་མར་ལྕོགས་ཅན་བཟོ་བ།"
-requiresEnterprise = "ཁེ་ལས་ཀྱི་ཆོག་མཆན་དགོས་པ།"
-
-[settings.workspace]
-people = "མི་དམངས"
-teams = "རུ་ཁག"
-title = "ལས་ཀའི་ས་ཆ།"
-
-[setup.login]
-connectingTo = "མཐུད་པ་སྟེ།"
-oauthPending = "བདེན་དཔང་ཆེད་དུ་དྲ་ངོས་ཁ་ཕྱེ་བ།..."
-orContinueWith = "ཡང་ན་མུ་མཐུད་དུ་གློག་འཕྲིན་བརྒྱུད་ནས།"
-skipSignIn = "ནང་འཇུག་མེད་པར་མུ་མཐུད"
-sso = "Single Sign-On"
-submit = "ནང་འཇུག"
-
-[setup.login.error]
-emptyEmail = "ཁྱེད་རང་གི་གློག་འཕྲིན་ནང་འཇུག་གནང་རོགས།"
-emptyPassword = "ཁྱེད་རང་གི་གསང་གྲངས་བླུགས་རོགས།"
-emptyUsername = "ཁྱེད་རང་གི་སྤྱོད་མཁན་གྱི་མིང་བླུགས་རོགས།"
-oauthFailed = "OAuth ནང་འཛུལ་བྱེད་མ་ཐུབ་པ་རེད། བསྐྱར་དུ་ཚོད་ལྟ་གནང་རོགས།"
-
-[setup.saas]
-title = "སི་ཊར་ལིང་ལ་འཛུལ་བ།"
-
-[setup.selfhosted]
-changeServerLocked = "ཁྱེད་ཀྱི་ཚོགས་སྡེས་མ་ལག་འདི་སར་བར་གཅིག་ལ་བཀག་འགོག་བྱས་ཡོད།"
-link = "ཡང་ན་རང་གིས་བདག་གཉེར་བྱེད་པའི་རྩིས་ཁྲ་ལ་མཐུད་པ།"
-subtitle = "ཁྱེད་རང་གི་གསབ་ལེན་ཆས་ཀྱི་ཡིག་ཆ་བླུགས།"
-switchToLocal = "རང་གནས་ལག་ཆ་སྤྱོད"
-title = "སར་བར་ནང་འཛུལ་བ།"
-
-[setup.selfhosted.unreachable]
-changeServer = "སར་བར་གཞན་ལ་མཐུད"
-continueOffline = "རང་གནས་ལག་ཆ་སྤྱོད"
-message = "{{url}} ལ་མཐུད་མི་ཐུབ། ཞབས་ཞུ་འཁོར་བཀོལ་བཞིན་དང་འཐོབ་ཚུལ་ཡོད་མིན་ཞིབ་བཤེར་བྱོས།"
-retry = "བསྐྱར་ཚོད"
-title = "སར་བར་ལ་མཐུད་མི་ཐུབ"
-
-[setup.server]
-subtitle = "ཁྱེད་རང་གི་རང་གིས་གཉེར་བའི་སར་བར་གྱི་URLནང་འཇུག་བྱེད།"
-testing = "ཚོད་ལྟ། འབྲེལ་བ། ..."
-title = "སར་བར་མཐུད་པ།"
-useLast = "Last used server: {{serverUrl}}"
-
-[setup.server.error]
-configFetch = "སར་བར་གྱི་བཀོད་སྒྲིག་ལེན་མ་ཐུབ་པ། URL ལ་ལྟ་ཞིབ་བྱས་ནས་བསྐྱར་དུ་ཚོད་ལྟ་གནང་རོགས།"
-configFetchError = "སར་བར་སྒྲིག་འགོད་འཐེན་ཐབས་ཕམ་: {{error}}"
-emptyUrl = "སར་བར་གྱི་URLནང་འཇུག་གནང་རོགས།"
-invalidUrl = "URL རྣམ་གཞག་ནུས་མེད། དཔེར་ https://your-server.com ལྟ་བུའི URL བཙུགས།"
-testFailed = "འབྲེལ་མཐུད་ཚོད་ལྟ་དེ་ལམ་ལྷོང་མ་བྱུང་།"
-unreachable = "སར་བར་མཐུད་མི་ཐུབ་པ།"
-
-[setup.server.error.securityDisabled]
-body = "སར་བར་འདི་ལ་ནང་འཇུག་བྱེད་ཐབས་མེད། སར་བར་འདི་ལ་མཐུད་དགོས་ན་ཁྱེད་ཀྱིས་བདེན་དཔང་བྱེད་དགོས།"
-step1 = "DOCkER_ENABLE_SECURITY=བདེན་པ་སྒྲིག་དགོས།"
-step2 = "ཡང་ན་བདེ་འཇགས་སྒྲིག་འཇུག་བྱེད་པ། enabableLogin=true སྒྲིག་སྟངས་ནང་དུ། yml"
-step3 = "སར་བར་བསྐྱར་འགོ་ཚུགས།"
-title = "ནང་འཛུལ་མེད་པ།"
-
-[setup.server.url]
-description = "ཁྱེད་རང་གི་རང་ཉིད་ཀྱིས་གཉེར་བའི་སི་ཊར་ལིང་PDFསར་བར་གྱི་URLཆ་ཚང་བླུགས།"
-label = "སར་བར་URL"
-
-[sharedSign]
-backToSessions = "ལས་ཚོགས་ལ་ཕྱིར་ལོག"
-createdOn = "གསར་བཟོས་པ {{date}}"
-disabledBody = "འདིའི་སར་བར་ནང་ མཉམ་སྤྱོད་མིང་རྟགས་མ་སྤྱོད་བཅུག"
-disabledTitle = "མ་སྤྱོད་བཅུག"
-due = "དུས་ཚོད {{date}}"
-filterDeclined = "ཁས་ལེན་མ་བྱས"
-filterMine = "ངའི་"
-filterOverdue = "དུས་བརྒལ"
-filterSigned = "མིང་རྟགས་ཟིན"
-fromOwner = "{{owner}} ནས"
-newRequest = "མིང་རྟགས་ཞུ་བ"
-signedCount = "{{signed}}/{{total}} མིང་རྟགས་ཟིན"
-
-[sharedSign.empty]
-active = "བསྣར་བཞག་པའི་མིང་རྟགས་ཞུ་བ་ཡང་ན་ ཤུགས་ལྡན་ལས་ཚོགས་མེད།"
-completed = "མཇུག་བསྡུས་ཟིན་པའི་ལས་ཚོགས་མེད།"
-
-[sharedSign.tab]
-active = "ཤུགས་ལྡན"
-completed = "མཇུག་བསྡུས"
 
 [showJS]
 done = "JavaScript འདོན་ཟིན།"
@@ -7161,10 +4290,6 @@ personalSigs = "མི་སྒེར་གྱི་མཚན་རྟགས།"
 previous = "ཤོག་ངོས་གོང་མ།"
 redo = "བསྐྱར་དུ་བྱེད།"
 save = "མིང་རྟགས་སྲུང་བ།"
-sharedSigningOpen = "མཉམ་སྤྱོད་མིང་རྟགས་ཁ་ཕྱེ"
-sharedSigningRequest = "མིང་རྟགས་ཞུ་བ"
-sharedSigningStepDesc = "ཁྱོད་ཀྱིས་རང་མིང་རྟགས་མི་བཀོད་པར་ ཡིག་ཆ་འདི་གཞན་ལ་གཏོང་ནས་མིང་རྟགས་ཞུ་བྱོས།"
-sharedSigs = "མཉམ་སྤྱོད་མཚན་རྟགས་ཅན།"
 submit = "ལག་རྟགས་ཡིག་ཆ།"
 tags = "signature,autograph,e-sign,electronic signature,digital signature,sign document,approval,signoff,authorize,endorse,ink signature,handwriting"
 title = "མིང་འགོད"
@@ -7308,44 +4433,6 @@ bullet2 = "<b>མཐོང་མི་རུང</b>: ལག་འཁྱེར་
 bullet3 = "མཐོང་མི་རུང་མཛུབ་འགན་ཡང་གསང་ཨང་རྒྱུད་གཞི་ཁུངས་ཡོད"
 description = "མཛུབ་འགན་ཡིག་ཆ་སྟེང་མངོན་དམ་ནང་ཁ་མས་བཅུག་ན་གདམ།"
 title = "མཛུབ་འགན་མཐོང་རུང་གནས"
-
-[signRequest]
-declined = "མཛུབ་འགན་ཞུ་གཏོང་ཁས་ལེན་མ་བྱས"
-fetchFailed = "མཛུབ་འགན་ཞུ་གཏོང་འཇུག་མ་ཐུབ"
-signed = "ཡིག་ཆ་མཛུབ་འགན་ལེགས་གྲུབ"
-
-[signSession]
-created = "མཛུབ་འགན་ཞུ་གཏོང་བཏང་ཟིན"
-createFailed = "མཛུབ་འགན་ཞུ་གཏོང་བཟོ་མ་ཐུབ"
-
-[signup]
-accountCreatedSuccessfully = "རྩིས་ཁྲ་ལེགས་འགྲུབ་བྱུང་། ཁྱེད་རང་ད་ལྟ་ནང་དུ་མིང་རྟགས་བཀོད་ཆོག"
-alreadyHaveAccount = "ད་ལྟ་རྩིས་ཁྲ་ཞིག་ཡོད་དམ། མཚན་རྟགས་བཀོད་པ།"
-checkEmailConfirmation = "ཁྱེད་རང་གི་ཐོ་འགོད་མཇུག་སྒྲིལ་ཆེད་དུ་ཁྱེད་རང་གི་གློག་འཕྲིན་ལ་ལྟ་ཞིབ་བྱོས།"
-confirmPassword = "གསང་གྲངས་གཏན་འཁེལ་བྱེད་པ།"
-confirmPasswordPlaceholder = "གསང་གྲངས་གཏན་འཁེལ་བྱེད་པ།"
-confirmPasswordRequired = "ཁྱེད་རང་གི་གསང་གྲངས་གཏན་འཁེལ་གནང་རོགས།"
-creatingAccount = "རྩིས་ཁྲ་གསར་བཟོ།..."
-email = "གློག་འཕྲིན།"
-emailRequired = "གློག་འཕྲིན་དགོས།"
-enterEmail = "ཁྱེད་རང་གི་གློག་འཕྲིན་ནང་འཇུག་བྱེད།"
-enterName = "ཁྱེད་རང་གི་མིང་བླུགས་རོགས།"
-enterPassword = "གསང་གྲངས་ནང་འཇུག་བྱེད་པ།"
-invalidEmail = "ནུས་ལྡན་གྱི་གློག་འཕྲིན་ཁ་བྱང་ཞིག་བྲིས་རོགས་གནང་།"
-name = "མིང"
-nameRequired = "མིང་དགོས།"
-or = "ཡང་ན"
-password = "གསང་གྲངས"
-passwordRequired = "གསང་གྲངས་དགོས།"
-passwordsDoNotMatch = "གསང་གྲངས་མི་མཐུན་པ།"
-passwordTooShort = "གསང་གྲངས་ཉུང་མཐར་ཡིག་འབྲུ་༦ རིང་དགོས།"
-pleaseFillAllFields = "ས་སྒོ་ཚང་མ་བཀང་རོགས་གནང་།"
-signUp = "མིང་རྟགས་བཀོད་པ།"
-signUpWith = "Sign up with"
-skip = "Skip"
-subtitle = "འགོ་འཛུགས་ཆེད་དུ་སི་ཊར་ལིང་PDFལ་མཉམ་ཞུགས་བྱོས།"
-title = "རྩིས་ཁྲ་བཟོས་པ།"
-unexpectedError = "རྗེས་འགྲོ་མ་ངེས་པའི་ནོར་འཁྲུལ: {{message}}"
 
 [sizes]
 large = "ཤིན་ཏུ་ཆེན་པོ"
@@ -7547,115 +4634,8 @@ title = "ལེའུ་ཡིས་PDFབགོས།"
 [splitPdfByChapters]
 tags = "ཁ་ཕྲལ་བ། ལེའུ་ཅན། དེབ་མཚོན་ཆ། གོ་སྒྲིག་བྱེད་པ།"
 
-[storageShare]
-accessDenied = "ཁྱེད་ལ་མཉམ་སྤྱོད་ཡིག་ཆ་འདིར་འཛུལ་མི་ཆོག བདག་པོ་ལས་མཉམ་སྤྱོད་བཀལ་དུས་ཞུ།"
-accessDeniedBody = "ཁྱེད་ལ་ཡིག་ཆ་འདི་ལ་འཛུལ་མི་ཆོག བདག་པོ་ལས་མཉམ་སྤྱོད་བཀལ་དུས་ཞུ།"
-accessDeniedTitle = "འཛུལ་ས་མེད"
-accessed = "འཛུལ་ཟིན"
-accessFailed = "ལཱ་འགུལ་འཇུག་མ་ཐུབ།"
-accessLimitedCommenter = "མཆན་བཀོད་ལས་འགུལ་མ་འབྱུང་བསྒུག་བཞིན། ཕབ་ལེན་དགོས་ན་བདག་པོས་ཞུན་དག་པའི་དབང་ཆ་བྱ་རོགས།"
-accessLimitedTitle = "ཚད་འཛིན་འཛུལ་ས"
-accessLimitedViewer = "འབྲེལ་ཐག་འདི་ལྟ་ཙམ་ཡིན། ཕབ་ལེན་དགོས་ན་བདག་པོས་ཞུན་དག་པའི་དབང་ཆ་བྱ་རོགས།"
-addUser = "ཁ་སྣོན"
-bulkDescription = "བདམས་པའི་ཡིག་ཆ་ཚང་མ་ཐོ་འགོད་ཟིན་པའི་སྤྱོད་པ་ཚོ་དང་མཉམ་སྤྱོད་བྱེད་པར་སྦྲེལ་མཐུད་གཅིག་གསར་བཟོ།"
-bulkTitle = "བདམས་པའི་ཡིག་ཆ་མཉམ་སྤྱོད།"
-commenterHint = "མཆན་འགྲེལ་ལས་འགུལ་མ་འབྱུང་བསྒུག་བཞིན།"
-copied = "འབྲེལ་ཐག་འདྲ་བཤུས་བྱས"
-copy = "འདྲ་བཤུས"
-copyFailed = "འདྲ་བཤུས་ཕམ་པ"
-copyLink = "མཉམ་སྤྱོད་སྦྲེལ་མཐུད་འདྲ་བཤུས།"
-createdAt = "གསར་བཟོས"
-description = "ཡིག་ཆ་འདིའི་དོན་ལུགས་འབྲེལ་ཐག་བཟོ། ནང་འཇུག་བྱས་པའི་མི་ཚོས་འབྲེལ་ཐག་བརྒྱུད་ནས་འཛུལ་ཆོག."
-download = "ཕབ་ལེན"
-downloaded = "ཕབ་ལེན་བྱས་ཟིན།"
-downloadFailed = "ཡིག་ཆ་འདི་ཕབ་ལེན་མི་ཐུབ།"
-downloadsCount = "ཕབ་ལེན: {{count}}"
-emailWarningBody = "འདི་གློག་འཕྲིན་གྲངས་འཛིན་ལྟར་མཐོང་བ་ཡིན། མི་འདི་ནི Stirling PDF སྤྱོད་མཁན་མ་རེད་ན་ཡིག་ཆ་ལ་འཛུལ་མི་ཐུབ།"
-emailWarningConfirm = "མཉམ་སྤྱོད་གང་རེད་ཀྱང་"
-emailWarningTitle = "གློག་འཕྲིན་གྲངས་འཛིན"
-errorTitle = "མཉམ་སྤྱོད་ཕམ་པ"
-expiredBody = "མཉམ་སྤྱོད་འབྲེལ་ཐག་འདི་ནུས་མེད་ཡང་ན་དུས་ཡོལ་བྱས་ཟིན།"
-expiredTitle = "འབྲེལ་ཐག་དུས་ཡོལ"
-failure = "མཉམ་སྤྱོད་འབྲེལ་ཐག་བཟོ་མ་ཐུབ ཚོད་ལྟ་རོགས།"
-fileCount_one = "{{count}} file"
-fileCount_other = "{{count}} files"
-fileLabel = "ཡིག་ཆ"
-generate = "འབྲེལ་ཐག་བཟོ"
-generated = "མཉམ་སྤྱོད་འབྲེལ་ཐག་བཟོ་ཟིན"
-goToLogin = "ཐོ་འགོད་ལ་འགྲོ"
-hideActivity = "ལཱ་འགུལ་སྦ་བ"
-invalidUsername = "ནུས་ལྡན་མིང་ཡང་ན་གློག་འཕྲིན་འཇུག་རོགས།"
-lastAccessed = "མཐར་མཇུག་འཛུལ་བ"
-linkAccessTitle = "མཉམ་སྤྱོད་འབྲེལ་ཐག་འཛུལ་ས"
-linkLabel = "མཉམ་སྤྱོད་འབྲེལ་ཐག"
-linksDisabled = "མཉམ་སྤྱོད་འབྲེལ་ཐག་བཀག་ཟིན།"
-linksDisabledBody = "མཉམ་སྤྱོད་འབྲེལ་ཐག་སར་བར་སྒྲིག་འགོད་གྲངས་ལས་བཀག་ཟིན།"
-loadFailed = "མཉམ་སྤྱོད་ཡིག་ཆ་ཁ་ཕྱེ་མི་ཐུབ།"
-loading = "མཉམ་སྤྱོད་འབྲེལ་ཐག་སྒྲུབ་བཞིན..."
-loginPrompt = "མཉམ་སྤྱོད་ཡིག་ཆ་འདིར་འཛུལ་བར་ཐོ་འགོད་བྱེད་རོགས།"
-loginRequired = "ཐོ་འགོད་དགོས"
-manage = "མཉམ་སྤྱོད་དོ་དམ"
-manageDescription = "ཡིག་ཆ་འདིའི་མཉམ་སྤྱོད་འབྲེལ་ཐག་བཟོ་དང་དོ་དམ་བྱེད།"
-manageLoadFailed = "མཉམ་སྤྱོད་འབྲེལ་ཐག་འཇུག་མ་ཐུབ།"
-manageTitle = "མཉམ་སྤྱོད་དོ་དམ"
-noActivity = "ལཱ་འགུལ་མེད།"
-noLinks = "མཉམ་སྤྱོད་འབྲེལ་ཐག་མ་འདུག"
-noSharedUsers = "འཛུལ་ས་ཡོད་པའི་མི་མེད།"
-openInApp = "Stirling PDF ནང་ཁ་ཕྱེ"
-ownerLabel = "བདག་པོ"
-ownerUnknown = "མ་ཤེས"
-removeLink = "འབྲེལ་ཐག་བསུབ"
-removeUser = "བསུབ"
-requiresLogin = "མཉམ་སྤྱོད་ཡིག་ཆ་འདི་ལ་ཐོ་འགོད་དགོས།"
-revoked = "མཉམ་སྤྱོད་སྦྲེལ་མཐུད་སུབ་ཟིན།"
-revokeFailed = "མཉམ་སྤྱོད་འབྲེལ་ཐག་བསུབ་མ་ཐུབ"
-roleCommenter = "མཆན་འགྲེལ་པ"
-roleEditor = "ཞུན་དག་པ"
-roleLabel = "ལས་འགན"
-roleViewer = "ལྟ་མཁན"
-saveAndShare = "སར་བར་ཉར་ཚགས་བྱས་ནས་མཉམ་སྤྱོད"
-saveFailed = "ཡིག་ཆ་སར་བར་ཉར་ཚགས་མ་ཐུབ། བསྐྱར་དུ་ཚོད་ལྟ་བྱོས།"
-saveFailedTitle = "སར་བར་ཉར་ཚགས་མི་ཐུབ"
-saveFirstBody = "མཉམ་སྤྱོད་ནི་སར་བར་ཉར་ཚགས་བྱས་པའི་ཡིག་ཆ་ལ་བྱེད་པ་རེད། ང་ཚོས་དེ་ཁྱེད་ཀྱི་ཡིག་ཆའི་སྣོད་ནང་ཉར་ཚགས་བྱས་ནས་ དེ་རྗེས་མཉམ་སྤྱོད་ལ་མུ་མཐུད་བྱེད།"
-saveFirstHeading = "ཡིག་ཆ་འདི་སར་བར་ཉར་ཚགས་བྱས་ནས་མཉམ་སྤྱོད་བྱོས"
-saveFirstTitle = "ཡིག་ཆ་མཉམ་སྤྱོད"
-sharedUsersTitle = "མཉམ་སྤྱོད་སྤྱོད་པ་ཚོ"
-shareHeading = "མཉམ་སྤྱོད་ཡིག་ཆ"
-sharingDisabled = "མཉམ་སྤྱོད་བཀག་ཡོད།"
-sharingDisabledBody = "ཁྱེད་ཀྱི་སར་བར་སྒྲིག་འགོད་ཀྱིས་མཉམ་སྤྱོད་བཀག་བཞག་ཟིན།"
-title = "ཡིག་ཆ་མཉམ་སྤྱོད།"
-titleDefault = "མཉམ་སྤྱོད་ཡིག་ཆ"
-tryAgain = "དུས་རབས་འགོར་ཏེ་ཚོད་ལྟ་རོགས།"
-unknownUser = "ངོ་མ་ཤེས་པའི་སྤྱོད་པ།"
-userAdded = "སྤྱོད་པ་དེ་མཉམ་སྤྱོད་ཐོ་ཡིག་ནང་སྣོན་ཟིན།"
-userAddFailed = "སྤྱོད་པ་དེ་དང་མཉམ་སྤྱོད་བྱ་མི་ཐུབ།"
-usernameLabel = "སྤྱོད་མཁན་མིང་ ཡང་ན་ གློག་འཕྲིན།"
-usernamePlaceholder = "སྤྱོད་མཁན་མིང་ ཡང་ན་ གློག་འཕྲིན་བཙུགས།"
-userRemoved = "སྤྱོད་པ་དེ་མཉམ་སྤྱོད་ཐོ་ཡིག་ནས་འདོར་ཟིན།"
-userRemoveFailed = "སྤྱོད་པ་དེ་འདོར་མི་ཐུབ།"
-viewActivity = "འགུལ་སྒོ་ལྟ་བ།"
-viewed = "ལྟ་ཟིན།"
-viewsCount = "ལྟ་བ: {{count}}"
-
-[storageUpload]
-bulkDescription = "བདམས་པའི་ཡིག་ཆ་ཚང་མ་ཁྱེད་ཀྱི་སར་བར་གསོག་འཇོག་ནང་ཡར་བསྐུར་བྱེད།"
-bulkTitle = "བདམས་པའི་ཡིག་ཆ་ཡར་བསྐུར།"
-description = "ད་ལྟའི་ཡིག་ཆ་འདི་ཁྱེད་རང་གི་སྤྱོད་དེབ་དོན་ལ་སར་བར་གསོག་འཇོག་ནང་ཡར་བསྐུར་བྱེད།"
-errorTitle = "ཡར་བསྐུར་ཕམ་པ།"
-failure = "ཡར་བསྐུར་ཕམ་པ། ཐོ་འགོད་དང་གསོག་འཇོག་སྒྲིག་འགོད་ཞིབ་བཤེར་བྱོས།"
-featureDisabled = "སར་བར་ལ་ཉར་བ་འདི་སར་བར་འདིར་སྤྱོད་མེད།"
-fileCount_one = "{{count}} file"
-fileCount_other = "{{count}} files"
-fileLabel = "ཡིག་ཆ"
-hint = "མང་མཁའི་སྦྲེལ་མཐུད་དང་འཇུག་ཚུལ་ཚང་མ་ཁྱེད་ཀྱི་སར་བར་སྒྲིག་འགོད་ཀྱིས་ཚོད་འཛིན་བྱས་ཡོད།"
-more = " +{{count}} དེ་ལས་མང་"
-success = "སར་བར་ཡར་བསྐུར་ཚར་བ།"
-title = "སར་བར་ལ་ཡར་བསྐུར།"
-updateButton = "སར་བར་ནང་གསར་སྒྱུར།"
-uploadButton = "སར་བར་ལ་ཡར་བསྐུར།"
-
 [survey]
-title = "Stirling-PDF Survey"
+title = "RustlingPDF Survey"
 
 [swagger]
 tags = "api, ཡིག་ཆ། ཐང་ག། མཐའ་སྟོན། འཕེལ་རྒྱས།"
@@ -7663,52 +4643,6 @@ title = "APIཡིག་ཆ།"
 
 [tableExtraxt]
 tags = "CSV,Table Exteraction, Extract, བསྒྱུར་བ།"
-
-[team]
-cancelInviteError = "འདྲེན་བརྡ་དོར་མ་ཐུབ"
-confirmCancelInvite = "འདྲེན་བརྡ་འདི་དོར་དགོས་པ་གཏན་ཁེལ་ཡོད་དམ།"
-confirmLeave = "ཚོགས་པ་འདི་ནས་ཕྱིར་འཐེན་དགོས་པ་གཏན་ཁེལ་ཡོད་དམ།"
-confirmLeaveLeader = "ཁྱེད་ཚོགས་མགོ་བོ་ཡིན་པས ཕྱིར་འཐེན་ནས་ཚོགས་པ་ནས་བསུབ་འགྱོ། གཏན་ཁེལ་ཡོད་དམ།"
-confirmRemove = "སྡེ་ཚོགས་མི་འདི་སུབ་དགོས་པ་གཏན་ཁེལ་ཡོད་དམ།"
-editName = "ཚོགས་པའི་མིང་རྩོམ་སྒྲིག"
-inviteCancelled = "འདྲེན་བརྡ་དོར་ཟིན།"
-inviteError = "འདྲེན་བརྡ་གཏོང་མ་ཐུབ"
-inviteSent = "འདྲེན་བརྡ་བཀོད་ཟིན།"
-leader = "མགོ་བོ"
-leaveButton = "ཚོགས་པ་ནས་ཕྱིར་འཐེན"
-leaveError = "ཚོགས་པ་ནས་ཕྱིར་འཐེན་མ་ཐུབ"
-leaveSuccess = "ཚོགས་པ་ནས་ཕྱིར་འཐེན་ལེགས་པར།"
-loading = "ཚོགས་པའི་ཆ་འཕྲིན་ཕབ་ལེན་བརྒྱབ་བཞིན..."
-memberCount_one = "{{count}} member"
-memberCount_other = "{{count}} members"
-memberCount_zero = "no members"
-memberRemoved = "སྡེ་ཚོགས་མི་སུབ་ལེགས་པར།"
-namePlaceholder = "ཚོགས་པའི་མིང་འཇུག"
-personal = "རང་དོན"
-removeError = "སྡེ་ཚོགས་མི་སུབ་མ་ཐུབ"
-renameError = "ཚོགས་པའི་མིང་བསྐྱར་བཏགས་ཕམ་པ"
-renameSuccess = "ཚོགས་པའི་མིང་བསྐྱར་བཏགས་ལེགས་པར།"
-
-[team.invitationBanner]
-acceptButton = "དང་ལེན"
-message = "ཁྱེད་ལ་ཞུན་ཞུགས་འབུལ་བཞིན།"
-rejectButton = "དོར"
-
-[team.invite]
-cancelLabel = "ཕྱིར་འཐེན"
-invalidEmail = "Email ཤག་གནས་ནུས་མེད"
-placeholder = "Email ཤག་གནས་འཇུག"
-sendButton = "འདྲེན་བརྡ་གཏོང་"
-title = "ཚོགས་མི་འདྲེན་བརྡ"
-
-[team.members]
-emailColumn = "Email"
-empty = "ཚོགས་མི་ད་དུང་མེད"
-nameColumn = "མིང་"
-pending = "བསྒུག་བཞིན"
-remove = "སུབ"
-roleColumn = "ལས་འགན"
-title = "ཚོགས་མི"
 
 [textAlign]
 center = "ལྟེ་བ"
@@ -7769,7 +4703,6 @@ collapse = "པང་གཞི་བསྡམས"
 expand = "པང་གཞི་རྒྱས"
 goBack = "ཕྱིར་ལོག"
 placeholder = "འགོ་འཛུགས་བྱེད་པའི་ལག་ཆ་ཞིག་འདེམས།"
-premiumFeature = "གོང་ཚད་མཐོ་བའི་ཁྱད་ཆོས།"
 toolsHeader = "ལག་ཆས"
 viewAllTools = "ལག་ཆས་ཡོངས་ལྟ"
 
@@ -7780,7 +4713,6 @@ favorites = "དགའ་ཤོས།"
 heading = "ལག་ཆ་ཚང་མ།(གློག་བརྙན་ཆ་ཚང་གི་ལྟ་ཚུལ།)"
 noResults = "ཁྱེད་ལ་དགོས་མཁོ་ཡོད་པའི་དངོས་པོ་འཚོལ་བར་འཚོལ་ཞིབ་ཡང་ན་འགྲེལ་བཤད་བསྒྱུར་ཐབས་བྱོས།"
 recommended = "འོས་སྦྱོར་བྱས་པའི"
-selfHostedOffline = "ཁྱེད་ཀྱི Stirling-PDF ཞབས་ཞུ་དགོས (དེང་སླར་ཨོླཕ་ལ་ཡིན):"
 showDetails = "ཞིབ་ཕྲ།"
 unavailable = "སར་བར་གྱི་དོ་དམ་པས་ལྕོགས་མིན་བཟོས།"
 unavailableDependency = "མེད་པ། ཞབས་ཞུའི་སྟེང་དགོས་མཁོའི་ལག་ཆ་མེད་པ་"
@@ -7857,7 +4789,7 @@ loadingDetailedInfo = "ཞིབ་ཕྲའི་གནས་ཚུལ་མང
 migrationGuide = "གནས་སྤོའི་ལམ་སྟོན།"
 migrationGuides = "གནས་སྤོའི་ལམ་སྟོན།"
 migrationGuidesDesc = "གསར་སྒྱུར་སྔོན་ལ་གནས་འགྱུར་གལ་ཆེའི་གཏོགས་མཐུད་ལྟ་བ།"
-modalSubtitle = "Stirling PDF ཐོན་རྟགས་གསར་པ་འཇུག་གྲ་སྒྲིག་ཡོད།"
+modalSubtitle = "RustlingPDF ཐོན་རྟགས་གསར་པ་འཇུག་གྲ་སྒྲིག་ཡོད།"
 modalTitle = "གསར་བརྗེ།"
 notes = "མཆན"
 releaseNotes = "གློད་བཀྲོལ་དྲན་ཐོ།"
@@ -7877,61 +4809,9 @@ minor = "གལ་ཆུང"
 normal = "རྒྱུན་ལྡན"
 urgent = "ཛ་དྲག་གི"
 
-[upgradeBanner]
-attentionBody = "ཁྱེད་ཀྱི་འཛིན་སྐྱོང་པས་གནས་ཚུལ་མང་བ་མཐོང་ཆེད་ནང་དུ་འཛུལ་དགོས། དེ་མ་ཐག་ཁོང་ཚོར་འབྲེལ་གཏུག་གནང་རོགས།"
-attentionBodyAdmin = "གསབ་ལེན་འདི་ལག་བསྟར་བྱེད་པར་ཆོག་མཆན་གྱི་དགོས་མཁོ་ལ་ཞིབ་བཤེར་བྱོས།"
-attentionTitle = "སར་བར་འདི་ལ་འཛིན་སྐྱོང་དོ་སྣང་དགོས།"
-message = "ཚད་གཞི་མེད་པའི་སྤྱོད་མཁན་དང་ཡར་ཐོན་ཅན་གྱི་ཁྱད་ཆོས་ལྡན་པའི་སི་ཊིར་ལིང་PDFལས་ཆེས་བཟང་།"
-seeInfo = "གནས་ཚུལ་ལ་གཟིགས།"
-title = "ཞབས་ཞུའི་འཆར་གཞི་ལ་རིམ་སྤོར་བྱེད་པ།"
-upgradeButton = "ད་ལྟ་ཡར་རྒྱས་གཏོང་བ།"
-
 [URLToPDF]
 tags = "དྲ་རྒྱའི་པར་རིས། གསོག་འཇོག་ཤོག་ངོས། དྲ་བའི་བར། ཡིག་ཚགས་ཁང་།"
 title = "URL ནས་PDF བར།"
-
-[usage]
-aboutUsageAnalytics = "Usage Analytics སྐོར་ལ"
-configureSettings = "Analytics སྒྲིག་སྟངས་སྒྲིག"
-error = "ནོར་འཁྲུལ་གྱི་བཀོལ་སྤྱོད་གྲངས་གཞི།"
-noData = "གཞི་གྲངས་མེད།"
-noDataMessage = "ད་ལྟ་བེད་སྤྱོད་ཀྱི་གྲངས་གཞི་མེད་པ་རེད།"
-usageAnalyticsExplanation = "Usage analytics ཡིས endpoint ཞུ་འབུལ་དང་ལག་ཆ་སྤྱོད་ལམ་རྣམས་རྗེས་འཇུག་བྱས། ཞིབ་བཤེར་ཐོ་འགོད་གྲོས་ངོས་དང་མཉམ་སྦྲགས་ནས རྒྱུད་ཁོར་ལམ་གྱི་འགན་འགྲུབ་, ལས་འགན་, བདེ་འཇགས་བྱུང་ལས་ལ་མཐོང་བའི་ཁྱབས་ཆེན་ཐོབ།"
-viewAuditLogs = "ཞིབ་བཤེར་ཐོ་འགོད་ལ་ལྟ།"
-
-[usage.chart]
-title = "མཇུག་བསྡུའི་བེད་སྤྱོད་རེའུ་མིག"
-
-[usage.controls]
-all = "ཚང་མ"
-dataTypeLabel = "གཞི་གྲངས་རིགས།"
-refresh = "གསར་སྐྲུན་བྱེད་པ།"
-top10 = "ཨང་དང་པོ་བཅུ་པ།"
-top20 = "གོང་རིམ་༢༠པ།"
-
-[usage.controls.dataType]
-all = "ཚང་མ"
-api = "API"
-ui = "UI།"
-
-[usage.showing]
-all = "ཚང་མ"
-top10 = "ཨང་དང་པོ་བཅུ་པ།"
-top20 = "གོང་རིམ་༢༠པ།"
-
-[usage.stats]
-selectedVisits = "བདམས་ཐོན་བྱུང་བ།"
-showing = "སྟོན་པ།"
-totalEndpoints = "མཇུག་བསྡུ་བསྡོམས་པ།"
-totalVisits = "ཡོངས་ཁྱབ་ཏུ་གཟིགས་སྐོར་གནང་བ།"
-
-[usage.table]
-endpoint = "མཇུག་ཕྱོགས།"
-noData = "གཞི་གྲངས་མེད།"
-percentage = "བརྒྱ་ཆ།"
-title = "ཞིབ་ཕྲའི་གྲངས་གཞི།"
-unknownEndpoint = "མཇུག་སྣེ་མི་ཤེས"
-visits = "གཟིགས་སྐོར་བ།"
 
 [validateSignature]
 date = "ཚེས་པ"
@@ -8144,167 +5024,7 @@ title = "ལྟ་ཚུལ།/རྩོམ་སྒྲིག་པ། PDF"
 tooltipTitle = "ཉེན་བརྡ"
 
 [watchedFolders]
-alreadyInFolder = "Already in this folder"
-defaultFolderWarning = "This is a default folder and will be recreated on next reload."
-deleteConfirmBody = "This will remove the folder and its run history. Files already downloaded are not affected."
-deleteConfirmTitle = "Delete folder?"
-folderNotFound = "Folder not found"
-newFolder = "New folder"
-noFolders = "No watched folders yet"
-sidebarTitle = "Watched Folders"
 title = "Watched Folders"
-
-[watchedFolders.actions]
-back = "Back"
-collapse = "Collapse"
-dismiss = "Dismiss"
-download = "Download"
-downloadInput = "Download input"
-downloadOutput = "Download output"
-expand = "Expand"
-retry = "Retry"
-
-[watchedFolders.card]
-delete = "Delete folder"
-edit = "Edit folder"
-
-[watchedFolders.home]
-addAnother = "Add another Watched Folder"
-addAnotherDesc = "Automatically process files with a new pipeline"
-create = "Create your first Watched Folder"
-deleteFolder = "Delete folder"
-editFolder = "Edit folder"
-empty = "No watched folders yet"
-emptyDesc = "Set up a Watched Folder once. Drop PDFs in and they're automatically compressed, OCR'd, split, merged — whatever your pipeline does."
-emptyTitle = "Automate your PDF workflows"
-file = "file"
-files = "files"
-pause = "Pause"
-resume = "Resume"
-
-[watchedFolders.howItWorks]
-step1Desc = "Drag PDFs onto any Watched Folder card — or send them from your file list"
-step1Title = "Drop files"
-step2Desc = "Your configured tools process each file automatically"
-step2Title = "Pipeline runs"
-step3Desc = "Download processed files from inside the folder"
-step3Title = "Output ready"
-title = "How Watched Folders work"
-
-[watchedFolders.modal]
-advanced = "Advanced"
-automation = "Automation"
-automationNameFallback = "Watched Folder automation"
-automationRequired = "Add at least one configured step before saving."
-autoNumber = "Auto-number"
-autoNumberExample = "e.g. document.pdf → document (1).pdf"
-autoScanHelp = "New PDF files in this folder are processed automatically every 10 seconds."
-changeFolder = "Change"
-chooseFolder = "Choose"
-clearFolder = "Clear"
-color = "Accent color"
-createFolder = "Create Folder"
-createTitle = "New Watched Folder"
-editTitle = "Edit Watched Folder"
-inputFolder = "Input folder"
-inputFolderNotChosen = "No folder chosen — required for auto-scan"
-inputSource = "Input source"
-inputSourceBrowser = "Browser — drop files here"
-inputSourceLocal = "Local folder (auto-scan)"
-inputSourceLocalUnsupported = "Local folder (auto-scan) — Chrome/Edge only"
-localOutputFolder = "Local output folder"
-maxRetries = "Max retries"
-name = "Folder name"
-namePlaceholder = "My Watched Folder"
-nameRequired = "Folder name is required"
-nameTooLong = "Folder name must be 50 characters or less"
-outputFolderNotSet = "Not set — outputs stay in app"
-outputFolderUnsupported = "Not supported in this browser"
-outputModeNewDesc = "Output is saved as a new separate file"
-outputModeVersion = "Replace original?"
-outputModeVersionDesc = "Output becomes a new version of the input file rather than a separate file"
-outputName = "Output filename prefix"
-outputNamePrefix = "Filename prefix"
-outputNameSuffix = "Suffix"
-positionPrefix = "Prefix"
-positionSuffix = "Suffix"
-replaceOriginal = "Replace original file"
-retryDelay = "Delay (minutes)"
-saveChanges = "Save Changes"
-saveFailed = "Failed to save folder. Please try again."
-sectionFolder = "Folder"
-sectionSourceOutput = "Source & Output"
-sectionSteps = "Steps"
-
-[watchedFolders.status]
-active = "Active"
-done = "Done"
-paused = "Paused"
-processing = "Processing"
-
-[watchedFolders.time]
-daysAgo = "{{count}}d ago"
-hoursAgo = "{{count}}h ago"
-justNow = "just now"
-minutesAgo = "{{count}}m ago"
-
-[watchedFolders.workbench]
-activity = "Activity"
-addFiles = "Add files"
-allTime = "All time"
-cancel = "Cancel"
-chartTooltipComplete = "{{count}} complete"
-chartTooltipFailed = "{{count}} failed"
-clearSelection = "Clear selection"
-countProcessing = "{{count}} processing"
-countQueued = "{{count}} queued"
-countSelected = "{{count}} selected"
-dataSaved = "Saved"
-dayRunning = "day running"
-daysRunning = "days running"
-delete = "Delete"
-deleteConfirmBody = "Remove notifications only clears the activity log. Delete outputs also removes the processed files from storage. Your original input files are never touched."
-deleteOutputs = "Delete outputs"
-directionIn = "in"
-directionOut = "out"
-dropToProcess = "Drop to process"
-export = "Export"
-exportSeparately = "Export separately"
-exportZip = "Export zip"
-failed = "Failed"
-filesProcessedOverTime = "Files processed over time"
-filterAll = "All"
-filterPending = "Pending"
-inputs = "Inputs"
-inputSize = "Input size"
-legendComplete = "Complete"
-noActivity = "No activity yet — drop a PDF to start"
-noActivityMatch = "No matching activity"
-noInputFolder = "No input folder — edit to configure"
-outputs = "Outputs"
-pause = "Pause"
-preview = "Preview"
-previewInput = "Preview input"
-previewLoadFailed = "Could not load file preview."
-previewOutput = "Preview output"
-queued = "Queued"
-queuedWaiting = "Queued — waiting to run"
-removeEntries = "Remove {{count}} entries"
-removeEntry = "Remove entry"
-removeNotificationsOnly = "Remove notifications only"
-resume = "Resume"
-retryAll = "Retry all"
-retryIn = "retry in {{count}}m"
-retryingSoon = "retrying…"
-retryMixedConfirm = "Some selected files have already completed and will be skipped. Only failed files will be retried. Continue?"
-running = "Running"
-search = "Search…"
-selectAll = "Select all {{count}}"
-sortNameAsc = "A → Z"
-sortNameDesc = "Z → A"
-sortNewest = "Newest"
-sortOldest = "Oldest"
-watching = "Watching: {{name}}"
 
 [watermark]
 desc = "PDF ཡིག་ཆ་ལ་ཡིག་ཆ་ཡང་ན་པར་རིས་ཀྱི་ཆུ་རྟགས་ཁ་སྣོན་བྱེད།"
@@ -8493,14 +5213,12 @@ rotateLeft = "གཡོན་སྐོར"
 rotateRight = "གཡས་སྐོར"
 ruler = "འཇལ་ཆས / ཚད་འཇལ"
 save = "སྲུངས"
-saveAll = "ཚང་མ་སྲུངས"
 saveAs = "མིང་གསར་པས་སྲུངས"
 saveChanges = "བསྒྱུར་བ་སྲུངས"
 search = "PDF འཚོལ"
 selectAll = "ཚང་མ་འདེམས"
 selectByNumber = "ཤོག་ངོས་གྲངས་ཀྱིས་འདེམས"
 selectLanguage = "སྐད་ཡིག་འདེམས"
-share = "མཉམ་སྤྱོད"
 toggleAnnotations = "མཆན་བཀོད་མཐོང་རུང་བ་བསྒྱུར"
 toggleAttachments = "ཟུང་འདྲེན་བསྒྱུར"
 toggleBookmarks = "མཚོན་རྟ་བསྒྱུར"
@@ -8508,266 +5226,6 @@ toggleComments = "མཆན"
 toggleLayers = "བང་རིམ་བསྒྱུར"
 toggleSidebar = "ཟུར་པང་བསྒྱུར"
 viewer = "ལྟ་ཆས"
-
-[workflow.participant]
-accessExpired = "ཁྱེད་ཀྱི་པར་ཡིག་འདི་ལ་བཅར་འཇུག་དུས་ཚོད་ཚར་བ།"
-certificateFile = "ལག་ཁྱེར་ཡིག་ཆ"
-certificateFilePlaceholder = "ལག་ཁྱེར་ཡིག་ཆ་འདེམས"
-certificatePassword = "ལག་ཁྱེར་གསང་གྲངས"
-certificateType = "ལག་ཁྱེར་རིགས"
-certTypeJks = "JKS Keystore"
-certTypeP12 = "P12/PKCS12 ལག་ཁྱེར"
-certTypeServer = "སར་བར་ལག་ཁྱེར (ཡོད་ཚེ)"
-completedDeclined = "ཁྱེད་ཀྱིས་པར་ཡིག་འདི་ཟུར་འདོར་བྱས་ཟིན།"
-completedSigned = "ཁྱེད་ཀྱིས་པར་ཡིག་འདི་མཇུག་བསྒྲིགས་ཟིན།"
-decline = "ཟུར་འདོར"
-downloadDocument = "པར་ཡིག་ཕབ་ལེན"
-dueDate = "དུས་བསྒྲུབ: {{date}}"
-errorTitle = "སྐྱོན"
-from = "སྤྲོད་པ: {{name}}"
-loadingSession = "སི་ཤེན་མངོན་གསལ་བཞིན་པ..."
-location = "གནས་ས"
-locationPlaceholder = "དཔེར་ན། San Francisco, CA"
-pageNumber = "ཤོག་ཨང (གདམ་ག)"
-reason = "རྒྱུ་མཚན"
-reasonPlaceholder = "དཔེར་ན། པར་ཡིག་དངོས་སྒྲུབ"
-sessionNotFound = "སི་ཤེན་མ་ཐོབ ཡང་ན་བཅར་འཇུག་བཀག་སྡོམ་བྱས་ཡོད།"
-signDocument = "པར་ཡིག་མཛད་རྟགས་འཇུག"
-statusDeclined = "ཟུར་འདོར"
-statusNotified = "གསལ་བརྡ་བྱས"
-statusPending = "བསྒུག་བཞག"
-statusSigned = "མཇུག་བསྒྲིགས"
-statusViewed = "ལྟ་ཟིན"
-submitSignature = "མཛད་རྟགས་གཏོང"
-
-[workspace]
-title = "ལས་ཀའི་ས་ཆ།"
-
-[workspace.people]
-active = "གྲུང་པོ"
-activeSession = "ཤུགས་ལྡན་གྱི་ཚོགས་འདུ།"
-addMembers = "འཐུས་མི་ཁ་སྣོན།"
-admin = "འཛིན་སྐྱོང་།"
-confirmDelete = "ཁྱེད་རང་གིས་སྤྱོད་མཁན་འདི་སུབ་འདོད་ཡོད་དམ། བྱ་སྤྱོད་འདི་སེལ་མི་ཐུབ།"
-confirmUnlock = "སྤྱོད་པ་འདིའི་རྩིས་ཁྲོད་ཕྱེ་དགོས་པ་ལ་ངེས་པར་བཟོས་ཡོད་དམ?"
-deleteUser = "སྤྱོད་མཁན་སུབ་པ།"
-deleteUserError = "སྤྱོད་མཁན་བསུབས་མ་ཐུབ་པ།"
-deleteUserSuccess = "སྤྱོད་མཁན་གྱིས་བསུབ་པ་ལེགས་འགྲུབ་བྱུང་།"
-description = "ལས་བྱེད་པའི་ཁོངས་མི་དང་ཁོ་ཚོའི་ཆོག་མཆན་དོ་དམ་བྱེད་པ།"
-disable = "ནུས་པ་འཇོམས་པ"
-disabled = "ཞ་བོ"
-editRole = "འགན་འཛིན།"
-enable = "སྲིད་པ"
-loading = "མི་ལ་སྐྱེལ་འདྲེན་བྱེད་པ།"
-locked = "བཀག་ཡོད"
-lockedBadge = "བཀག་ཡོད"
-loginRequired = "ནང་འཇུག་ཐབས་ལམ་ཐོག་མར་ལྕོགས་ཅན་བཟོ་བ།"
-noMembersFound = "འཐུས་མི་གང་ཡང་མ་ཐོབ།"
-role = "འཁྲབ་ཚན"
-searchMembers = "འཚོལ་ཞིབ་ཚོགས་མི།..."
-team = "རུ་ཁག"
-title = "མི་དམངས"
-unlockAccount = "རྩིས་ཁྲོད་ཕྱེ"
-unlockUserError = "སྤྱོད་པའི་རྩིས་ཁྲོད་ཕྱེ་མི་ཐུབ།"
-unlockUserSuccess = "སྤྱོད་པའི་རྩིས་ཁྲོད་ཕྱེ་ཚར་བ།"
-user = "བེད་སྤྱོད།"
-
-[workspace.people.actions]
-upgrade = "ལེགས་བཅོས"
-
-[workspace.people.addMember]
-authType = "ར་སྤྲོད་རིགས།"
-error = "སྤྱོད་མཁན་གསར་སྐྲུན་མ་ཐུབ་པ།"
-forceMFA = "ཤུལ་མའི་ནང་འཇུག་སྐབས MFA སྒྲིག་འགོད་ཁེར་བཙོང"
-forcePasswordChange = "ཐོག་མར་ནང་འཇུག་ཐོག་གསང་གྲངས་བསྒྱུར་བ།"
-password = "གསང་གྲངས"
-passwordPlaceholder = "གསང་གྲངས་བཙུགས།"
-passwordRequired = "གསང་ཨང་དགོས་ངེས།"
-role = "འཁྲབ་ཚན"
-submit = "འཐུས་མི།"
-success = "བེད་སྤྱོད་པ་ལེགས་འགྲུབ་བྱུང་བ།"
-team = "རུ་ཁག (གདམ་ག)"
-teamPlaceholder = "རུ་ཁག་འདེམས་པ།"
-username = "སྤྱོད་མཁན་གྱི་མིང་།(གློག་འཕྲིན།)"
-usernamePlaceholder = "seters@example.com"
-usernameRequired = "སྤྱོད་མཁན་གྱི་མིང་དང་གསང་གྲངས་དགོས།"
-
-[workspace.people.authType]
-oauth = "OAuth2"
-password = "གསང་ཨང་།"
-saml = "SAML2"
-ssoDescription = "སྤྱོད་མཁན་ནི་ SSO སྤྲོད་མཁན་བརྒྱུད་དེ་ར་སྤྲོད་བྱེད།"
-
-[workspace.people.changePassword]
-action = "གསང་གྲངས་བསྒྱུར་བ།"
-confirmPassword = "གསང་གྲངས་གཏན་འཁེལ་བྱེད་པ།"
-confirmPlaceholder = "གསང་གྲངས་གསར་བའི་ནང་བསྐྱར་དུ་འཛུལ་བ།"
-copiedToClipboard = "གསང་གྲངས་འདྲ་བཤུས་པར་བཤུས་བྱས།"
-copyFailed = "གསང་གྲངས་འདྲ་བཤུས་མ་ཐུབ་པ།"
-copyTooltip = "བཤུས་ཤོག་ལ་འདྲ་བཤུས།"
-emailUnavailable = "སྤྱོད་མཁན་འདིའི་གློག་འཕྲིན་ནི་གློག་འཕྲིན་ཁ་བྱང་ནུས་ལྡན་ཞིག་མིན། བརྡ་ཐོ་དེ་དབང་པོ་སྐྱོན་ཅན་རེད།"
-error = "གསང་གྲངས་གསར་བརྗེ་མ་ཐུབ་པ།"
-forcePasswordChange = "དམག་དཔུང་སྤྱོད་མཁན་གྱིས་རྗེས་འཇུག་ནང་གསང་གྲངས་བསྒྱུར་དགོས།"
-generatedPreview = "གསང་གྲངས་བཟོས་པ།"
-generateRandom = "བདེ་འཇགས་གསང་གྲངས་བསྐྲུན་པ།"
-includePassword = "གསང་གྲངས་གསར་པ་དེ་གློག་འཕྲིན་ནང་དུ་ཚུད་པ།"
-newPassword = "གསང་གྲངས་གསར་བ།"
-notifyOnly = "གསང་གྲངས་མེད་པར་གློག་འཕྲིན་བཏང་ནས་སྤྱོད་མཁན་ལ་དོ་དམ་པ་ཞིག་གིས་བསྒྱུར་བ་ཤེས་ཐུབ།"
-passwordMismatch = "གསང་གྲངས་མི་མཐུན་པ།"
-passwordRequired = "གསང་གྲངས་གསར་པ་བླུགས་རོགས།"
-placeholder = "གསང་གྲངས་གསར་པ་བཙུགས།"
-sendEmail = "བསྒྱུར་བཅོས་འདིའི་སྐོར་ལ་སྤྱོད་མཁན་ལ་གློག་འཕྲིན་གཏོང་རོགས།"
-smtpDisabled = "གློག་འཕྲིན་བརྡ་ཐོ་ལ་སྒྲིག་སྟངས་ནང་SMTPལག་བསྟར་བྱེད་དགོས།"
-submit = "གསང་གྲངས་གསར་བཅོས་བྱེད་པ།"
-subtitle = "གསང་གྲངས་གསར་བརྗེ།"
-success = "གསང་གྲངས་གསར་བརྗེ་ལེགས་འགྲུབ་བྱུང་བ།"
-title = "གསང་གྲངས་བསྒྱུར་བ།"
-
-[workspace.people.editMember]
-editing = "Editing: <0>{{username}}</0>"
-error = "སྤྱོད་མཁན་གསར་བརྗེ་མ་ཐུབ་པ།"
-role = "འཁྲབ་ཚན"
-submit = "Update User"
-success = "བེད་སྤྱོད་པ་ལེགས་འགྲུབ་བྱུང་བ།"
-team = "རུ་ཁག (གདམ་ག)"
-teamPlaceholder = "རུ་ཁག་འདེམས་པ།"
-title = "Edit User"
-
-[workspace.people.emailInvite]
-allFailed = "སྤྱོད་མཁན་གདན་འདྲེན་མ་ཐུབ་པ།"
-emails = "གློག་འཕྲིན་ཁ་བྱང་།"
-emailsPlaceholder = "seter1@example.com, seter2@example.com"
-emailsRequired = "མ་མཐར་ཡང་གློག་འཕྲིན་ཁ་བྱང་གཅིག་དགོས།"
-error = "གདན་འདྲེན་མ་འདང་བ།"
-partialFailure = "ཁ་ཤས་མགྲོན་འབོད་ཕམ་སོང།"
-submit = "མགྲོན་འབོད་བཏང་།"
-success = "སྤྱོད་མཁན་(s) གྱིས་གདན་འདྲེན་ཞུས་པ།"
-
-[workspace.people.inviteLink]
-copied = "འབྲེལ་མཐུད་ཀྱི་བཤུས་ཤོག་ལ་འདྲ་བཤུས་བྱས།"
-email = "གློག་འཕྲིན་ཁ་བྱང་།"
-emailDescription = "གདམ་ག - སྤྱིར་བཏང་གི་གདན་ཞུའི་སྦྲེལ་མཐུད་ལ་སྟོང་ཆ། སུ་ཞིག་གིས་ཀྱང་བེད་སྤྱོད་གཏོང་ཐུབ།"
-emailPlaceholder = "seter@example.com (གདམ་ག)"
-emailSent = "འཕྲིན་ཕྲན་བཟོས་ནས་གློག་འཕྲིན་བརྒྱུད་ནས་བསྐུར་བ།"
-error = "གདན་ཞུའི་འབྲེལ་མཐུད་བཟོ་མ་ཐུབ་པ།"
-expiryHours = "དུས་ཚོད་རྫོགས་པའི་དུས་ཚོད།"
-generate = "འབྲེལ་མཐུད་བསྐྲུན་པ།"
-generated = "འབྲེལ་མཐུད་གསར་སྐྲུན་བྱེད་པར་གདན་དྲངས།"
-sendEmail = "གློག་འཕྲིན་བརྒྱུད་ནས་གདན་ཞུའི་འབྲེལ་མཐུད་གཏོང་།"
-sendEmailDescription = "གལ་ཏེ་ལྕོགས་ཅན་བཟོས་ན་མགྲོན་འབོད་ཀྱི་འབྲེལ་མཐུད་དེ་གཏན་འཁེལ་བྱས་པའི་གློག་འཕྲིན་ཁ་བྱང་ལ་གཏོང་རྒྱུ་རེད།"
-submit = "གདན་ཞུ་འབྲེལ་མཐུད་བསྐྲུན་པ།"
-
-[workspace.people.inviteMembers]
-label = "འཐུས་མིར་གདན་འདྲེན་ཞུས་པ།"
-subtitle = "གཤམ་གྱི་གློག་འཕྲིན་ནང་བྲིས་པའམ་ཡང་ན་སྦྱར་ཡིག་བྲིས་དགོས། ཁྱེད་ཀྱི་ལས་ཁུངས་དེ་ཚོགས་མི་ཚོས་དངུལ་སྤྲོད་རྒྱུ་རེད།"
-
-[workspace.people.inviteMode]
-email = "གློག་འཕྲིན།"
-emailDisabled = "གློག་འཕྲིན་གྱི་གདན་ཞུ་ལ་SMTPབཀོད་སྒྲིག་དང་ཡིག་ཟམ་དགོས།"
-link = "མཐུད་ཁ"
-username = "མིང་།"
-
-[workspace.people.license]
-currentUsage = "ད་ལྟ་{{max}} ནས {{current}} སྤྱོད་མཁན་ཆོག་མཆན་བེད་སྤྱོད་བྱས་བཞིན།"
-fromLicense = "ཆོག་མཆན་ནས།"
-grandfathered = "ཕ་རྒན་ཅན།"
-grandfatheredShort = "{{count}} ཕ་རྒན་ཅན"
-slotsAvailable_one = "{{count}} user slot available"
-slotsAvailable_other = "{{count}} user slots available"
-slotsAvailable_zero = "No slots available"
-users_one = "user"
-users_other = "users"
-
-[workspace.people.mfa]
-adminDisableError = "སྤྱོད་མཁན་ལ་དོན་གྱི་ MFA སྤྱོད་སྒོ་བརྒྱབ་མ་ཐུབ།"
-adminDisableSuccess = "སྤྱོད་མཁན་ལ་དོན་གྱི་ MFA སྤྱོད་སྒོ་བརྒྱབས་ཚར།"
-disableByAdmin = "MFA སྤྱོད་སྒོ་བརྒྱབ"
-
-[workspace.people.roleDescriptions]
-admin = "སྒྲིག་སྟངས་འཛིན་སྐྱོང་བྱེད་ཐུབ་པ་དང་ཚོགས་མི་གདན་འདྲེན་ཞུ་ཐུབ།"
-currentRole = "ད་ལྟའི་བསྐོས་པའི་ལས་འགན།"
-user = "Can view and edit shared files, but cannot manage workspace settings or users."
-
-[workspace.people.toggleEnabled]
-error = "སྤྱོད་མཁན་གྱི་གནས་ཚུལ་གསར་བརྗེ་མ་ཐུབ་པ།"
-success = "སྤྱོད་མཁན་གྱི་གནས་ཚུལ་ལེགས་འགྲུབ་བྱུང་བ།"
-
-[workspace.teams]
-addMember = "འཐུས་མི།"
-backToTeams = "རུ་ཁག་ལ་ལོག་པ།"
-cannotAddToInternal = "ནང་ཁུལ་རུ་ཁག་ལ་ཚོགས་མི་ཁ་སྣོན་བྱེད་མི་ཐུབ།"
-cannotDeleteInternal = "ནང་ཁུལ་རུ་ཁག་བསུབ་མི་ཐུབ་པ།"
-cannotRenameInternal = "ནང་ཁུལ་གྱི་རུ་ཁག་ལ་མིང་བསྒྱུར་མི་ཐུབ་པ།"
-confirmDelete = "ཁྱེད་རང་གིས་རུ་ཁག་འདི་སུབ་འདོད་ཡོད་དམ། རུ་ཁག་འདི་ངེས་པར་དུ་སྟོང་པར་འགྱུར་དགོས།"
-confirmRemove = "རུ་ཁག་འདི་ནས་སྤྱོད་མཁན་མེད་པར་བཟོ་དགོས་སམ།"
-createNewTeam = "རུ་ཁག་གསར་པ་བསྐྲུན།"
-deleteTeamLabel = "རུ་ཁག རུ་ཁག"
-description = "རུ་ཁག་དོ་དམ་དང་ལས་སྒོའི་ཁོངས་མི་སྒྲིག་འཛུགས་བྱེད་པ།"
-loadError = "རུ་ཁག་གི་ཞིབ་ཕྲའི་མངོན་རྟོགས་མ་ཐུབ་པ།"
-loading = "མཁོ་འདོན་རུ་ཁག་..."
-loadingDetails = "མཁོ་སྤྲོད་རུ་ཁག་གི་ཞིབ་ཕྲ།"
-memberCount_one = "{{count}} member"
-memberCount_other = "{{count}} members"
-memberCount_zero = "no members"
-noMembers = "རུ་ཁག་འདིའི་ཚོགས་མི་མེད།"
-noTeamsFound = "རུ་ཁག་གཅིག་ཀྱང་མ་ཐོབ།"
-removeMember = "རུ་ཁག་ནས་ཕྱིར་འཐེན་བྱེད་པ།"
-removeMemberError = "སྤྱོད་མཁན་རུ་ཁག་ནས་ཕྱིར་འཐེན་མ་ཐུབ་པ།"
-removeMemberSuccess = "བེད་སྤྱོད་པ་རུ་ཁག་ནས་ཕྱིར་འཐེན་བྱས།"
-renameTeamLabel = "མིང་བསྒྱུར་བའི་རུ་ཁག"
-system = "མ་ལག"
-teamName = "རུ་ཁག་གི་མིང་།"
-teamNotFound = "རུ་ཁག་མ་རྙེད་པ།"
-title = "རུ་ཁག"
-totalMembers = "འཐུས་མི།"
-viewTeam = "རུ་ཁག་ལ་ལྟོས།"
-
-[workspace.teams.addMemberToTeam]
-addingTo = "ཁ་སྣོན་བྱས་ན།"
-currentlyIn = "ད་ལྟ་དུ།"
-error = "རུ་ཁག་ལ་ཚོགས་མི་ཁ་སྣོན་མ་ཐུབ་པ།"
-selectUser = "སྤྱོད་མཁན་འདེམས་པ།"
-selectUserPlaceholder = "སྤྱོད་མཁན་འདེམས་པ།"
-selectUserRequired = "བེད་སྤྱོད་བྱེད་མཁན་འདེམས་དགོས།"
-submit = "འཐུས་མི།"
-success = "འཐུས་མིས་རུ་ཁག་ལ་ལེགས་འགྲུབ་བྱུང་བ།"
-title = "འཐུས་མི་རུ་ཁག་ལ་ཁ་སྣོན་བྱེད།"
-userRequired = "བེད་སྤྱོད་བྱེད་མཁན་འདེམས་དགོས།"
-willBeMoved = "དྲན་ཐོ། བེད་སྤྱོད་པ་འདི་ཁོང་ཚོའི་ད་ལྟའི་རུ་ཁག་ནས་རུ་ཁག་འདི་ལ་སྤོ་རྒྱུ་རེད།"
-
-[workspace.teams.changeTeam]
-changing = "འགུལ་སྐྱོད།"
-error = "རུ་ཁག་བརྗེ་མ་ཐུབ་པ།"
-label = "བསྒྱུར་བཅོས་རུ་ཁག"
-selectTeam = "རུ་ཁག་འདེམས་པ།"
-selectTeamPlaceholder = "རུ་ཁག་འདེམས་པ།"
-selectTeamRequired = "རུ་ཁག་ཅིག་འདེམས་དགོས།"
-submit = "བསྒྱུར་བཅོས་རུ་ཁག"
-success = "རུ་ཁག་གིས་ལེགས་འགྲུབ་བྱུང་བ།"
-title = "བསྒྱུར་བཅོས་རུ་ཁག"
-
-[workspace.teams.createTeam]
-error = "རུ་ཁག་གསར་སྐྲུན་མ་ཐུབ་པ།"
-nameRequired = "རུ་ཁག་གི་མིང་དགོས།"
-submit = "རུ་ཁག་གསར་སྐྲུན་བྱེད་པ།"
-success = "རུ་ཁག་གིས་ལེགས་འགྲུབ་བྱུང་བ།"
-teamName = "རུ་ཁག་གི་མིང་།"
-teamNamePlaceholder = "རུ་ཁག་གི་མིང་བླུགས།"
-title = "རུ་ཁག་གསར་པ་བསྐྲུན།"
-
-[workspace.teams.deleteTeam]
-error = "རུ་ཁག་བསུབས་མ་ཐུབ་པ། རུ་ཁག་དེ་སྟོང་པར་ངེས་པར་བྱ་དགོས།"
-success = "རུ་ཁག་གིས་བདེ་བླག་ངང་བསུབས་ཡོད།"
-
-[workspace.teams.renameTeam]
-error = "མིང་བསྒྱུར་མ་ཐུབ་པ།"
-nameRequired = "རུ་ཁག་གི་མིང་དགོས།"
-newTeamName = "རུ་ཁག་གསར་པའི་མིང་།"
-newTeamNamePlaceholder = "རུ་ཁག་གི་མིང་གསར་པ་བླུགས།"
-renaming = "མིང་བསྒྱུར།"
-submit = "མིང་བསྒྱུར་བའི་རུ་ཁག"
-success = "རུ་ཁག་ལ་མིང་བསྒྱུར་ལེགས་འགྲུབ་བྱུང་བ།"
-title = "མིང་བསྒྱུར་བའི་རུ་ཁག"
 
 [zipWarning]
 cancel = "འདོར་བ"

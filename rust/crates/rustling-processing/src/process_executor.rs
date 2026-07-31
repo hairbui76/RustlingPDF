@@ -217,7 +217,7 @@ mod tests {
             let arguments = [
                 "-c".into(),
                 script.into(),
-                "stirling-process-test".into(),
+                "rustling-process-test".into(),
                 lock.as_os_str().to_owned(),
                 overlap.as_os_str().to_owned(),
             ];
@@ -239,7 +239,7 @@ mod tests {
         let arguments = [
             "-c".into(),
             "sleep 30 & echo $! > \"$1\"; wait".into(),
-            "stirling-process-test".into(),
+            "rustling-process-test".into(),
             child_pid_path.as_os_str().to_owned(),
         ];
         let executor = ProcessExecutor::new(1, Duration::from_millis(150));

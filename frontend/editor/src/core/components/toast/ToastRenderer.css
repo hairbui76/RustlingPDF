@@ -51,8 +51,7 @@
   pointer-events: auto;
 }
 
-/* A toast tied to a policy pulses a glow in that policy's accent (var set
-   inline as --toast-glow), so it's obvious which policy is being applied. */
+/* Optional accent glow set through --toast-glow. */
 .toast-item--glow {
   animation: toast-glow-pulse 1.8s ease-in-out infinite;
 }

@@ -104,7 +104,7 @@ fn upload_request(
     content: &[u8],
     filename: &str,
 ) -> Result<Request<Body>, Box<dyn std::error::Error>> {
-    let boundary = "stirling-mobile-scanner-boundary";
+    let boundary = "rustling-mobile-scanner-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{filename}\"\r\nContent-Type: image/jpeg\r\n\r\n"
     )

@@ -1,9 +1,8 @@
-//! In-process operational metrics compatible with the legacy `MetricsController`.
+//! In-process operational metrics for the public metrics routes.
 //!
-//! The Java service records counters before dispatching a request and exposes a
-//! small read-only query API. This module provides the same process-local
-//! lifecycle without introducing a metrics backend as a new production
-//! dependency.
+//! Counters are recorded before dispatching a request and exposed through a
+//! small read-only query API. This module keeps that process-local lifecycle
+//! without introducing an external metrics backend.
 
 use std::{
     collections::HashMap,

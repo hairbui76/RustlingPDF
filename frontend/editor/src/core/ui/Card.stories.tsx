@@ -39,7 +39,7 @@ const meta: Meta<typeof Card> = {
       options: [
         undefined,
         "default",
-        "premium",
+        "highlight",
         "success",
         "warning",
         "danger",
@@ -89,7 +89,7 @@ export const AccentMatrix: Story = {
       {(
         [
           "default",
-          "premium",
+          "highlight",
           "success",
           "warning",
           "danger",
@@ -120,7 +120,7 @@ export const InContext_ProductGrid: Story = {
         gap: 14,
       }}
     >
-      <Card accent="premium" padding="loose" interactive>
+      <Card accent="highlight" padding="loose" interactive>
         <h3 style={{ margin: 0, fontSize: 16 }}>Sources</h3>
         <p
           style={{
@@ -162,7 +162,7 @@ export const InContext_ProductGrid: Story = {
           Build a pipeline
         </Button>
       </Card>
-      <Card accent="premium" padding="loose" interactive>
+      <Card accent="highlight" padding="loose" interactive>
         <h3 style={{ margin: 0, fontSize: 16 }}>Agents</h3>
         <p
           style={{

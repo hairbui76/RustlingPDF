@@ -1,7 +1,7 @@
 //! Process-local asynchronous job storage.
 //!
-//! The Java service exposes long-running operations through a job URL.  This
-//! module provides the corresponding single-node storage boundary for Rust:
+//! This module provides the single-node storage boundary for long-running
+//! operations exposed through job URLs:
 //! uploaded work and result files live in a private temporary directory, job
 //! records expire after a bounded lifetime, and callers can never address an
 //! arbitrary filesystem path through a job or file identifier.
@@ -25,7 +25,7 @@ const HEX: &[u8; 16] = b"0123456789abcdef";
 /// Name of the runtime-owned job workspace directory under the system temp
 /// directory. Shared with the startup maintenance sweep so crash-abandoned job
 /// directories from a previous run can be reclaimed by exact name.
-pub(crate) const JOB_ROOT_DIRECTORY_NAME: &str = "stirling-rust-jobs";
+pub(crate) const JOB_ROOT_DIRECTORY_NAME: &str = "rustling-rust-jobs";
 
 /// A process-local registry of asynchronous operation results.
 #[derive(Clone, Debug)]
@@ -83,7 +83,7 @@ pub(crate) struct JobFileSource {
     pub(crate) content_type: String,
 }
 
-/// Aggregate operational counters returned by the administrator job endpoint.
+/// Aggregate operational counters returned by the job statistics endpoint.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct JobStats {

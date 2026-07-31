@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stirling-thumbnail-handler"
+name = "rustling-thumbnail-handler"
 version = "0.1.0"
 dependencies = [
  "windows",

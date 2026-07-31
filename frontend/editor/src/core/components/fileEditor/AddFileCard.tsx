@@ -4,7 +4,7 @@ import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
 import LocalIcon from "@app/components/shared/LocalIcon";
-import { Wordmark } from "@app/components/shared/Wordmark";
+import { LogoIcon } from "@app/components/shared/LogoIcon";
 import styles from "@app/components/fileEditor/FileEditor.module.css";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
@@ -85,10 +85,10 @@ const AddFileCard = ({
         <div className={styles.addFileContent}>
           {/* RustlingPDF Branding */}
           <Group gap="xs" align="center">
-            <Wordmark
-              alt="RustlingPDF"
-              muted
-              style={{ height: "2.2rem", width: "auto" }}
+            <LogoIcon
+              alt={t("home.mobile.brandAlt", "RustlingPDF logo")}
+              className="brand-mark--muted"
+              style={{ height: "2.75rem", width: "auto" }}
             />
           </Group>
 

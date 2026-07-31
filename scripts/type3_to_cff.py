@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert Stirling PDF Type3 glyph JSON into synthesised fonts using fontTools.
+Convert RustlingPDF Type3 glyph JSON into synthesised fonts using fontTools.
 
 The input JSON is expected to contain:
   - fontId, pageNumber (optional metadata)

@@ -1,15 +1,11 @@
 //! Single-binary SPA serving.
 //!
-//! Rust port of the Java `ReactRoutingController` + `WebMvcConfig` static
-//! resource pipeline. When `RUSTLING_FRONTEND_DIST` (or `system.frontendDist`
-//! in settings) names a built Vite `dist/` directory, the binary serves the
-//! React SPA itself: `/` and `/index.html` return the (transformed) index
-//! page, client-route paths fall back to the index without shadowing `/api/**`
-//! or real static assets, and the deep-link entry points (`/auth/callback`,
-//! `/auth/callback/tauri`, `/share/{token}`, `/mobile-scanner`) behave like
-//! their upstream controller mappings. When the setting is absent the module
-//! is inert and unmatched requests keep returning axum's plain 404, so the
-//! Vite dev-proxy workflow is untouched.
+//! When `RUSTLING_FRONTEND_DIST` (or `system.frontendDist` in settings) names
+//! a built Vite `dist/` directory, the binary serves the React SPA itself:
+//! `/` and `/index.html` return the transformed index page, client-route paths
+//! fall back to that index without shadowing `/api/**` or real static assets,
+//! and `/mobile-scanner` uses its desktop-aware entry point. When the setting
+//! is absent, unmatched requests keep returning axum's plain 404.
 //!
 //! See `rust/contracts/spa-serving.md` for the full behavior contract.
 
@@ -29,21 +25,19 @@ use percent_encoding::percent_decode_str;
 use crate::runtime_config::RuntimeConfig;
 
 /// Lightweight page served when the configured dist has no readable
-/// `index.html` (upstream `buildFallbackHtml`, context path fixed to `/`).
+/// `index.html`.
 const FALLBACK_INDEX_HTML: &str = include_str!("spa_pages/fallback_index.html");
 
-/// Standalone desktop OAuth completion page (upstream `buildCallbackHtml`,
-/// context path fixed to `/`). Served at `/auth/callback/tauri`.
-const TAURI_AUTH_CALLBACK_HTML: &str = include_str!("spa_pages/tauri_auth_callback.html");
-
-/// First path segments that never forward to the SPA index (the negative
-/// lookahead alternations of upstream `forwardRootPaths`/`forwardNestedPaths`,
-/// minus the dot-containing entries that the no-dot rule already blocks).
-/// Upstream's `(?!api|…)` lookahead has prefix semantics — `jsx-anything`
-/// starts with `js` and is therefore excluded too — so this list is matched
-/// with `starts_with`, case-sensitively, exactly like the Java regex.
-const EXCLUDED_FORWARD_PREFIXES: [&str; 18] = [
+/// First path segments that never forward to the SPA index.
+const EXCLUDED_FORWARD_PREFIXES: [&str; 24] = [
     "api",
+    "account",
+    "admin",
+    "audit",
+    "auth",
+    "login",
+    "portal",
+    "share",
     "static",
     "pipeline",
     "pdfjs",
@@ -58,7 +52,6 @@ const EXCLUDED_FORWARD_PREFIXES: [&str; 18] = [
     "locales",
     "modern-logo",
     "classic-logo",
-    "Login",
     "og_images",
     "samples",
 ];
@@ -105,8 +98,8 @@ const DAILY_SWR_ROOT_FILES: [&str; 4] = [
     "manifest-classic.json",
 ];
 
-/// The config-gated SPA serving state, computed once at startup exactly like
-/// upstream's `@PostConstruct` initialization: the index page (external
+/// The config-gated SPA serving state, computed once at startup: the index page
+/// (external
 /// `customFiles/static/index.html` override first, then `dist/index.html`,
 /// then the embedded fallback page) and the optional desktop mobile-upload
 /// page are cached for the lifetime of the process.
@@ -123,8 +116,7 @@ impl SpaServing {
     pub(crate) fn from_runtime_config(config: &RuntimeConfig) -> Option<Self> {
         let dist_root = config.frontend_dist_dir()?;
         let external_static = config.custom_static_dir();
-        // Same switch the Java side reads as a system property.
-        let tauri_mode = crate::env_compat::var("RUSTLING_PDF_TAURI_MODE")
+        let tauri_mode = crate::environment::var("RUSTLING_PDF_TAURI_MODE")
             .is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"));
         Some(Self::new(dist_root, &external_static, tauri_mode))
     }
@@ -175,7 +167,6 @@ impl SpaServing {
         };
         match classify(&segments) {
             SpaRoute::Index => self.index_response(),
-            SpaRoute::TauriAuthCallback => html_response(TAURI_AUTH_CALLBACK_HTML, None),
             SpaRoute::MobileScanner => self.mobile_scanner_response(),
             SpaRoute::StaticFile => self
                 .serve_static_file(&segments, request.headers())
@@ -201,7 +192,7 @@ impl SpaServing {
     }
 
     /// Serves a real file from the dist root, with negotiated precompressed
-    /// variants, upstream-parity cache headers, and `If-Modified-Since`
+    /// variants, cache headers, and `If-Modified-Since`
     /// revalidation. Returns `None` for anything that is not a regular file
     /// physically inside the dist root (missing files, directories, traversal
     /// and symlink escapes).
@@ -290,27 +281,17 @@ pub(crate) fn attach_fallback(
 enum SpaRoute {
     /// Serve the cached SPA index page.
     Index,
-    /// Serve the standalone desktop OAuth completion page.
-    TauriAuthCallback,
     /// Serve the mobile-scanner entry point (desktop-aware).
     MobileScanner,
     /// Look the path up in the dist directory.
     StaticFile,
 }
 
-/// Maps a sanitized request path onto the upstream controller semantics.
-///
-/// Explicit upstream `@GetMapping`s come first, then the two forward regexes:
-/// a single dot-free segment not starting with an excluded token, or two
-/// dot-free segments whose first segment is not excluded. Everything else is
-/// a static-resource lookup. `/audit` intentionally lands on the generic
-/// single-segment forward: the OSS upstream build has no audit web controller
-/// and its effective behavior is the SPA index.
+/// Maps a sanitized request path onto a SPA route or static-resource lookup.
 fn classify(segments: &[String]) -> SpaRoute {
     let names: Vec<&str> = segments.iter().map(String::as_str).collect();
     match names.as_slice() {
-        [] | ["index.html"] | ["auth", "callback"] | ["share", _] => SpaRoute::Index,
-        ["auth", "callback", "tauri"] => SpaRoute::TauriAuthCallback,
+        [] | ["index.html"] => SpaRoute::Index,
         ["mobile-scanner"] => SpaRoute::MobileScanner,
         [single] if !single.contains('.') && !is_excluded_forward(single) => SpaRoute::Index,
         [first, second]
@@ -323,9 +304,11 @@ fn classify(segments: &[String]) -> SpaRoute {
 }
 
 fn is_excluded_forward(segment: &str) -> bool {
-    EXCLUDED_FORWARD_PREFIXES
-        .iter()
-        .any(|prefix| segment.starts_with(prefix))
+    EXCLUDED_FORWARD_PREFIXES.iter().any(|prefix| {
+        segment
+            .get(..prefix.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
+    })
 }
 
 /// Splits and percent-decodes a request path into segments, rejecting
@@ -364,8 +347,7 @@ async fn resolve_regular_file(canonical_root: &Path, candidate: &Path) -> Option
     metadata.is_file().then_some(real)
 }
 
-/// Upstream `ReactRoutingController.processIndexHtml`: pin the base href to
-/// the (fixed `/`) context path and expose it to the SPA before any bundle
+/// Pins the base href to `/` and exposes it to the SPA before any bundle
 /// executes.
 fn transform_index_html(raw: &str) -> String {
     let mut html = raw.replace("%BASE_URL%", "/");
@@ -416,7 +398,7 @@ fn html_response(body: &str, cache_control: Option<&'static str>) -> Response {
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
-/// The `WebMvcConfig` resource-handler cache tiers, applied per path shape.
+/// Static-resource cache tiers, applied per path shape.
 fn static_cache_control(segments: &[String]) -> &'static str {
     match segments {
         [name] => {
@@ -564,28 +546,31 @@ mod tests {
     }
 
     #[test]
-    fn classifies_spa_and_static_paths_like_upstream() {
+    fn classifies_spa_and_static_paths() {
         assert!(matches!(
             classify(&segments("/index.html")),
             SpaRoute::Index
         ));
         assert!(matches!(
             classify(&segments("/auth/callback")),
-            SpaRoute::Index
+            SpaRoute::StaticFile
         ));
         assert!(matches!(
             classify(&segments("/auth/callback/tauri")),
-            SpaRoute::TauriAuthCallback
+            SpaRoute::StaticFile
         ));
         assert!(matches!(
             classify(&segments("/share/token.with.dots")),
-            SpaRoute::Index
+            SpaRoute::StaticFile
         ));
         assert!(matches!(
             classify(&segments("/mobile-scanner")),
             SpaRoute::MobileScanner
         ));
-        assert!(matches!(classify(&segments("/audit")), SpaRoute::Index));
+        assert!(matches!(
+            classify(&segments("/audit")),
+            SpaRoute::StaticFile
+        ));
         assert!(matches!(
             classify(&segments("/compress-pdf")),
             SpaRoute::Index
@@ -594,7 +579,7 @@ mod tests {
             classify(&segments("/files/some-uuid")),
             SpaRoute::Index
         ));
-        // Excluded prefixes never forward — including the prefix-match quirk.
+        // Excluded prefixes never forward.
         assert!(matches!(
             classify(&segments("/assets")),
             SpaRoute::StaticFile
@@ -607,8 +592,10 @@ mod tests {
             classify(&segments("/Login")),
             SpaRoute::StaticFile
         ));
-        // Case-sensitive, exactly like the Java regex: lowercase login forwards.
-        assert!(matches!(classify(&segments("/login")), SpaRoute::Index));
+        assert!(matches!(
+            classify(&segments("/login")),
+            SpaRoute::StaticFile
+        ));
         // Dots and deep paths go to the static lookup.
         assert!(matches!(
             classify(&segments("/robots.txt")),
@@ -625,7 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn cache_tiers_mirror_web_mvc_config() {
+    fn cache_tiers_are_applied_by_path_shape() {
         assert_eq!(static_cache_control(&segments("/sw.js")), CACHE_NO_STORE);
         assert_eq!(
             static_cache_control(&segments("/manifest.json")),
@@ -658,7 +645,7 @@ mod tests {
     }
 
     #[test]
-    fn transforms_index_html_like_upstream() {
+    fn transforms_index_html() {
         let raw =
             "<html><head><base href=\"%BASE_URL%\" /><title>x</title></head><body></body></html>";
         let transformed = transform_index_html(raw);

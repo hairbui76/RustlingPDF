@@ -8,8 +8,6 @@ const SAMPLE_PDF = path.join(FIXTURES_DIR, "sample.pdf");
 
 // app-config the desktop bundle would return: hardware signing is offered only there.
 const DESKTOP_APP_CONFIG = {
-  enableLogin: false,
-  isAdmin: false,
   languages: ["en-GB"],
   defaultLocale: "en-GB",
   hardwareSigningAvailable: true,
@@ -167,8 +165,6 @@ test.describe("CertSign tool - server deployment (no hardware)", () => {
     await page.route("**/api/v1/config/app-config", (route: Route) =>
       route.fulfill({
         json: {
-          enableLogin: false,
-          isAdmin: false,
           languages: ["en-GB"],
           defaultLocale: "en-GB",
           hardwareSigningAvailable: false,

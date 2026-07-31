@@ -1,6 +1,6 @@
 # Form field inspection and export
 
-Rust compatibility contract for these `FormFillController` routes:
+Current contract for these form inspection and export routes:
 
 - `POST /api/v1/form/fields`
 - `POST /api/v1/form/fields-with-coordinates`
@@ -49,7 +49,7 @@ unusual encodings, merged field/widget dictionaries, malformed parent trees,
 XFA-only forms, encrypted forms, and PDFBox-specific choice-field normalization.
 The optional export override is applied to the extracted view rather than
 regenerating PDF appearance streams; that is equivalent for the returned table
-on covered canonical fields but remains a parity gate for malformed forms.
+on covered canonical fields but malformed forms remain unsupported.
 
 ## Verification
 

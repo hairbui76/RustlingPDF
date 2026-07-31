@@ -274,13 +274,6 @@
       "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
     },
     {
-      "moduleName": "@supabase/supabase-js",
-      "moduleUrl": "https://github.com/supabase/supabase-js",
-      "moduleVersion": "2.110.9",
-      "moduleLicense": "MIT",
-      "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
-    },
-    {
       "moduleName": "@tailwindcss/postcss",
       "moduleUrl": "https://github.com/tailwindlabs/tailwindcss",
       "moduleVersion": "4.3.3",

@@ -374,7 +374,7 @@ fn install_font(
         .unwrap_or_default();
     let mut suffix = 0usize;
     let font_name = loop {
-        let name = format!("StirlingPageNumber{suffix}").into_bytes();
+        let name = format!("RustlingPageNumber{suffix}").into_bytes();
         if !fonts.has(&name) {
             break name;
         }

@@ -71,7 +71,7 @@ async fn converts_a_text_file_or_reports_missing_libreoffice()
 
 fn libreoffice_present() -> bool {
     if let Some(command) =
-        rustling_processing::env_compat::var_os("RUSTLING_PROCESSING_SOFFICE_COMMAND")
+        rustling_processing::environment::var_os("RUSTLING_PROCESSING_SOFFICE_COMMAND")
         && !command.is_empty()
     {
         return Command::new(command).arg("--version").output().is_ok();
@@ -107,7 +107,7 @@ async fn require_status(
 }
 
 async fn post_file(content: &[u8], filename: &str) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-file-to-pdf-boundary";
+    let boundary = "rustling-file-to-pdf-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
     )

@@ -133,7 +133,7 @@ async fn post_sanitize(
     pdf: &[u8],
     fields: &[(&str, &str)],
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-sanitize-boundary";
+    let boundary = "rustling-sanitize-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"unsafe.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

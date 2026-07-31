@@ -30,7 +30,7 @@ async fn multipart_validation_reports_the_requested_orchestration_path()
 -> Result<(), Box<dyn std::error::Error>> {
     let (_directory, app) = configured_app("http://127.0.0.1:1")?;
     for path in [ORCHESTRATE_PATH, STREAM_PATH] {
-        let boundary = format!("stirling-ai-invalid-{}", path.len());
+        let boundary = format!("rustling-ai-invalid-{}", path.len());
         let response = app
             .clone()
             .oneshot(workflow_request(
@@ -58,7 +58,7 @@ async fn forwards_a_typed_turn_without_caller_identity() -> Result<(), Box<dyn s
     )])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-answer";
+    let boundary = "rustling-ai-answer";
     let mut multipart = Vec::new();
     add_text_part(
         &mut multipart,
@@ -121,7 +121,7 @@ async fn stores_generated_files_under_path_safe_names_and_serves_them()
     )])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-generate";
+    let boundary = "rustling-ai-generate";
     let multipart = message_multipart(boundary, "Create a report");
 
     let response = app
@@ -162,7 +162,7 @@ async fn executes_tool_calls_and_registers_one_to_one_results()
     )])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-rotate";
+    let boundary = "rustling-ai-rotate";
     let mut multipart = Vec::new();
     add_text_part(&mut multipart, boundary, "userMessage", "Rotate it");
     add_file_part(
@@ -209,7 +209,7 @@ async fn expands_multi_output_tool_results_into_individual_downloads()
     )])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-split";
+    let boundary = "rustling-ai-split";
     let mut multipart = Vec::new();
     add_text_part(&mut multipart, boundary, "userMessage", "Split every page");
     add_file_part(
@@ -262,7 +262,7 @@ async fn returns_cannot_continue_for_an_unknown_content_request()
     )])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-unknown-content";
+    let boundary = "rustling-ai-unknown-content";
     let mut multipart = Vec::new();
     add_text_part(&mut multipart, boundary, "userMessage", "Read it");
     add_file_part(
@@ -308,7 +308,7 @@ async fn extracts_requested_content_and_resumes_the_engine()
     ])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-content-resume";
+    let boundary = "rustling-ai-content-resume";
     let mut multipart = Vec::new();
     add_text_part(
         &mut multipart,
@@ -368,7 +368,7 @@ async fn legacy_need_ingest_frames_fail_without_touching_a_document_store()
     ))])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-ingest-legacy";
+    let boundary = "rustling-ai-ingest-legacy";
     let mut multipart = Vec::new();
     add_text_part(
         &mut multipart,
@@ -419,7 +419,7 @@ async fn streams_java_compatible_progress_heartbeat_and_result_events()
     )])
     .await?;
     let (_directory, app) = configured_app(&engine.url)?;
-    let boundary = "stirling-ai-stream";
+    let boundary = "rustling-ai-stream";
     let response = app
         .oneshot(workflow_request(
             STREAM_PATH,

@@ -1,11 +1,6 @@
 import type { SavedSignature } from "@app/types/signature";
 
-/**
- * Signatures are per-browser state: the server keeps no user data, so the
- * only store is localStorage. The two-member type survives because the
- * sign-tool hook narrows on it; "backend" can never be returned.
- */
-export type StorageType = "backend" | "localStorage";
+export type StorageType = "localStorage";
 
 /**
  * Service to handle signature storage in the browser's localStorage.
@@ -49,7 +44,7 @@ class SignatureStorageService {
   }
 
   // LocalStorage methods
-  private readonly STORAGE_KEY = "stirling:saved-signatures:v1";
+  private readonly STORAGE_KEY = "rustling:saved-signatures:v1";
 
   private _loadFromLocalStorage(): SavedSignature[] {
     try {

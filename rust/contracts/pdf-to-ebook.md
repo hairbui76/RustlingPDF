@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/pdf/epub`
 
-Rust compatibility contract for `ConvertPDFToEpubController`.
+Current contract for PDF-to-eBook conversion.
 
 ## Request and response
 
@@ -31,7 +31,7 @@ otherwise from `ebook-convert` / `ebook-convert.exe` on `PATH`. The converter
 receives a private temporary input copy and output is returned only when Calibre
 produces a non-empty file.
 
-## Availability and parity
+## Availability and limitations
 
 Missing uploads, non-PDF names, and invalid option values return `400`. The
 shared endpoint policy recognizes this route as `pdf-to-epub` in the `Convert`,

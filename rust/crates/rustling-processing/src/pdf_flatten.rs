@@ -80,7 +80,7 @@ fn normalize_flattened_metadata(
 }
 
 pub(crate) fn configured_max_render_dpi() -> i32 {
-    crate::env_compat::var("SYSTEM_MAXDPI")
+    crate::environment::var("SYSTEM_MAXDPI")
         .ok()
         .and_then(|value| value.trim().parse::<i32>().ok())
         .filter(|dpi| *dpi > 0)

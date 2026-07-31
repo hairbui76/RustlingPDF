@@ -1,6 +1,6 @@
 # `POST /api/v1/convert/ebook/pdf`
 
-Rust compatibility contract for `ConvertEbookToPDFController`.
+Current contract for eBook-to-PDF conversion.
 
 ## Request and response
 
@@ -32,15 +32,14 @@ or failing Ghostscript returned Calibre's PDF unchanged — so the flag now alwa
 takes that path. Responses are byte-identical to the previous no-Ghostscript
 behavior.
 
-## Availability and parity
+## Availability and limitations
 
 Unsupported or missing extensions and invalid boolean fields return `400`. If Calibre
 is not discoverable the route returns `501 Not Implemented`; an explicitly configured
 but broken command, a failed conversion, or invalid output returns `500`.
 
-The Java service also has endpoint-group toggles around its tool integrations.
 This route remains gated by Calibre discovery while its own endpoint mapping is
-not part of the current shared group manifest; the command semantics match Java.
+not part of the current shared group manifest.
 
 ## Verification
 

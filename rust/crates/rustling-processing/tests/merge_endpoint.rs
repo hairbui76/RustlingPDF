@@ -10,7 +10,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn merges_multipart_pdf_uploads_without_a_browser_change()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-test-boundary";
+    let boundary = "rustling-test-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "alpha.pdf", &pdf_with_pages(1)?);
     add_file_part(&mut body, boundary, "bravo.pdf", &pdf_with_pages(2)?);
@@ -34,7 +34,7 @@ async fn merges_multipart_pdf_uploads_without_a_browser_change()
 #[tokio::test]
 async fn sorts_by_pdf_title_before_choosing_the_download_name()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-title-sort-boundary";
+    let boundary = "rustling-title-sort-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -63,7 +63,7 @@ async fn sorts_by_pdf_title_before_choosing_the_download_name()
 #[tokio::test]
 async fn sorts_both_legacy_date_modes_newest_first() -> Result<(), Box<dyn std::error::Error>> {
     for sort_type in ["byDateModified", "byDateCreated"] {
-        let boundary = format!("stirling-{sort_type}-boundary");
+        let boundary = format!("rustling-{sort_type}-boundary");
         let mut body = Vec::new();
         add_file_part(
             &mut body,
@@ -93,7 +93,7 @@ async fn sorts_both_legacy_date_modes_newest_first() -> Result<(), Box<dyn std::
 #[tokio::test]
 async fn accepts_remove_cert_sign_when_the_merge_has_no_signatures()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-unsigned-remove-boundary";
+    let boundary = "rustling-unsigned-remove-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "unsigned.pdf", &pdf_with_pages(1)?);
     add_text_part(&mut body, boundary, "removeCertSign", "true");
@@ -106,7 +106,7 @@ async fn accepts_remove_cert_sign_when_the_merge_has_no_signatures()
 #[tokio::test]
 async fn flattens_only_the_signature_field_when_remove_cert_sign_is_enabled()
 -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-signed-remove-boundary";
+    let boundary = "rustling-signed-remove-boundary";
     let mut body = Vec::new();
     add_file_part(
         &mut body,
@@ -148,14 +148,14 @@ async fn flattens_only_the_signature_field_when_remove_cert_sign_is_enabled()
     );
     assert!(contains_bytes(
         &document.get_page_content(page_id),
-        b"/StirlingSig0 Do"
+        b"/RustlingSig0 Do"
     ));
     Ok(())
 }
 
 #[tokio::test]
 async fn preserves_the_seed_acroform() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-seed-form-boundary";
+    let boundary = "rustling-seed-form-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "form.pdf", &pdf_with_text_form()?);
     add_file_part(&mut body, boundary, "ordinary.pdf", &pdf_with_pages(1)?);
@@ -176,7 +176,7 @@ async fn preserves_the_seed_acroform() -> Result<(), Box<dyn std::error::Error>>
 
 #[tokio::test]
 async fn preserves_source_bookmarks_with_page_offsets() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-source-bookmark-boundary";
+    let boundary = "rustling-source-bookmark-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "first.pdf", &pdf_with_pages(1)?);
     add_file_part(
@@ -216,7 +216,7 @@ async fn preserves_source_bookmarks_with_page_offsets() -> Result<(), Box<dyn st
 
 #[tokio::test]
 async fn generates_filename_toc_entries_in_input_order() -> Result<(), Box<dyn std::error::Error>> {
-    let boundary = "stirling-generated-toc-boundary";
+    let boundary = "rustling-generated-toc-boundary";
     let mut body = Vec::new();
     add_file_part(&mut body, boundary, "alpha.pdf", &pdf_with_pages(1)?);
     add_file_part(&mut body, boundary, "bravo.pdf", &pdf_with_pages(1)?);
@@ -247,7 +247,7 @@ async fn generates_filename_toc_entries_in_input_order() -> Result<(), Box<dyn s
 #[tokio::test]
 async fn round_trips_generated_bookmarks_through_another_merge()
 -> Result<(), Box<dyn std::error::Error>> {
-    let first_boundary = "stirling-bookmark-roundtrip-first";
+    let first_boundary = "rustling-bookmark-roundtrip-first";
     let mut first_body = Vec::new();
     add_file_part(
         &mut first_body,
@@ -270,7 +270,7 @@ async fn round_trips_generated_bookmarks_through_another_merge()
     .await?;
     let first_output = to_bytes(first_response.into_body(), usize::MAX).await?;
 
-    let second_boundary = "stirling-bookmark-roundtrip-second";
+    let second_boundary = "rustling-bookmark-roundtrip-second";
     let mut second_body = Vec::new();
     add_file_part(
         &mut second_body,

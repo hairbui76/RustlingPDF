@@ -1935,9 +1935,9 @@ fn decode_qr_rgba(rgba: &[u8], width: u32, height: u32) -> Option<String> {
 fn valid_split_qr(content: &str) -> bool {
     matches!(
         content,
-        "https://github.com/Stirling-Tools/Stirling-PDF"
-            | "https://github.com/Frooodle/Stirling-PDF"
-            | "https://stirlingpdf.com"
+        "https://github.com/hairbui76/RustlingPDF"
+            | "https://github.com/Frooodle/RustlingPDF"
+            | "https://rustlingpdf.com"
     )
 }
 

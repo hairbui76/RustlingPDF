@@ -6,7 +6,7 @@ import { Button, type ButtonAccent } from "@app/ui/Button";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import { Z_INDEX_OVER_FULLSCREEN_SURFACE } from "@app/styles/zIndex";
-import stirlingMark from "@app/assets/brand/modern-logo/logo512.png";
+import rustlingMark from "@app/assets/brand/modern-logo/logo512.png";
 import styles from "@app/components/onboarding/InitialOnboardingModal/InitialOnboardingModal.module.css";
 
 /** A footer button. `action` is an opaque string handled by the caller. */
@@ -17,7 +17,7 @@ export interface ShellButton {
   label?: string;
   /** Filled primary (blue) vs. quiet text button. */
   primary?: boolean;
-  /** Accent override for a primary button (e.g. "premium"). */
+  /** Accent override for a primary button. */
   accent?: ButtonAccent;
   action: string;
   disabled?: boolean;
@@ -52,7 +52,7 @@ export function ShellHero({
   if (appIcon) {
     return (
       <img
-        src={stirlingMark}
+        src={rustlingMark}
         alt="RustlingPDF"
         className={styles.heroAppIcon}
       />
@@ -64,8 +64,7 @@ export function ShellHero({
 /**
  * Shared onboarding slide chrome: branded header + step progress, an inset
  * hero panel, left-aligned title/body, and a right-aligned action footer.
- * Generic over button actions so every flow (editor, SaaS, portal) renders
- * the same card.
+ * Generic over button actions so onboarding flows share the same card.
  */
 export default function OnboardingSlideShell({
   opened = true,
@@ -129,7 +128,7 @@ export default function OnboardingSlideShell({
         <header className={styles.header}>
           <div className={styles.brand}>
             <img
-              src={stirlingMark}
+              src={rustlingMark}
               alt=""
               aria-hidden="true"
               className={styles.brandLogo}

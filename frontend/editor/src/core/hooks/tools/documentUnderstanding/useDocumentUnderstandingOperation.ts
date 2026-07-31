@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { StirlingFile } from "@app/types/fileContext";
+import type { RustlingFile } from "@app/types/fileContext";
 import type { ToolOperationHook } from "@app/hooks/tools/shared/useToolOperation";
 import type { DocumentUnderstandingParameters } from "@app/hooks/tools/documentUnderstanding/useDocumentUnderstandingParameters";
 import { understandDocument } from "@app/tools/documentUnderstanding/documentUnderstandingApi";
@@ -32,7 +32,7 @@ export const useDocumentUnderstandingOperation =
     const executeOperation = useCallback(
       async (
         parameters: DocumentUnderstandingParameters,
-        selectedFiles: StirlingFile[],
+        selectedFiles: RustlingFile[],
       ) => {
         const file = selectedFiles[0];
         if (!file) {

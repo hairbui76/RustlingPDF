@@ -53,7 +53,7 @@ To build the DLL standalone:
 ```bash
 cd frontend/editor/src-tauri/thumbnail-handler
 cargo build --release
-# Output: target/release/stirling_thumbnail_handler.dll
+# Output: target/release/rustling_thumbnail_handler.dll
 ```
 
 ## Linux / macOS

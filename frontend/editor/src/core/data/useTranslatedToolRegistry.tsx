@@ -18,7 +18,6 @@ import {
 } from "@app/hooks/tools/shared/toolOperationTypes";
 import { adjustContrastOperationConfig } from "@app/hooks/tools/adjustContrast/useAdjustContrastOperation";
 import { getSynonyms } from "@app/utils/toolSynonyms";
-import { useProprietaryToolRegistry } from "@app/data/useProprietaryToolRegistry";
 import { compressOperationConfig } from "@app/hooks/tools/compress/useCompressOperation";
 import { splitOperationConfig } from "@app/hooks/tools/split/useSplitOperation";
 import { addPasswordOperationConfig } from "@app/hooks/tools/addPassword/useAddPasswordOperation";
@@ -40,7 +39,6 @@ import { bookletImpositionOperationConfig } from "@app/hooks/tools/bookletImposi
 import { mergeOperationConfig } from "@app/hooks/tools/merge/useMergeOperation";
 import { editTableOfContentsOperationConfig } from "@app/hooks/tools/editTableOfContents/useEditTableOfContentsOperation";
 import { autoRenameOperationConfig } from "@app/hooks/tools/autoRename/useAutoRenameOperation";
-import { usePrototypeToolRegistry } from "@app/data/usePrototypeToolRegistry";
 import { flattenOperationConfig } from "@app/hooks/tools/flatten/useFlattenOperation";
 import { redactOperationConfig } from "@app/hooks/tools/redact/useRedactOperation";
 import { rotateOperationConfig } from "@app/hooks/tools/rotate/useRotateOperation";
@@ -71,17 +69,8 @@ export interface TranslatedToolCatalog {
 // Hook to get the translated tool registry
 export function useTranslatedToolCatalog(): TranslatedToolCatalog {
   const { t } = useTranslation();
-  const proprietaryTools = useProprietaryToolRegistry();
-  const prototypeTools = usePrototypeToolRegistry();
-
   return useMemo(() => {
     const allTools: ToolRegistry = {
-      // Proprietary tools (if any)
-      ...proprietaryTools,
-      // Prototype-only tools (empty in the main/core/proprietary/saas/desktop
-      // builds; the prototypes build overlay injects experimental tools here
-      // via src/prototypes/data/usePrototypeToolRegistry.tsx).
-      ...prototypeTools,
       // Recommended Tools in order
       pdfTextEditor: {
         icon: (
@@ -157,7 +146,7 @@ export function useTranslatedToolCatalog(): TranslatedToolCatalog {
       certSign: {
         icon: (
           <LocalIcon
-            icon="workspace-premium-outline-rounded"
+            icon="verified-user-outline-rounded"
             width="1.5rem"
             height="1.5rem"
           />
@@ -1274,29 +1263,9 @@ export function useTranslatedToolCatalog(): TranslatedToolCatalog {
         ),
         categoryId: ToolCategoryId.ADVANCED_TOOLS,
         subcategoryId: SubcategoryId.DEVELOPER_TOOLS,
-        link: "https://docs.stirlingpdf.com/Configuration/Folder%20Scanning/",
+        link: "https://github.com/hairbui76/RustlingPDF/blob/main/rust/RUNNING_WITH_RUST.md",
         endpoints: ["dev-folder-scanning-docs"],
         synonyms: getSynonyms(t, "devFolderScanning"),
-        supportsAutomate: false,
-        automationSettings: null,
-      },
-      devSsoGuide: {
-        icon: (
-          <LocalIcon
-            icon="open-in-new-rounded"
-            width="1.5rem"
-            height="1.5rem"
-            style={{ color: "var(--c-accent-fg, var(--c-primary))" }}
-          />
-        ),
-        name: t("home.devSsoGuide.title", "SSO Guide"),
-        component: null,
-        description: t("home.devSsoGuide.desc", "Link to SSO guide"),
-        categoryId: ToolCategoryId.ADVANCED_TOOLS,
-        subcategoryId: SubcategoryId.DEVELOPER_TOOLS,
-        link: "https://docs.stirlingpdf.com/Configuration/Single%20Sign-On%20Configuration/",
-        endpoints: ["dev-sso-guide-docs"],
-        synonyms: getSynonyms(t, "devSsoGuide"),
         supportsAutomate: false,
         automationSettings: null,
       },
@@ -1317,7 +1286,7 @@ export function useTranslatedToolCatalog(): TranslatedToolCatalog {
         ),
         categoryId: ToolCategoryId.ADVANCED_TOOLS,
         subcategoryId: SubcategoryId.DEVELOPER_TOOLS,
-        link: "https://docs.stirlingpdf.com/Paid-Offerings/#activating-your-license",
+        link: "https://github.com/hairbui76/RustlingPDF/blob/main/rust/RUNNING_WITH_RUST.md",
         endpoints: ["dev-airgapped-docs"],
         synonyms: getSynonyms(t, "devAirgapped"),
         supportsAutomate: false,
@@ -1478,5 +1447,5 @@ export function useTranslatedToolCatalog(): TranslatedToolCatalog {
       superTools,
       linkTools,
     };
-  }, [t, proprietaryTools, prototypeTools]); // Re-compute when translations, proprietary, or prototype tools change
+  }, [t]);
 }

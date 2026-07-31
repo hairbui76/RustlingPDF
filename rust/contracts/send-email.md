@@ -1,6 +1,6 @@
 # SMTP email with attachment
 
-Rust compatibility contract for the conditional Java `EmailController` route.
+Current contract for the optional SMTP attachment route.
 
 ## Route and configuration
 
@@ -24,11 +24,9 @@ by the in-process pipeline dispatcher when enabled.
 ## TLS policy
 
 Implicit TLS, required STARTTLS, opportunistic STARTTLS, and explicitly
-configured plaintext SMTP are supported. Rust validates the relay certificate
-and hostname against the standard WebPKI public roots. The Java implementation
-defaults `sslTrust` to `*` and permits disabled hostname verification; Rust
-rejects those insecure overrides instead of silently recreating a
-man-in-the-middle-prone configuration.
+configured plaintext SMTP are supported. RustlingPDF validates the relay
+certificate and hostname against the standard WebPKI public roots. It rejects
+trust-all and disabled-hostname-verification overrides.
 
 ## Verification
 

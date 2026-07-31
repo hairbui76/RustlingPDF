@@ -246,7 +246,7 @@ async fn post_edit_text(
     page_numbers: Option<&str>,
     whole_word_search: Option<&str>,
 ) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-edit-text-boundary";
+    let boundary = "rustling-edit-text-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )

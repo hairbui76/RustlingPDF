@@ -70,7 +70,7 @@ async fn require_status(
 }
 
 async fn post_pdf(pdf: &[u8]) -> Result<Response, Box<dyn std::error::Error>> {
-    let boundary = "stirling-text-editor-metadata-boundary";
+    let boundary = "rustling-text-editor-metadata-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"fileInput\"; filename=\"source.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
     )
