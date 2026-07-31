@@ -63,7 +63,7 @@ endpoints**. There is no Java or JVM at build or run time.
 | **Convert almost anything** | Convert images, Office files, HTML, Markdown, email, eBooks, SVG, and comic archives to PDF; export PDF to images, text, Word, PowerPoint, HTML, Markdown, CSV/XLSX, EPUB, video, and more |
 | **Protect and sign** | Set passwords and permissions, sanitize metadata, redact content, add watermarks, sign with X.509 or hardware/smart-card certificates, timestamp, and validate signatures |
 | **Inspect and manage** | Review fonts, pages, annotations, forms, encryption, attachments, metadata, and PDF/A, PDF/UA, or WTPDF conformance |
-| **Automate** | Discover typed operations, run one command, compose multi-step pipelines, use safe binary stdout, call the REST API, or submit asynchronous jobs |
+| **Automate** | Build multi-step pipelines visually, drag and drop to reorder steps, save or exchange them as JSON, run typed CLI operations, call the REST API, or submit asynchronous jobs |
 | **AI-assisted, optional** | Produce page-cited summaries, schema-driven extraction, ordered translation, edit plans, review comments, generated documents, math audits, and classification |
 
 The detailed, code-derived reference lists every registered route and dependency

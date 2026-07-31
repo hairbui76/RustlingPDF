@@ -379,4 +379,95 @@ test.describe("12. Automation Page — Import / Export", () => {
       expect(download.suggestedFilename()).toMatch(/\.folder-scan\.json$/);
     });
   });
+
+  test.describe("12.5 Builder — reorder pipeline steps", () => {
+    test("dragging a step changes the order and persists it", async ({
+      page,
+    }) => {
+      await openImportModal(page);
+      await page
+        .getByLabel(/Or paste JSON/i)
+        .fill(makeAutomateJson("Reorder Pipeline"));
+      await page
+        .getByRole("button", { name: /^Import$/ })
+        .last()
+        .click();
+
+      await openEntryMenu(page, /Reorder Pipeline/i);
+      await page.getByRole("menuitem", { name: /^Edit$/ }).click();
+
+      const rows = page.locator("[data-automation-operation]");
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0)).toHaveAttribute(
+        "data-automation-operation",
+        "merge",
+      );
+      await expect(rows.nth(1)).toHaveAttribute(
+        "data-automation-operation",
+        "compress",
+      );
+
+      const secondDragHandle = rows
+        .nth(1)
+        .getByRole("button", { name: /^Reorder / });
+      await secondDragHandle.dragTo(rows.nth(0), {
+        targetPosition: { x: 20, y: 4 },
+      });
+
+      await expect(rows.nth(0)).toHaveAttribute(
+        "data-automation-operation",
+        "compress",
+      );
+      await expect(rows.nth(1)).toHaveAttribute(
+        "data-automation-operation",
+        "merge",
+      );
+
+      await page.getByRole("button", { name: /Save Automation/i }).click();
+      await expect(
+        page.getByRole("button", { name: /Reorder Pipeline/i }).first(),
+      ).toBeVisible({ timeout: 10_000 });
+
+      await openEntryMenu(page, /Reorder Pipeline/i);
+      await page.getByRole("menuitem", { name: /^Edit$/ }).click();
+      await expect(rows.nth(0)).toHaveAttribute(
+        "data-automation-operation",
+        "compress",
+      );
+      await expect(rows.nth(1)).toHaveAttribute(
+        "data-automation-operation",
+        "merge",
+      );
+    });
+
+    test("keyboard controls move a focused pipeline step", async ({ page }) => {
+      await openImportModal(page);
+      await page
+        .getByLabel(/Or paste JSON/i)
+        .fill(makeAutomateJson("Keyboard Reorder"));
+      await page
+        .getByRole("button", { name: /^Import$/ })
+        .last()
+        .click();
+
+      await openEntryMenu(page, /Keyboard Reorder/i);
+      await page.getByRole("menuitem", { name: /^Edit$/ }).click();
+
+      const rows = page.locator("[data-automation-operation]");
+      const firstDragHandle = rows
+        .nth(0)
+        .getByRole("button", { name: /^Reorder / });
+      await firstDragHandle.focus();
+      await firstDragHandle.press("ArrowDown");
+
+      await expect(rows.nth(0)).toHaveAttribute(
+        "data-automation-operation",
+        "compress",
+      );
+      await expect(rows.nth(1)).toHaveAttribute(
+        "data-automation-operation",
+        "merge",
+      );
+    });
+  });
 });

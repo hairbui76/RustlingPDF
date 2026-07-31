@@ -8,6 +8,7 @@ import {
 import { AUTOMATION_CONSTANTS } from "@app/constants/automation";
 import { ToolRegistry } from "@app/data/toolsTaxonomy";
 import { ToolId } from "@app/types/toolId";
+import { reorderAutomationTools } from "@app/utils/automationReorder";
 
 interface UseAutomationFormProps {
   mode: AutomationMode;
@@ -127,6 +128,15 @@ export function useAutomationForm({
     setSelectedTools(updatedTools);
   };
 
+  const reorderTool = useCallback(
+    (sourceIndex: number, destinationIndex: number) => {
+      setSelectedTools((currentTools) =>
+        reorderAutomationTools(currentTools, sourceIndex, destinationIndex),
+      );
+    },
+    [],
+  );
+
   const hasUnsavedChanges = () => {
     return (
       automationName.trim() !== "" ||
@@ -154,6 +164,7 @@ export function useAutomationForm({
     addTool,
     removeTool,
     updateTool,
+    reorderTool,
     hasUnsavedChanges,
     canSaveAutomation,
     getToolName,

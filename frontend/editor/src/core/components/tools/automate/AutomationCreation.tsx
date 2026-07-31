@@ -68,6 +68,7 @@ export default function AutomationCreation({
     selectedTools,
     removeTool,
     updateTool,
+    reorderTool,
     canSaveAutomation,
     getToolName,
     getToolDefaultParameters,
@@ -278,6 +279,7 @@ export default function AutomationCreation({
             toolRegistry={toolRegistry}
             onToolUpdate={updateTool}
             onToolRemove={removeTool}
+            onToolReorder={reorderTool}
             onToolConfigure={configureTool}
             onToolAdd={handleToolAdd}
             getToolName={getToolName}

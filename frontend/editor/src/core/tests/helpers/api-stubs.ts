@@ -153,6 +153,7 @@ export async function mockAppApis(
       json: {
         languages,
         defaultLocale,
+        enableAnalytics: false,
       },
     }),
   );
