@@ -5,6 +5,11 @@
 - Users may write prompts in English, but agents must reply in Vietnamese
   unless the user explicitly requests another language.
 
+## Git Workflow
+
+- Work directly on `main`; do not create or switch to feature or task branches.
+- When the user authorizes a push, push the commit directly to `origin/main`.
+
 <!-- HARNESS:BEGIN -->
 ## Harness
 
