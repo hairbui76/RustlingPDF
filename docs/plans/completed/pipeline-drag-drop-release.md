@@ -4,7 +4,7 @@ Date: 2026-07-31
 
 ## Status
 
-Active
+Completed
 
 ## Outcome
 
@@ -61,10 +61,10 @@ creation and verify the expected image, desktop, signature, and updater assets.
 
 - [x] Confirm local `main` equals `origin/main` and v3.1.2 is the latest release.
 - [x] Bump all required version sites to 3.1.3.
-- [ ] Run local pre-release gates.
-- [ ] Commit and push `main`.
-- [ ] Verify main CI and all-platform desktop dry-run.
-- [ ] Push v3.1.3 and verify the published release.
+- [x] Run local pre-release gates.
+- [x] Commit and push `main`.
+- [x] Verify main CI and all-platform desktop dry-run.
+- [x] Push v3.1.3 and verify the published release.
 
 ## Decisions
 
@@ -85,15 +85,36 @@ creation and verify the expected image, desktop, signature, and updater assets.
   pinned in `tauri.conf.json`. Align the lifecycle proof and current installer
   contract with the authoritative configuration, then rerun the complete
   matrix before tagging.
+- 2026-07-31: Tag v3.1.3 points to `fba9f95`, the exact commit proven by the
+  successful main CI and all-platform desktop dry-run. `main` received later,
+  unrelated document-conversion commits while the tag workflow ran; those
+  changes are intentionally not part of v3.1.3.
 
 ## Validation
 
-- Focused proof: automation unit and Playwright suites.
-- Integration proof: repository pre-release checks and all-platform signed
-  desktop dry-run.
-- Release proof: successful `Release` workflow for v3.1.3 and expected GitHub
-  release assets.
+- Automation proof: 31 focused Vitest assertions and 16 Playwright scenarios,
+  including persisted pointer drag-and-drop and accessible keyboard reorder.
+- Full local proof: Rust formatting, strict Clippy and workspace tests;
+  frontend typecheck, lint, formatting and 850 tests; AI engine checks and 117
+  tests; generated frontend/engine operation models; 21 updater-manifest tests;
+  version alignment and `git diff --check`.
+- Main CI: Backend CI run `30624769288`, Frontend CI run `30624769338`, and
+  Desktop CI run `30624769284` all succeeded for `fba9f95`.
+- Packaging proof: desktop dry-run `30624773472` succeeded for Linux, Windows,
+  and macOS. It produced all three desktop artifacts plus Windows MSI lifecycle
+  logs; install, uninstall, identity, provisioning, and cleanup checks passed.
+- Release proof: tag workflow `30627304567` succeeded, publishing the runtime
+  images and signed desktop artifacts before creating the GitHub release.
+- Public release proof: v3.1.3 is the latest non-draft, non-prerelease release
+  with ten uploaded assets. `latest.json` reports version `3.1.3` and signed
+  updater URLs for macOS, Linux AppImage/DEB, and Windows MSI.
 
 ## Result
 
-Pending.
+RustlingPDF v3.1.3 was published successfully from tag `v3.1.3` at commit
+`fba9f95`. The release includes the visual pipeline builder with persisted JSON
+pipelines, pointer drag-and-drop and keyboard step reordering, signed desktop
+downloads for Linux, Windows, and macOS, updater metadata, and versioned
+container images.
+
+Release: https://github.com/hairbui76/RustlingPDF/releases/tag/v3.1.3
