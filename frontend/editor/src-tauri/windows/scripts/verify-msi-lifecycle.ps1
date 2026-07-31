@@ -477,8 +477,8 @@ Write-Info "UpgradeCode    : $upgradeCode"
 # The UpgradeCode is pinned in tauri.conf.json and existing installs depend on
 # it; a rebuild that loses it turns every update into a side-by-side install.
 # Compared brace- and case-insensitively: WiX normalises GUIDs to braced
-# uppercase, tauri.conf.json spells it bare and lowercase.
-$expectedUpgradeCode = '3305fba9-7e5e-5c09-bc71-eca0a65f4fee'
+# uppercase, while tauri.conf.json stores it without braces.
+$expectedUpgradeCode = '92156D31-4DBC-43C0-8717-C60CF63C435C'
 $normalisedUpgradeCode = ([string]$upgradeCode).Trim('{', '}')
 Add-Result -Phase 'identity' -Name 'UpgradeCode matches the pinned tauri.conf.json value' `
     -Ok ($normalisedUpgradeCode -ieq $expectedUpgradeCode) -Detail "expected $expectedUpgradeCode, got $upgradeCode"

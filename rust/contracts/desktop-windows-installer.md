@@ -20,8 +20,9 @@ which this repository extends through one fragment:
 | Fragment | `frontend/editor/src-tauri/windows/wix/provisioning.wxs` (`wix.fragmentPaths` + `wix.componentGroupRefs`) |
 
 Identifiers that must never be renamed (existing installs key off them): the
-bundle identifier `rustling.pdf.dev`, the `RustlingPDF` app-data directory, and
-the pinned WiX `upgradeCode` `3305fba9-7e5e-5c09-bc71-eca0a65f4fee`.
+bundle identifier `io.github.hairbui76.rustlingpdf`, the `RustlingPDF` app-data
+directory, and the pinned WiX `upgradeCode`
+`92156D31-4DBC-43C0-8717-C60CF63C435C`.
 
 **Fragments are NOT Handlebars-rendered.** The bundler renders `main.wxs` and
 writes it out, but for fragment files it renders only into a throwaway string

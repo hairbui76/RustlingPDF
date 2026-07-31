@@ -79,6 +79,12 @@ creation and verify the expected image, desktop, signature, and updater assets.
   package that provides `glib-2.0.pc`. The hosted Desktop CI and all-platform
   dry-run install the repository-declared Linux dependencies and remain the
   required packaging proof before tagging.
+- 2026-07-31: The first all-platform dry-run built, signed, installed, and
+  uninstalled the Windows MSI, but its identity assertion still expected the
+  predecessor-era UpgradeCode instead of the independent-product UpgradeCode
+  pinned in `tauri.conf.json`. Align the lifecycle proof and current installer
+  contract with the authoritative configuration, then rerun the complete
+  matrix before tagging.
 
 ## Validation
 
