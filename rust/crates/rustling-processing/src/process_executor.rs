@@ -26,6 +26,13 @@ pub(crate) fn exit_status(status: ExitStatus) -> String {
 pub(crate) struct ProcessExecutor {
     slots: Arc<ProcessSlots>,
     timeout: Duration,
+    /// Optional ceiling on the child's resident set, polled while it runs.
+    ///
+    /// A wall-clock timeout alone cannot stop a process that allocates faster
+    /// than it runs: it will take the host's memory down long before the
+    /// deadline. `None` keeps the historical behaviour for the external tools
+    /// that never needed this.
+    memory_limit_bytes: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -45,6 +52,8 @@ pub(crate) enum ProcessExecutorError {
     Start(#[source] io::Error),
     #[error("process timed out after {timeout:?}")]
     Timeout { timeout: Duration },
+    #[error("process exceeded its {limit_bytes}-byte memory limit")]
+    MemoryLimit { limit_bytes: u64 },
     #[error("could not collect process output: {0}")]
     Output(#[source] io::Error),
 }
@@ -58,7 +67,15 @@ impl ProcessExecutor {
                 limit: limit.max(1),
             }),
             timeout: timeout.max(Duration::from_millis(1)),
+            memory_limit_bytes: None,
         }
+    }
+
+    /// Kills the child once its resident set passes `bytes`.
+    #[must_use]
+    pub(crate) const fn with_memory_limit(mut self, bytes: u64) -> Self {
+        self.memory_limit_bytes = Some(bytes);
+        self
     }
 
     pub(crate) fn run(
@@ -86,6 +103,7 @@ impl ProcessExecutor {
         let stderr_reader = read_output(stderr);
 
         let deadline = Instant::now() + self.timeout;
+        let mut memory_watch = self.memory_limit_bytes.map(|_| System::new());
         let status = loop {
             match child.try_wait() {
                 Ok(Some(status)) => break status,
@@ -96,6 +114,22 @@ impl ProcessExecutor {
                     let _ = join_output(stderr_reader);
                     return Err(ProcessExecutorError::Timeout {
                         timeout: self.timeout,
+                    });
+                }
+                Ok(None)
+                    if self
+                        .memory_limit_bytes
+                        .zip(memory_watch.as_mut())
+                        .is_some_and(|(limit_bytes, system)| {
+                            resident_bytes(system, child.id()) > limit_bytes
+                        }) =>
+                {
+                    terminate_process_tree(&mut child);
+                    let _ = child.wait();
+                    let _ = join_output(stdout_reader);
+                    let _ = join_output(stderr_reader);
+                    return Err(ProcessExecutorError::MemoryLimit {
+                        limit_bytes: self.memory_limit_bytes.unwrap_or_default(),
                     });
                 }
                 Ok(None) => thread::sleep(
@@ -168,6 +202,20 @@ fn join_output(
 
 fn output_error(message: &'static str) -> ProcessExecutorError {
     ProcessExecutorError::Output(io::Error::other(message))
+}
+
+/// Reports the resident set of `pid`, in bytes.
+///
+/// Only the direct child is sampled: refreshing every process on the host at
+/// the poll interval would cost more than the check is worth, and the only
+/// caller that sets a memory limit re-invokes this executable as a worker that
+/// spawns nothing of its own. An unknown pid reports zero — the process has
+/// either not been sampled yet or has already exited, and neither is a reason
+/// to kill it.
+fn resident_bytes(system: &mut System, pid: u32) -> u64 {
+    let root = Pid::from_u32(pid);
+    system.refresh_processes(ProcessesToUpdate::Some(&[root]), true);
+    system.process(root).map_or(0, sysinfo::Process::memory)
 }
 
 fn terminate_process_tree(child: &mut Child) {

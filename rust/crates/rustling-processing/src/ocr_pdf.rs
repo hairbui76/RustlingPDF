@@ -418,6 +418,17 @@ fn run_tesseract_page(
                     timeout_minutes: timeout_minutes(timeout),
                 });
             }
+            // The OCR executors set no memory limit, so this arm is unreachable;
+            // it exists because `ProcessExecutorError` is shared with the built-in
+            // Office engine, which does bound its worker's resident set.
+            Err(ProcessExecutorError::MemoryLimit { limit_bytes }) => {
+                return Err(OcrError::TesseractStart {
+                    command: command.clone(),
+                    source: std::io::Error::other(format!(
+                        "the process exceeded its {limit_bytes}-byte memory limit"
+                    )),
+                });
+            }
         }
     }
     Err(OcrError::OcrToolsUnavailable)
@@ -455,6 +466,17 @@ fn run_ocrmypdf(
                     timeout_minutes: timeout_minutes(timeout),
                 });
             }
+            // The OCR executors set no memory limit, so this arm is unreachable;
+            // it exists because `ProcessExecutorError` is shared with the built-in
+            // Office engine, which does bound its worker's resident set.
+            Err(ProcessExecutorError::MemoryLimit { limit_bytes }) => {
+                return Err(OcrError::OcrMyPdfStart {
+                    command: command.clone(),
+                    source: std::io::Error::other(format!(
+                        "the process exceeded its {limit_bytes}-byte memory limit"
+                    )),
+                });
+            }
         }
     }
     Err(OcrError::OcrMyPdfUnavailable)
@@ -476,6 +498,13 @@ fn run_ocrmypdf_command(
         Err(ProcessExecutorError::Timeout { timeout }) => Err(OcrError::OcrMyPdfTimeout {
             command: command.to_owned(),
             timeout_minutes: timeout_minutes(timeout),
+        }),
+        // Unreachable here for the same reason as above.
+        Err(ProcessExecutorError::MemoryLimit { limit_bytes }) => Err(OcrError::OcrMyPdfStart {
+            command: command.to_owned(),
+            source: std::io::Error::other(format!(
+                "the process exceeded its {limit_bytes}-byte memory limit"
+            )),
         }),
     }
 }

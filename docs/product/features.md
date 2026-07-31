@@ -41,7 +41,7 @@ crashes the service — the endpoint simply reports itself unavailable:
 
 | Needs | Endpoints | Install |
 |---|---|---|
-| LibreOffice | `convert/file/pdf`, `convert/pdf/word`, `convert/pdf/presentation`, `convert/pdf/xml` | `soffice` on `PATH` |
+| LibreOffice | `convert/pdf/word`, `convert/pdf/presentation`, `convert/pdf/xml`; and `convert/file/pdf` for every input other than `.docx`/`.xlsx`/`.pptx`, which a built-in pure-Rust engine converts with nothing installed | `soffice` on `PATH` |
 | WeasyPrint ≥ 58 | `convert/html/pdf`, `convert/url/pdf`, `convert/markdown/pdf`, `convert/eml/pdf` | `weasyprint` on `PATH` |
 | Calibre | `convert/pdf/epub`, `convert/ebook/pdf` | `ebook-convert` on `PATH` |
 | unrar (or 7-Zip) / `rar` | `convert/cbr/pdf` (needs `unrar`/`7z`), `convert/pdf/cbr` (needs `rar`) | `unrar`/`7z` and `rar` on `PATH` |
@@ -126,7 +126,7 @@ Method column lists every HTTP verb registered on that path. A route marked
 | POST | `/api/v1/convert/cbz/pdf` | Comic book archive (.cbz/.zip) to PDF |
 | POST | `/api/v1/convert/ebook/pdf` | Ebook (EPUB/MOBI/…) to PDF *(needs Calibre)* |
 | POST | `/api/v1/convert/eml/pdf` | Email (.eml) to PDF *(needs WeasyPrint)* |
-| POST | `/api/v1/convert/file/pdf` | Office document (Word/Excel/PowerPoint/…) to PDF *(needs LibreOffice)* |
+| POST | `/api/v1/convert/file/pdf` | Office document (Word/Excel/PowerPoint/…) to PDF *(built in for `.docx`/`.xlsx`/`.pptx`; other formats need LibreOffice)* |
 | POST | `/api/v1/convert/html/pdf` | HTML to PDF *(needs WeasyPrint)* |
 | POST | `/api/v1/convert/img/pdf` | Images (JPEG/PNG/…) to PDF |
 | POST | `/api/v1/convert/markdown/pdf` | Markdown to PDF *(needs WeasyPrint)* |

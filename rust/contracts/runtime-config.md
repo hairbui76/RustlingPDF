@@ -61,6 +61,22 @@ discovery table records resolved executable paths and drives endpoint
 availability. A missing mandatory dependency produces reason `DEPENDENCY`;
 explicit configuration removal takes precedence as `CONFIG`.
 
+A group gates only the endpoints listed against it in `ENDPOINT_GROUPS`, and an
+endpoint belongs there only if a missing tool genuinely makes it stop working.
+`file-to-pdf` is the worked example: it used to sit in the `LibreOffice` group
+and report `DEPENDENCY` on a host without LibreOffice, but Office→PDF now has a
+built-in pure-Rust engine for DOCX/XLSX/PPTX, so the endpoint works either way
+and no longer appears there. It remains a member of the functional `Convert`
+group, so it is still a known, listable, `endpoints.toRemove`-able key — the
+availability map's shape is unchanged, only the reported value. The reverse
+direction (`pdf-to-word`, `pdf-to-presentation`, `pdf-to-rtf`, `pdf-to-xml`) has
+no built-in engine and stays gated on `LibreOffice`.
+
+Removing an endpoint key from `ENDPOINT_GROUPS` entirely is a different and
+riskier move: the SPA's `useEndpointConfig` treats a key that is *absent* from
+the availability map as `enabled: true`, so a dropped key silently re-enables a
+tool instead of disabling it. Keep the key, change its group.
+
 The current discovery set includes OCRmyPDF, Tesseract, LibreOffice,
 WeasyPrint, Poppler, qpdf, RAR read/write tools, Calibre, FFmpeg, and veraPDF.
 Version or capability checks are applied where required:

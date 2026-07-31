@@ -32,6 +32,9 @@ mailparse = "0.16.1"
 md-5 = "0.11.0"
 msg_parser = "0.3.6"
 moxcms = "0.8.1"
+# Built-in, always-available Office→PDF engine (Typst-backed, pure Rust). Patched
+# to a pinned fork revision in the workspace manifest; see the note there.
+office2pdf = "0.6.5"
 image = { version = "0.25.9", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
 imageproc = { version = "0.27.0", default-features = false, features = ["text"] }
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "hostname", "pool", "smtp-transport", "tokio1", "tokio1-rustls-tls"] }

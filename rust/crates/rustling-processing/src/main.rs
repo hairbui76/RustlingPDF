@@ -4,7 +4,8 @@ use std::{
 };
 
 use rustling_processing::{
-    ProcessingRuntime, max_upload_bytes_from_environment, runtime_config::RuntimeConfig,
+    ProcessingRuntime, max_upload_bytes_from_environment, office_builtin_engine,
+    runtime_config::RuntimeConfig,
 };
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -14,6 +15,18 @@ mod parent_process;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // The built-in Office engine re-invokes this executable as a one-shot
+    // conversion worker so that a document which hangs, overflows the stack, or
+    // allocates without bound takes down a disposable child instead of the
+    // service. Handle that before anything else starts: the worker must not
+    // read settings, bind a port, or install the identity.
+    let arguments: Vec<std::ffi::OsString> = env::args_os().collect();
+    if arguments.get(1).is_some_and(|argument| {
+        argument == std::ffi::OsStr::new(office_builtin_engine::WORKER_ARGUMENT)
+    }) {
+        std::process::exit(office_builtin_engine::run_worker_process(&arguments[2..]));
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();

@@ -20,6 +20,7 @@ mod maintenance;
 pub mod markdown_to_pdf;
 pub mod mobile_scanner;
 pub mod ocr_pdf;
+pub mod office_builtin_engine;
 pub mod office_sanitizer;
 pub mod office_to_pdf;
 mod page_selection;
@@ -178,7 +179,8 @@ use crate::{
     },
     ocr_pdf::{OcrError, OcrOptions, OcrOutput, OcrProcessControls, OcrRuntime, run_ocr},
     office_to_pdf::{
-        OfficeToPdfError, PdfToOfficeOutput, convert_office_to_pdf, convert_pdf_to_office,
+        OfficeConversion, OfficeToPdfError, PdfToOfficeOutput, convert_office_to_pdf,
+        convert_pdf_to_office,
     },
     pdf_accessibility::{
         AccessibilityError, AccessibilityRepairs, check_accessibility,
@@ -4423,7 +4425,7 @@ async fn convert_file_to_pdf(multipart: Multipart) -> Result<Response, ApiError>
     let temp_dir = request.temp_dir;
     let output_path = temp_dir.path().join("converted-file.pdf");
     let blocking_output_path = output_path.clone();
-    task::spawn_blocking(move || {
+    let conversion = task::spawn_blocking(move || {
         convert_office_to_pdf(&input_path, &filename, &blocking_output_path)
     })
     .await
@@ -4434,14 +4436,69 @@ async fn convert_file_to_pdf(multipart: Multipart) -> Result<Response, ApiError>
         )
     })?
     .map_err(|error| map_office_to_pdf_error(&error, FILE_TO_PDF_PATH))?;
-    file_response(
+    let mut response = file_response(
         output_path,
         temp_dir,
         &output_filename,
         FILE_TO_PDF_PATH,
         "application/pdf",
     )
-    .await
+    .await?;
+    annotate_office_conversion(&mut response, &conversion);
+    Ok(response)
+}
+
+/// Reports on the response which engine converted the document and whether the
+/// result is a faithful rendering of it.
+///
+/// The body of this endpoint is a PDF, so there is nowhere in it to say "three
+/// slides were dropped". The built-in engine has been observed producing a PDF
+/// that silently omits whole slides, so a caller that treats a `200` as a clean
+/// conversion would be wrong; these headers are what makes the degradation
+/// visible without changing the response body's contract.
+fn annotate_office_conversion(response: &mut Response, conversion: &OfficeConversion) {
+    let headers = response.headers_mut();
+    headers.insert(
+        "X-Rustling-Conversion-Engine",
+        HeaderValue::from_static(conversion.engine.as_str()),
+    );
+    if conversion.dropped_content {
+        headers.insert(
+            "X-Rustling-Conversion-Degraded",
+            HeaderValue::from_static("true"),
+        );
+    }
+    if conversion.warnings.is_empty() {
+        return;
+    }
+    if let Ok(count) = HeaderValue::from_str(&conversion.warnings.len().to_string()) {
+        headers.insert("X-Rustling-Conversion-Warnings", count);
+    }
+    // Header values are ISO-8859-1 at best and must not carry control
+    // characters; the warnings quote document-supplied element names, so reduce
+    // them to printable ASCII before they reach the wire.
+    let detail = conversion
+        .warnings
+        .join("; ")
+        .chars()
+        .map(|character| {
+            if character.is_ascii_graphic() || character == ' ' {
+                character
+            } else {
+                '?'
+            }
+        })
+        .take(1_024)
+        .collect::<String>();
+    if let Ok(value) = HeaderValue::from_str(&detail) {
+        headers.insert("X-Rustling-Conversion-Warning-Detail", value);
+    }
+    tracing::warn!(
+        engine = conversion.engine.as_str(),
+        dropped_content = conversion.dropped_content,
+        warnings = ?conversion.warnings,
+        "office conversion completed with warnings"
+    );
 }
 
 async fn ebook_to_pdf(multipart: Multipart) -> Result<Response, ApiError> {
@@ -13241,6 +13298,8 @@ fn map_markdown_to_pdf_error(error: &MarkdownToPdfError) -> ApiError {
 }
 
 fn map_office_to_pdf_error(error: &OfficeToPdfError, api_path: &'static str) -> ApiError {
+    use crate::office_builtin_engine::BuiltinEngineError;
+
     match error {
         OfficeToPdfError::MissingExtension
         | OfficeToPdfError::InvalidExtension(_)
@@ -13248,10 +13307,29 @@ fn map_office_to_pdf_error(error: &OfficeToPdfError, api_path: &'static str) -> 
         | OfficeToPdfError::UnsafeArchive(_) => {
             ApiError::bad_request_at(api_path, error.to_string())
         }
-        OfficeToPdfError::SofficeUnavailable => {
+        // No engine can read this format on this host. That is a missing
+        // optional dependency, not a bad request: the same upload succeeds once
+        // LibreOffice is installed.
+        OfficeToPdfError::SofficeUnavailable | OfficeToPdfError::NoEngineForExtension { .. } => {
             ApiError::unsupported_at(api_path, error.to_string())
         }
-        OfficeToPdfError::SofficeFailed { .. }
+        // Every built-in-engine bound is a property of the uploaded document —
+        // too big, too many rows, too slow, too hungry — so the caller is told
+        // plainly what tripped rather than being handed a 500.
+        OfficeToPdfError::Builtin(
+            builtin @ (BuiltinEngineError::UnsupportedExtension(_)
+            | BuiltinEngineError::InputTooLarge { .. }
+            | BuiltinEngineError::TooManyRows { .. }
+            | BuiltinEngineError::TimedOut { .. }
+            | BuiltinEngineError::MemoryExhausted { .. }
+            | BuiltinEngineError::Conversion(_)
+            | BuiltinEngineError::WorkerStopped { .. }),
+        ) => ApiError::bad_request_at(api_path, builtin.to_string()),
+        OfficeToPdfError::InvalidEngine(_)
+        | OfficeToPdfError::Builtin(
+            BuiltinEngineError::WorkerUnavailable(_) | BuiltinEngineError::Io(_),
+        )
+        | OfficeToPdfError::SofficeFailed { .. }
         | OfficeToPdfError::SofficeStart { .. }
         | OfficeToPdfError::NoOutput
         | OfficeToPdfError::Io(_)

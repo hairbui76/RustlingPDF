@@ -209,7 +209,11 @@ RustlingPDF has one server mode: stateless and account-free.
 Most processing is implemented in the Rust workspace. Some conversions require
 specialized external programs:
 
-- LibreOffice for Office ↔ PDF;
+- LibreOffice for Office ↔ PDF. Office → PDF also has a built-in pure-Rust
+  engine that handles `.docx`, `.xlsx`, and `.pptx` with nothing installed, so
+  that direction always works; LibreOffice is used when present because its
+  fidelity is better, and it is required for every other input format and for
+  PDF → Office;
 - WeasyPrint for HTML, Markdown, email, and URL → PDF;
 - Tesseract or OCRmyPDF for OCR;
 - Calibre for eBook conversion;

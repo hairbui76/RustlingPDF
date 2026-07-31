@@ -137,8 +137,16 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
         "dev-api-docs dev-folder-scanning-docs dev-sso-guide-docs dev-airgapped-docs",
     ),
     (
+        // `file-to-pdf` deliberately does *not* appear here. Office → PDF now
+        // has a built-in pure-Rust engine that covers DOCX/XLSX/PPTX with no
+        // external tool, so reporting the endpoint unavailable when LibreOffice
+        // is missing would be a lie — that is exactly the "Convert to PDF: this
+        // tool is not available from your server" report this change answers.
+        // The key still exists under `Convert`, so it stays a known, listable,
+        // `endpoints.toRemove`-able endpoint; only the dependency gate is gone.
+        // The PDF → office direction has no built-in engine and stays gated.
         "LibreOffice",
-        "file-to-pdf pdf-to-word pdf-to-presentation pdf-to-rtf pdf-to-xml",
+        "pdf-to-word pdf-to-presentation pdf-to-rtf pdf-to-xml",
     ),
     ("tesseract", "ocr-pdf"),
     ("OCRmyPDF", "ocr-pdf"),
@@ -2194,13 +2202,38 @@ mod tests {
         config
             .dependency_disabled_groups
             .insert("LibreOffice".to_owned());
-        let availability = config.endpoint_availability(&["file-to-pdf".to_owned()]);
-        assert!(!availability["file-to-pdf"].enabled);
-        assert_eq!(availability["file-to-pdf"].reason, Some("DEPENDENCY"));
-        let uri_availability = config.endpoint_availability_for_uri("/api/v1/convert/file/pdf");
+        let availability = config.endpoint_availability(&["pdf-to-word".to_owned()]);
+        assert!(!availability["pdf-to-word"].enabled);
+        assert_eq!(availability["pdf-to-word"].reason, Some("DEPENDENCY"));
+        let uri_availability = config.endpoint_availability_for_uri("/api/v1/convert/pdf/word");
         assert!(!uri_availability.is_enabled());
         assert_eq!(uri_availability.reason(), Some("DEPENDENCY"));
         assert_eq!(config.app_config(None, None)["dependenciesReady"], true);
+        Ok(())
+    }
+
+    /// The regression this whole change exists for: without `LibreOffice`
+    /// installed, "Convert to PDF" used to report itself unavailable. It now has
+    /// a built-in engine, so a missing `LibreOffice` must leave it enabled while
+    /// the PDF → office direction, which has no built-in engine, stays gated.
+    #[test]
+    fn office_to_pdf_survives_a_missing_libreoffice() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        config
+            .dependency_disabled_groups
+            .insert("LibreOffice".to_owned());
+
+        let availability =
+            config.endpoint_availability(&["file-to-pdf".to_owned(), "pdf-to-word".to_owned()]);
+        assert!(availability["file-to-pdf"].enabled);
+        assert_eq!(availability["file-to-pdf"].reason, None);
+        assert!(!availability["pdf-to-word"].enabled);
+
+        let uri_availability = config.endpoint_availability_for_uri("/api/v1/convert/file/pdf");
+        assert!(uri_availability.is_enabled());
         Ok(())
     }
 
@@ -2260,7 +2293,10 @@ mod tests {
         assert!(config.is_group_enabled("Convert"));
         assert!(!config.is_endpoint_enabled("merge-pdfs"));
         assert!(config.is_endpoint_enabled("repair"));
-        assert!(!config.is_endpoint_enabled("file-to-pdf"));
+        assert!(!config.is_endpoint_enabled("pdf-to-word"));
+        // `file-to-pdf` no longer belongs to the `LibreOffice` group, so
+        // removing that group leaves the built-in engine's endpoint alone.
+        assert!(config.is_endpoint_enabled("file-to-pdf"));
         assert!(config.is_endpoint_enabled("pdf-to-img"));
         let statuses = config.disabled_endpoint_statuses();
         assert_eq!(statuses.get("merge-pdfs"), Some(&false));

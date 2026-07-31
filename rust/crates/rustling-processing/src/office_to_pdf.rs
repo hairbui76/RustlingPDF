@@ -1,9 +1,18 @@
-//! Office/text document to PDF conversion via `LibreOffice`.
+//! Office/text document to PDF conversion.
 //!
-//! The adapter invokes `soffice --headless --convert-to pdf`. HTML/HTM inputs
-//! pass through the shared strict HTML sanitizer before `LibreOffice` sees
-//! them. OOXML/ODF packages are rewritten by the office sanitizer, preventing
-//! external-resource SSRF and active-content execution.
+//! Two engines back this surface. `LibreOffice` (`soffice --headless
+//! --convert-to pdf`) has materially better fidelity and covers every format in
+//! [`ALLOWED_EXTENSIONS`], so it is used whenever it is installed. The built-in
+//! pure-Rust engine in [`crate::office_builtin_engine`] covers DOCX, XLSX, and
+//! PPTX with no external tool at all, so the feature still works on a machine
+//! that has no `LibreOffice` — the situation that made "Convert to PDF" report
+//! itself unavailable on Windows desktop installs.
+//!
+//! Both engines see the same hardened input: HTML/HTM passes through the shared
+//! strict HTML sanitizer, and OOXML/ODF packages are rewritten by the office
+//! sanitizer, preventing external-resource SSRF and active-content execution.
+//!
+//! PDF → office conversion has no built-in engine and stays `LibreOffice`-only.
 
 use std::{
     ffi::OsString,
@@ -19,11 +28,13 @@ use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 use crate::{
     html_sanitizer::sanitize_html,
+    office_builtin_engine::{self, BuiltinConversion, BuiltinEngineError},
     office_sanitizer::{is_sanitizable_extension, sanitize_office_archive},
     process_executor::exit_status,
 };
 
 const SOFFICE_COMMAND_ENV: &str = "RUSTLING_PROCESSING_SOFFICE_COMMAND";
+const OFFICE_ENGINE_ENV: &str = "RUSTLING_PROCESSING_OFFICE_ENGINE";
 
 /// Extensions `LibreOffice` can convert that this port accepts.
 const ALLOWED_EXTENSIONS: &[&str] = &[
@@ -45,6 +56,16 @@ pub enum OfficeToPdfError {
     InvalidOutputFormat(String),
     #[error("LibreOffice (soffice) is required to convert documents but was not found")]
     SofficeUnavailable,
+    #[error(
+        "'{extension}' needs LibreOffice, which is not in use here (not installed, or RUSTLING_PROCESSING_OFFICE_ENGINE forces the built-in engine); the built-in engine converts docx, xlsx, and pptx only"
+    )]
+    NoEngineForExtension { extension: String },
+    #[error("{0}")]
+    Builtin(#[from] BuiltinEngineError),
+    #[error(
+        "RUSTLING_PROCESSING_OFFICE_ENGINE is set to '{0}' (expected 'auto', 'libreoffice', or 'builtin')"
+    )]
+    InvalidEngine(String),
     #[error("LibreOffice conversion with '{command}' failed with status {status}: {details}")]
     SofficeFailed {
         command: String,
@@ -79,18 +100,85 @@ pub enum PdfToOfficeOutput {
     Zip,
 }
 
+/// Which engine performs an office → PDF conversion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OfficeEngine {
+    /// `soffice --headless --convert-to pdf`.
+    LibreOffice,
+    /// The bundled pure-Rust engine, run out-of-process.
+    Builtin,
+}
+
+impl OfficeEngine {
+    /// The value reported to callers on the response header.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LibreOffice => "libreoffice",
+            Self::Builtin => "builtin",
+        }
+    }
+}
+
+/// The operator's engine preference, from `RUSTLING_PROCESSING_OFFICE_ENGINE`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum EnginePreference {
+    /// `LibreOffice` when it is installed, otherwise the built-in engine.
+    Auto,
+    /// `LibreOffice` only; fail when it is missing.
+    LibreOffice,
+    /// The built-in engine only, even when `LibreOffice` is installed.
+    Builtin,
+}
+
+fn engine_preference() -> Result<EnginePreference, OfficeToPdfError> {
+    let Ok(configured) = crate::environment::var(OFFICE_ENGINE_ENV) else {
+        return Ok(EnginePreference::Auto);
+    };
+    parse_engine_preference(&configured)
+}
+
+/// An unrecognised value is refused rather than silently treated as `auto`: an
+/// operator who set the variable meant something by it, and quietly ignoring a
+/// typo would send documents to the engine they were trying to avoid.
+fn parse_engine_preference(configured: &str) -> Result<EnginePreference, OfficeToPdfError> {
+    match configured.trim().to_ascii_lowercase().as_str() {
+        "" | "auto" => Ok(EnginePreference::Auto),
+        "libreoffice" | "soffice" => Ok(EnginePreference::LibreOffice),
+        "builtin" | "office2pdf" => Ok(EnginePreference::Builtin),
+        other => Err(OfficeToPdfError::InvalidEngine(other.to_owned())),
+    }
+}
+
+/// What a completed office → PDF conversion has to say for itself.
+#[derive(Debug, Clone)]
+pub struct OfficeConversion {
+    /// The engine that produced the PDF.
+    pub engine: OfficeEngine,
+    /// Non-fatal problems the engine reported, plus any derived by comparing
+    /// the output against the input.
+    pub warnings: Vec<String>,
+    /// Whether source content is known to be missing from the PDF.
+    pub dropped_content: bool,
+}
+
 /// Converts an office/text document at `input_path` (named `filename`) to a PDF
-/// written to `output_path`, shelling out to `LibreOffice`.
+/// written to `output_path`.
+///
+/// `LibreOffice` is used when it is installed; otherwise the built-in engine
+/// handles DOCX, XLSX, and PPTX. `RUSTLING_PROCESSING_OFFICE_ENGINE` forces one
+/// or the other.
 ///
 /// # Errors
 ///
-/// Returns [`OfficeToPdfError`] for unsupported extensions, when `LibreOffice` is
-/// unavailable, or when the conversion produces no usable PDF.
+/// Returns [`OfficeToPdfError`] for unsupported extensions, when no engine can
+/// read the format, when the built-in engine exceeds one of its bounds, or when
+/// the conversion produces no usable PDF.
 pub fn convert_office_to_pdf(
     input_path: &Path,
     filename: &str,
     output_path: &Path,
-) -> Result<(), OfficeToPdfError> {
+) -> Result<OfficeConversion, OfficeToPdfError> {
     let extension = Path::new(filename)
         .extension()
         .and_then(|value| value.to_str())
@@ -100,9 +188,16 @@ pub fn convert_office_to_pdf(
     if !ALLOWED_EXTENSIONS.contains(&extension.as_str()) {
         return Err(OfficeToPdfError::InvalidExtension(extension));
     }
+    let preference = engine_preference()?;
+    if preference == EnginePreference::Builtin
+        && !office_builtin_engine::supports_extension(&extension)
+    {
+        return Err(OfficeToPdfError::NoEngineForExtension { extension });
+    }
 
+    // Sanitize once, into a workspace both engines read from. The built-in
+    // engine gets exactly the same rewritten package LibreOffice would.
     let work_dir = TempDir::new()?;
-    let profile_dir = TempDir::new()?;
     let base_name = Path::new(filename)
         .file_stem()
         .and_then(|value| value.to_str())
@@ -111,6 +206,55 @@ pub fn convert_office_to_pdf(
     let input_copy = work_dir.path().join(format!("{base_name}.{extension}"));
     prepare_conversion_input(input_path, &input_copy, &extension)?;
 
+    if preference == EnginePreference::Builtin {
+        return run_builtin(&input_copy, &extension, output_path);
+    }
+
+    match convert_with_libreoffice(&work_dir, &input_copy, base_name, output_path) {
+        Ok(()) => Ok(OfficeConversion {
+            engine: OfficeEngine::LibreOffice,
+            warnings: Vec::new(),
+            dropped_content: false,
+        }),
+        // `LibreOffice` is genuinely absent. In `auto` this is the ordinary case
+        // on a machine that never installed it, so fall through to the built-in
+        // engine when it can read the format; a conversion failure or a crash of
+        // an *installed* LibreOffice is not retried, because repeating the work
+        // on a second engine would hide the real diagnostic.
+        Err(OfficeToPdfError::SofficeUnavailable) if preference == EnginePreference::Auto => {
+            if office_builtin_engine::supports_extension(&extension) {
+                run_builtin(&input_copy, &extension, output_path)
+            } else {
+                Err(OfficeToPdfError::NoEngineForExtension { extension })
+            }
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn run_builtin(
+    input_copy: &Path,
+    extension: &str,
+    output_path: &Path,
+) -> Result<OfficeConversion, OfficeToPdfError> {
+    let BuiltinConversion {
+        warnings,
+        dropped_content,
+    } = office_builtin_engine::convert(input_copy, extension, output_path)?;
+    Ok(OfficeConversion {
+        engine: OfficeEngine::Builtin,
+        warnings,
+        dropped_content,
+    })
+}
+
+fn convert_with_libreoffice(
+    work_dir: &TempDir,
+    input_copy: &Path,
+    base_name: &str,
+    output_path: &Path,
+) -> Result<(), OfficeToPdfError> {
+    let profile_dir = TempDir::new()?;
     let user_installation = format!(
         "-env:UserInstallation={}",
         path_to_file_uri(profile_dir.path())
@@ -334,8 +478,8 @@ fn process_details(stdout: &[u8], stderr: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        OfficeToPdfError, convert_office_to_pdf, convert_pdf_to_office, path_to_file_uri,
-        prepare_conversion_input,
+        EnginePreference, OfficeToPdfError, convert_office_to_pdf, convert_pdf_to_office,
+        parse_engine_preference, path_to_file_uri, prepare_conversion_input,
     };
     use std::{fs, path::Path};
     use tempfile::tempdir;
@@ -367,6 +511,34 @@ mod tests {
         assert!(matches!(
             convert_office_to_pdf(Path::new("input.xyz"), "document.xyz", Path::new("out.pdf")),
             Err(OfficeToPdfError::InvalidExtension(ext)) if ext == "xyz"
+        ));
+    }
+
+    #[test]
+    fn parses_every_engine_preference_spelling() {
+        for (configured, expected) in [
+            ("", EnginePreference::Auto),
+            ("  ", EnginePreference::Auto),
+            ("auto", EnginePreference::Auto),
+            ("AUTO", EnginePreference::Auto),
+            ("libreoffice", EnginePreference::LibreOffice),
+            ("soffice", EnginePreference::LibreOffice),
+            (" Builtin ", EnginePreference::Builtin),
+            ("office2pdf", EnginePreference::Builtin),
+        ] {
+            assert_eq!(
+                parse_engine_preference(configured).ok(),
+                Some(expected),
+                "{configured:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn refuses_an_unknown_engine_preference() {
+        assert!(matches!(
+            parse_engine_preference("typo"),
+            Err(OfficeToPdfError::InvalidEngine(value)) if value == "typo"
         ));
     }
 

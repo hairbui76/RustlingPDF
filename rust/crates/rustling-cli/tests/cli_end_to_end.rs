@@ -134,7 +134,12 @@ fn executable_exit_codes_distinguish_usage_io_rejection_and_dependency()
         .output()?;
     require_exit(&rejected, 4)?;
 
-    let unavailable_output = workspace.path().join("unavailable.pdf");
+    // A missing LibreOffice must still surface as the dependency exit code, but
+    // it can no longer be demonstrated with `convert-file-pdf`: office → PDF now
+    // has a built-in engine and stays available without LibreOffice. PDF →
+    // office has no built-in engine, so that is the direction that still reports
+    // the dependency.
+    let unavailable_output = workspace.path().join("unavailable.docx");
     let unavailable = command()
         .env(
             "RUSTLING_PROCESSING_SOFFICE_COMMAND",
@@ -142,11 +147,13 @@ fn executable_exit_codes_distinguish_usage_io_rejection_and_dependency()
         )
         .args([
             "run",
-            "convert-file-pdf",
+            "convert-pdf-word",
             "--input",
             path_text(&input)?,
             "--output",
             path_text(&unavailable_output)?,
+            "--param",
+            "outputFormat=docx",
         ])
         .output()?;
     require_exit(&unavailable, 5)?;
