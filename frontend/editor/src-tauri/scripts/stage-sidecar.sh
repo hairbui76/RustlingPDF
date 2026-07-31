@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Stages the Rust processing backend as the Tauri externalBin sidecar and the
-# pinned PDFium runtime as a bundled resource.
+# pinned PDFium, qpdf, and Tesseract runtimes as bundled resources.
 #
-# Expects the release backend build and the PDFium install to exist already:
+# Expects the release backend build and native runtime installs to exist:
 #   cargo build --release --locked -p rustling-processing   (in rust/)
 #   bash rust/scripts/install-pdfium.sh
-# `task desktop:stage-sidecar` runs all three steps in order.
+#   bash rust/scripts/install-desktop-tools.sh
+# `task desktop:stage-sidecar` runs all steps in order.
 #
 # Tauri's externalBin contract requires the staged binary to carry the host
 # target-triple suffix (binaries/rustling-processing-<triple>[.exe]); the
@@ -42,15 +43,55 @@ if [ ! -d "$pdfium_dir" ]; then
   exit 1
 fi
 
+tools_dir="$repo_root/rust/.desktop-tools/current"
+qpdf_binary="$tools_dir/qpdf/bin/qpdf$exe_suffix"
+tesseract_binary="$tools_dir/tesseract/bin/tesseract$exe_suffix"
+tessdata_file="$tools_dir/tesseract/tessdata/eng.traineddata"
+if [ ! -f "$qpdf_binary" ] ||
+  [ ! -f "$tesseract_binary" ] ||
+  [ ! -f "$tessdata_file" ]; then
+  echo "Pinned desktop tools are incomplete: $tools_dir" >&2
+  echo "Expected qpdf:      $qpdf_binary" >&2
+  echo "Expected Tesseract: $tesseract_binary" >&2
+  echo "Expected tessdata:  $tessdata_file" >&2
+  echo "Run the platform installer in rust/scripts/install-desktop-tools.*" >&2
+  exit 1
+fi
+
 binaries_dir="$tauri_dir/binaries"
-resources_dir="$tauri_dir/resources/pdfium"
-mkdir -p "$binaries_dir" "$resources_dir"
+pdfium_resources_dir="$tauri_dir/resources/pdfium"
+tools_resources_dir="$tauri_dir/resources/tools"
+/bin/rm -rf "$pdfium_resources_dir" "$tools_resources_dir"
+mkdir -p "$binaries_dir" "$pdfium_resources_dir" "$tools_resources_dir"
 
 staged_sidecar="$binaries_dir/rustling-processing-$target_triple$exe_suffix"
 install -m 755 "$backend_binary" "$staged_sidecar"
 # Ship the PDFium shared library together with its license files, exactly as
 # rust/scripts/install-pdfium.sh laid them out.
-cp -R "$pdfium_dir/." "$resources_dir/"
+cp -R "$pdfium_dir/." "$pdfium_resources_dir/"
+# Ship the complete curated tools layout: executable(s), their private
+# runtime libraries, English tessdata, and third-party license notices.
+cp -R "$tools_dir/." "$tools_resources_dir/"
+
+# Smoke-test what was actually staged with system command discovery disabled,
+# so a host installation cannot mask an incomplete bundled runtime.
+for staged_tool in \
+  "$tools_resources_dir/qpdf/bin/qpdf$exe_suffix" \
+  "$tools_resources_dir/tesseract/bin/tesseract$exe_suffix"; do
+  if ! env -i PATH=/nonexistent "$staged_tool" --version >/dev/null 2>&1; then
+    echo "Staged tool is not self-contained: $staged_tool" >&2
+    env -i PATH=/nonexistent "$staged_tool" --version >&2 || true
+    echo "Re-run the platform installer in rust/scripts/install-desktop-tools.*" >&2
+    exit 1
+  fi
+done
+if ! env -i PATH=/nonexistent TESSDATA_PREFIX="$tools_resources_dir/tesseract/tessdata" \
+  "$tools_resources_dir/tesseract/bin/tesseract$exe_suffix" --list-langs 2>&1 |
+  grep -qx 'eng'; then
+  echo "Staged tessdata does not expose the 'eng' language: $tools_resources_dir" >&2
+  exit 1
+fi
 
 echo "Staged sidecar: $staged_sidecar"
-echo "Staged PDFium:  $resources_dir"
+echo "Staged PDFium:  $pdfium_resources_dir"
+echo "Staged tools:   $tools_resources_dir"

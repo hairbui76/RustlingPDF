@@ -39,7 +39,7 @@
       "icons/192x192.png"
     ],
     "externalBin": ["binaries/rustling-processing"],
-    "resources": ["resources/pdfium"],
+    "resources": ["resources/pdfium", "resources/tools"],
     "fileAssociations": [
       {
         "ext": ["pdf"],

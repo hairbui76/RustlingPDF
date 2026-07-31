@@ -47,6 +47,15 @@ tasks:
     cmds:
       - cargo run -p rustling-ai-engine --bin rustling-ai-engine
 
+  cli:
+    desc: "Run the local rustlingpdf CLI (pass arguments after --)"
+    deps:
+      - pdfium:install
+    env:
+      RUSTLING_PDFIUM_LIBRARY_PATH: '{{.ROOT_DIR}}/rust/.pdfium/current'
+    cmds:
+      - cargo run -p rustling-cli --bin rustlingpdf --locked -- {{.CLI_ARGS}}
+
   build:
     desc: "Build Rust components"
     deps: [clean:deps]

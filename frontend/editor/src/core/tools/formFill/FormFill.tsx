@@ -27,6 +27,7 @@ import {
 } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
+import { SegmentedControl } from "@app/ui/SegmentedControl";
 import { useTranslation } from "react-i18next";
 import { isAxiosError } from "axios";
 import {
@@ -58,64 +59,45 @@ import {
   extractFormFieldsCsv,
   extractFormFieldsXlsx,
 } from "@app/tools/formFill/formApi";
+import { useFormDesigner } from "@app/tools/formFill/FormDesignerContext";
+import FormDesignerPanel from "@app/tools/formFill/FormDesignerPanel";
+import FormBatchPanel from "@app/tools/formFill/FormBatchPanel";
+import FormModifyPanel from "@app/tools/formFill/FormModifyPanel";
+import type { FormMode } from "@app/tools/formFill/types";
 import styles from "@app/tools/formFill/FormFill.module.css";
 
 // ---------------------------------------------------------------------------
 // Mode tabs — extensible for future form tools
 // ---------------------------------------------------------------------------
 
-type FormMode = "fill" | "make" | "batch" | "modify";
-
 interface ModeTabDef {
   id: FormMode;
   label: string;
   icon: React.ReactNode;
-  ready: boolean;
 }
 
-const _MODE_TABS: ModeTabDef[] = [
+const MODE_TABS: ModeTabDef[] = [
   {
     id: "fill",
     label: "Fill",
     icon: <EditNoteIcon className={styles.modeTabIcon} />,
-    ready: true,
   },
   {
     id: "make",
     label: "Create",
     icon: <PostAddIcon className={styles.modeTabIcon} />,
-    ready: false,
   },
   {
     id: "batch",
     label: "Batch",
     icon: <FileCopyIcon className={styles.modeTabIcon} />,
-    ready: false,
   },
   {
     id: "modify",
     label: "Modify",
     icon: <BuildCircleIcon className={styles.modeTabIcon} />,
-    ready: false,
   },
 ];
-
-// ---------------------------------------------------------------------------
-// Coming-soon placeholder for unimplemented tabs
-// ---------------------------------------------------------------------------
-
-// ComingSoonPlaceholder — re-enable when mode tabs are exposed
-// function ComingSoonPlaceholder({ mode }: { mode: ModeTabDef }) {
-//   return (
-//     <div className={styles.comingSoon}>
-//       <DescriptionIcon className={styles.comingSoonIcon} />
-//       <div className={styles.comingSoonTitle}>{mode.label} Forms</div>
-//       <div className={styles.comingSoonDesc}>
-//         This feature is coming soon. Stay tuned!
-//       </div>
-//     </div>
-//   );
-// }
 
 // ---------------------------------------------------------------------------
 // Main FormFill component
@@ -125,6 +107,7 @@ const FormFill = (_props: BaseToolProps) => {
   const { t } = useTranslation();
   const { selectedTool } = useNavigation();
   const { selectors, state: fileState } = useFileState();
+  const designer = useFormDesigner();
 
   const {
     state: formState,
@@ -140,11 +123,7 @@ const FormFill = (_props: BaseToolProps) => {
 
   const { scrollActions } = useViewer();
 
-  // Mode system is temporarily restricted to 'fill' only.
-  // Other modes (make, batch, modify) are defined above but not yet exposed in the UI.
-  // When ready, uncomment the SegmentedControl and mode state below.
-  // const [mode, setMode] = useState<FormMode>('fill');
-  const mode: FormMode = "fill";
+  const mode = designer.mode;
   const [flatten, setFlatten] = useState(false);
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -190,6 +169,16 @@ const FormFill = (_props: BaseToolProps) => {
     }
     return activeFiles[0];
   }, [activeFiles, selectedFileIds]);
+  const currentFileIdentity = currentFile
+    ? (getFormFillFileId(currentFile) ??
+      `${currentFile.name}-${currentFile.size}-${currentFile.lastModified}`)
+    : null;
+  const designerFileRef = useRef<string | null>(currentFileIdentity);
+  useEffect(() => {
+    if (designerFileRef.current === currentFileIdentity) return;
+    designerFileRef.current = currentFileIdentity;
+    designer.reset();
+  }, [currentFileIdentity, designer.reset]);
 
   const handleExtractCsv = useCallback(async () => {
     if (!currentFile) return;
@@ -291,7 +280,7 @@ const FormFill = (_props: BaseToolProps) => {
   const flattenChangedRef = useRef(flattenChanged);
   flattenChangedRef.current = flattenChanged;
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive || mode !== "fill") return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
@@ -300,19 +289,19 @@ const FormFill = (_props: BaseToolProps) => {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isActive, handleSave]);
+  }, [isActive, mode, handleSave]);
 
   // Data loss prevention: warn on beforeunload if dirty
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (formState.isDirty) {
+      if (formState.isDirty || designer.fields.length > 0) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [formState.isDirty]);
+  }, [formState.isDirty, designer.fields.length]);
 
   const handleRefresh = useCallback(() => {
     if (currentFile) {
@@ -385,16 +374,13 @@ const FormFill = (_props: BaseToolProps) => {
 
   if (!isActive) return null;
 
-  // const currentModeDef = MODE_TABS.find((t) => t.id === mode)!;
-
   return (
     <div className={styles.root}>
-      {/* ---- Mode selection (commented out until additional modes are implemented) ----
       <div className={styles.modeTabs}>
         <SegmentedControl
           value={mode}
-          onChange={(val) => setMode(val as FormMode)}
-          data={MODE_TABS.map((tab) => ({
+          onChange={designer.setMode}
+          options={MODE_TABS.map((tab) => ({
             value: tab.id,
             label: (
               <div className={styles.segmentedLabel}>
@@ -404,20 +390,12 @@ const FormFill = (_props: BaseToolProps) => {
             ),
           }))}
           fullWidth
-          radius="xs"
           size="xs"
-          classNames={{
-            root: styles.segmentedRoot,
-            indicator: styles.segmentedIndicator,
-            control: styles.segmentedControl,
-            label: styles.segmentedInnerLabel,
-          }}
+          ariaLabel="Form tool mode"
+          className={styles.segmentedRoot}
+          style={{ height: "2.75rem" }}
         />
       </div>
-      ---- */}
-
-      {/* ---- Coming-soon for non-ready tabs (hidden while mode tabs are disabled) ---- */}
-      {/* !currentModeDef.ready && <ComingSoonPlaceholder mode={currentModeDef} /> */}
 
       {/* ---- Fill Form content ---- */}
       {mode === "fill" && (
@@ -695,6 +673,9 @@ const FormFill = (_props: BaseToolProps) => {
           )}
         </>
       )}
+      {mode === "make" && <FormDesignerPanel file={currentFile} />}
+      {mode === "batch" && <FormBatchPanel file={currentFile} />}
+      {mode === "modify" && <FormModifyPanel file={currentFile} />}
     </div>
   );
 };

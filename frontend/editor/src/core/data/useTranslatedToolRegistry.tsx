@@ -469,6 +469,65 @@ export function useTranslatedToolCatalog(): TranslatedToolCatalog {
         ),
         synonyms: getSynonyms(t, "changePermissions"),
       },
+      accessibility: {
+        icon: (
+          <LocalIcon
+            icon="fact-check-outline-rounded"
+            width="1.5rem"
+            height="1.5rem"
+          />
+        ),
+        name: t("home.accessibility.title", "Accessibility"),
+        component: lazy(() => import("@app/tools/Accessibility")),
+        description: t(
+          "home.accessibility.desc",
+          "Check tagged structure, language, reading order, image descriptions, and form labels",
+        ),
+        categoryId: ToolCategoryId.STANDARD_TOOLS,
+        subcategoryId: SubcategoryId.VERIFICATION,
+        endpoints: ["check", "remediate"],
+        synonyms: [
+          "accessible",
+          "PDF/UA",
+          "screen reader",
+          "alt text",
+          "reading order",
+          "tags",
+        ],
+        supportsAutomate: false,
+        automationSettings: null,
+        maxFiles: 1,
+      },
+      documentUnderstanding: {
+        icon: (
+          <LocalIcon
+            icon="psychology-outline-rounded"
+            width="1.5rem"
+            height="1.5rem"
+          />
+        ),
+        name: t(
+          "home.documentUnderstanding.title",
+          "AI Document Understanding",
+        ),
+        component: lazy(() => import("@app/tools/DocumentUnderstanding")),
+        description: t(
+          "home.documentUnderstanding.desc",
+          "Summarize, translate, or extract structured fields with source-page references",
+        ),
+        categoryId: ToolCategoryId.STANDARD_TOOLS,
+        subcategoryId: SubcategoryId.EXTRACTION,
+        synonyms: [
+          "AI summary",
+          "translate PDF",
+          "document extraction",
+          "structured data",
+          "page references",
+        ],
+        supportsAutomate: false,
+        automationSettings: null,
+        maxFiles: 1,
+      },
       getPdfInfo: {
         icon: (
           <LocalIcon

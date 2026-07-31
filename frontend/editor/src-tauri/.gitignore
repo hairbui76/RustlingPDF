@@ -5,9 +5,10 @@
 target/
 /gen/schemas
 
-# Staged sidecar + PDFium runtime (task desktop:stage-sidecar) — build inputs,
+# Staged sidecar + native runtimes (task desktop:stage-sidecar) — build inputs,
 # never committed.
 /binaries/
 /resources/pdfium/
+/resources/tools/
 
 **/stirling_thumbnail_handler.dll

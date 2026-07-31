@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 import { AppProviders } from "@app/components/AppProviders";
 import { AppLayout } from "@app/components/AppLayout";
@@ -6,8 +6,9 @@ import { LoadingFallback } from "@app/components/shared/LoadingFallback";
 import { ThemeProvider } from "@app/components/shared/ThemeProvider";
 import { PreferencesProvider } from "@app/contexts/PreferencesContext";
 import HomePage from "@app/pages/HomePage";
-import MobileScannerPage from "@app/pages/MobileScannerPage";
 import Onboarding from "@app/components/onboarding/Onboarding";
+
+const MobileScannerPage = lazy(() => import("@app/pages/MobileScannerPage"));
 
 // Import global styles
 import "@app/styles/tailwind.css";
@@ -31,7 +32,8 @@ export default function App() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        {/* Mobile scanner route - no backend needed, pure P2P WebRTC */}
+        {/* Public scanner: local/offline export works without a backend; an
+            optional QR session uses the ephemeral transfer API. */}
         <Route
           path="/mobile-scanner"
           element={

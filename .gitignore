@@ -1,6 +1,7 @@
 # Rust
 rust/target/
 rust/.pdfium/
+rust/.desktop-tools/
 **/*.rs.bk
 
 # Node / frontend

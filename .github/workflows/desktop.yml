@@ -6,11 +6,11 @@ name: Desktop CI (Tauri)
 #
 # The crate's build script (tauri-build) hard-requires the artifacts that
 # `task desktop:stage-sidecar` normally stages — the externalBin sidecar at
-# binaries/rustling-processing-<triple> plus the resources/pdfium directory —
-# and the frontend dist directory. Building the real backend here would drag
-# the whole rust/ workspace into this job for no extra signal, so the job
-# stubs all three: this is a compile/lint/test gate for the desktop shell,
-# not a packaging job.
+# binaries/rustling-processing-<triple> plus the resources/pdfium and
+# resources/tools directories — and the frontend dist directory. Building
+# the real backend here would drag the whole rust/ workspace into this job
+# for no extra signal, so the job stubs all four: this is a compile/lint/test
+# gate for the desktop shell, not a packaging job.
 
 on:
   push:
@@ -82,10 +82,16 @@ jobs:
       - name: Stub frontend dist and sidecar staging (compile gate only)
         working-directory: frontend/editor
         run: |
-          mkdir -p dist src-tauri/binaries src-tauri/resources/pdfium
+          mkdir -p dist src-tauri/binaries src-tauri/resources/pdfium \
+            src-tauri/resources/tools/qpdf/bin \
+            src-tauri/resources/tools/tesseract/bin \
+            src-tauri/resources/tools/tesseract/tessdata
           host_triple=$(rustc -vV | sed -n 's/^host: //p')
           install -m 755 /usr/bin/true "src-tauri/binaries/rustling-processing-${host_triple}"
           touch src-tauri/resources/pdfium/ci-stub
+          install -m 755 /usr/bin/true src-tauri/resources/tools/qpdf/bin/qpdf
+          install -m 755 /usr/bin/true src-tauri/resources/tools/tesseract/bin/tesseract
+          touch src-tauri/resources/tools/tesseract/tessdata/eng.traineddata
 
       - name: Check formatting
         working-directory: frontend/editor/src-tauri

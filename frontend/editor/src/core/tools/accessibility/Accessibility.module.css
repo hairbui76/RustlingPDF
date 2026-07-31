@@ -1,0 +1,16 @@
+.finding {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.finding:last-child {
+  border-bottom: 0;
+}
+
+.summary {
+  cursor: pointer;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}

@@ -70,11 +70,12 @@ failed individual model calls are isolated just as in Python, and summary falls
 back deterministically. An invalid tolerance returns `400`; invalid evidence
 returns `422`.
 
-`GET /api/v1/agents/capabilities` returns version 1 with the seven surviving
+`GET /api/v1/agents/capabilities` returns version 1 with ten stateless
 capabilities: PDF edit, agent draft, agent revision, both math-audit rounds,
-PDF comments, and agent next-action (`pdf-question-answer` was removed with
-the question-answer feature). The document-classifier route remains outside
-the agent manifest. The public Math Auditor workflow is owned by
+PDF comments, document summary, caller-schema extraction, block-ordered
+translation, and agent next-action (`pdf-question-answer` was removed with the
+question-answer feature). The document-classifier route remains outside the
+agent manifest. The public Math Auditor workflow is owned by
 `rustling-processing` at `POST /api/v1/ai/tools/math-auditor-agent`, which
 retains the PDF and calls these two engine rounds; see
 `math-auditor-agent.md`.
@@ -223,8 +224,8 @@ The provider-aware output-mode switch maps to the Rust adapters'
 structured-output protocol: pushed `ollama`/`custom` providers use the native
 json-schema `response_format` protocol, while `openai` keeps forced function
 calls — the same per-provider split the env path already used. The capability
-manifest deliberately stays at seven entries: config push is not an agent
-capability.
+manifest deliberately excludes config push: it is an operator control route,
+not an agent capability.
 
 ## Operational runtime
 

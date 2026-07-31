@@ -99,6 +99,167 @@ async fn returns_empty_contract_for_pdf_without_acroform() -> Result<(), Box<dyn
 }
 
 #[tokio::test]
+async fn creates_fields_with_accessible_names_coordinates_and_collision_suffixes()
+-> Result<(), Box<dyn std::error::Error>> {
+    let payload = r#"[
+        {
+            "name":"agree",
+            "type":"text",
+            "label":"Agreement details",
+            "tooltip":"Describe the agreement",
+            "required":true,
+            "readOnly":true,
+            "multiline":true,
+            "defaultValue":"Initial value",
+            "fontSize":10,
+            "tabOrder":2,
+            "widgets":[{"pageIndex":0,"x":20,"y":30,"width":160,"height":40}]
+        },
+        {
+            "name":"confirm",
+            "type":"checkbox",
+            "label":"Confirm",
+            "options":["Accepted"],
+            "defaultValue":"true",
+            "tabOrder":1,
+            "widgets":[{"pageIndex":0,"x":200,"y":30,"width":20,"height":20}]
+        }
+    ]"#;
+    let response = require_status(
+        post_pdf_with_part(
+            "/api/v1/form/create-fields",
+            &form_pdf()?,
+            Some(("fields", payload)),
+        )
+        .await?,
+        StatusCode::OK,
+    )
+    .await?;
+    assert_eq!(response.headers()[header::CONTENT_TYPE], "application/pdf");
+    assert_eq!(
+        response.headers()[header::CONTENT_DISPOSITION],
+        "attachment; filename=\"form_fields.pdf\""
+    );
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    let coordinates = post_json("/api/v1/form/fields-with-coordinates", &bytes).await?;
+    let created = coordinates
+        .as_array()
+        .and_then(|fields| fields.iter().find(|field| field["name"] == "agree_1"))
+        .ok_or("created collision-suffixed field is missing")?;
+    assert_eq!(created["label"], "Agreement details");
+    assert_eq!(created["tooltip"], "Describe the agreement");
+    assert_eq!(created["required"], true);
+    assert_eq!(created["readOnly"], true);
+    assert_eq!(created["multiline"], true);
+    assert_eq!(created["value"], "Initial value");
+    assert_eq!(created["widgets"][0]["x"], 20.0);
+    assert_eq!(created["widgets"][0]["y"], 30.0);
+    assert_eq!(created["widgets"][0]["width"], 160.0);
+    assert_eq!(created["widgets"][0]["height"], 40.0);
+    let checkbox = coordinates
+        .as_array()
+        .and_then(|fields| fields.iter().find(|field| field["name"] == "confirm"))
+        .ok_or("created checkbox is missing")?;
+    assert_eq!(checkbox["value"], "Accepted");
+    assert_eq!(checkbox["options"], json!(["Accepted"]));
+
+    let document = Document::load_mem(&bytes)?;
+    let page = document.get_dictionary(document.get_pages()[&1])?;
+    assert_eq!(page.get(b"Tabs")?.as_name()?, b"A");
+    Ok(())
+}
+
+#[tokio::test]
+async fn rejects_invalid_create_fields_payloads() -> Result<(), Box<dyn std::error::Error>> {
+    for payload in [
+        None,
+        Some("not-json"),
+        Some("[]"),
+        Some(
+            r#"[{"name":"bad","type":"text","widgets":[{"pageIndex":0,"x":590,"y":0,"width":20,"height":20}]}]"#,
+        ),
+    ] {
+        let response = post_pdf_with_part(
+            "/api/v1/form/create-fields",
+            &plain_pdf()?,
+            payload.map(|payload| ("fields", payload)),
+        )
+        .await?;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await?)?;
+        assert_eq!(body["path"], "/api/v1/form/create-fields");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn batch_fills_csv_rows_with_safe_unique_names_and_round_trip_values()
+-> Result<(), Box<dyn std::error::Error>> {
+    let csv = concat!(
+        "person.firstName,agree,_filename\r\n",
+        "\"Ada, Lovelace\",true,\"../Client?.pdf\"\r\n",
+        "Grace,false,Client\r\n",
+    );
+    let response = require_status(
+        post_pdf_with_data_file(
+            "/api/v1/form/batch-fill",
+            &form_pdf()?,
+            "people.csv",
+            csv.as_bytes(),
+        )
+        .await?,
+        StatusCode::OK,
+    )
+    .await?;
+    assert_eq!(response.headers()[header::CONTENT_TYPE], "application/zip");
+    assert_eq!(
+        response.headers()[header::CONTENT_DISPOSITION],
+        "attachment; filename=\"form_batch_filled.zip\""
+    );
+    let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+    let mut archive = ZipArchive::new(Cursor::new(bytes))?;
+    assert_eq!(archive.by_index(0)?.name(), "Client.pdf");
+    assert_eq!(archive.by_index(1)?.name(), "Client_2.pdf");
+    let mut first = Vec::new();
+    archive.by_name("Client.pdf")?.read_to_end(&mut first)?;
+    drop(archive);
+    let fields = post_json("/api/v1/form/fields", &first).await?;
+    assert_eq!(fields["fields"][0]["value"], "Ada, Lovelace");
+    assert_eq!(fields["fields"][1]["value"], "Yes");
+    Ok(())
+}
+
+#[tokio::test]
+async fn batch_fill_requires_supported_data_file_and_valid_headers()
+-> Result<(), Box<dyn std::error::Error>> {
+    let missing = post_pdf("/api/v1/form/batch-fill", &form_pdf()?).await?;
+    assert_eq!(missing.status(), StatusCode::BAD_REQUEST);
+
+    for (filename, data) in [
+        ("people.txt", "person.firstName\nAda\n"),
+        (
+            "people.csv",
+            "person.firstName,person.firstName\nAda,Grace\n",
+        ),
+        ("people.csv", ",agree\nAda,true\n"),
+    ] {
+        let response = post_pdf_with_data_file(
+            "/api/v1/form/batch-fill",
+            &form_pdf()?,
+            filename,
+            data.as_bytes(),
+        )
+        .await?;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await?)?;
+        assert_eq!(body["path"], "/api/v1/form/batch-fill");
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn exports_quoted_csv_and_applies_optional_values() -> Result<(), Box<dyn std::error::Error>>
 {
     let pdf = form_pdf()?;
@@ -577,6 +738,40 @@ async fn post_pdf_with_parts(
             .as_bytes(),
         );
     }
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    Ok(app(1024 * 1024)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(path)
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(Body::from(body))?,
+        )
+        .await?)
+}
+
+async fn post_pdf_with_data_file(
+    path: &str,
+    pdf: &[u8],
+    data_filename: &str,
+    data: &[u8],
+) -> Result<Response, Box<dyn std::error::Error>> {
+    let boundary = "rustling-form-batch-boundary";
+    let mut body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"form.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
+    )
+    .into_bytes();
+    body.extend_from_slice(pdf);
+    body.extend_from_slice(
+        format!(
+            "\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"dataFile\"; filename=\"{data_filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+        )
+        .as_bytes(),
+    );
+    body.extend_from_slice(data);
     body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
     Ok(app(1024 * 1024)
         .oneshot(

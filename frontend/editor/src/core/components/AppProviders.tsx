@@ -35,6 +35,7 @@ import AppConfigLoader from "@app/components/shared/AppConfigLoader";
 import { UpdateStartupPopup } from "@app/components/shared/UpdateStartupPopup";
 import { RedactionProvider } from "@app/contexts/RedactionContext";
 import { FormFillProvider } from "@app/tools/formFill/FormFillContext";
+import { FormDesignerProvider } from "@app/tools/formFill/FormDesignerContext";
 import { FolderFileContextProvider } from "@app/contexts/FolderFileContext";
 import { FolderProvider } from "@app/contexts/FolderContext";
 
@@ -154,17 +155,19 @@ export function AppProviders({
                                     <SigningOverlayProvider>
                                       <RedactionProvider>
                                         <FormFillProvider>
-                                          <AnnotationProvider>
-                                            <WorkbenchBarProvider>
-                                              <TourOrchestrationProvider>
-                                                <AdminTourOrchestrationProvider>
-                                                  <FolderFileContextProvider>
-                                                    {children}
-                                                  </FolderFileContextProvider>
-                                                </AdminTourOrchestrationProvider>
-                                              </TourOrchestrationProvider>
-                                            </WorkbenchBarProvider>
-                                          </AnnotationProvider>
+                                          <FormDesignerProvider>
+                                            <AnnotationProvider>
+                                              <WorkbenchBarProvider>
+                                                <TourOrchestrationProvider>
+                                                  <AdminTourOrchestrationProvider>
+                                                    <FolderFileContextProvider>
+                                                      {children}
+                                                    </FolderFileContextProvider>
+                                                  </AdminTourOrchestrationProvider>
+                                                </TourOrchestrationProvider>
+                                              </WorkbenchBarProvider>
+                                            </AnnotationProvider>
+                                          </FormDesignerProvider>
                                         </FormFillProvider>
                                       </RedactionProvider>
                                     </SigningOverlayProvider>

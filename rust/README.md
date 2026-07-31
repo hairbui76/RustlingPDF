@@ -2,7 +2,7 @@
 
 This workspace is the backend of RustlingPDF: a pure-Rust port of the upstream
 Stirling-PDF Java backend, retaining the existing browser UI and its REST
-contract. It contains three crates:
+contract. It contains four crates:
 
 - **`rustling-processing`** — the axum HTTP service mirroring the upstream
   `/api/v1/...` surface: the PDF-operation routes (merge/split/convert/security/
@@ -15,6 +15,9 @@ contract. It contains three crates:
   engine (classification, PDF edit/review/create agents, math audit,
   orchestration). Stateless: the former document/RAG store and PDF
   question-answer capability were removed in the same decision.
+- **`rustling-cli`** — the local `rustlingpdf` automation binary. It validates
+  operation parameters against generated catalog bindings and executes the
+  existing pipeline router in-process without starting a server.
 - **`rustling-operation-catalog`** — generates the typed operation catalog from
   the frozen `SwaggerDoc.json` OpenAPI snapshot at the repo root
   (`task engine:tool-models`).
@@ -38,6 +41,10 @@ literals. Illustrative examples of the breadth:
 `POST /api/v1/security/redact-execute`, `POST /api/v1/pipeline/handleData`,
 `GET /api/v1/config/app-config`, and the single-shot
 `POST /api/v1/security/cert-sign` + hardware-signing discovery family.
+
+For local scripts, `cargo run -p rustling-cli -- operations` lists the generated
+operation surface and `cargo run -p rustling-cli -- run ...` processes files
+without a running HTTP service. See [`contracts/cli.md`](contracts/cli.md).
 
 ## Quick start
 

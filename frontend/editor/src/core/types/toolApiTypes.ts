@@ -239,13 +239,13 @@ export interface BookletImpositionRequest {
 }
 export interface ConvertCbrToPdfRequest {
   /**
-   * Optimize the output PDF for ebook reading using Ghostscript
+   * Accepted for compatibility; no longer changes the output (the Ghostscript optimisation pass was removed)
    */
   optimizeForEbook?: boolean;
 }
 export interface ConvertCbzToPdfRequest {
   /**
-   * Optimize the output PDF for ebook reading using Ghostscript
+   * Accepted for compatibility; no longer changes the output (the Ghostscript optimisation pass was removed)
    */
   optimizeForEbook?: boolean;
 }

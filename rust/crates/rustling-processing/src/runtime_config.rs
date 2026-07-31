@@ -106,7 +106,7 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
             "ocr-pdf extract-images update-metadata flatten remove-blanks remove-annotations ",
             "get-info-on-pdf add-attachments replace-invert-pdf edit-table-of-contents ",
             "text-editor-pdf add-image compare view-pdf multi-tool fields modify-fields ",
-            "delete-fields fill ",
+            "batch-fill create-fields delete-fields fill check remediate ",
             // Text editor: `text-editor-pdf` above is the SPA tool-registry spelling; these two
             // are the keys the registered routes actually derive. Deliberately here rather than
             // in `Convert`: the routes live under `/api/v1/convert/` but they are the text
@@ -115,8 +115,9 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
             "pdf-to-text-editor text-editor-to-pdf edit-text remove-image-pdf ",
             // Attachment family, alongside its `add-attachments` sibling.
             "extract-attachments list-attachments delete-attachment rename-attachment ",
-            // Form family, alongside its `fields`/`modify-fields`/`delete-fields`/`fill`
-            // siblings. `form-fill` is the SPA tool-registry spelling of `fill`.
+            // Form family, alongside its `fields`/`batch-fill`/`create-fields`/
+            // `modify-fields`/`delete-fields`/`fill` siblings. `form-fill` is the
+            // SPA tool-registry spelling of `fill`.
             "extract-csv extract-xlsx fields-with-coordinates form-fill ",
             // Bookmark extraction beside `edit-table-of-contents`, and comment insertion beside
             // `remove-annotations`.
@@ -179,6 +180,18 @@ const MAX_LOGIN_DISCLAIMER_BYTES_U64: u64 = 256 * 1024;
 pub struct EndpointAvailability {
     enabled: bool,
     reason: Option<&'static str>,
+}
+
+impl EndpointAvailability {
+    #[must_use]
+    pub const fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    #[must_use]
+    pub const fn reason(&self) -> Option<&'static str> {
+        self.reason
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -1412,6 +1425,27 @@ impl RuntimeConfig {
             .collect()
     }
 
+    /// Reports availability for one canonical API URI.
+    ///
+    /// This preserves the same endpoint-key normalization used by request
+    /// middleware while allowing non-HTTP frontends such as the local CLI to
+    /// distinguish configuration policy from a missing optional dependency.
+    #[must_use]
+    pub fn endpoint_availability_for_uri(&self, uri: &str) -> EndpointAvailability {
+        let endpoint = endpoint_key_for_uri(uri).unwrap_or_else(|| uri.to_owned());
+        let configured_disabled_groups = self.configured_disabled_groups();
+        let disabled_groups = self.disabled_groups();
+        let enabled = self.is_endpoint_enabled_with_groups(&endpoint, &disabled_groups);
+        let reason = if enabled {
+            None
+        } else if self.is_endpoint_enabled_with_groups(&endpoint, &configured_disabled_groups) {
+            Some("DEPENDENCY")
+        } else {
+            Some("CONFIG")
+        };
+        EndpointAvailability { enabled, reason }
+    }
+
     fn disabled_groups(&self) -> Vec<String> {
         let mut groups = self.configured_disabled_groups();
         groups.extend(self.dependency_disabled_groups.iter().cloned());
@@ -2515,6 +2549,9 @@ mod tests {
         let availability = config.endpoint_availability(&["file-to-pdf".to_owned()]);
         assert!(!availability["file-to-pdf"].enabled);
         assert_eq!(availability["file-to-pdf"].reason, Some("DEPENDENCY"));
+        let uri_availability = config.endpoint_availability_for_uri("/api/v1/convert/file/pdf");
+        assert!(!uri_availability.is_enabled());
+        assert_eq!(uri_availability.reason(), Some("DEPENDENCY"));
         assert_eq!(config.app_config(None, None)["dependenciesReady"], true);
         Ok(())
     }

@@ -26,6 +26,261 @@ const OUTPUT_FILE = path.join(
 const PACKAGE_JSON = path.join(import.meta.dirname, "..", "..", "package.json");
 const PACKAGE_NAME_PATTERN =
   /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/i;
+// The desktop package ships native commands and their runtime libraries, none
+// of which the npm report can see. They belong on the same user-facing license
+// screen — especially the copyleft ones: LGPL section 6 / section 4 require the
+// recipient to be told these libraries are present and replaceable, and a
+// license screen that lists only the Apache-2.0 tools would be misleading.
+//
+// This is the COMPLETE set of native components the desktop bundle ships across
+// all platforms — every command, every statically linked library, and every
+// Windows PE-closure DLL listed in THIRD-PARTY-NOTICES.txt (sections 1-7),
+// including the copyleft ones (the GCC runtime GPL-3.0 with the Runtime Library
+// Exception, and the LGPL GnuTLS/Nettle/libtasn1/libidn2/libunistring/libiconv/
+// gettext libraries). Keep it in step with
+// rust/scripts/desktop-tools/THIRD-PARTY-NOTICES.txt, which is the authoritative
+// version and provenance record and is shipped verbatim inside the bundle at
+// resources/tools/licenses/. One entry per project (the append loop below
+// dedupes by name); where a project ships at different versions on different
+// platforms the version shown is the notice's primary one and the exact
+// per-platform versions are in the notice.
+const DESKTOP_NATIVE_DEPENDENCIES = [
+  {
+    name: "qpdf",
+    version: "12.3.2",
+    licenseType: "Apache-2.0",
+    link: "https://github.com/qpdf/qpdf/releases/tag/v12.3.2",
+  },
+  {
+    name: "tesseract-ocr",
+    version: "5.5.3",
+    licenseType: "Apache-2.0",
+    link: "https://github.com/tesseract-ocr/tesseract/releases/tag/5.5.3",
+  },
+  {
+    name: "tessdata-fast-eng",
+    version: "4.1.0",
+    licenseType: "Apache-2.0",
+    link: "https://github.com/tesseract-ocr/tessdata_fast/tree/4.1.0",
+  },
+  {
+    name: "leptonica",
+    version: "1.85.0",
+    licenseType: "BSD-2-Clause",
+    link: "https://github.com/DanBloomberg/leptonica/releases/tag/1.85.0",
+  },
+  // Shipped as separate, unmodified, dynamically linked files next to the
+  // bundled qpdf on Linux (resources/tools/qpdf/lib/). A user may replace any
+  // of them with their own build — that is what satisfies LGPL-2.1 section 6
+  // and LGPL-3.0 section 4 for dynamic linking.
+  {
+    name: "gnutls",
+    version: "3.7.3",
+    licenseType: "LGPL-2.1-or-later",
+    link: "https://gnutls.org/",
+  },
+  {
+    name: "nettle",
+    version: "3.7.3",
+    licenseType: "LGPL-3.0-or-later",
+    link: "https://www.lysator.liu.se/~nisse/nettle/",
+  },
+  {
+    name: "libtasn1",
+    version: "4.18.0",
+    licenseType: "LGPL-2.1-or-later",
+    link: "https://www.gnu.org/software/libtasn1/",
+  },
+  {
+    name: "libidn2",
+    version: "2.3.2",
+    licenseType: "LGPL-3.0-or-later",
+    link: "https://www.gnu.org/software/libidn/#libidn2",
+  },
+  {
+    name: "libunistring",
+    version: "1.0",
+    licenseType: "LGPL-3.0-or-later",
+    link: "https://www.gnu.org/software/libunistring/",
+  },
+  {
+    name: "p11-kit",
+    version: "0.24.0",
+    licenseType: "BSD-3-Clause",
+    link: "https://p11-glue.github.io/p11-glue/p11-kit.html",
+  },
+  {
+    name: "libffi",
+    version: "3.4.2",
+    licenseType: "MIT",
+    link: "https://sourceware.org/libffi/",
+  },
+  {
+    name: "libjpeg-turbo",
+    version: "2.1.2",
+    licenseType: "BSD-3-Clause",
+    link: "https://libjpeg-turbo.org/",
+  },
+  {
+    name: "libpng",
+    version: "1.6.46",
+    licenseType: "libpng-2.0",
+    link: "http://www.libpng.org/pub/png/libpng.html",
+  },
+  {
+    name: "zlib",
+    version: "1.3.1",
+    licenseType: "Zlib",
+    link: "https://zlib.net/",
+  },
+  // --- Statically linked into the Linux/musl and macOS tesseract command
+  // (THIRD-PARTY-NOTICES.txt sections 4 and 6). musl and the GCC runtime are
+  // the ones the audit found missing; the GCC runtime is copyleft-with-exception
+  // and must be surfaced.
+  {
+    name: "musl",
+    version: "1.2.5",
+    licenseType: "MIT",
+    link: "https://musl.libc.org/",
+  },
+  {
+    name: "gcc-runtime",
+    version: "",
+    licenseType: "GPL-3.0-or-later WITH GCC-exception-3.1",
+    link: "https://gcc.gnu.org/",
+  },
+  {
+    name: "libtiff",
+    version: "4.7.0",
+    licenseType: "libtiff",
+    link: "https://libtiff.gitlab.io/libtiff/",
+  },
+  // --- Additional libraries shipped only in the Windows PE import closure
+  // (THIRD-PARTY-NOTICES.txt section 7). Includes the libiconv / gettext LGPL
+  // libraries the audit flagged as missing. JBIG-KIT is deliberately absent: the
+  // Windows libtiff-6.dll is RustlingPDF's own JBIG-free rebuild, so the only
+  // GPL-2.0 component no longer ships (see THIRD-PARTY-NOTICES.txt §7).
+  {
+    name: "libiconv",
+    version: "",
+    licenseType: "LGPL-2.1-or-later",
+    link: "https://www.gnu.org/software/libiconv/",
+  },
+  {
+    name: "gettext",
+    version: "",
+    licenseType: "LGPL-2.1-or-later",
+    link: "https://www.gnu.org/software/gettext/",
+  },
+  {
+    name: "libarchive",
+    version: "3.8.8",
+    licenseType: "BSD-2-Clause",
+    link: "https://www.libarchive.org/",
+  },
+  {
+    name: "brotli",
+    version: "1.1.0",
+    licenseType: "MIT",
+    link: "https://github.com/google/brotli",
+  },
+  {
+    name: "bzip2",
+    version: "",
+    licenseType: "bzip2-1.0.6",
+    link: "https://sourceware.org/bzip2/",
+  },
+  {
+    name: "curl",
+    version: "8.21.0",
+    licenseType: "curl",
+    link: "https://curl.se/",
+  },
+  {
+    name: "libdeflate",
+    version: "",
+    licenseType: "MIT",
+    link: "https://github.com/ebiggers/libdeflate",
+  },
+  {
+    name: "expat",
+    version: "2.8.2",
+    licenseType: "MIT",
+    link: "https://libexpat.github.io/",
+  },
+  {
+    name: "giflib",
+    version: "6.1.3",
+    licenseType: "MIT",
+    link: "https://giflib.sourceforge.net/",
+  },
+  {
+    name: "lerc",
+    version: "",
+    licenseType: "Apache-2.0",
+    link: "https://github.com/Esri/lerc",
+  },
+  {
+    name: "lz4",
+    version: "1.10.0",
+    licenseType: "BSD-2-Clause",
+    link: "https://lz4.org/",
+  },
+  {
+    name: "xz",
+    version: "5.8.3",
+    licenseType: "0BSD",
+    link: "https://tukaani.org/xz/",
+  },
+  {
+    name: "openjpeg",
+    version: "2.5.4",
+    licenseType: "BSD-2-Clause",
+    link: "https://www.openjpeg.org/",
+  },
+  {
+    name: "libpsl",
+    version: "0.21.5",
+    licenseType: "MIT",
+    link: "https://github.com/rockdaboot/libpsl",
+  },
+  {
+    name: "libwebp",
+    version: "",
+    licenseType: "BSD-3-Clause",
+    link: "https://developers.google.com/speed/webp",
+  },
+  {
+    name: "libssh2",
+    version: "1.11.1",
+    licenseType: "BSD-3-Clause",
+    link: "https://libssh2.org/",
+  },
+  {
+    name: "zstd",
+    version: "1.5.7",
+    licenseType: "BSD-3-Clause",
+    link: "https://facebook.github.io/zstd/",
+  },
+  {
+    name: "libb2",
+    version: "",
+    licenseType: "CC0-1.0",
+    link: "https://github.com/BLAKE2/libb2",
+  },
+  {
+    name: "winpthreads",
+    version: "",
+    licenseType: "MIT",
+    link: "https://www.mingw-w64.org/",
+  },
+  {
+    name: "msvc-runtime",
+    version: "",
+    licenseType: "LicenseRef-Microsoft-Visual-C++-Runtime",
+    link: "https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files",
+  },
+];
 
 // Ensure the output directory exists
 const outputDir = path.dirname(OUTPUT_FILE);
@@ -124,6 +379,17 @@ try {
       link: projectUrl,
     };
   });
+  // The desktop package also ships native commands that are not visible to
+  // the npm report. Keep them on the same user-facing license surface.
+  for (const dependency of DESKTOP_NATIVE_DEPENDENCIES) {
+    if (!licenseArray.some((existing) => existing.name === dependency.name)) {
+      licenseArray.push({
+        ...dependency,
+        repository: dependency.link,
+        url: dependency.link,
+      });
+    }
+  }
 
   // Transform to match Java backend format
   const transformedData = {
@@ -244,6 +510,25 @@ function getLicenseUrl(licenseType) {
     "GPL-2.0": "https://www.gnu.org/licenses/gpl-2.0.html",
     "LGPL-2.1": "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html",
     "LGPL-3.0": "https://www.gnu.org/licenses/lgpl-3.0.html",
+    // The bundled native runtime libraries declare "-or-later" SPDX ids. Without
+    // these entries the license screen would fall back to the project homepage
+    // instead of linking to the license the library is actually under.
+    "LGPL-2.1-or-later":
+      "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html",
+    "LGPL-3.0-or-later": "https://www.gnu.org/licenses/lgpl-3.0.html",
+    "GPL-2.0-or-later": "https://www.gnu.org/licenses/gpl-2.0.html",
+    "GPL-3.0-or-later": "https://www.gnu.org/licenses/gpl-3.0.html",
+    // Bundled native tools: the GCC runtime carries the Runtime Library
+    // Exception, and a few C libraries use their own permissive licences.
+    "GPL-3.0-or-later WITH GCC-exception-3.1":
+      "https://www.gnu.org/licenses/gcc-exception-3.1.html",
+    "0BSD": "https://opensource.org/license/0bsd",
+    libtiff: "https://gitlab.com/libtiff/libtiff/-/blob/master/LICENSE.md",
+    curl: "https://curl.se/docs/copyright.html",
+    "bzip2-1.0.6": "https://sourceware.org/bzip2/",
+    "LicenseRef-Microsoft-Visual-C++-Runtime":
+      "https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files",
+    "libpng-2.0": "http://www.libpng.org/pub/png/src/libpng-LICENSE.txt",
     ISC: "https://opensource.org/licenses/ISC",
     "CC0-1.0": "https://creativecommons.org/publicdomain/zero/1.0/",
     Unlicense: "https://unlicense.org/",
@@ -378,6 +663,11 @@ function checkLicenseCompatibility(licenseSummary, licenseArray) {
     "0BSD",
     "BlueOak-1.0.0",
     "Zlib",
+    // Permissive licences of the bundled native C libraries — surfaced on the
+    // licence screen but not compatibility concerns.
+    "libtiff",
+    "curl",
+    "bzip2-1.0.6",
     "Artistic-2.0",
     "Python-2.0",
     "Ruby",

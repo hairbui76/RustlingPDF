@@ -314,7 +314,9 @@ fn add_terminal_field(
         *counter
     };
     let label = derive_display_label(
-        dictionary_text(context.document, dictionary, b"TU").as_deref(),
+        dictionary_text(context.document, dictionary, b"TM")
+            .or_else(|| dictionary_text(context.document, dictionary, b"TU"))
+            .as_deref(),
         tooltip.as_deref(),
         name,
         &field_type,

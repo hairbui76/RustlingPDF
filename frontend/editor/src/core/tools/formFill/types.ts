@@ -47,6 +47,64 @@ export type FormFieldType =
   | "button"
   | "signature";
 
+export type FormMode = "fill" | "make" | "batch" | "modify";
+
+export interface DraftWidget extends WidgetCoordinates {
+  id: string;
+}
+
+export interface DraftFormField {
+  id: string;
+  name: string;
+  type: FormFieldType;
+  label: string;
+  tooltip: string;
+  required: boolean;
+  readOnly: boolean;
+  multiline: boolean;
+  multiSelect: boolean;
+  options: string[];
+  defaultValue: string;
+  fontSize: number;
+  tabOrder?: number;
+  widgets: DraftWidget[];
+}
+
+export interface FormFieldCreationRequest {
+  name: string;
+  type: FormFieldType;
+  label?: string;
+  tooltip?: string;
+  required?: boolean;
+  readOnly?: boolean;
+  multiline?: boolean;
+  multiSelect?: boolean;
+  options?: string[];
+  defaultValue?: string;
+  fontSize?: number;
+  tabOrder?: number;
+  widgets: Array<{
+    pageIndex: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    exportValue?: string;
+  }>;
+}
+
+export interface FormFieldModificationRequest {
+  targetName: string;
+  name?: string;
+  label?: string;
+  type?: FormFieldType;
+  required?: boolean;
+  multiSelect?: boolean;
+  options?: string[];
+  defaultValue?: string;
+  tooltip?: string;
+}
+
 export type ButtonActionType =
   "named" | "javascript" | "submitForm" | "resetForm" | "uri" | "none";
 

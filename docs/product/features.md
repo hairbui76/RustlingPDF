@@ -4,7 +4,7 @@ This is the complete, code-derived feature reference. Every row below is a route
 actually wired into the axum router in
 [`rust/crates/rustling-processing/src/lib.rs`](../../rust/crates/rustling-processing/src/lib.rs)
 (some registered by sibling modules and merged in) — not a wishlist and not the
-old Java Swagger doc. **162 distinct `/api/v1/...` endpoints** are registered.
+old Java Swagger doc. **166 distinct `/api/v1/...` endpoints** are registered.
 See [Methodology](#methodology) for how this list was produced and how it was
 cross-checked.
 
@@ -31,7 +31,7 @@ proxy or on a trusted network — see the no-auth note in
 
 ## Endpoints that need an external tool
 
-162 endpoints are always registered, but **17** only work when a matching
+166 endpoints are always registered, but **14** only work when a matching
 external program is installed on the machine (or container image) running the
 backend. Each is probed once at startup; a missing or too-old tool never
 crashes the service — the endpoint simply reports itself unavailable:
@@ -46,7 +46,6 @@ crashes the service — the endpoint simply reports itself unavailable:
 | LibreOffice | `convert/file/pdf`, `convert/pdf/word`, `convert/pdf/presentation`, `convert/pdf/xml` | `soffice` on `PATH` |
 | WeasyPrint ≥ 58 | `convert/html/pdf`, `convert/url/pdf`, `convert/markdown/pdf`, `convert/eml/pdf` | `weasyprint` on `PATH` |
 | Calibre | `convert/pdf/epub`, `convert/ebook/pdf` | `ebook-convert` on `PATH` |
-| Ghostscript | `convert/pdf/pdfa`, `convert/pdf/vector`, `convert/vector/pdf` | `gs` on `PATH` — **being withdrawn, see note below** |
 | unrar (or 7-Zip) / `rar` | `convert/cbr/pdf` (needs `unrar`/`7z`), `convert/pdf/cbr` (needs `rar`) | `unrar`/`7z` and `rar` on `PATH` |
 | FFmpeg | `convert/pdf/video` | `ffmpeg` on `PATH` |
 | Tesseract *or* OCRmyPDF | `misc/ocr-pdf` | either on `PATH`; disabled only when **both** are missing |
@@ -63,18 +62,10 @@ gate them off.
 Set `RUSTLING_PROCESSING_ENABLE_URL_TO_PDF=true` (or
 `SYSTEM_ENABLE_URL_TO_PDF`) to turn it on deliberately.
 
-> **Ghostscript is being withdrawn.** A branch in flight
-> (`port/drop-ghostscript`, not yet merged to `main`) removes Ghostscript and
-> its three routes (`convert/pdf/pdfa`, `convert/pdf/vector`,
-> `convert/vector/pdf`) entirely. This document describes `main` as it stands
-> today; once that branch lands, PDF/A and vector conversion will no longer be
-> offered, and this note (and the affected table rows) will be removed.
-
-> **Coming to the desktop app:** an unmerged branch bundles `qpdf` and
-> Tesseract directly into the desktop installer, so PDF repair and OCR will
-> work out of the box there without a separate install. Not yet shipped —
-> today the desktop app discovers these tools the same way the Docker image
-> does.
+> **Desktop app:** desktop builds bundle qpdf and Tesseract with English
+> language data. PDF repair and English OCR therefore work without a separate
+> tool installation; operator-set command and tessdata paths still take
+> precedence.
 
 ## The optional AI engine
 
@@ -87,17 +78,22 @@ is not running, no document content ever leaves the machine** — the processing
 backend behaves exactly as if the AI tools didn't exist, and `ai/health`
 reports it unreachable.
 
-When enabled, it adds document classification, a math/claims auditor, PDF
-review-comment generation, an AI PDF-edit planner, generating a PDF from a
-structured description, and multi-step orchestration across these. It does
-**not** do PDF question-answering — that capability, along with the document
-store it depended on, was removed by maintainer decision. See the table under
-[Optional AI engine tools](#optional-ai-engine-tools).
+When enabled, it adds page-cited document summary, caller-schema extraction,
+page/block-ordered translation, document classification, a math/claims auditor,
+PDF review-comment generation, an AI PDF-edit planner, generating a PDF from a
+structured description, and multi-step orchestration across these. Dedicated
+document-understanding routes keep PDF bytes in the processing service and send
+only locally extracted text within the configured page/character limits. They
+are single-request operations and keep no document, prompt, or result store.
+Translation returns structured text and does not claim pixel-perfect PDF layout
+preservation. It does **not** do PDF question-answering — that capability, along
+with the document store it depended on, was removed by maintainer decision. See
+the table under [Optional AI engine tools](#optional-ai-engine-tools).
 
 ## Feature reference
 
 Method column lists every HTTP verb registered on that path. A route marked
-*(needs …)* is one of the 17 dependency-gated endpoints above.
+*(needs …)* is one of the 14 dependency-gated endpoints above.
 
 ### Organize pages
 
@@ -139,7 +135,6 @@ Method column lists every HTTP verb registered on that path. A route marked
 | POST | `/api/v1/convert/svg/pdf` | SVG to PDF |
 | POST | `/api/v1/convert/text-editor/pdf` | Structured JSON document model to PDF (text-editor save path) |
 | POST | `/api/v1/convert/url/pdf` | Web page URL to PDF (off by default; see note) *(needs WeasyPrint)* |
-| POST | `/api/v1/convert/vector/pdf` | PostScript/EPS to PDF *(needs Ghostscript)* |
 
 ### Convert from PDF
 
@@ -152,10 +147,8 @@ Method column lists every HTTP verb registered on that path. A route marked
 | POST | `/api/v1/convert/pdf/html` | PDF to HTML |
 | POST | `/api/v1/convert/pdf/img` | PDF pages to images |
 | POST | `/api/v1/convert/pdf/markdown` | PDF to Markdown |
-| POST | `/api/v1/convert/pdf/pdfa` | PDF to archival PDF/A (or PDF/X) *(needs Ghostscript)* |
 | POST | `/api/v1/convert/pdf/presentation` | PDF to PowerPoint presentation *(needs LibreOffice)* |
 | POST | `/api/v1/convert/pdf/text` | PDF to plain text or RTF (`outputFormat`: `txt` or `rtf`) |
-| POST | `/api/v1/convert/pdf/vector` | PDF to PostScript/EPS *(needs Ghostscript)* |
 | POST | `/api/v1/convert/pdf/video` | PDF pages to an MP4/WebM slideshow *(needs FFmpeg)* |
 | POST | `/api/v1/convert/pdf/word` | PDF to Word document *(needs LibreOffice)* |
 | POST | `/api/v1/convert/pdf/xlsx` | Extract a table from the PDF to XLSX |
@@ -211,6 +204,8 @@ Method column lists every HTTP verb registered on that path. A route marked
 
 | Method | Endpoint | What it does |
 |---|---|---|
+| POST | `/api/v1/accessibility/check` | Report tagged structure, language, reading/tab order, Figure alternatives, and form labels |
+| POST | `/api/v1/accessibility/remediate` | Apply explicit bounded accessibility repairs and return a PDF |
 | POST | `/api/v1/analysis/annotation-info` | Annotation counts by type |
 | POST | `/api/v1/analysis/basic-info` | Page count, PDF version, file size |
 | POST | `/api/v1/analysis/document-properties` | Title/author/subject/keywords/creator/producer/dates |
@@ -219,6 +214,12 @@ Method column lists every HTTP verb registered on that path. A route marked
 | POST | `/api/v1/analysis/page-count` | Page count |
 | POST | `/api/v1/analysis/page-dimensions` | Per-page width/height |
 | POST | `/api/v1/analysis/security-info` | Encryption status, key length, permission flags |
+
+The accessibility report is checker-first and does not claim PDF/UA
+certification. It can set language and structure tab order, mark an existing
+structure tree, and apply user-authored Figure descriptions or form labels. It
+does not synthesize tags, guess semantic reading order, add PDF/UA metadata, or
+create PDF/A.
 
 ### Extract & annotate content
 
@@ -241,9 +242,15 @@ Method column lists every HTTP verb registered on that path. A route marked
 
 ### Forms
 
+The editor exposes Fill, Create, Batch, and Modify modes. Create places and
+resizes widgets directly on PDF pages; Batch accepts CSV/XLSX rows and downloads
+the filled PDFs as a ZIP.
+
 | Method | Endpoint | What it does |
 |---|---|---|
+| POST | `/api/v1/form/batch-fill` | Fill one PDF per CSV/XLSX row and return a ZIP |
 | POST | `/api/v1/form/delete-fields` | Delete form fields |
+| POST | `/api/v1/form/create-fields` | Create accessible AcroForm fields and widgets |
 | POST | `/api/v1/form/extract-csv` | Export form field values to CSV |
 | POST | `/api/v1/form/extract-xlsx` | Export form field values to XLSX |
 | POST | `/api/v1/form/fields` | List form fields and their values |
@@ -264,6 +271,14 @@ Method column lists every HTTP verb registered on that path. A route marked
 
 ### Automation & async jobs
 
+The `rustlingpdf` local CLI exposes generated catalog operations through
+`operations`, `describe`, `run`, and `pipeline`. It validates parameters against
+the same JSON Schemas used by the AI operation boundary, then runs the HTTP
+pipeline router in-process: no listener, account, upload to another service, or
+durable server state is involved. File bytes go to an explicit output path
+unless `--output -` deliberately selects binary stdout. See
+[`rust/contracts/cli.md`](../../rust/contracts/cli.md).
+
 | Method | Endpoint | What it does |
 |---|---|---|
 | GET | `/api/v1/general/files/{file_id}` | Download one result file by id |
@@ -282,7 +297,17 @@ Method column lists every HTTP verb registered on that path. A route marked
 | GET | `/api/v1/admin/job/queue/stats` | Job queue depth/capacity counters |
 | GET | `/api/v1/admin/job/stats` | Job counters (total/active/completed/failed) |
 
-### Mobile scanner (phone-to-desktop transfer)
+### Local-first mobile scanner
+
+`/mobile-scanner` is an installable browser scanner and also the target of the
+desktop QR flow. It works without a session for local capture/export, supports
+camera or multi-photo input, automatic edge detection, draggable perspective
+corners, rotation and document cleanup filters, page reordering, and creates
+one ordered multi-page PDF in the browser. After the scanner shell has loaded
+successfully once, its same-origin code/static assets are available offline;
+API responses and documents are never placed in that cache. A user may export
+locally, continue to OCR or Sign, or explicitly send the PDF through the
+ten-minute ephemeral transfer API:
 
 | Method | Endpoint | What it does |
 |---|---|---|
@@ -301,6 +326,9 @@ Method column lists every HTTP verb registered on that path. A route marked
 | POST | `/api/v1/ai/orchestrate` | Multi-step AI-driven workflow orchestration |
 | POST | `/api/v1/ai/orchestrate/stream` | Same, as a streamed NDJSON progress feed |
 | POST | `/api/v1/ai/pdf/edit` | AI-planned PDF edit (proxies to the engine, then runs the plan) |
+| POST | `/api/v1/ai/tools/document-summary` | Summarize bounded locally extracted page text with validated page references |
+| POST | `/api/v1/ai/tools/document-extraction` | Extract caller-defined structured fields with validated source pages |
+| POST | `/api/v1/ai/tools/document-translation` | Translate text while preserving extracted page boundaries and stable block order |
 | POST | `/api/v1/ai/tools/classify-and-label` | Classify a document against a caller-supplied label set |
 | POST | `/api/v1/ai/tools/create-pdf-from-html-agent` | Generate a PDF from a structured document description |
 | POST | `/api/v1/ai/tools/math-auditor-agent` | Audit mathematical claims/figures in a PDF |

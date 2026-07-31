@@ -2,7 +2,11 @@
  * API service for form-related backend calls.
  */
 import apiClient from "@app/services/apiClient";
-import type { FormField } from "@app/tools/formFill/types";
+import type {
+  FormField,
+  FormFieldCreationRequest,
+  FormFieldModificationRequest,
+} from "@app/tools/formFill/types";
 
 /**
  * Fetch form fields with coordinates from the backend.
@@ -85,6 +89,77 @@ export async function extractFormFieldsXlsx(
   }
 
   const response = await apiClient.post("/api/v1/form/extract-xlsx", formData, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+/** Create AcroForm fields and return the updated PDF. */
+export async function createFormFields(
+  file: File | Blob,
+  fields: FormFieldCreationRequest[],
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append(
+    "fields",
+    new Blob([JSON.stringify(fields)], { type: "application/json" }),
+  );
+  const response = await apiClient.post(
+    "/api/v1/form/create-fields",
+    formData,
+    { responseType: "blob" },
+  );
+  return response.data;
+}
+
+/** Update existing AcroForm field definitions and return the updated PDF. */
+export async function modifyFormFields(
+  file: File | Blob,
+  updates: FormFieldModificationRequest[],
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append(
+    "updates",
+    new Blob([JSON.stringify(updates)], { type: "application/json" }),
+  );
+  const response = await apiClient.post(
+    "/api/v1/form/modify-fields",
+    formData,
+    { responseType: "blob" },
+  );
+  return response.data;
+}
+
+/** Delete existing AcroForm fields and return the updated PDF. */
+export async function deleteFormFields(
+  file: File | Blob,
+  names: string[],
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append(
+    "names",
+    new Blob([JSON.stringify(names)], { type: "application/json" }),
+  );
+  const response = await apiClient.post(
+    "/api/v1/form/delete-fields",
+    formData,
+    { responseType: "blob" },
+  );
+  return response.data;
+}
+
+/** Fill one PDF per CSV/XLSX row and return the result ZIP. */
+export async function batchFillFormFields(
+  file: File | Blob,
+  dataFile: File,
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("dataFile", dataFile);
+  const response = await apiClient.post("/api/v1/form/batch-fill", formData, {
     responseType: "blob",
   });
   return response.data;

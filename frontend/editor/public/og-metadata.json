@@ -220,6 +220,16 @@
       "title": "Overlay Pdfs - RustlingPDF",
       "description": "The Free Adobe Acrobat alternative (10M+ Downloads)"
     },
+    "accessibility": {
+      "image": "/og_images/home.png",
+      "title": "Accessibility - RustlingPDF",
+      "description": "Check tagged structure, language, reading order, image descriptions, and form labels"
+    },
+    "documentUnderstanding": {
+      "image": "/og_images/home.png",
+      "title": "AI Document Understanding - RustlingPDF",
+      "description": "Summarize, translate, or extract structured fields with source-page references"
+    },
     "getPdfInfo": {
       "image": "/og_images/get-all-info-on-pdf.png",
       "title": "Get ALL Info on PDF - RustlingPDF",
@@ -560,6 +570,8 @@
     "/add-attachments": "addAttachments",
     "/change-metadata": "changeMetadata",
     "/overlay-pdfs": "overlayPdfs",
+    "/accessibility": "accessibility",
+    "/document-understanding": "documentUnderstanding",
     "/get-pdf-info": "getPdfInfo",
     "/validate-signature": "validateSignature",
     "/timestamp-pdf": "timestampPdf",

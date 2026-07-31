@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/rustling-ai-engine",
+    "crates/rustling-cli",
     "crates/rustling-operation-catalog",
     "crates/rustling-processing",
 ]

@@ -1,0 +1,9 @@
+.preserveWhitespace {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.translationBlock {
+  border-left: 3px solid var(--mantine-color-blue-4);
+  padding-left: 0.75rem;
+}

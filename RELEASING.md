@@ -94,15 +94,48 @@ grep -rn "2\.14\.2" --include="*.rs" --include="*.ts" --include="*.json" \
 
 `publish-desktop` runs `.github/workflows/desktop-build.yml` (reusable,
 `workflow_call`) on three hosted runners; each leg stages the release Rust
-backend sidecar + pinned PDFium (`task desktop:stage-sidecar` — Windows
-dispatches to `rust/scripts/install-pdfium.ps1`), prepares the desktop
-frontend, and runs `npx tauri build`:
+backend sidecar + pinned PDFium + qpdf 12.3.2 + Tesseract 5.5.3 with English
+tessdata 4.1.0 (`task desktop:stage-sidecar`; Unix and Windows dispatch to
+their matching checksum-verified installers), prepares the desktop frontend,
+and runs `npx tauri build`:
 
 | Leg | Runner | Bundles | Updater platform key(s) |
 |-----|--------|---------|--------------------------|
 | linux-x86_64 | ubuntu-latest | `.AppImage`, `.deb` | `linux-x86_64` (AppImage), `linux-x86_64-deb` |
 | windows-x86_64 | windows-latest | `.msi` (WiX) | `windows-x86_64`, `windows-x86_64-msi` |
 | darwin-aarch64 | macos-latest (Apple silicon) | `.app.tar.gz` (updater), `.dmg` | `darwin-aarch64` |
+
+The staging diagnostic prints both KiB and human-readable sizes for
+`resources/tools` on every runner. Linux's measured static-musl tools tree is
+25.12 MiB. Windows must be re-measured per release after the JBIG-free libtiff
+swap; macOS remains unmeasured until a real runner build. Do not infer bundle
+size from an unpacked upstream installer.
+
+qpdf, Tesseract, and tessdata are Apache-2.0, but their runtime closures also
+redistribute LGPL components and the GPL-3.0-with-exception GCC runtime.
+The Windows Tesseract closure replaces upstream's libtiff with the repository's
+JBIG-free build, so `libjbig-0.dll` and GPL-2.0 are not shipped. Full license
+texts, qpdf's NOTICE, the LGPL relinking notice, provenance, and measured
+dependency closures live under `rust/scripts/desktop-tools/` and are bundled
+under `resources/tools/licenses`.
+
+### Bumping the bundled Tesseract
+
+1. Update the version and source/installer checksums in both
+   `install-desktop-tools` scripts and
+   `rust/scripts/desktop-tools/build-tesseract-musl.sh`.
+2. If the Windows libtiff version changes, set its hash to
+   `PENDING_CI_BUILD`, run the JBIG-free libtiff workflow with publication
+   enabled, and pin the reported SHA-256.
+3. Set the Linux artifact hash to `PENDING_CI_BUILD`, run the Linux Tesseract
+   workflow with publication enabled, and pin the reported SHA-256.
+4. Update `SOURCES.md`, `THIRD-PARTY-NOTICES.txt`, the generated desktop
+   license inventory, and `rust/contracts/desktop-native-startup.md`.
+5. Re-run the installer, staging smoke checks, and each native release leg.
+
+Published Linux artifacts can be checked with `gh attestation verify` against
+this repository. The full release procedure and residual Windows ABI risk are
+documented in `rust/scripts/desktop-tools/SOURCES.md`.
 
 What gets uploaded to the GitHub release:
 

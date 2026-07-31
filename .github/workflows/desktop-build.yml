@@ -8,8 +8,9 @@ name: Desktop build (reusable)
 # linux-x86_64, windows-latest builds the WiX MSI for windows-x86_64, and
 # macos-latest (Apple silicon) builds .app + dmg for darwin-aarch64. Each leg
 # stages the release Rust backend as the Tauri externalBin sidecar plus the
-# pinned PDFium runtime (`task desktop:stage-sidecar`, Windows dispatches to
-# install-pdfium.ps1), prepares the desktop frontend, runs `npx tauri build`,
+# pinned PDFium, qpdf, and Tesseract runtimes
+# (`task desktop:stage-sidecar`), prepares the desktop frontend, runs
+# `npx tauri build`,
 # and uploads the bundles as an artifact named desktop-<os>-<arch> — the
 # directory-name contract scripts/compose_latest_json.py consumes when the
 # release job assembles latest.json.
@@ -192,19 +193,20 @@ jobs:
         run: npm ci
 
       # Builds the release rustling-processing binary, installs the pinned
-      # PDFium runtime (install-pdfium.sh on linux/macos, install-pdfium.ps1
-      # on windows — both lay the platform library + licenses out in
-      # rust/.pdfium/current), and stages both into src-tauri
-      # (binaries/rustling-processing-<triple>[.exe], resources/pdfium/).
-      - name: Stage the Rust sidecar and PDFium (task desktop:stage-sidecar)
+      # PDFium, qpdf, and Tesseract runtimes (platform-dispatched checksum-
+      # verified installers), then stages them into src-tauri.
+      - name: Stage the Rust sidecar and native runtimes (task desktop:stage-sidecar)
         run: task desktop:stage-sidecar
 
       # Diagnostic listing so a bad staging layout is visible in the log
       # without a local reproduction environment for the platform.
-      - name: Show staged sidecar and PDFium layout
+      - name: Show staged native runtime layout
         run: |
           ls -la frontend/editor/src-tauri/binaries/
           ls -la frontend/editor/src-tauri/resources/pdfium/
+          find frontend/editor/src-tauri/resources/tools -type f -print | sort
+          du -sk frontend/editor/src-tauri/resources/tools
+          du -sh frontend/editor/src-tauri/resources/tools
 
       # Frontend desktop env files, icons and OG metadata; on the windows leg
       # this also builds the MSI provisioner + thumbnail-handler helper

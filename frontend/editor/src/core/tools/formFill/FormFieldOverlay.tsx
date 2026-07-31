@@ -23,7 +23,10 @@ import {
   useFormFill,
   useFieldValue,
 } from "@app/tools/formFill/FormFillContext";
+import { useFormDesigner } from "@app/tools/formFill/FormDesignerContext";
+import FormDesignerOverlay from "@app/tools/formFill/FormDesignerOverlay";
 import { useViewer } from "@app/contexts/ViewerContext";
+import { useNavigation } from "@app/contexts/NavigationContext";
 import type {
   FormField,
   WidgetCoordinates,
@@ -607,6 +610,8 @@ export function FormFieldOverlay({
 }: FormFieldOverlayProps) {
   const { setValue, setActiveField, fieldsByPage, state, forFileId } =
     useFormFill();
+  const designer = useFormDesigner();
+  const { selectedTool } = useNavigation();
   const { activeFieldName, validationErrors } = state;
   const { printActions, scrollActions, exportActions } = useViewer();
 
@@ -734,6 +739,18 @@ export function FormFieldOverlay({
     },
     [printActions, scrollActions, exportActions, state.fields, setValue],
   );
+
+  if (selectedTool === "formFill" && designer.mode === "make") {
+    return (
+      <FormDesignerOverlay
+        pageIndex={pageIndex}
+        pageWidth={pageWidth}
+        pageHeight={pageHeight}
+        scaleX={scaleX}
+        scaleY={scaleY}
+      />
+    );
+  }
 
   // Guard: don't render fields from a previous document.
   // If fileId is provided and doesn't match what the context fetched for, render nothing.

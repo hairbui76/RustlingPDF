@@ -1,5 +1,6 @@
 pub mod additional_language;
 pub mod ai_document;
+mod ai_document_understanding;
 pub mod ai_engine_config_sync;
 mod ai_proxy;
 mod ai_workflow;
@@ -23,6 +24,7 @@ pub mod ocr_pdf;
 pub mod office_sanitizer;
 pub mod office_to_pdf;
 mod page_selection;
+pub mod pdf_accessibility;
 pub mod pdf_ai_comments;
 pub mod pdf_analysis;
 pub mod pdf_attachments;
@@ -39,6 +41,8 @@ pub mod pdf_edit_text;
 pub mod pdf_extract_images;
 pub mod pdf_filters;
 pub mod pdf_flatten;
+pub mod pdf_form_batch;
+pub mod pdf_form_creation;
 pub mod pdf_form_fields;
 pub mod pdf_form_mutation;
 mod pdf_form_transform;
@@ -177,6 +181,10 @@ use crate::{
     office_to_pdf::{
         OfficeToPdfError, PdfToOfficeOutput, convert_office_to_pdf, convert_pdf_to_office,
     },
+    pdf_accessibility::{
+        AccessibilityError, AccessibilityRepairs, check_accessibility,
+        remediate_accessibility_to_file,
+    },
     pdf_ai_comments::{AiCommentEngineSettings, PdfAiCommentError, annotate_pdf_with_ai_comments},
     pdf_analysis::AnalysisError,
     pdf_attachments::{
@@ -198,6 +206,8 @@ use crate::{
     pdf_extract_images::{ExtractImagesError, extract_images_to_zip},
     pdf_filters::{Comparator, FilterError},
     pdf_flatten::{FlattenError, flatten_pdf_to_file},
+    pdf_form_batch::{FormBatchError, batch_fill_to_zip},
+    pdf_form_creation::{FormCreationError, FormFieldCreation, create_fields_to_file},
     pdf_form_mutation::{
         FormFieldModification, FormMutationError, delete_fields_to_file, fill_fields_to_file,
         modify_fields_to_file,
@@ -295,6 +305,8 @@ const ANALYSIS_FORM_FIELDS_PATH: &str = "/api/v1/analysis/form-fields";
 const ANALYSIS_PAGE_COUNT_PATH: &str = "/api/v1/analysis/page-count";
 const ANALYSIS_PAGE_DIMENSIONS_PATH: &str = "/api/v1/analysis/page-dimensions";
 const ANALYSIS_SECURITY_INFO_PATH: &str = "/api/v1/analysis/security-info";
+const ACCESSIBILITY_CHECK_PATH: &str = "/api/v1/accessibility/check";
+const ACCESSIBILITY_REMEDIATE_PATH: &str = "/api/v1/accessibility/remediate";
 const APP_CONFIG_PATH: &str = "/api/v1/config/app-config";
 const ADDITIONAL_LANGUAGE_JS_PATH: &str = "/js/additionalLanguageCode.js";
 const ROBOTS_TXT_PATH: &str = "/robots.txt";
@@ -351,6 +363,8 @@ const FILTER_FILE_SIZE_PATH: &str = "/api/v1/filter/filter-file-size";
 const FILTER_PAGE_COUNT_PATH: &str = "/api/v1/filter/filter-page-count";
 const FILTER_PAGE_ROTATION_PATH: &str = "/api/v1/filter/filter-page-rotation";
 const FILTER_PAGE_SIZE_PATH: &str = "/api/v1/filter/filter-page-size";
+const FORM_BATCH_FILL_PATH: &str = "/api/v1/form/batch-fill";
+const FORM_CREATE_FIELDS_PATH: &str = "/api/v1/form/create-fields";
 const FORM_FIELDS_PATH: &str = "/api/v1/form/fields";
 const FORM_FIELDS_WITH_COORDINATES_PATH: &str = "/api/v1/form/fields-with-coordinates";
 const GET_INFO_ON_PDF_PATH: &str = "/api/v1/security/get-info-on-pdf";
@@ -1161,6 +1175,27 @@ struct UploadedModifyFormFieldsRequest {
     temp_dir: TempDir,
 }
 
+#[derive(Debug)]
+struct UploadedCreateFormFieldsRequest {
+    file: UploadedPdf,
+    fields: Option<String>,
+    temp_dir: TempDir,
+}
+
+#[derive(Debug)]
+struct UploadedBatchFormRequest {
+    file: UploadedPdf,
+    data_file: UploadedPdf,
+    temp_dir: TempDir,
+}
+
+#[derive(Debug)]
+struct UploadedAccessibilityRemediationRequest {
+    file: UploadedPdf,
+    repairs: Option<String>,
+    temp_dir: TempDir,
+}
+
 #[derive(Debug, Serialize)]
 struct ErrorResponse {
     status: u16,
@@ -1259,6 +1294,14 @@ impl ApiError {
             path,
         }
     }
+
+    fn bad_gateway_at(path: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::BAD_GATEWAY,
+            message: message.into(),
+            path,
+        }
+    }
 }
 
 impl IntoResponse for ApiError {
@@ -1279,6 +1322,7 @@ impl IntoResponse for ApiError {
 /// [`ProcessingRuntime::spawn_background_maintenance`].
 pub struct ProcessingRuntime {
     router: Router,
+    runtime_config: Arc<RuntimeConfig>,
     job_manager: Arc<JobManager>,
     mobile_scanner: Option<Arc<MobileScannerService>>,
     spa: Option<Arc<spa::SpaServing>>,
@@ -1380,7 +1424,7 @@ impl ProcessingRuntime {
                     submit_async_job,
                 ))
                 .layer(middleware::from_fn(enforce_endpoint_availability))
-                .layer(Extension(runtime_config))
+                .layer(Extension(Arc::clone(&runtime_config)))
                 .layer(Extension(ocr_process_controls))
                 .layer(Extension(repair_runtime))
                 .layer(Extension(ai_comment_engine_settings))
@@ -1395,6 +1439,7 @@ impl ProcessingRuntime {
                 ));
         Self {
             router,
+            runtime_config,
             job_manager,
             mobile_scanner,
             spa: spa_serving,
@@ -1476,6 +1521,12 @@ impl ProcessingRuntime {
             spa::attach_fallback(self.router.clone(), self.spa.clone()),
             TransportLimits::production(),
         )
+    }
+
+    /// Reports whether an operation URI is enabled in this exact runtime.
+    #[must_use]
+    pub fn endpoint_availability_for_uri(&self, uri: &str) -> runtime_config::EndpointAvailability {
+        self.runtime_config.endpoint_availability_for_uri(uri)
     }
 }
 
@@ -1651,6 +1702,7 @@ fn processing_routes() -> Router {
         .merge(mobile_scanner_routes())
         .merge(ui_data_routes())
         .merge(ai_tool_routes())
+        .merge(accessibility_routes())
         .route(ADD_ATTACHMENTS_PATH, post(add_attachments))
         .route(ADD_COMMENTS_PATH, post(add_comments))
         .route(ADD_IMAGE_PATH, post(add_image))
@@ -1697,16 +1749,7 @@ fn processing_routes() -> Router {
         .route(FILTER_PAGE_COUNT_PATH, post(filter_page_count))
         .route(FILTER_PAGE_ROTATION_PATH, post(filter_page_rotation))
         .route(FILTER_PAGE_SIZE_PATH, post(filter_page_size))
-        .route(FORM_DELETE_FIELDS_PATH, post(delete_form_fields))
-        .route(FORM_EXTRACT_CSV_PATH, post(extract_form_csv))
-        .route(FORM_EXTRACT_XLSX_PATH, post(extract_form_xlsx))
-        .route(FORM_FILL_PATH, post(fill_form_fields))
-        .route(FORM_FIELDS_PATH, post(inspect_form_fields))
-        .route(
-            FORM_FIELDS_WITH_COORDINATES_PATH,
-            post(inspect_form_fields_with_coordinates),
-        )
-        .route(FORM_MODIFY_FIELDS_PATH, post(modify_form_fields))
+        .merge(form_routes())
         .route(GET_INFO_ON_PDF_PATH, post(get_info_on_pdf))
         .route(LIST_ATTACHMENTS_PATH, post(list_attachments_route))
         .route(MERGE_PATH, post(merge_pdfs))
@@ -1866,6 +1909,7 @@ fn ai_tool_routes() -> Router {
         .route(PDF_COMMENT_AGENT_PATH, post(pdf_comment_agent))
         .route(CREATE_PDF_AGENT_PATH, post(create_pdf_from_html_agent))
         .route(MATH_AUDITOR_AGENT_PATH, post(math_auditor_agent))
+        .merge(ai_document_understanding::routes())
         .merge(ai_proxy::routes())
         .merge(ai_workflow::routes())
 }
@@ -1874,6 +1918,31 @@ fn image_extraction_routes() -> Router {
     Router::new()
         .route(EXTRACT_IMAGES_PATH, post(extract_images))
         .route(EXTRACT_IMAGE_SCANS_PATH, post(extract_image_scans))
+}
+
+fn accessibility_routes() -> Router {
+    Router::new()
+        .route(ACCESSIBILITY_CHECK_PATH, post(check_pdf_accessibility))
+        .route(
+            ACCESSIBILITY_REMEDIATE_PATH,
+            post(remediate_pdf_accessibility),
+        )
+}
+
+fn form_routes() -> Router {
+    Router::new()
+        .route(FORM_BATCH_FILL_PATH, post(batch_fill_form_fields))
+        .route(FORM_CREATE_FIELDS_PATH, post(create_form_fields))
+        .route(FORM_DELETE_FIELDS_PATH, post(delete_form_fields))
+        .route(FORM_EXTRACT_CSV_PATH, post(extract_form_csv))
+        .route(FORM_EXTRACT_XLSX_PATH, post(extract_form_xlsx))
+        .route(FORM_FILL_PATH, post(fill_form_fields))
+        .route(FORM_FIELDS_PATH, post(inspect_form_fields))
+        .route(
+            FORM_FIELDS_WITH_COORDINATES_PATH,
+            post(inspect_form_fields_with_coordinates),
+        )
+        .route(FORM_MODIFY_FIELDS_PATH, post(modify_form_fields))
 }
 
 fn pdf_video_routes() -> Router {
@@ -2217,6 +2286,8 @@ fn is_async_job_request(request: &Request) -> bool {
 }
 
 const ASYNC_JOB_PROCESSING_PATHS: &[&str] = &[
+    ACCESSIBILITY_CHECK_PATH,
+    ACCESSIBILITY_REMEDIATE_PATH,
     ADD_ATTACHMENTS_PATH,
     ADD_COMMENTS_PATH,
     CREATE_PDF_AGENT_PATH,
@@ -2261,7 +2332,9 @@ const ASYNC_JOB_PROCESSING_PATHS: &[&str] = &[
     FILTER_PAGE_ROTATION_PATH,
     FILTER_PAGE_SIZE_PATH,
     FLATTEN_PATH,
+    FORM_BATCH_FILL_PATH,
     FORM_DELETE_FIELDS_PATH,
+    FORM_CREATE_FIELDS_PATH,
     FORM_EXTRACT_CSV_PATH,
     FORM_EXTRACT_XLSX_PATH,
     FORM_FIELDS_PATH,
@@ -5510,6 +5583,67 @@ async fn form_fields(multipart: Multipart) -> Result<Response, ApiError> {
     .await
 }
 
+async fn check_pdf_accessibility(multipart: Multipart) -> Result<Response, ApiError> {
+    let request = read_single_pdf_request(multipart, ACCESSIBILITY_CHECK_PATH).await?;
+    let input_path = request.file.path;
+    let filename = request.file.filename;
+    let report = task::spawn_blocking(move || check_accessibility(&input_path, &filename))
+        .await
+        .map_err(|error| {
+            ApiError::internal_at(
+                ACCESSIBILITY_CHECK_PATH,
+                format!("accessibility check task failed: {error}"),
+            )
+        })?
+        .map_err(|error| map_accessibility_error(&error, ACCESSIBILITY_CHECK_PATH))?;
+    Ok(Json(report).into_response())
+}
+
+async fn remediate_pdf_accessibility(multipart: Multipart) -> Result<Response, ApiError> {
+    let request = read_accessibility_remediation_request(multipart).await?;
+    let repairs = request
+        .repairs
+        .as_deref()
+        .map(str::trim)
+        .filter(|repairs| !repairs.is_empty())
+        .map(serde_json::from_str::<AccessibilityRepairs>)
+        .transpose()
+        .map_err(|error| {
+            ApiError::bad_request_at(
+                ACCESSIBILITY_REMEDIATE_PATH,
+                format!("invalid repairs JSON: {error}"),
+            )
+        })?
+        .ok_or_else(|| {
+            ApiError::bad_request_at(ACCESSIBILITY_REMEDIATE_PATH, "repairs payload is required")
+        })?;
+    let output_filename = suffixed_filename(&request.file.filename, "_accessible.pdf");
+    let input_path = request.file.path;
+    let filename = request.file.filename;
+    let temp_dir = request.temp_dir;
+    let output_path = temp_dir.path().join("accessible.pdf");
+    let blocking_output_path = output_path.clone();
+    task::spawn_blocking(move || {
+        remediate_accessibility_to_file(&input_path, &filename, &repairs, &blocking_output_path)
+    })
+    .await
+    .map_err(|error| {
+        ApiError::internal_at(
+            ACCESSIBILITY_REMEDIATE_PATH,
+            format!("accessibility remediation task failed: {error}"),
+        )
+    })?
+    .map_err(|error| map_accessibility_error(&error, ACCESSIBILITY_REMEDIATE_PATH))?;
+    file_response(
+        output_path,
+        temp_dir,
+        &output_filename,
+        ACCESSIBILITY_REMEDIATE_PATH,
+        "application/pdf",
+    )
+    .await
+}
+
 async fn inspect_form_fields(multipart: Multipart) -> Result<Response, ApiError> {
     run_named_analysis(
         multipart,
@@ -5526,6 +5660,92 @@ async fn inspect_form_fields_with_coordinates(multipart: Multipart) -> Result<Re
         FORM_FIELDS_WITH_COORDINATES_PATH,
         "file",
         pdf_form_fields::extract_fields_with_coordinates,
+    )
+    .await
+}
+
+async fn create_form_fields(multipart: Multipart) -> Result<Response, ApiError> {
+    let request = read_create_form_fields_request(multipart).await?;
+    let definitions = request
+        .fields
+        .as_deref()
+        .map(str::trim)
+        .filter(|fields| !fields.is_empty())
+        .map(serde_json::from_str::<Vec<FormFieldCreation>>)
+        .transpose()
+        .map_err(|error| {
+            ApiError::bad_request_at(
+                FORM_CREATE_FIELDS_PATH,
+                format!("invalid fields JSON: {error}"),
+            )
+        })?
+        .unwrap_or_default();
+    if definitions.is_empty() {
+        return Err(ApiError::bad_request_at(
+            FORM_CREATE_FIELDS_PATH,
+            "fields payload must contain at least one definition",
+        ));
+    }
+    let output_filename = suffixed_filename(&request.file.filename, "_fields.pdf");
+    let input_path = request.file.path;
+    let filename = request.file.filename;
+    let temp_dir = request.temp_dir;
+    let output_path = temp_dir.path().join("fields.pdf");
+    let blocking_output_path = output_path.clone();
+    task::spawn_blocking(move || {
+        create_fields_to_file(&input_path, &filename, &definitions, &blocking_output_path)
+    })
+    .await
+    .map_err(|error| {
+        ApiError::internal_at(
+            FORM_CREATE_FIELDS_PATH,
+            format!("create form fields task failed: {error}"),
+        )
+    })?
+    .map_err(|error| map_form_creation_error_at(&error))?;
+    file_response(
+        output_path,
+        temp_dir,
+        &output_filename,
+        FORM_CREATE_FIELDS_PATH,
+        "application/pdf",
+    )
+    .await
+}
+
+async fn batch_fill_form_fields(multipart: Multipart) -> Result<Response, ApiError> {
+    let request = read_batch_form_request(multipart).await?;
+    let output_filename = suffixed_filename(&request.file.filename, "_batch_filled.zip");
+    let input_path = request.file.path;
+    let filename = request.file.filename;
+    let data_path = request.data_file.path;
+    let data_filename = request.data_file.filename;
+    let temp_dir = request.temp_dir;
+    let output_path = temp_dir.path().join("batch-filled.zip");
+    let blocking_output_path = output_path.clone();
+    task::spawn_blocking(move || {
+        batch_fill_to_zip(
+            &input_path,
+            &filename,
+            &data_path,
+            &data_filename,
+            &blocking_output_path,
+        )
+    })
+    .await
+    .map_err(|error| {
+        ApiError::internal_at(
+            FORM_BATCH_FILL_PATH,
+            format!("batch fill task failed: {error}"),
+        )
+    })?
+    .map_err(|error| map_form_batch_error_at(&error))?;
+    file_response(
+        output_path,
+        temp_dir,
+        &output_filename,
+        FORM_BATCH_FILL_PATH,
+        "application/zip",
     )
     .await
 }
@@ -10407,6 +10627,126 @@ async fn read_modify_form_fields_request(
     })
 }
 
+async fn read_create_form_fields_request(
+    mut multipart: Multipart,
+) -> Result<UploadedCreateFormFieldsRequest, ApiError> {
+    let temp_dir = TempDir::new()
+        .map_err(|error| ApiError::internal_at(FORM_CREATE_FIELDS_PATH, error.to_string()))?;
+    let mut file = None;
+    let mut fields = None;
+    while let Some(mut field) = multipart
+        .next_field()
+        .await
+        .map_err(|error| ApiError::bad_request_at(FORM_CREATE_FIELDS_PATH, error.body_text()))?
+    {
+        match field.name().unwrap_or_default() {
+            "file" => {
+                let filename = safe_filename(field.file_name());
+                let path = temp_dir.path().join("input.pdf");
+                write_field_to_file(&mut field, &path, FORM_CREATE_FIELDS_PATH).await?;
+                file = Some(UploadedPdf { filename, path });
+            }
+            "fields" => {
+                fields = Some(
+                    read_form_value_bounded(
+                        &mut field,
+                        FORM_CREATE_FIELDS_PATH,
+                        FORM_DATA_LIMIT_BYTES,
+                    )
+                    .await?,
+                );
+            }
+            _ => drain_field(&mut field, FORM_CREATE_FIELDS_PATH).await?,
+        }
+    }
+    let file =
+        file.ok_or_else(|| ApiError::bad_request_at(FORM_CREATE_FIELDS_PATH, "file is required"))?;
+    Ok(UploadedCreateFormFieldsRequest {
+        file,
+        fields,
+        temp_dir,
+    })
+}
+
+async fn read_batch_form_request(
+    mut multipart: Multipart,
+) -> Result<UploadedBatchFormRequest, ApiError> {
+    let temp_dir = TempDir::new()
+        .map_err(|error| ApiError::internal_at(FORM_BATCH_FILL_PATH, error.to_string()))?;
+    let mut file = None;
+    let mut data_file = None;
+    while let Some(mut field) = multipart
+        .next_field()
+        .await
+        .map_err(|error| ApiError::bad_request_at(FORM_BATCH_FILL_PATH, error.body_text()))?
+    {
+        match field.name().unwrap_or_default() {
+            "file" => {
+                let filename = safe_filename(field.file_name());
+                let path = temp_dir.path().join("input.pdf");
+                write_field_to_file(&mut field, &path, FORM_BATCH_FILL_PATH).await?;
+                file = Some(UploadedPdf { filename, path });
+            }
+            "dataFile" => {
+                let filename = safe_filename(field.file_name());
+                let path = temp_dir.path().join("batch-data");
+                write_field_to_file(&mut field, &path, FORM_BATCH_FILL_PATH).await?;
+                data_file = Some(UploadedPdf { filename, path });
+            }
+            _ => drain_field(&mut field, FORM_BATCH_FILL_PATH).await?,
+        }
+    }
+    let file =
+        file.ok_or_else(|| ApiError::bad_request_at(FORM_BATCH_FILL_PATH, "file is required"))?;
+    let data_file = data_file
+        .ok_or_else(|| ApiError::bad_request_at(FORM_BATCH_FILL_PATH, "dataFile is required"))?;
+    Ok(UploadedBatchFormRequest {
+        file,
+        data_file,
+        temp_dir,
+    })
+}
+
+async fn read_accessibility_remediation_request(
+    mut multipart: Multipart,
+) -> Result<UploadedAccessibilityRemediationRequest, ApiError> {
+    let temp_dir = TempDir::new()
+        .map_err(|error| ApiError::internal_at(ACCESSIBILITY_REMEDIATE_PATH, error.to_string()))?;
+    let mut file = None;
+    let mut repairs = None;
+    while let Some(mut field) = multipart.next_field().await.map_err(|error| {
+        ApiError::bad_request_at(ACCESSIBILITY_REMEDIATE_PATH, error.body_text())
+    })? {
+        match field.name().unwrap_or_default() {
+            "fileInput" => {
+                let filename = safe_filename(field.file_name());
+                let path = temp_dir.path().join("input.pdf");
+                write_field_to_file(&mut field, &path, ACCESSIBILITY_REMEDIATE_PATH).await?;
+                file = Some(UploadedPdf { filename, path });
+            }
+            "repairs" => {
+                repairs = Some(
+                    read_form_value_bounded(
+                        &mut field,
+                        ACCESSIBILITY_REMEDIATE_PATH,
+                        FORM_DATA_LIMIT_BYTES,
+                    )
+                    .await?,
+                );
+            }
+            _ => drain_field(&mut field, ACCESSIBILITY_REMEDIATE_PATH).await?,
+        }
+    }
+    let file = file.ok_or_else(|| {
+        ApiError::bad_request_at(ACCESSIBILITY_REMEDIATE_PATH, "fileInput is required")
+    })?;
+    Ok(UploadedAccessibilityRemediationRequest {
+        file,
+        repairs,
+        temp_dir,
+    })
+}
+
 fn parse_form_value_map(payload: Option<&str>) -> Result<Vec<(String, Option<String>)>, String> {
     let Some(payload) = payload.map(str::trim).filter(|payload| !payload.is_empty()) else {
         return Ok(Vec::new());
@@ -11906,6 +12246,16 @@ fn map_analysis_error(error: &AnalysisError, api_path: &'static str) -> ApiError
     }
 }
 
+fn map_accessibility_error(error: &AccessibilityError, api_path: &'static str) -> ApiError {
+    match error {
+        AccessibilityError::ReadPdf { .. }
+        | AccessibilityError::Encrypted
+        | AccessibilityError::InvalidRepair(_)
+        | AccessibilityError::Pdf(_) => ApiError::bad_request_at(api_path, error.to_string()),
+        AccessibilityError::Write(_) => ApiError::internal_at(api_path, error.to_string()),
+    }
+}
+
 fn map_form_mutation_error_at(error: &FormMutationError, api_path: &'static str) -> ApiError {
     match error {
         FormMutationError::ReadPdf { .. }
@@ -11915,6 +12265,31 @@ fn map_form_mutation_error_at(error: &FormMutationError, api_path: &'static str)
         }
         FormMutationError::Pdf(_) | FormMutationError::Write(_) => {
             ApiError::internal_at(api_path, error.to_string())
+        }
+    }
+}
+
+fn map_form_creation_error_at(error: &FormCreationError) -> ApiError {
+    match error {
+        FormCreationError::ReadPdf { .. } | FormCreationError::InvalidDefinition { .. } => {
+            ApiError::bad_request_at(FORM_CREATE_FIELDS_PATH, error.to_string())
+        }
+        FormCreationError::Pdf(_) | FormCreationError::Write(_) => {
+            ApiError::internal_at(FORM_CREATE_FIELDS_PATH, error.to_string())
+        }
+    }
+}
+
+fn map_form_batch_error_at(error: &FormBatchError) -> ApiError {
+    match error {
+        FormBatchError::InvalidData(_) | FormBatchError::Workbook(_) => {
+            ApiError::bad_request_at(FORM_BATCH_FILL_PATH, error.to_string())
+        }
+        FormBatchError::Fill(error) => map_form_mutation_error_at(error, FORM_BATCH_FILL_PATH),
+        FormBatchError::ReadData { .. }
+        | FormBatchError::Archive(_)
+        | FormBatchError::ArchiveZip(_) => {
+            ApiError::internal_at(FORM_BATCH_FILL_PATH, error.to_string())
         }
     }
 }

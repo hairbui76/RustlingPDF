@@ -11,6 +11,7 @@ pub mod config_cache;
 pub mod config_push;
 pub mod contradiction;
 pub mod document_classifier;
+pub mod document_understanding;
 pub mod env_compat;
 pub mod execution;
 pub mod ledger;
@@ -52,6 +53,10 @@ use crate::{
     anthropic::AnthropicClassifierModel,
     config_push::{ConfigApplyResponse, ConfigPushRequest},
     document_classifier::{ClassifierError, DocumentClassifier},
+    document_understanding::{
+        DocumentUnderstandingAgent, DocumentUnderstandingError, ExtractionRequest, SummaryRequest,
+        TranslationRequest,
+    },
     execution::{AgentExecutionRequest, ExecutionPlanningAgent},
     ledger_auditor::{AuditError, LedgerAuditor},
     openai::OpenAiClassifierModel,
@@ -73,6 +78,9 @@ const CAPABILITIES_PATH: &str = "/api/v1/agents/capabilities";
 const MATH_AUDITOR_EXAMINE_PATH: &str = "/api/v1/ai/math-auditor-agent/examine";
 const MATH_AUDITOR_DELIBERATE_PATH: &str = "/api/v1/ai/math-auditor-agent/deliberate";
 const PDF_COMMENT_GENERATE_PATH: &str = "/api/v1/ai/pdf-comment-agent/generate";
+const DOCUMENT_SUMMARY_PATH: &str = "/api/v1/ai/document/summary";
+const DOCUMENT_EXTRACTION_PATH: &str = "/api/v1/ai/document/extraction";
+const DOCUMENT_TRANSLATION_PATH: &str = "/api/v1/ai/document/translation";
 const PDF_EDIT_PATH: &str = "/api/v1/pdf/edit";
 const AGENT_DRAFT_PATH: &str = "/api/v1/agents/draft";
 const AI_AGENT_DRAFT_PATH: &str = "/api/v1/ai/agents/draft";
@@ -541,6 +549,9 @@ fn app_with_runtime(
         .route(MATH_AUDITOR_EXAMINE_PATH, post(examine_math_audit))
         .route(MATH_AUDITOR_DELIBERATE_PATH, post(deliberate_math_audit))
         .route(PDF_COMMENT_GENERATE_PATH, post(generate_pdf_comments))
+        .route(DOCUMENT_SUMMARY_PATH, post(summarize_document))
+        .route(DOCUMENT_EXTRACTION_PATH, post(extract_document_fields))
+        .route(DOCUMENT_TRANSLATION_PATH, post(translate_document))
         .route(PDF_EDIT_PATH, post(plan_pdf_edit))
         .route(AGENT_DRAFT_PATH, post(draft_agent))
         .route(AI_AGENT_DRAFT_PATH, post(draft_agent))
@@ -852,74 +863,105 @@ async fn capabilities() -> Response {
             );
         }
     };
+    let mut capabilities = vec![
+        AgentCapability {
+            id: "pdf-edit-plan",
+            description: "Produce a structured PDF edit plan from a natural-language request.",
+            input_schema: pdf_edit_capability_schema(),
+            mode: "async",
+            required_scope: "mcp.tools.write",
+            route: PDF_EDIT_PATH,
+        },
+        AgentCapability {
+            id: "agent-draft",
+            description: "Draft a structured saved-agent specification from a free-text task description.",
+            input_schema: agent_draft_capability_schema(),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: AI_AGENT_DRAFT_PATH,
+        },
+        AgentCapability {
+            id: "agent-revise",
+            description: "Revise an existing saved-agent draft from user feedback or changed constraints.",
+            input_schema: agent_revision_capability_schema(
+                &operation_endpoints,
+                &processing_endpoints,
+            ),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: AI_AGENT_REVISE_PATH,
+        },
+        AgentCapability {
+            id: "math-audit-examine",
+            description: "Declare the page content needed to audit a financial or numeric PDF.",
+            input_schema: math_audit_examine_schema(),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: MATH_AUDITOR_EXAMINE_PATH,
+        },
+        AgentCapability {
+            id: "math-audit-deliberate",
+            description: "Render a deliberated verdict on a single piece of evidence the examine step surfaced (does the arithmetic check out, with what caveats).",
+            input_schema: math_audit_deliberate_schema(),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: MATH_AUDITOR_DELIBERATE_PATH,
+        },
+        AgentCapability {
+            id: "pdf-comment-generate",
+            description: "Generate inline review-comment instructions for positioned PDF text.",
+            input_schema: pdf_comment_capability_schema(),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: PDF_COMMENT_GENERATE_PATH,
+        },
+        AgentCapability {
+            id: "agent-next-action",
+            description: "Decide the next execution step for an in-progress saved-agent workflow.",
+            input_schema: agent_execution_capability_schema(
+                &operation_endpoints,
+                &processing_endpoints,
+            ),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: AGENT_NEXT_ACTION_PATH,
+        },
+    ];
+    capabilities.extend(document_understanding_capabilities());
     Json(CapabilityManifest {
         version: 1,
-        capabilities: vec![
-            AgentCapability {
-                id: "pdf-edit-plan",
-                description: "Produce a structured PDF edit plan from a natural-language request.",
-                input_schema: pdf_edit_capability_schema(),
-                mode: "async",
-                required_scope: "mcp.tools.write",
-                route: PDF_EDIT_PATH,
-            },
-            AgentCapability {
-                id: "agent-draft",
-                description: "Draft a structured saved-agent specification from a free-text task description.",
-                input_schema: agent_draft_capability_schema(),
-                mode: "sync",
-                required_scope: "mcp.tools.read",
-                route: AI_AGENT_DRAFT_PATH,
-            },
-            AgentCapability {
-                id: "agent-revise",
-                description: "Revise an existing saved-agent draft from user feedback or changed constraints.",
-                input_schema: agent_revision_capability_schema(
-                    &operation_endpoints,
-                    &processing_endpoints,
-                ),
-                mode: "sync",
-                required_scope: "mcp.tools.read",
-                route: AI_AGENT_REVISE_PATH,
-            },
-            AgentCapability {
-                id: "math-audit-examine",
-                description: "Declare the page content needed to audit a financial or numeric PDF.",
-                input_schema: math_audit_examine_schema(),
-                mode: "sync",
-                required_scope: "mcp.tools.read",
-                route: MATH_AUDITOR_EXAMINE_PATH,
-            },
-            AgentCapability {
-                id: "math-audit-deliberate",
-                description: "Render a deliberated verdict on a single piece of evidence the examine step surfaced (does the arithmetic check out, with what caveats).",
-                input_schema: math_audit_deliberate_schema(),
-                mode: "sync",
-                required_scope: "mcp.tools.read",
-                route: MATH_AUDITOR_DELIBERATE_PATH,
-            },
-            AgentCapability {
-                id: "pdf-comment-generate",
-                description: "Generate inline review-comment instructions for positioned PDF text.",
-                input_schema: pdf_comment_capability_schema(),
-                mode: "sync",
-                required_scope: "mcp.tools.read",
-                route: PDF_COMMENT_GENERATE_PATH,
-            },
-            AgentCapability {
-                id: "agent-next-action",
-                description: "Decide the next execution step for an in-progress saved-agent workflow.",
-                input_schema: agent_execution_capability_schema(
-                    &operation_endpoints,
-                    &processing_endpoints,
-                ),
-                mode: "sync",
-                required_scope: "mcp.tools.read",
-                route: AGENT_NEXT_ACTION_PATH,
-            },
-        ],
+        capabilities,
     })
     .into_response()
+}
+
+fn document_understanding_capabilities() -> [AgentCapability; 3] {
+    [
+        AgentCapability {
+            id: "document-summary",
+            description: "Summarize bounded request-supplied page text with validated source-page references.",
+            input_schema: document_summary_capability_schema(),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: DOCUMENT_SUMMARY_PATH,
+        },
+        AgentCapability {
+            id: "document-extraction",
+            description: "Extract caller-defined structured fields from bounded request-supplied page text.",
+            input_schema: document_extraction_capability_schema(),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: DOCUMENT_EXTRACTION_PATH,
+        },
+        AgentCapability {
+            id: "document-translation",
+            description: "Translate bounded request-supplied page text while preserving stable source block order.",
+            input_schema: document_translation_capability_schema(),
+            mode: "sync",
+            required_scope: "mcp.tools.read",
+            route: DOCUMENT_TRANSLATION_PATH,
+        },
+    ]
 }
 
 fn ai_file_schema() -> Value {
@@ -1035,6 +1077,80 @@ fn pdf_comment_capability_schema() -> Value {
             }}
         },
         "required":["sessionId","userMessage"]
+    })
+}
+
+fn document_page_text_schema() -> Value {
+    json!({
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "pageNumber": {"type": "integer", "minimum": 1},
+            "text": {"type": "string", "minLength": 1}
+        },
+        "required": ["pageNumber", "text"]
+    })
+}
+
+fn document_summary_capability_schema() -> Value {
+    json!({
+        "title": "SummaryRequest",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "fileName": {"type": "string", "minLength": 1, "maxLength": 255},
+            "pages": {"type": "array", "minItems": 1, "items": document_page_text_schema()},
+            "detail": {"type": "string", "enum": ["brief", "standard", "detailed"], "default": "standard"},
+            "instructions": {"type": ["string", "null"], "default": null}
+        },
+        "required": ["fileName", "pages"]
+    })
+}
+
+fn document_extraction_capability_schema() -> Value {
+    json!({
+        "title": "ExtractionRequest",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "fileName": {"type": "string", "minLength": 1, "maxLength": 255},
+            "pages": {"type": "array", "minItems": 1, "items": document_page_text_schema()},
+            "fields": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 50,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "key": {"type": "string", "minLength": 1, "maxLength": 64},
+                        "description": {"type": "string", "minLength": 1, "maxLength": 500},
+                        "valueType": {
+                            "type": "string",
+                            "enum": ["string", "number", "integer", "boolean", "date", "list"]
+                        },
+                        "required": {"type": "boolean", "default": false}
+                    },
+                    "required": ["key", "description", "valueType"]
+                }
+            }
+        },
+        "required": ["fileName", "pages", "fields"]
+    })
+}
+
+fn document_translation_capability_schema() -> Value {
+    json!({
+        "title": "TranslationRequest",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "fileName": {"type": "string", "minLength": 1, "maxLength": 255},
+            "pages": {"type": "array", "minItems": 1, "items": document_page_text_schema()},
+            "targetLanguage": {"type": "string", "minLength": 1, "maxLength": 100},
+            "sourceLanguage": {"type": ["string", "null"], "maxLength": 100, "default": null}
+        },
+        "required": ["fileName", "pages", "targetLanguage"]
     })
 }
 
@@ -1206,6 +1322,83 @@ async fn generate_pdf_comments(
         Err(PdfCommentError::Model(error)) => error_response(
             StatusCode::BAD_GATEWAY,
             format!("PDF comment provider failed: {error}"),
+        ),
+    }
+}
+
+fn document_understanding_agent(
+    runtime: &EngineRuntime,
+) -> Result<DocumentUnderstandingAgent<Arc<dyn StructuredOutputModel>>, ModelError> {
+    let model = runtime.smart_model.as_ref().map_err(Clone::clone)?;
+    Ok(DocumentUnderstandingAgent::new(
+        Arc::clone(model),
+        runtime.settings.smart_model_max_tokens(),
+        runtime.settings.max_pages,
+        runtime.settings.max_characters,
+    )
+    .with_translation_batch_limits(
+        runtime.settings.chunked_reasoner_chars_per_slice,
+        runtime.settings.chunked_reasoner_concurrency,
+    ))
+}
+
+async fn summarize_document(
+    Extension(runtime): Extension<Arc<EngineRuntime>>,
+    Json(request): Json<SummaryRequest>,
+) -> Response {
+    let agent = match document_understanding_agent(&runtime) {
+        Ok(agent) => agent,
+        Err(error) => return document_understanding_unavailable_response(&error),
+    };
+    match agent.summarize(&request).await {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => document_understanding_error_response(error),
+    }
+}
+
+async fn extract_document_fields(
+    Extension(runtime): Extension<Arc<EngineRuntime>>,
+    Json(request): Json<ExtractionRequest>,
+) -> Response {
+    let agent = match document_understanding_agent(&runtime) {
+        Ok(agent) => agent,
+        Err(error) => return document_understanding_unavailable_response(&error),
+    };
+    match agent.extract(&request).await {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => document_understanding_error_response(error),
+    }
+}
+
+async fn translate_document(
+    Extension(runtime): Extension<Arc<EngineRuntime>>,
+    Json(request): Json<TranslationRequest>,
+) -> Response {
+    let agent = match document_understanding_agent(&runtime) {
+        Ok(agent) => agent,
+        Err(error) => return document_understanding_unavailable_response(&error),
+    };
+    match agent.translate(&request).await {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => document_understanding_error_response(error),
+    }
+}
+
+fn document_understanding_unavailable_response(error: &ModelError) -> Response {
+    error_response(
+        StatusCode::SERVICE_UNAVAILABLE,
+        format!("Document-understanding model is unavailable: {error}"),
+    )
+}
+
+fn document_understanding_error_response(error: DocumentUnderstandingError) -> Response {
+    match error {
+        DocumentUnderstandingError::InvalidRequest(error) => {
+            error_response(StatusCode::UNPROCESSABLE_ENTITY, error.to_string())
+        }
+        DocumentUnderstandingError::Model(error) => error_response(
+            StatusCode::BAD_GATEWAY,
+            format!("Document-understanding provider failed: {error}"),
         ),
     }
 }
@@ -1878,6 +2071,30 @@ mod tests {
                         "summary": "Examined 2 pages and found 1 contradiction error."
                     }));
                 }
+                if tool.name == "submit_document_summary" {
+                    return Ok(serde_json::json!({
+                        "summary": "Invoice summary.",
+                        "keyPoints": [{"text": "Invoice 42", "pages": [1, 99]}]
+                    }));
+                }
+                if tool.name == "submit_document_extraction" {
+                    return Ok(serde_json::json!({
+                        "values": [{
+                            "key": "invoice",
+                            "value": "42",
+                            "pages": [1],
+                            "confidence": "high"
+                        }]
+                    }));
+                }
+                if tool.name == "submit_document_translation" {
+                    return Ok(serde_json::json!({
+                        "translations": [{
+                            "blockId": "p1-b1",
+                            "translatedText": "Hóa đơn 42"
+                        }]
+                    }));
+                }
                 serde_json::to_value(ClassifierOutput {
                     labels: vec!["Invoice".to_owned(), "Unexpected".to_owned()],
                 })
@@ -1968,7 +2185,7 @@ mod tests {
         let body = to_bytes(response.into_body(), 65_536).await?;
         let body = serde_json::from_slice::<serde_json::Value>(&body)?;
         assert_eq!(body["version"], 1);
-        assert_eq!(body["capabilities"].as_array().map(Vec::len), Some(7));
+        assert_eq!(body["capabilities"].as_array().map(Vec::len), Some(10));
         let ids = body["capabilities"]
             .as_array()
             .ok_or("capabilities must be an array")?
@@ -1984,7 +2201,10 @@ mod tests {
                 "math-audit-examine",
                 "math-audit-deliberate",
                 "pdf-comment-generate",
-                "agent-next-action"
+                "agent-next-action",
+                "document-summary",
+                "document-extraction",
+                "document-translation"
             ]
         );
         assert_eq!(body["capabilities"][3]["id"], "math-audit-examine");
@@ -2161,6 +2381,76 @@ mod tests {
         assert_eq!(
             serde_json::from_slice::<serde_json::Value>(&body)?,
             serde_json::json!({"labels": ["invoice"]}),
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn document_understanding_routes_use_typed_grounded_results()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let app = app_with_classifier(
+            EngineSettings::new("smart", "fast", "", false),
+            Arc::new(StubClassifierModel),
+        );
+        let cases = [
+            (
+                "/api/v1/ai/document/summary",
+                serde_json::json!({
+                    "fileName":"invoice.pdf",
+                    "pages":[{"pageNumber":1,"text":"Invoice 42"}],
+                    "detail":"brief"
+                }),
+            ),
+            (
+                "/api/v1/ai/document/extraction",
+                serde_json::json!({
+                    "fileName":"invoice.pdf",
+                    "pages":[{"pageNumber":1,"text":"Invoice 42"}],
+                    "fields":[{
+                        "key":"invoice",
+                        "description":"Invoice number",
+                        "valueType":"string",
+                        "required":true
+                    }]
+                }),
+            ),
+            (
+                "/api/v1/ai/document/translation",
+                serde_json::json!({
+                    "fileName":"invoice.pdf",
+                    "pages":[{"pageNumber":1,"text":"Invoice 42"}],
+                    "sourceLanguage":"English",
+                    "targetLanguage":"Vietnamese"
+                }),
+            ),
+        ];
+        let mut responses = Vec::new();
+        for (path, body) in cases {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::post(path)
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_vec(&body)?))?,
+                )
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            responses.push(serde_json::from_slice::<serde_json::Value>(
+                &to_bytes(response.into_body(), 16_384).await?,
+            )?);
+        }
+
+        assert_eq!(
+            responses[0]["keyPoints"][0]["pages"],
+            serde_json::json!([1])
+        );
+        assert_eq!(responses[1]["values"][0]["key"], "invoice");
+        assert_eq!(responses[1]["values"][0]["pages"], serde_json::json!([1]));
+        assert_eq!(responses[2]["pages"][0]["pageNumber"], 1);
+        assert_eq!(responses[2]["pages"][0]["blocks"][0]["blockId"], "p1-b1");
+        assert_eq!(
+            responses[2]["pages"][0]["blocks"][0]["translatedText"],
+            "Hóa đơn 42"
         );
         Ok(())
     }

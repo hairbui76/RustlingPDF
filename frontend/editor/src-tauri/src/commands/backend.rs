@@ -25,6 +25,16 @@ const SIDECAR_PROGRAM: &str = "rustling-processing";
 /// Environment variable the processing backend reads to locate PDFium. The
 /// launcher points it at the bundled resource directory when one is packaged.
 const PDFIUM_LIBRARY_PATH_ENV: &str = "RUSTLING_PDFIUM_LIBRARY_PATH";
+const QPDF_COMMAND_ENV: &str = "RUSTLING_PROCESSING_QPDF_COMMAND";
+const TESSERACT_COMMAND_ENV: &str = "RUSTLING_PROCESSING_TESSERACT_COMMAND";
+const TESSDATA_PREFIX_ENV: &str = "TESSDATA_PREFIX";
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct BundledToolResources {
+    qpdf_command: Option<PathBuf>,
+    tesseract_command: Option<PathBuf>,
+    tessdata_directory: Option<PathBuf>,
+}
 
 #[derive(Debug, PartialEq, Eq)]
 enum NativeStartupState {
@@ -196,6 +206,76 @@ fn bundled_pdfium_directory(app: &tauri::AppHandle) -> Option<PathBuf> {
     pdfium_dir.is_dir().then_some(pdfium_dir)
 }
 
+/// Resolve qpdf, Tesseract, and English tessdata independently. A partially
+/// staged development tree must not hide a valid sibling resource.
+fn bundled_tool_resources_from(resource_dir: &Path) -> BundledToolResources {
+    let tools_dir = normalize_path(&resource_dir.join("resources").join("tools"));
+    let executable_suffix = if cfg!(windows) { ".exe" } else { "" };
+    let qpdf_command = tools_dir
+        .join("qpdf")
+        .join("bin")
+        .join(format!("qpdf{executable_suffix}"));
+    let tesseract_command = tools_dir
+        .join("tesseract")
+        .join("bin")
+        .join(format!("tesseract{executable_suffix}"));
+    let tessdata_directory = tools_dir.join("tesseract").join("tessdata");
+
+    BundledToolResources {
+        qpdf_command: qpdf_command.is_file().then_some(qpdf_command),
+        tesseract_command: tesseract_command.is_file().then_some(tesseract_command),
+        tessdata_directory: tessdata_directory
+            .join("eng.traineddata")
+            .is_file()
+            .then_some(tessdata_directory),
+    }
+}
+
+fn bundled_tool_resources(app: &tauri::AppHandle) -> BundledToolResources {
+    app.path()
+        .resource_dir()
+        .ok()
+        .map(|resource_dir| bundled_tool_resources_from(&resource_dir))
+        .unwrap_or_default()
+}
+
+/// Return a bundled value only when an operator did not set the variable.
+/// `None` for an operator value lets the child inherit it untouched.
+fn bundled_resource_override(
+    operator_value: Option<&std::ffi::OsStr>,
+    bundled_path: Option<&Path>,
+) -> Option<PathBuf> {
+    if operator_value.is_some() {
+        None
+    } else {
+        bundled_path.map(normalize_path)
+    }
+}
+
+fn resolve_bundled_resource_override(
+    environment_variable: &str,
+    bundled_path: Option<&Path>,
+    resource_name: &str,
+) -> Option<PathBuf> {
+    let operator_value = crate::utils::env_compat::var_os(environment_variable);
+    let resolved = bundled_resource_override(operator_value.as_deref(), bundled_path);
+    if operator_value.is_some() {
+        add_log(format!(
+            "📚 {environment_variable} already set in the launcher environment; the backend inherits it"
+        ));
+    } else if let Some(path) = resolved.as_deref() {
+        add_log(format!(
+            "📚 Using bundled {resource_name}: {}",
+            path.display()
+        ));
+    } else {
+        add_log(format!(
+            "⚠️ Bundled {resource_name} not found (development run?); leaving {environment_variable} unset"
+        ));
+    }
+    resolved
+}
+
 // Normalize path to remove Windows UNC prefix
 fn normalize_path(path: &Path) -> PathBuf {
     if cfg!(windows) {
@@ -278,6 +358,9 @@ fn native_backend_environment(
     parent_process_id: u32,
     login_agreement_enabled: bool,
     pdfium_directory: Option<&Path>,
+    qpdf_command: Option<&Path>,
+    tesseract_command: Option<&Path>,
+    tessdata_directory: Option<&Path>,
 ) -> Vec<(String, String)> {
     let config_dir = work_dir.join("configs");
     let log_dir = work_dir.join("logs");
@@ -317,6 +400,24 @@ fn native_backend_environment(
             pdfium_directory.to_string_lossy().into_owned(),
         ));
     }
+    if let Some(qpdf_command) = qpdf_command {
+        environment.push((
+            QPDF_COMMAND_ENV.to_string(),
+            qpdf_command.to_string_lossy().into_owned(),
+        ));
+    }
+    if let Some(tesseract_command) = tesseract_command {
+        environment.push((
+            TESSERACT_COMMAND_ENV.to_string(),
+            tesseract_command.to_string_lossy().into_owned(),
+        ));
+    }
+    if let Some(tessdata_directory) = tessdata_directory {
+        environment.push((
+            TESSDATA_PREFIX_ENV.to_string(),
+            tessdata_directory.to_string_lossy().into_owned(),
+        ));
+    }
     environment
 }
 
@@ -329,33 +430,31 @@ fn run_native_backend(app: &tauri::AppHandle) -> Result<(), String> {
     std::fs::create_dir_all(&log_dir).map_err(|error| error.to_string())?;
     migrate_legacy_workspace_if_present(&work_dir);
 
-    // PDFium wiring: an operator-set RUSTLING_PDFIUM_LIBRARY_PATH in the
-    // launcher's environment is inherited by the child untouched; otherwise
-    // the bundled resource directory is used when the package ships one. In
-    // unpackaged development runs neither exists and the variable stays
-    // unset (the backend then binds a system PDFium, if any).
-    let pdfium_directory = if crate::utils::env_compat::var_os(PDFIUM_LIBRARY_PATH_ENV).is_some() {
-        add_log(format!(
-            "📚 {PDFIUM_LIBRARY_PATH_ENV} already set in the launcher environment; the backend inherits it"
-        ));
-        None
-    } else {
-        match bundled_pdfium_directory(app) {
-            Some(directory) => {
-                add_log(format!(
-                    "📚 Using bundled PDFium runtime: {}",
-                    directory.display()
-                ));
-                Some(directory)
-            }
-            None => {
-                add_log(format!(
-                    "⚠️ Bundled PDFium runtime not found (development run?); leaving {PDFIUM_LIBRARY_PATH_ENV} unset"
-                ));
-                None
-            }
-        }
-    };
+    // Every native runtime override follows the same precedence contract:
+    // inherit an operator-set value; otherwise inject the bundled path when
+    // present. Unpackaged development runs leave missing variables unset.
+    let bundled_pdfium = bundled_pdfium_directory(app);
+    let bundled_tools = bundled_tool_resources(app);
+    let pdfium_directory = resolve_bundled_resource_override(
+        PDFIUM_LIBRARY_PATH_ENV,
+        bundled_pdfium.as_deref(),
+        "PDFium runtime",
+    );
+    let qpdf_command = resolve_bundled_resource_override(
+        QPDF_COMMAND_ENV,
+        bundled_tools.qpdf_command.as_deref(),
+        "qpdf command",
+    );
+    let tesseract_command = resolve_bundled_resource_override(
+        TESSERACT_COMMAND_ENV,
+        bundled_tools.tesseract_command.as_deref(),
+        "Tesseract command",
+    );
+    let tessdata_directory = resolve_bundled_resource_override(
+        TESSDATA_PREFIX_ENV,
+        bundled_tools.tessdata_directory.as_deref(),
+        "Tesseract English tessdata",
+    );
 
     let (mut sidecar_command, source_label) = native_backend_command(app).inspect_err(|error| {
         record_backend_failure(error.clone());
@@ -371,6 +470,9 @@ fn run_native_backend(app: &tauri::AppHandle) -> Result<(), String> {
         std::process::id(),
         crate::commands::connection::login_agreement_enabled(app),
         pdfium_directory.as_deref(),
+        qpdf_command.as_deref(),
+        tesseract_command.as_deref(),
+        tessdata_directory.as_deref(),
     ) {
         sidecar_command = sidecar_command.env(name, value);
     }
@@ -584,11 +686,13 @@ pub fn cleanup_backend() {
 #[cfg(test)]
 mod tests {
     use super::{
-        extract_port_from_running_log, migrate_legacy_workspace_and_remove,
-        native_backend_environment, native_startup_state, NativeStartupState,
+        bundled_resource_override, bundled_tool_resources_from, extract_port_from_running_log,
+        migrate_legacy_workspace_and_remove, native_backend_environment, native_startup_state,
+        BundledToolResources, NativeStartupState,
     };
     use std::{
         collections::BTreeMap,
+        ffi::OsStr,
         fs,
         path::{Path, PathBuf},
         sync::atomic::{AtomicU64, Ordering},
@@ -651,7 +755,7 @@ mod tests {
         let work_dir = directory.path();
         let work_dir_text = work_dir.to_string_lossy();
         let config_dir_text = work_dir.join("configs").to_string_lossy().into_owned();
-        let environment = native_backend_environment(work_dir, 4242, true, None)
+        let environment = native_backend_environment(work_dir, 4242, true, None, None, None, None)
             .into_iter()
             .collect::<BTreeMap<_, _>>();
 
@@ -686,9 +790,10 @@ mod tests {
             Some("true")
         );
 
-        let without_agreement = native_backend_environment(work_dir, 4242, false, None)
-            .into_iter()
-            .collect::<BTreeMap<_, _>>();
+        let without_agreement =
+            native_backend_environment(work_dir, 4242, false, None, None, None, None)
+                .into_iter()
+                .collect::<BTreeMap<_, _>>();
         assert!(!without_agreement.contains_key("LEGAL_LOGINAGREEMENT_ENABLED"));
         Ok(())
     }
@@ -701,10 +806,17 @@ mod tests {
         let pdfium_dir = work_dir.join("resources").join("pdfium");
         fs::create_dir_all(&pdfium_dir)?;
 
-        let with_pdfium =
-            native_backend_environment(work_dir, 4242, false, Some(pdfium_dir.as_path()))
-                .into_iter()
-                .collect::<BTreeMap<_, _>>();
+        let with_pdfium = native_backend_environment(
+            work_dir,
+            4242,
+            false,
+            Some(pdfium_dir.as_path()),
+            None,
+            None,
+            None,
+        )
+        .into_iter()
+        .collect::<BTreeMap<_, _>>();
         assert_eq!(
             with_pdfium
                 .get("RUSTLING_PDFIUM_LIBRARY_PATH")
@@ -712,11 +824,82 @@ mod tests {
             Some(pdfium_dir.to_string_lossy().as_ref())
         );
 
-        let without_pdfium = native_backend_environment(work_dir, 4242, false, None)
-            .into_iter()
-            .collect::<BTreeMap<_, _>>();
+        let without_pdfium =
+            native_backend_environment(work_dir, 4242, false, None, None, None, None)
+                .into_iter()
+                .collect::<BTreeMap<_, _>>();
         assert!(!without_pdfium.contains_key("RUSTLING_PDFIUM_LIBRARY_PATH"));
         Ok(())
+    }
+
+    #[test]
+    fn bundled_tool_paths_are_forwarded_only_when_resources_exist(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let directory = TestDirectory::new()?;
+        let resources = directory.path().join("resources").join("tools");
+        let executable_suffix = if cfg!(windows) { ".exe" } else { "" };
+        let qpdf = resources.join(format!("qpdf/bin/qpdf{executable_suffix}"));
+        let tesseract = resources.join(format!("tesseract/bin/tesseract{executable_suffix}"));
+        let tessdata = resources.join("tesseract/tessdata");
+        fs::create_dir_all(qpdf.parent().expect("qpdf parent"))?;
+        fs::create_dir_all(tesseract.parent().expect("tesseract parent"))?;
+        fs::create_dir_all(&tessdata)?;
+        fs::write(&qpdf, b"qpdf")?;
+        fs::write(&tesseract, b"tesseract")?;
+        fs::write(tessdata.join("eng.traineddata"), b"eng")?;
+
+        let bundled = bundled_tool_resources_from(directory.path());
+        assert_eq!(
+            bundled,
+            BundledToolResources {
+                qpdf_command: Some(qpdf.clone()),
+                tesseract_command: Some(tesseract.clone()),
+                tessdata_directory: Some(tessdata.clone()),
+            }
+        );
+
+        let environment = native_backend_environment(
+            directory.path(),
+            4242,
+            false,
+            None,
+            bundled.qpdf_command.as_deref(),
+            bundled.tesseract_command.as_deref(),
+            bundled.tessdata_directory.as_deref(),
+        )
+        .into_iter()
+        .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            environment
+                .get("RUSTLING_PROCESSING_QPDF_COMMAND")
+                .map(String::as_str),
+            Some(qpdf.to_string_lossy().as_ref())
+        );
+        assert_eq!(
+            environment
+                .get("RUSTLING_PROCESSING_TESSERACT_COMMAND")
+                .map(String::as_str),
+            Some(tesseract.to_string_lossy().as_ref())
+        );
+        assert_eq!(
+            environment.get("TESSDATA_PREFIX").map(String::as_str),
+            Some(tessdata.to_string_lossy().as_ref())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_native_tool_values_win_without_launcher_replacement() {
+        let bundled = Path::new("/bundle/tool");
+        assert_eq!(
+            bundled_resource_override(Some(OsStr::new("/operator/tool")), Some(bundled)),
+            None
+        );
+        assert_eq!(
+            bundled_resource_override(None, Some(bundled)),
+            Some(bundled.to_path_buf())
+        );
+        assert_eq!(bundled_resource_override(None, None), None);
     }
 
     #[test]

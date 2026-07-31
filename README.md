@@ -40,11 +40,11 @@ Java, and no JVM at build or run time. See [LICENSE](LICENSE) for attribution.
 | **Security & signing** | Passwords and permissions, watermarks, sanitisation, redaction; X.509 and hardware / smart-card signing; RFC 3161 timestamps; signature validation |
 | **OCR & repair** | Searchable-text OCR, repair of damaged files, compression |
 | **Edit** | Find-and-replace text, a full visual editor, stamps, images, comments, dark-mode recolouring, and flattening |
-| **Forms** | List, fill, rename, and delete fields; export values to CSV/XLSX; unlock read-only fields |
+| **Forms** | Visually create, align, duplicate, fill, rename, and delete accessible fields; batch-fill CSV/XLSX rows; export values; unlock read-only fields |
 | **Metadata & attachments** | Embedded files, document properties, and bookmark / table-of-contents editing |
 | **Inspect** | Page, font, annotation, and form inventories; encryption status; PDF/A, PDF/UA, and WTPDF conformance checks |
-| **Automation** | Multi-tool pipelines, asynchronous jobs, a phone-to-desktop scanner, and content filters |
-| **AI-assisted** | Edit planning, review comments, structured-document generation, maths auditing, and classification — optional, off by default |
+| **Automation** | A catalog-validated local `rustlingpdf` CLI, multi-tool pipelines, asynchronous jobs, an installable local-first mobile scanner with optional phone-to-desktop transfer, and content filters |
+| **AI-assisted** | Page-cited summary, structured extraction, page/block-ordered translation, edit planning, review comments, document generation, maths auditing, and classification — optional, off by default |
 
 **Privacy by design.** No login, no database, no server-side storage — and unless
 you deliberately enable the optional AI engine with your own API key, nothing
@@ -65,7 +65,8 @@ documented differences from upstream are in
 | Path | What it is |
 |---|---|
 | `rust/crates/rustling-processing` | The backend: axum HTTP service mirroring the `/api/v1/...` REST surface |
-| `rust/crates/rustling-ai-engine` | Optional AI engine (classification, PDF edit/review/create agents, math audit, orchestration) |
+| `rust/crates/rustling-ai-engine` | Optional stateless AI engine (summary, extraction, translation, classification, PDF edit/review/create agents, math audit, orchestration) |
+| `rust/crates/rustling-cli` | Local `rustlingpdf` automation CLI generated from the operation catalog |
 | `rust/crates/rustling-operation-catalog` | Generates the typed operation catalog from the OpenAPI snapshot |
 | `rust/contracts/` | Per-surface behavior contracts (routes, semantics, documented divergences) |
 | `frontend/editor` | Vite + React + TypeScript + Mantine SPA |
@@ -94,6 +95,17 @@ task dev:all
 
 Smoke check: `curl http://127.0.0.1:8080/api/v1/info/status`
 
+Local automation needs no running server:
+
+```bash
+cargo run --manifest-path rust/Cargo.toml --locked -p rustling-cli -- \
+  run general-rotate-pdf -i report.pdf -o report-rotated.pdf -p angle=90
+```
+
+See the [CLI contract](rust/contracts/cli.md) for operation discovery,
+pipelines, JSON parameters, binary stdout, overwrite behavior, and stable exit
+codes.
+
 Optional external tools (discovered at startup; missing ones simply disable
 their endpoints with reason `DEPENDENCY`): LibreOffice, qpdf ≥ 12,
 Tesseract/OCRmyPDF, WeasyPrint ≥ 58, Poppler `pdftohtml`, Calibre, unrar,
@@ -110,9 +122,9 @@ reference: [`rust/RUNNING_WITH_RUST.md`](rust/RUNNING_WITH_RUST.md).
   existing configs and desktop installs keep booting. PDF *document* security
   (password, redaction, sanitize, watermark, cert-sign + hardware signing,
   timestamping, signature validation) is unaffected.
-- Test suite: **975 backend tests, 0 failed** on `main` (100 suites,
-  `cargo test --workspace --locked` with PDFium bound), plus the frontend vitest
-  suite and a desktop-shell gate. All three CI workflows above run on every push.
+- The locked Rust workspace test suite passes with PDFium bound, alongside the
+  frontend Vitest suite and desktop-shell gate. All three CI workflows above
+  run on every push.
 - The authoritative feature/parity ledger is
   [`rust/PORT_STATUS.md`](rust/PORT_STATUS.md); per-surface details live in
   [`rust/contracts/`](rust/contracts/).

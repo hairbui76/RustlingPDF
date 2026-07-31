@@ -111,6 +111,27 @@ curl http://127.0.0.1:8080/api/v1/info/status
 curl http://127.0.0.1:8080/api/v1/config/app-config
 ```
 
+### Local CLI (no server)
+
+The `rustlingpdf` CLI uses the same processing runtime and pipeline router
+in-process, so local automation does not need `backend:dev`:
+
+```bash
+task rust:cli -- operations
+task rust:cli -- describe general-rotate-pdf
+task rust:cli -- run general-rotate-pdf \
+  -i report.pdf -o report-rotated.pdf -p angle=90
+task rust:cli -- pipeline \
+  --spec pipeline.json -i report.pdf -o report-ready.pdf
+```
+
+For a user-level executable, run
+`cargo install --path rust/crates/rustling-cli --locked`. Optional native tools
+are discovered exactly as they are for the service; an unavailable required
+tool receives the CLI's stable exit code `5`. See
+[`contracts/cli.md`](contracts/cli.md) for catalog discovery, JSON parameters,
+overwrite and stdout policy, and every exit code.
+
 ### Ports and binding
 
 - `task backend:dev` / `task rust:run` default to `127.0.0.1:8080`; pass
@@ -333,9 +354,13 @@ These are deliberate, documented limits — the authoritative list with rational
   upstream's own Java route is itself commented out.
 - **Desktop packaging**: the Tauri desktop app bundles the Rust backend as its
   default sidecar (`task desktop:stage-sidecar` stages the release
-  `rustling-processing` binary and the pinned PDFium runtime into the bundle;
-  ephemeral-port handshake, workspace migration, bundled-PDFium wiring via
-  `RUSTLING_PDFIUM_LIBRARY_PATH`). `RUSTLING_NATIVE_BACKEND_PATH` remains as a
+  `rustling-processing` binary, pinned PDFium, qpdf 12.3.2, Tesseract 5.5.3,
+  and English tessdata 4.1.0 into the bundle; ephemeral-port handshake,
+  workspace migration, bundled-PDFium wiring via
+  `RUSTLING_PDFIUM_LIBRARY_PATH`, and tool wiring via
+  `RUSTLING_PROCESSING_QPDF_COMMAND`,
+  `RUSTLING_PROCESSING_TESSERACT_COMMAND`, and `TESSDATA_PREFIX`).
+  `RUSTLING_NATIVE_BACKEND_PATH` remains as a
   development-only override. Cross-platform signed-bundle upgrade proof is
   still outstanding — see `contracts/desktop-native-startup.md`.
 - **Deep PDF-fidelity edges** in the PDF↔JSON editor model (e.g. Type3 glyph
@@ -349,6 +374,7 @@ production-usable today on a trusted network or behind an operator-provided
 auth proxy; the [Docker image](#5-docker) is the supported packaged form. The
 remaining gates before full packaged distribution are: cross-platform proof of
 the signed desktop bundles (the Rust binary + PDFium are now bundled as the
-desktop sidecar) and the residual fidelity gaps above. Follow
+desktop sidecar, with qpdf and Tesseract bundled as resources) and the
+residual fidelity gaps above. Follow
 `PORT_STATUS.md` and `SIGNING_MIGRATION_DESIGN.md` for the live state of each
 gate.

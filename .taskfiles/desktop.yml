@@ -10,7 +10,7 @@ tasks:
       - stage-sidecar
 
   stage-sidecar:
-    desc: "Build the release Rust backend + pinned PDFium and stage them for Tauri bundling"
+    desc: "Build the release Rust backend + pinned native runtimes and stage them for Tauri bundling"
     cmds:
       # Release build of the processing backend (the desktop sidecar).
       - cargo build --release --locked -p rustling-processing --manifest-path ../rust/Cargo.toml
@@ -23,8 +23,15 @@ tasks:
         platforms: [linux, darwin]
       - cmd: pwsh -NoProfile -ExecutionPolicy Bypass -File ../rust/scripts/install-pdfium.ps1
         platforms: [windows]
-      # Copy both into src-tauri (binaries/<name>-<triple>[.exe],
-      # resources/pdfium/). Runs under Git Bash on Windows.
+      # Pinned, checksum-verified qpdf + Tesseract runtime into
+      # rust/.desktop-tools/current.
+      - cmd: bash ../rust/scripts/install-desktop-tools.sh
+        platforms: [linux, darwin]
+      - cmd: pwsh -NoProfile -ExecutionPolicy Bypass -File ../rust/scripts/install-desktop-tools.ps1
+        platforms: [windows]
+      # Copy all native inputs into src-tauri
+      # (binaries/<name>-<triple>[.exe], resources/pdfium/,
+      # resources/tools/). Runs under Git Bash on Windows.
       - bash editor/src-tauri/scripts/stage-sidecar.sh
 
   provisioner:

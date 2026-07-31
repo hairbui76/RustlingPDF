@@ -64,6 +64,8 @@ const TOOL_IDS = [
   "addAttachments",
   "changeMetadata",
   "overlayPdfs",
+  "accessibility",
+  "documentUnderstanding",
   "getPdfInfo",
   "validateSignature",
   "timestampPdf",

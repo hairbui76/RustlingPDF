@@ -13,9 +13,11 @@ place.
 
 The Tauri desktop launcher starts the Rust processing backend as its bundled
 sidecar by default. `task desktop:stage-sidecar` builds the release
-`rustling-processing` binary plus the pinned PDFium runtime and stages them
+`rustling-processing` binary plus the pinned PDFium, qpdf, and Tesseract
+runtimes and stages them
 into `src-tauri/` (`bundle.externalBin` entry `binaries/rustling-processing`,
-`bundle.resources` entry `resources/pdfium`); the bundler installs the sidecar
+`bundle.resources` entries `resources/pdfium` and `resources/tools`); the
+bundler installs the sidecar
 next to the app executable, where the launcher resolves it via the shell
 plugin's sidecar API. `RUSTLING_NATIVE_BACKEND_PATH` (legacy alias
 `RUSTLING_NATIVE_BACKEND_PATH`) is a development-only override that points the
@@ -43,6 +45,16 @@ The native path provides:
   sets `RUSTLING_PDFIUM_LIBRARY_PATH` to that directory — the backend resolves the
   platform library filename inside it. In unpackaged development runs the
   variable stays unset (logged) and the backend falls back to a system PDFium;
+- bundled-tools wiring: qpdf 12.3.2 and Tesseract 5.5.3 are staged under
+  `resources/tools/{qpdf,tesseract}` with their private runtime libraries,
+  Tesseract's Apache-2.0 English `eng.traineddata` 4.1.0, required PDF renderer
+  support files, and applicable notices. For
+  `RUSTLING_PROCESSING_QPDF_COMMAND`,
+  `RUSTLING_PROCESSING_TESSERACT_COMMAND`, and `TESSDATA_PREFIX`, an
+  operator-set launcher value is inherited untouched. Otherwise, when the
+  corresponding bundled file or directory exists, the launcher points the
+  variable at it. An unpackaged development run leaves missing values unset
+  and logs them, allowing normal backend discovery to continue;
 - PID-plus-start-time parent monitoring through `TAURI_PARENT_PID`, with orphan shutdown normally
   observed within one 250 ms poll interval;
 - fresh-install configuration initialization in Tauri mode: the packaged Java
@@ -54,6 +66,21 @@ The native path provides:
 - upgrade-time template merge: when `settings.yml` already exists and is long enough, any keys the
   bundled template has gained across app versions are folded into the user's file while their
   customized values are preserved.
+
+## Linux support floor for the bundled tools
+
+The Linux Tesseract command is static. Bundled qpdf retains four deliberate
+host dependencies: `libgmp.so.10`, `libstdc++.so.6`, `libgcc_s.so.1`, and
+`libz.so.1`. The measured floor is glibc 2.34 and
+`libstdc++.so.6` with `GLIBCXX_3.4.29` (GCC 11 or newer), plus those four
+libraries—equivalent to Ubuntu 22.04, Debian 12, or Fedora 36 and newer.
+
+These libraries are already transitive dependencies of a functioning
+GTK/WebKitGTK desktop except that `libgmp` can be absent on unusually minimal
+systems. If any is unavailable, qpdf discovery marks repair support
+unavailable; the desktop process does not crash. The full measured import
+closure and redistribution decision are recorded in
+`rust/scripts/desktop-tools/SOURCES.md`.
 
 ## Upgrade-time template merge
 

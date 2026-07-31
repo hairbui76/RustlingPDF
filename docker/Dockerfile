@@ -15,7 +15,7 @@
 #
 # Dependency caching: the Rust stage uses BuildKit cache mounts for the cargo
 # registry and the target dir instead of cargo-chef-style dummy-main layer
-# tricks — the workspace has three crates with build scripts and include_str!
+# tricks — the workspace has four crates with build scripts and include_str!
 # resources, which makes manifest-only dependency layers brittle. Cache mounts
 # give the same incremental-rebuild property on any BuildKit builder (Docker
 # >= 23 default). The npm stage uses classic layer caching on the lockfile.

@@ -108,6 +108,10 @@ worktree, each as Codex-dev + Claude-tester with fix rounds. Order:
 - [ ] WI-1 tester sign-off.
 - [ ] WI-2 pdftohtml → Rust: Codex dev running.
 - [ ] WI-2 tester sign-off.
+- [x] WI-3 qpdf + Tesseract desktop implementation reconciled onto current
+      `main`; Linux installer/staging and real-qpdf repair proof passed
+      2026-07-31. Native Windows/macOS current-main matrix proof remains in
+      hosted CI.
 - [ ] Merge + CI + ledger update.
 
 ## Decisions

@@ -1,38 +1,68 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Box,
-  Stack,
-  Text,
-  Group,
   Alert,
-  Progress,
-  Switch,
+  Badge,
+  Box,
   Card,
+  Group,
+  Progress,
+  Stack,
+  Switch,
+  Text,
 } from "@mantine/core";
-import { Button as DSButton } from "@app/ui/Button";
-import { useTranslation } from "react-i18next";
-import { LogoIcon } from "@app/components/shared/LogoIcon";
-import { Wordmark } from "@app/components/shared/Wordmark";
+import AddPhotoAlternateRoundedIcon from "@mui/icons-material/AddPhotoAlternateRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ErrorRoundedIcon from "@mui/icons-material/ErrorRounded";
 import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
 import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
 import UploadRoundedIcon from "@mui/icons-material/UploadRounded";
-import AddPhotoAlternateRoundedIcon from "@mui/icons-material/AddPhotoAlternateRounded";
-import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import { useTranslation } from "react-i18next";
+import { Button as DSButton } from "@app/ui/Button";
+import { SegmentedControl } from "@app/ui/SegmentedControl";
+import { LogoIcon } from "@app/components/shared/LogoIcon";
+import { Wordmark } from "@app/components/shared/Wordmark";
+import { withBasePath } from "@app/constants/app";
+import apiClient from "@app/services/apiClient";
 import {
   loadJscanify,
   type JscanifyCornerPoints,
   type JscanifyScanner,
 } from "@app/utils/loadJscanify";
-import apiClient from "@app/services/apiClient";
+import {
+  FULL_IMAGE_CORNERS,
+  applyScanFilter,
+  clampNormalized,
+  createScansPdf,
+  downloadFile,
+  fitScanDimensions,
+  moveScan,
+  rotateScanClockwise,
+  type MobileScan,
+  type NormalizedCorners,
+  type ScanFilter,
+} from "@app/pages/mobileScannerProcessing";
 
-// Use the configured API base (e.g. api.stirling.com), not the page origin.
 const API_BASE = (apiClient.defaults.baseURL ?? "").replace(/\/+$/, "");
+const DETECTION_WIDTH = 240;
+const CORNER_KEYS = [
+  "topLeftCorner",
+  "topRightCorner",
+  "bottomRightCorner",
+  "bottomLeftCorner",
+] as const;
+type CornerKey = (typeof CORNER_KEYS)[number];
+type ScannerMode = "choice" | "camera" | "file";
+type SessionState = "checking" | "transfer" | "local" | "invalid";
 
-// Experimental camera controls (W3C Image Capture / MediaStream extensions) that
-// are not yet part of the standard DOM lib typings but are widely shipped on
-// mobile browsers and required for document scanning.
+interface ScanDraft {
+  sourceDataUrl: string;
+  croppedDataUrl: string;
+  dataUrl: string;
+  corners: NormalizedCorners;
+  filter: ScanFilter;
+}
+
 declare global {
   interface MediaTrackCapabilities {
     focusMode?: string[];
@@ -46,948 +76,879 @@ declare global {
   }
 }
 
-/**
- * MobileScannerPage
- *
- * Mobile-friendly page for capturing photos and uploading them to the backend server.
- * Accessed by scanning QR code from desktop.
- */
+function cloneFullCorners(): NormalizedCorners {
+  return {
+    topLeftCorner: { ...FULL_IMAGE_CORNERS.topLeftCorner },
+    topRightCorner: { ...FULL_IMAGE_CORNERS.topRightCorner },
+    bottomLeftCorner: { ...FULL_IMAGE_CORNERS.bottomLeftCorner },
+    bottomRightCorner: { ...FULL_IMAGE_CORNERS.bottomRightCorner },
+  };
+}
+
+function scanId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+}
+
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("The image could not be decoded."));
+    image.src = dataUrl;
+  });
+}
+
+function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("File read failed."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function normalizeCorners(
+  corners: JscanifyCornerPoints,
+  width: number,
+  height: number,
+): NormalizedCorners {
+  const normalize = (point: { x: number; y: number }) => ({
+    x: clampNormalized(point.x / width),
+    y: clampNormalized(point.y / height),
+  });
+  return {
+    topLeftCorner: normalize(corners.topLeftCorner),
+    topRightCorner: normalize(corners.topRightCorner),
+    bottomLeftCorner: normalize(corners.bottomLeftCorner),
+    bottomRightCorner: normalize(corners.bottomRightCorner),
+  };
+}
+
+function denormalizeCorners(
+  corners: NormalizedCorners,
+  width: number,
+  height: number,
+): JscanifyCornerPoints {
+  const denormalize = (point: { x: number; y: number }) => ({
+    x: point.x * width,
+    y: point.y * height,
+  });
+  return {
+    topLeftCorner: denormalize(corners.topLeftCorner),
+    topRightCorner: denormalize(corners.topRightCorner),
+    bottomLeftCorner: denormalize(corners.bottomLeftCorner),
+    bottomRightCorner: denormalize(corners.bottomRightCorner),
+  };
+}
+
+function extractedDimensions(corners: JscanifyCornerPoints): {
+  width: number;
+  height: number;
+} {
+  const top = Math.hypot(
+    corners.topRightCorner.x - corners.topLeftCorner.x,
+    corners.topRightCorner.y - corners.topLeftCorner.y,
+  );
+  const bottom = Math.hypot(
+    corners.bottomRightCorner.x - corners.bottomLeftCorner.x,
+    corners.bottomRightCorner.y - corners.bottomLeftCorner.y,
+  );
+  const left = Math.hypot(
+    corners.bottomLeftCorner.x - corners.topLeftCorner.x,
+    corners.bottomLeftCorner.y - corners.topLeftCorner.y,
+  );
+  const right = Math.hypot(
+    corners.bottomRightCorner.x - corners.topRightCorner.x,
+    corners.bottomRightCorner.y - corners.topRightCorner.y,
+  );
+  return {
+    width: Math.max(1, Math.round((top + bottom) / 2)),
+    height: Math.max(1, Math.round((left + right) / 2)),
+  };
+}
+
+async function registerScannerPwa(): Promise<void> {
+  if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+  const registration = await navigator.serviceWorker.register(
+    withBasePath("/mobile-scanner-sw.js"),
+    { scope: withBasePath("/") },
+  );
+  await navigator.serviceWorker.ready;
+  if (!navigator.serviceWorker.controller) {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(
+        () => reject(new Error("Service worker did not take control.")),
+        10_000,
+      );
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        () => {
+          window.clearTimeout(timeout);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+  }
+  const urls = [
+    window.location.href,
+    ...performance
+      .getEntriesByType("resource")
+      .map((entry) => (entry as PerformanceResourceTiming).name),
+  ];
+  const worker = navigator.serviceWorker.controller ?? registration.active;
+  if (!worker) throw new Error("Service worker is not active.");
+  await new Promise<void>((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timeout = window.setTimeout(
+      () => reject(new Error("Scanner resource cache timed out.")),
+      30_000,
+    );
+    channel.port1.onmessage = (event) => {
+      if (event.data?.type !== "CACHE_COMPLETE") return;
+      window.clearTimeout(timeout);
+      if (event.data.failed > 0) {
+        reject(
+          new Error(
+            `${event.data.failed} scanner resources could not be cached.`,
+          ),
+        );
+        return;
+      }
+      resolve();
+    };
+    worker.postMessage({ type: "CACHE_URLS", urls }, [channel.port2]);
+  });
+  document.documentElement.dataset.scannerOfflineReady = "true";
+}
+
 export default function MobileScannerPage() {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session");
 
-  const [mode, setMode] = useState<"choice" | "camera" | "file" | null>(
-    "choice",
+  const [sessionState, setSessionState] = useState<SessionState>(
+    sessionId ? "checking" : "local",
   );
-  const [capturedImages, setCapturedImages] = useState<string[]>([]);
-  const [currentPreview, setCurrentPreview] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
+  const [online, setOnline] = useState(navigator.onLine);
+  const [mode, setMode] = useState<ScannerMode>("choice");
+  const [capturedImages, setCapturedImages] = useState<MobileScan[]>([]);
+  const [currentPreview, setCurrentPreview] = useState<ScanDraft | null>(null);
+  const [adjustingCorners, setAdjustingCorners] = useState(false);
+  const [activeCorner, setActiveCorner] = useState<CornerKey | null>(null);
   const [autoEnhance, setAutoEnhance] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [openCvReady, setOpenCvReady] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
-  const [sessionValid, setSessionValid] = useState<boolean | null>(null); // null = checking, true = valid, false = invalid
-  const [sessionError, setSessionError] = useState<string | null>(null);
-  const [loadingStatus, setLoadingStatus] = useState<string>("Initializing...");
-  const [cameraReady, setCameraReady] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [exportedPdf, setExportedPdf] = useState<{
+    file: File;
+    pages: string[];
+  } | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState("Initializing scanner…");
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement>(null);
   const highlightCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scannerRef = useRef<JscanifyScanner | null>(null);
-  const highlightIntervalRef = useRef<number | null>(null);
 
-  // Detection resolution - extremely low for mobile performance
-  const DETECTION_WIDTH = 160; // Ultra-low for real-time mobile detection
+  const pageDataUrls = useMemo(
+    () => [
+      ...capturedImages.map((scan) => scan.dataUrl),
+      ...(currentPreview ? [currentPreview.dataUrl] : []),
+    ],
+    [capturedImages, currentPreview],
+  );
 
-  // Validate session on page load
+  const currentExportedPdf =
+    exportedPdf?.pages === pageDataUrls ? exportedPdf.file : null;
+
   useEffect(() => {
-    const validateSession = async () => {
-      setLoadingStatus("Validating session...");
-      if (!sessionId) {
-        setSessionValid(false);
-        setSessionError(
-          t(
-            "mobileScanner.noSessionMessage",
-            "Session not found. Please try again.",
-          ),
-        );
-        setLoadingStatus("Session validation failed");
-        return;
-      }
+    const manifest = document.querySelector<HTMLLinkElement>(
+      'link[rel="manifest"]',
+    );
+    const originalManifest = manifest?.getAttribute("href");
+    manifest?.setAttribute(
+      "href",
+      withBasePath("/mobile-scanner-manifest.json"),
+    );
+    void registerScannerPwa().catch((error) => {
+      console.warn(
+        "Mobile scanner offline shell could not be registered:",
+        error,
+      );
+    });
+    return () => {
+      if (manifest && originalManifest)
+        manifest.setAttribute("href", originalManifest);
+    };
+  }, []);
 
-      try {
-        const response = await fetch(
-          `${API_BASE}/api/v1/mobile-scanner/validate-session/${sessionId}`,
-        );
+  useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.valid) {
-            setSessionValid(true);
-            setSessionError(null);
-            // Don't set status here - let camera/detection effects control status from now on
-            console.log("Session validated successfully:", data);
-          } else {
-            setSessionValid(false);
-            setSessionError(
-              t(
-                "mobileScanner.sessionExpired",
-                "This session has expired. Please refresh and try again.",
-              ),
-            );
-            setLoadingStatus("Session expired ✗");
-          }
-        } else {
-          setSessionValid(false);
-          setSessionError(
+  useEffect(() => {
+    if (!sessionId) {
+      setSessionState("local");
+      return;
+    }
+    const controller = new AbortController();
+    setSessionState("checking");
+    fetch(
+      `${API_BASE}/api/v1/mobile-scanner/validate-session/${encodeURIComponent(sessionId)}`,
+      { signal: controller.signal },
+    )
+      .then(async (response) => {
+        if (!response.ok) {
+          setSessionState("invalid");
+          setSessionMessage(
             t(
-              "mobileScanner.sessionNotFound",
-              "Session not found. Please refresh and try again.",
+              "mobileScanner.sessionExpired",
+              "This desktop transfer session is missing or expired.",
             ),
           );
-          setLoadingStatus("Session not found ✗");
+          return;
         }
-      } catch (err) {
-        console.error("Failed to validate session:", err);
-        setSessionValid(false);
-        setSessionError(
+        const body = await response.json();
+        if (body.valid) {
+          setSessionState("transfer");
+          setSessionMessage(null);
+        } else {
+          setSessionState("invalid");
+        }
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
+        setSessionState("local");
+        setSessionMessage(
           t(
-            "mobileScanner.sessionValidationError",
-            "Unable to verify session. Please try again.",
+            "mobileScanner.desktopUnavailable",
+            "The desktop is unavailable. You can keep scanning and export locally.",
           ),
         );
-        setLoadingStatus("Session validation error: " + (err as Error).message);
-      }
-    };
-
-    validateSession();
+      });
+    return () => controller.abort();
   }, [sessionId, t]);
 
   useEffect(() => {
     let cancelled = false;
-
     loadJscanify({
-      onStatus: (status) => {
-        if (!cancelled) setLoadingStatus(status);
-      },
+      onStatus: (status) => !cancelled && setLoadingStatus(status),
     })
       .then(() => {
         if (cancelled) return;
-        try {
-          scannerRef.current = new window.jscanify!();
-          setOpenCvReady(true);
-          console.log("✓ jscanify initialized with OpenCV");
-        } catch (err) {
-          setLoadingStatus("jscanify init failed ✗");
-          console.error("Failed to initialize jscanify:", err);
-        }
+        scannerRef.current = new window.jscanify!();
+        setOpenCvReady(true);
+        setLoadingStatus("Scanner ready");
       })
-      .catch((err) => {
+      .catch((error) => {
         if (cancelled) return;
-        setLoadingStatus(
-          `Scanner library failed to load ✗: ${(err as Error).message}`,
-        );
-        console.error("Failed to load jscanify:", err);
+        setLoadingStatus("Automatic edge detection unavailable");
+        console.warn("Scanner library failed to load:", error);
       });
-
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Initialize camera
   useEffect(() => {
-    console.log(
-      `[Mobile Scanner] Camera effect triggered: mode=${mode}, cameraError=${cameraError}, currentPreview=${currentPreview}`,
-    );
-
-    if (mode === "camera" && !cameraError && !currentPreview) {
-      console.log(
-        "[Mobile Scanner] Camera effect: Starting camera initialization",
+    if (mode !== "camera" || currentPreview) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError(
+        t(
+          "mobileScanner.httpsRequired",
+          "Camera access requires HTTPS or localhost. Use photo upload instead.",
+        ),
       );
+      setMode("file");
+      return;
+    }
 
-      // Check if mediaDevices API is available (requires HTTPS or localhost)
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        const error =
-          "MediaDevices API not available - requires HTTPS or localhost";
-        console.error(error);
-        setLoadingStatus("Camera API not available ✗");
+    let cancelled = false;
+    setCameraReady(false);
+    navigator.mediaDevices
+      .getUserMedia({
+        video: {
+          facingMode: "environment",
+          width: { ideal: 1920, max: 2560 },
+          height: { ideal: 1440, max: 1920 },
+        },
+        audio: false,
+      })
+      .then(async (stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        await video.play();
+        setCameraReady(true);
+        setLoadingStatus("Camera ready");
+
+        const track = stream.getVideoTracks()[0];
+        try {
+          const capabilities = track.getCapabilities();
+          const advanced: MediaTrackConstraintSet[] = [];
+          if (capabilities.focusMode?.includes("continuous")) {
+            advanced.push({ focusMode: "continuous" });
+          }
+          if (capabilities.exposureMode?.includes("continuous")) {
+            advanced.push({ exposureMode: "continuous" });
+          }
+          setTorchSupported(Boolean(capabilities.torch));
+          if (advanced.length) await track.applyConstraints({ advanced });
+        } catch {
+          setTorchSupported(false);
+        }
+      })
+      .catch(() => {
         setCameraError(
           t(
-            "mobileScanner.httpsRequired",
-            "Camera access requires HTTPS or localhost. Please use HTTPS or access via localhost.",
+            "mobileScanner.cameraAccessDenied",
+            "Camera access was denied. Use photo upload or enable camera permission.",
           ),
         );
         setMode("file");
-        return;
-      }
-
-      setLoadingStatus("Initializing camera...");
-
-      console.log("[Mobile Scanner] Requesting camera permission...");
-      navigator.mediaDevices
-        .getUserMedia({
-          video: {
-            facingMode: "environment",
-            // Request 1080p - good quality without going overboard
-            width: { ideal: 1920, max: 1920 },
-            height: { ideal: 1080, max: 1080 },
-          },
-          audio: false,
-        })
-        .then(async (stream) => {
-          console.log(
-            "[Mobile Scanner] Camera permission granted, stream received",
-          );
-          streamRef.current = stream;
-          if (videoRef.current) {
-            const video = videoRef.current;
-            video.srcObject = stream;
-
-            // Wait for video metadata to load before marking camera as ready
-            const handleLoadedMetadata = () => {
-              console.log(
-                "[Mobile Scanner] Video metadata loaded, dimensions:",
-                video.videoWidth,
-                "x",
-                video.videoHeight,
-              );
-              setLoadingStatus(
-                `Camera ready: ${video.videoWidth}x${video.videoHeight} ✓`,
-              );
-
-              // Signal that camera is ready - this will trigger detection effect
-              console.log("[Mobile Scanner] Setting cameraReady = true");
-              setCameraReady(true);
-            };
-
-            // Check if metadata is already loaded
-            if (video.readyState >= 1) {
-              // HAVE_METADATA or greater
-              handleLoadedMetadata();
-            } else {
-              // Wait for loadedmetadata event
-              video.addEventListener("loadedmetadata", handleLoadedMetadata, {
-                once: true,
-              });
-            }
-
-            // Log actual resolution we got from stream settings
-            const videoTrack = stream.getVideoTracks()[0];
-            const settings = videoTrack.getSettings();
-            console.log(
-              "[Mobile Scanner] Camera stream settings:",
-              settings.width,
-              "x",
-              settings.height,
-            );
-
-            // Configure camera capabilities for document scanning
-            try {
-              const capabilities = videoTrack.getCapabilities();
-              const advanced: MediaTrackConstraintSet[] = [];
-
-              // 1. Enable continuous autofocus
-              if (
-                capabilities.focusMode &&
-                capabilities.focusMode.includes("continuous")
-              ) {
-                advanced.push({ focusMode: "continuous" });
-                console.log("✓ Continuous autofocus enabled");
-              }
-
-              // 2. Enable continuous auto-exposure for varying lighting
-              if (
-                capabilities.exposureMode &&
-                capabilities.exposureMode.includes("continuous")
-              ) {
-                advanced.push({ exposureMode: "continuous" });
-                console.log("✓ Auto-exposure enabled");
-              }
-
-              // 3. Check if torch/flashlight is supported
-              if (capabilities.torch) {
-                setTorchSupported(true);
-                console.log("✓ Torch/flashlight available");
-              }
-
-              // Apply all constraints
-              if (advanced.length > 0) {
-                await videoTrack.applyConstraints({ advanced });
-              }
-            } catch (err) {
-              console.log("Could not configure camera features:", err);
-            }
-          }
-        })
-        .catch((err) => {
-          console.error("Camera error:", err);
-          setLoadingStatus("Camera access denied ✗");
-          setCameraError(
-            t(
-              "mobileScanner.cameraAccessDenied",
-              "Camera access denied. Please enable camera access.",
-            ),
-          );
-          // Auto-switch to file upload if camera fails
-          setMode("file");
-        });
-    }
+      });
 
     return () => {
-      // Clean up stream when switching away from camera or showing preview
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      // Stop highlighting when camera is stopped
-      if (highlightIntervalRef.current) {
-        clearInterval(highlightIntervalRef.current);
-        highlightIntervalRef.current = null;
-      }
-      // Reset camera ready state
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
       setCameraReady(false);
+      setTorchEnabled(false);
     };
-  }, [mode, cameraError, currentPreview, t]);
+  }, [currentPreview, mode, t]);
 
-  // Real-time document highlighting on camera feed
   useEffect(() => {
-    console.log(
-      `[Mobile Scanner] Effect triggered: mode=${mode}, autoEnhance=${autoEnhance}, openCvReady=${openCvReady}, cameraReady=${cameraReady}, currentPreview=${currentPreview}`,
-    );
-
-    // Show helpful status if detection is enabled but waiting for dependencies
-    if (mode === "camera" && autoEnhance && !currentPreview) {
-      if (!openCvReady) {
-        setLoadingStatus("Waiting for OpenCV...");
-      } else if (!cameraReady) {
-        setLoadingStatus("Waiting for camera...");
-      }
-    }
-
     if (
-      mode === "camera" &&
-      autoEnhance &&
-      openCvReady &&
-      cameraReady &&
-      scannerRef.current &&
-      !currentPreview
+      mode !== "camera" ||
+      currentPreview ||
+      !cameraReady ||
+      !autoEnhance ||
+      !openCvReady
     ) {
-      const startHighlighting = () => {
-        console.log("[Mobile Scanner] startHighlighting() called");
+      const canvas = highlightCanvasRef.current;
+      canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+    const video = videoRef.current;
+    const overlay = highlightCanvasRef.current;
+    const scanner = scannerRef.current;
+    const cv = window.cv;
+    if (!video || !overlay || !scanner || !cv) return;
 
-        if (!videoRef.current || !highlightCanvasRef.current) {
-          setLoadingStatus("Missing video/canvas refs ✗");
-          console.error(
-            "[Mobile Scanner] Missing refs: video=" +
-              !!videoRef.current +
-              ", canvas=" +
-              !!highlightCanvasRef.current,
-          );
-          return;
-        }
-        if (!videoRef.current.videoWidth || !videoRef.current.videoHeight) {
-          setLoadingStatus("Video has no dimensions ✗");
-          console.error(
-            "[Mobile Scanner] Missing video dimensions: " +
-              videoRef.current.videoWidth +
-              "x" +
-              videoRef.current.videoHeight,
-          );
-          return;
-        }
+    const detection = document.createElement("canvas");
+    const detectionContext = detection.getContext("2d", {
+      willReadFrequently: true,
+    });
+    const overlayContext = overlay.getContext("2d");
+    if (!detectionContext || !overlayContext) return;
+    let frame = 0;
+    let lastRun = 0;
+    let cancelled = false;
 
-        const video = videoRef.current;
-        const highlightCanvas = highlightCanvasRef.current;
-        setLoadingStatus("Detection active ✓");
-        console.log(
-          "[Mobile Scanner] Starting highlighting loop for " +
-            video.videoWidth +
-            "x" +
-            video.videoHeight +
-            " video",
-        );
-
-        // Create low-res detection canvas with optimized context for frequent pixel reading
-        const detectionCanvas = document.createElement("canvas");
-        const detectionCtx = detectionCanvas.getContext("2d", {
-          willReadFrequently: true,
-        });
-        if (!detectionCtx) return;
-
-        // Calculate scaled dimensions for detection (160px wide max)
+    const detect = (time: number) => {
+      if (cancelled) return;
+      if (
+        time - lastRun >= 400 &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0
+      ) {
+        lastRun = time;
         const scale = DETECTION_WIDTH / video.videoWidth;
-        detectionCanvas.width = DETECTION_WIDTH;
-        detectionCanvas.height = Math.round(video.videoHeight * scale);
-
-        // CRITICAL FIX: Make highlight canvas ALSO low-res (CSS will scale it visually)
-        // Drawing to a 4K canvas is what was causing the lag!
-        highlightCanvas.width = DETECTION_WIDTH;
-        highlightCanvas.height = Math.round(video.videoHeight * scale);
-
-        console.log(
-          `[Mobile Scanner] Video: ${video.videoWidth}x${video.videoHeight}`,
+        detection.width = DETECTION_WIDTH;
+        detection.height = Math.max(1, Math.round(video.videoHeight * scale));
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+        detectionContext.drawImage(
+          video,
+          0,
+          0,
+          detection.width,
+          detection.height,
         );
-        console.log(
-          `[Mobile Scanner] Detection: ${detectionCanvas.width}x${detectionCanvas.height} (${Math.round(scale * 100)}%)`,
-        );
-        console.log(
-          `[Mobile Scanner] Highlight canvas: ${highlightCanvas.width}x${highlightCanvas.height}`,
-        );
-        console.log(`[Mobile Scanner] Starting interval at 1 FPS`);
+        overlayContext.clearRect(0, 0, overlay.width, overlay.height);
 
-        // Set highlight canvas to match video for vector drawing
-        highlightCanvas.width = video.videoWidth;
-        highlightCanvas.height = video.videoHeight;
-        const highlightCtx = highlightCanvas.getContext("2d", {
-          willReadFrequently: true,
-        });
-        if (!highlightCtx) return;
-
-        // Use requestAnimationFrame with adaptive throttle based on device performance
-        let frameCount = 0;
-        const frameTimes: number[] = [];
-        let lastDetectionTime = 0;
-        let detectionInterval = 333; // Start at 3 FPS (333ms)
-        const detectionTimings: number[] = []; // Track last 10 detection times
-        const MAX_TIMINGS = 10;
-
-        const runDetection = () => {
-          const now = performance.now();
-
-          // Only run detection every second
-          if (now - lastDetectionTime >= detectionInterval) {
-            lastDetectionTime = now;
-            const startTime = performance.now();
-
-            try {
-              // Step 1: Copy video to low-res detection canvas
-              const copyStart = performance.now();
-              detectionCtx.drawImage(
-                video,
-                0,
-                0,
-                detectionCanvas.width,
-                detectionCanvas.height,
-              );
-              const copyTime = performance.now() - copyStart;
-
-              // Step 2: Simple jscanify detection
-              const detectionStart = performance.now();
-              let corners: JscanifyCornerPoints | null = null;
-
-              // Run jscanify detection directly - convert canvas to Mat first
-              const cv = window.cv;
-              const scanner = scannerRef.current;
-              if (cv && scanner) {
-                const mat = cv.imread(detectionCanvas);
-                const contour = scanner.findPaperContour(mat);
-                mat.delete();
-
-                if (contour) {
-                  corners = scanner.getCornerPoints(contour);
-                }
-              }
-
-              const detectionTime = performance.now() - detectionStart;
-
-              // Step 3: Draw corner lines on full-res canvas
-              const drawStart = performance.now();
-              highlightCtx.clearRect(
-                0,
-                0,
-                highlightCanvas.width,
-                highlightCanvas.height,
-              );
-
-              // Draw lines if corners detected
-              if (
-                corners &&
-                corners.topLeftCorner &&
-                corners.topRightCorner &&
-                corners.bottomLeftCorner &&
-                corners.bottomRightCorner
-              ) {
-                // Scale corner points from low-res to full-res
-                const scaleFactor = video.videoWidth / detectionCanvas.width;
-                const tl = {
-                  x: corners.topLeftCorner.x * scaleFactor,
-                  y: corners.topLeftCorner.y * scaleFactor,
-                };
-                const tr = {
-                  x: corners.topRightCorner.x * scaleFactor,
-                  y: corners.topRightCorner.y * scaleFactor,
-                };
-                const br = {
-                  x: corners.bottomRightCorner.x * scaleFactor,
-                  y: corners.bottomRightCorner.y * scaleFactor,
-                };
-                const bl = {
-                  x: corners.bottomLeftCorner.x * scaleFactor,
-                  y: corners.bottomLeftCorner.y * scaleFactor,
-                };
-
-                // Draw green lines connecting corners
-                highlightCtx.strokeStyle = "#00FF00";
-                highlightCtx.lineWidth = 4;
-                highlightCtx.beginPath();
-                highlightCtx.moveTo(tl.x, tl.y);
-                highlightCtx.lineTo(tr.x, tr.y);
-                highlightCtx.lineTo(br.x, br.y);
-                highlightCtx.lineTo(bl.x, bl.y);
-                highlightCtx.lineTo(tl.x, tl.y);
-                highlightCtx.stroke();
-              }
-
-              const drawTime = performance.now() - drawStart;
-
-              const totalTime = performance.now() - startTime;
-              frameCount++;
-              frameTimes.push(totalTime);
-
-              // Track detection timings for adaptive performance
-              detectionTimings.push(totalTime);
-              if (detectionTimings.length > MAX_TIMINGS) {
-                detectionTimings.shift(); // Keep only last 10
-              }
-
-              // Adaptive performance adjustment (after warmup period)
-              if (frameCount > 5 && detectionTimings.length >= 5) {
-                const avgTime =
-                  detectionTimings.reduce((a, b) => a + b, 0) /
-                  detectionTimings.length;
-
-                // Adjust detection interval based on average performance
-                if (avgTime < 20) {
-                  // Very fast device: 5 FPS (200ms)
-                  detectionInterval = 200;
-                } else if (avgTime < 40) {
-                  // Fast device: 3 FPS (333ms)
-                  detectionInterval = 333;
-                } else if (avgTime < 80) {
-                  // Medium device: 2 FPS (500ms)
-                  detectionInterval = 500;
-                } else {
-                  // Slower device: 1 FPS (1000ms)
-                  detectionInterval = 1000;
-                }
-              }
-
-              if (frameCount <= 10) {
-                console.log(
-                  `[Mobile Scanner] Frame ${frameCount}: ${Math.round(totalTime)}ms total (copy: ${Math.round(copyTime)}ms, detect: ${Math.round(detectionTime)}ms, draw: ${Math.round(drawTime)}ms) - interval: ${detectionInterval}ms`,
-                );
-              }
-
-              if (frameCount === 10) {
-                const avg =
-                  frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-                console.log(
-                  `[Mobile Scanner] Average of first 10 frames: ${Math.round(avg)}ms - Adaptive rate: ${Math.round(1000 / detectionInterval)} FPS`,
-                );
-              }
-            } catch (err) {
-              console.error("[Mobile Scanner] Detection error:", err);
-            }
-          }
-
-          // Continue animation loop
-          highlightIntervalRef.current = requestAnimationFrame(runDetection);
-        };
-
-        // Start the animation loop
-        highlightIntervalRef.current = requestAnimationFrame(runDetection);
-      };
-
-      // Wait for video to be ready with retry logic
-      let retryCount = 0;
-      let retryTimeout: number | null = null;
-
-      const startWhenReady = () => {
-        const video = videoRef.current;
-
-        if (!video) {
-          setLoadingStatus("No video element ✗");
-          console.log("[Mobile Scanner] No video element");
-          return;
-        }
-
-        console.log(
-          `[Mobile Scanner] Video check: readyState=${video.readyState}, width=${video.videoWidth}, height=${video.videoHeight}`,
-        );
-
-        if (
-          video.readyState >= 2 &&
-          video.videoWidth > 0 &&
-          video.videoHeight > 0
-        ) {
-          setLoadingStatus("Detection starting... ✓");
-          console.log("[Mobile Scanner] ✓ Video ready, starting detection now");
-          startHighlighting();
-        } else if (retryCount < 50) {
-          // Retry up to 50 times (5 seconds)
-          retryCount++;
-          setLoadingStatus(`Waiting for video... (${retryCount}/50)`);
-          console.log(
-            `[Mobile Scanner] Video not ready yet, retry ${retryCount}/50...`,
-          );
-          retryTimeout = window.setTimeout(startWhenReady, 100);
-        } else {
-          setLoadingStatus("Video failed to load ✗");
-          console.error(
-            "[Mobile Scanner] ✗ Video failed to become ready after 5 seconds",
-          );
-        }
-      };
-
-      // Add event listener as fallback
-      const videoElement = videoRef.current;
-      if (videoElement) {
-        console.log("[Mobile Scanner] Adding loadedmetadata listener");
-        videoElement.addEventListener("loadedmetadata", startWhenReady);
-        // Also try immediately
-        startWhenReady();
-      } else {
-        console.error("[Mobile Scanner] No video element available");
-      }
-
-      return () => {
-        console.log("[Mobile Scanner] Cleanup: Stopping detection");
-
-        // Clean up animation frame
-        if (highlightIntervalRef.current) {
-          cancelAnimationFrame(highlightIntervalRef.current);
-          highlightIntervalRef.current = null;
-        }
-
-        // Clean up retry timeout
-        if (retryTimeout !== null) {
-          clearTimeout(retryTimeout);
-          retryTimeout = null;
-        }
-
-        // Clean up event listener
-        if (videoElement) {
-          videoElement.removeEventListener("loadedmetadata", startWhenReady);
-        }
-      };
-    }
-  }, [mode, autoEnhance, openCvReady, cameraReady, currentPreview]);
-
-  const captureImage = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    setIsProcessing(true);
-
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
-
-      if (!context) return;
-
-      // Capture raw image from video at full resolution
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      let finalDataUrl: string;
-
-      // Apply jscanify processing if enabled and available
-      const cv = window.cv;
-      const scanner = scannerRef.current;
-      if (autoEnhance && scanner && openCvReady && cv) {
+        let mat;
+        let contour;
         try {
-          // Create low-res canvas for detection (faster processing)
-          const detectionCanvas = document.createElement("canvas");
-          const detectionCtx = detectionCanvas.getContext("2d", {
-            willReadFrequently: true,
-          });
-          if (!detectionCtx) throw new Error("Cannot create detection context");
-
-          const scale = DETECTION_WIDTH / video.videoWidth;
-          detectionCanvas.width = DETECTION_WIDTH;
-          detectionCanvas.height = Math.round(video.videoHeight * scale);
-
-          // Draw downscaled image for detection
-          detectionCtx.drawImage(
-            video,
-            0,
-            0,
-            detectionCanvas.width,
-            detectionCanvas.height,
-          );
-
-          // Run detection on low-res image
-          const mat = cv.imread(detectionCanvas);
-          const contour = scanner.findPaperContour(mat);
-
+          mat = cv.imread(detection);
+          contour = scanner.findPaperContour(mat);
           if (contour) {
-            const cornerPoints = scanner.getCornerPoints(contour);
-
-            // Scale corner points back to full resolution
-            if (cornerPoints) {
-              const scaleFactor = 1 / scale;
-              const scaledCorners = {
-                topLeftCorner: {
-                  x: cornerPoints.topLeftCorner.x * scaleFactor,
-                  y: cornerPoints.topLeftCorner.y * scaleFactor,
-                },
-                topRightCorner: {
-                  x: cornerPoints.topRightCorner.x * scaleFactor,
-                  y: cornerPoints.topRightCorner.y * scaleFactor,
-                },
-                bottomLeftCorner: {
-                  x: cornerPoints.bottomLeftCorner.x * scaleFactor,
-                  y: cornerPoints.bottomLeftCorner.y * scaleFactor,
-                },
-                bottomRightCorner: {
-                  x: cornerPoints.bottomRightCorner.x * scaleFactor,
-                  y: cornerPoints.bottomRightCorner.y * scaleFactor,
-                },
-              };
-
-              // Use scaled corners for extraction
-              const {
-                topLeftCorner,
-                topRightCorner,
-                bottomLeftCorner,
-                bottomRightCorner,
-              } = scaledCorners;
-
-              console.log("Document detected at full resolution:", {
-                corners: scaledCorners,
-              });
-
-              // Calculate width and height of the document
-              const topWidth = Math.hypot(
-                topRightCorner.x - topLeftCorner.x,
-                topRightCorner.y - topLeftCorner.y,
-              );
-              const bottomWidth = Math.hypot(
-                bottomRightCorner.x - bottomLeftCorner.x,
-                bottomRightCorner.y - bottomLeftCorner.y,
-              );
-              const leftHeight = Math.hypot(
-                bottomLeftCorner.x - topLeftCorner.x,
-                bottomLeftCorner.y - topLeftCorner.y,
-              );
-              const rightHeight = Math.hypot(
-                bottomRightCorner.x - topRightCorner.x,
-                bottomRightCorner.y - topRightCorner.y,
-              );
-
-              // Use average dimensions to maintain proper aspect ratio
-              const docWidth = Math.round((topWidth + bottomWidth) / 2);
-              const docHeight = Math.round((leftHeight + rightHeight) / 2);
-
-              // Extract paper from full-resolution canvas with scaled corner points
-              const resultCanvas = scanner.extractPaper(
-                canvas,
-                docWidth,
-                docHeight,
-                scaledCorners,
-              );
-
-              // Clean up Mat
-              mat.delete();
-
-              // Use high quality JPEG compression to preserve image quality
-              finalDataUrl = resultCanvas.toDataURL("image/jpeg", 0.95);
-            } else {
-              console.log("No corners detected, using original");
-              mat.delete();
-              finalDataUrl = canvas.toDataURL("image/jpeg", 0.95);
-            }
-          } else {
-            console.log("No contour detected, using original");
-            mat.delete();
-            finalDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+            const corners = scanner.getCornerPoints(contour);
+            const ratio = video.videoWidth / detection.width;
+            const points = [
+              corners.topLeftCorner,
+              corners.topRightCorner,
+              corners.bottomRightCorner,
+              corners.bottomLeftCorner,
+            ];
+            overlayContext.strokeStyle = "#22c55e";
+            overlayContext.lineWidth = 5;
+            overlayContext.beginPath();
+            points.forEach((point, index) => {
+              const x = point.x * ratio;
+              const y = point.y * ratio;
+              if (index === 0) overlayContext.moveTo(x, y);
+              else overlayContext.lineTo(x, y);
+            });
+            overlayContext.closePath();
+            overlayContext.stroke();
           }
-        } catch (err) {
-          console.warn(
-            "jscanify processing failed, using original image:",
-            err,
-          );
-          finalDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        } catch {
+          // A missed detection is expected while the phone is moving.
+        } finally {
+          contour?.delete();
+          mat?.delete();
         }
-      } else {
-        // Auto-enhance disabled or jscanify not available - use original at high quality
-        finalDataUrl = canvas.toDataURL("image/jpeg", 0.95);
       }
+      frame = requestAnimationFrame(detect);
+    };
+    frame = requestAnimationFrame(detect);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [autoEnhance, cameraReady, currentPreview, mode, openCvReady]);
 
-      setCurrentPreview(finalDataUrl);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [autoEnhance, openCvReady]);
-
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files || files.length === 0) return;
-
-      const file = files[0];
-      const reader = new FileReader();
-
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCurrentPreview(event.target.result as string);
-        }
-      };
-
-      reader.readAsDataURL(file);
+  const extractWithCorners = useCallback(
+    async (
+      sourceDataUrl: string,
+      normalizedCorners: NormalizedCorners,
+    ): Promise<string> => {
+      const image = await loadImage(sourceDataUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth || image.width;
+      canvas.height = image.naturalHeight || image.height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Image processing is unavailable.");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const scanner = scannerRef.current;
+      if (!scanner) return canvas.toDataURL("image/jpeg", 0.94);
+      const corners = denormalizeCorners(
+        normalizedCorners,
+        canvas.width,
+        canvas.height,
+      );
+      const dimensions = extractedDimensions(corners);
+      return scanner
+        .extractPaper(canvas, dimensions.width, dimensions.height, corners)
+        .toDataURL("image/jpeg", 0.94);
     },
     [],
   );
 
-  const addToBatch = useCallback(() => {
-    if (currentPreview) {
-      setCapturedImages((prev) => [...prev, currentPreview]);
-      setCurrentPreview(null);
+  const prepareDraft = useCallback(
+    async (sourceDataUrl: string): Promise<ScanDraft> => {
+      const image = await loadImage(sourceDataUrl);
+      const canvas = document.createElement("canvas");
+      const sourceDimensions = fitScanDimensions(
+        image.naturalWidth || image.width,
+        image.naturalHeight || image.height,
+      );
+      canvas.width = sourceDimensions.width;
+      canvas.height = sourceDimensions.height;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) throw new Error("Image processing is unavailable.");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      let corners = cloneFullCorners();
+      const boundedSourceDataUrl = canvas.toDataURL("image/jpeg", 0.94);
+      let croppedDataUrl = boundedSourceDataUrl;
+      const scanner = scannerRef.current;
+      const cv = window.cv;
+      if (autoEnhance && scanner && cv) {
+        const detection = document.createElement("canvas");
+        const detectionScale = Math.min(1, DETECTION_WIDTH / canvas.width);
+        detection.width = Math.max(
+          1,
+          Math.round(canvas.width * detectionScale),
+        );
+        detection.height = Math.max(
+          1,
+          Math.round(canvas.height * detectionScale),
+        );
+        detection
+          .getContext("2d", { willReadFrequently: true })
+          ?.drawImage(canvas, 0, 0, detection.width, detection.height);
+        let mat;
+        let contour;
+        try {
+          mat = cv.imread(detection);
+          contour = scanner.findPaperContour(mat);
+          if (contour) {
+            const detected = scanner.getCornerPoints(contour);
+            corners = normalizeCorners(
+              detected,
+              detection.width,
+              detection.height,
+            );
+            const fullCorners = denormalizeCorners(
+              corners,
+              canvas.width,
+              canvas.height,
+            );
+            const dimensions = extractedDimensions(fullCorners);
+            croppedDataUrl = scanner
+              .extractPaper(
+                canvas,
+                dimensions.width,
+                dimensions.height,
+                fullCorners,
+              )
+              .toDataURL("image/jpeg", 0.94);
+          }
+        } finally {
+          contour?.delete();
+          mat?.delete();
+        }
+      }
+      return {
+        sourceDataUrl: boundedSourceDataUrl,
+        croppedDataUrl,
+        dataUrl: croppedDataUrl,
+        corners,
+        filter: "color",
+      };
+    },
+    [autoEnhance],
+  );
+
+  const captureImage = useCallback(async () => {
+    const video = videoRef.current;
+    const canvas = captureCanvasRef.current;
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) return;
+    setIsProcessing(true);
+    setUploadError(null);
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Camera capture is unavailable.");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      setCurrentPreview(
+        await prepareDraft(canvas.toDataURL("image/jpeg", 0.96)),
+      );
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : "The page could not be captured.",
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [prepareDraft]);
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = "";
+      if (!files.length) return;
+      setIsProcessing(true);
+      setUploadError(null);
+      try {
+        const drafts: ScanDraft[] = [];
+        for (const file of files) {
+          drafts.push(await prepareDraft(await readFile(file)));
+        }
+        if (drafts.length === 1 && !currentPreview) {
+          setCurrentPreview(drafts[0]);
+        } else {
+          setCapturedImages((existing) => [
+            ...existing,
+            ...drafts.map((draft) => ({
+              id: scanId(),
+              dataUrl: draft.dataUrl,
+            })),
+          ]);
+        }
+      } catch (error) {
+        setUploadError(
+          error instanceof Error
+            ? error.message
+            : "The images could not be opened.",
+        );
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [currentPreview, prepareDraft],
+  );
+
+  const applyCorners = useCallback(async () => {
+    if (!currentPreview) return;
+    setIsProcessing(true);
+    try {
+      const croppedDataUrl = await extractWithCorners(
+        currentPreview.sourceDataUrl,
+        currentPreview.corners,
+      );
+      const dataUrl = await applyScanFilter(
+        croppedDataUrl,
+        currentPreview.filter,
+      );
+      setCurrentPreview({ ...currentPreview, croppedDataUrl, dataUrl });
+      setAdjustingCorners(false);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : "Perspective correction failed.",
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [currentPreview, extractWithCorners]);
+
+  const selectFilter = useCallback(
+    async (value: string) => {
+      if (!currentPreview) return;
+      const filter = value as ScanFilter;
+      setIsProcessing(true);
+      try {
+        const dataUrl = await applyScanFilter(
+          currentPreview.croppedDataUrl,
+          filter,
+        );
+        setCurrentPreview({ ...currentPreview, filter, dataUrl });
+      } catch (error) {
+        setUploadError(
+          error instanceof Error ? error.message : "Image cleanup failed.",
+        );
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [currentPreview],
+  );
+
+  const rotatePreview = useCallback(async () => {
+    if (!currentPreview) return;
+    setIsProcessing(true);
+    try {
+      const rotated = await rotateScanClockwise(currentPreview.dataUrl);
+      setCurrentPreview({
+        sourceDataUrl: rotated,
+        croppedDataUrl: rotated,
+        dataUrl: rotated,
+        corners: cloneFullCorners(),
+        filter: "color",
+      });
+      setAdjustingCorners(false);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "Image rotation failed.",
+      );
+    } finally {
+      setIsProcessing(false);
     }
   }, [currentPreview]);
 
-  const uploadImages = useCallback(async () => {
-    const imagesToUpload = currentPreview
-      ? [currentPreview, ...capturedImages]
-      : capturedImages;
+  const addToBatch = useCallback(() => {
+    if (!currentPreview) return;
+    setCapturedImages((existing) => [
+      ...existing,
+      { id: scanId(), dataUrl: currentPreview.dataUrl },
+    ]);
+    setCurrentPreview(null);
+    setAdjustingCorners(false);
+    setExportedPdf(null);
+  }, [currentPreview]);
 
-    if (imagesToUpload.length === 0) return;
-    if (!sessionId) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-    setUploadProgress(0);
-
-    try {
-      // Convert data URLs to File objects
-      const files: File[] = [];
-      for (let i = 0; i < imagesToUpload.length; i++) {
-        const dataUrl = imagesToUpload[i];
-        const response = await fetch(dataUrl);
-        const blob = await response.blob();
-        const file = new File([blob], `scan-${Date.now()}-${i}.jpg`, {
-          type: "image/jpeg",
-        });
-        files.push(file);
-        setUploadProgress(((i + 1) / (imagesToUpload.length + 1)) * 50); // 0-50% for conversion
-      }
-
-      // Upload to backend
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append("files", file);
+  const editScan = useCallback((index: number) => {
+    setCapturedImages((existing) => {
+      const selected = existing[index];
+      if (!selected) return existing;
+      setCurrentPreview({
+        sourceDataUrl: selected.dataUrl,
+        croppedDataUrl: selected.dataUrl,
+        dataUrl: selected.dataUrl,
+        corners: cloneFullCorners(),
+        filter: "color",
       });
+      return existing.filter((_, itemIndex) => itemIndex !== index);
+    });
+  }, []);
 
-      const uploadResponse = await fetch(
-        `${API_BASE}/api/v1/mobile-scanner/upload/${sessionId}`,
-        {
-          method: "POST",
-          body: formData,
-        },
+  const buildPdf = useCallback(async () => {
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const file = await createScansPdf(
+      pageDataUrls,
+      `rustlingpdf-scan-${stamp}.pdf`,
+    );
+    setExportedPdf({ file, pages: pageDataUrls });
+    return file;
+  }, [pageDataUrls]);
+
+  const exportPdf = useCallback(async () => {
+    setIsProcessing(true);
+    setUploadError(null);
+    try {
+      const file = await buildPdf();
+      downloadFile(file);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "PDF export failed.",
       );
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [buildPdf]);
 
-      if (!uploadResponse.ok) {
-        throw new Error("Upload failed");
+  const openNextTool = useCallback(
+    async (tool: "ocr" | "sign") => {
+      setIsProcessing(true);
+      try {
+        const file = currentExportedPdf ?? (await buildPdf());
+        if (!currentExportedPdf) downloadFile(file);
+        navigate(`/${tool}`);
+      } catch (error) {
+        setUploadError(
+          error instanceof Error ? error.message : "PDF handoff failed.",
+        );
+      } finally {
+        setIsProcessing(false);
       }
+    },
+    [buildPdf, currentExportedPdf, navigate],
+  );
 
+  const uploadPdf = useCallback(async () => {
+    if (!sessionId || sessionState !== "transfer") return;
+    setIsUploading(true);
+    setUploadProgress(10);
+    setUploadError(null);
+    try {
+      const file = await buildPdf();
+      setUploadProgress(45);
+      const body = new FormData();
+      body.append("files", file);
+      const response = await fetch(
+        `${API_BASE}/api/v1/mobile-scanner/upload/${encodeURIComponent(sessionId)}`,
+        { method: "POST", body },
+      );
+      if (!response.ok) throw new Error("Desktop transfer failed.");
       setUploadProgress(100);
       setUploadSuccess(true);
-
-      // Close the mobile tab after successful upload
-      setTimeout(() => {
-        window.close();
-        // Fallback if window.close() doesn't work (some browsers block it)
-        if (!window.closed) {
-          navigate("/");
-        }
-      }, 1500);
-    } catch (err) {
-      console.error("Upload failed:", err);
+    } catch (error) {
       setUploadError(
-        t("mobileScanner.uploadFailed", "Upload failed. Please try again."),
+        error instanceof Error ? error.message : "Desktop transfer failed.",
       );
     } finally {
       setIsUploading(false);
     }
-  }, [currentPreview, capturedImages, sessionId, navigate, t]);
-
-  const retake = useCallback(() => {
-    setCurrentPreview(null);
-  }, []);
-
-  const clearBatch = useCallback(() => {
-    setCapturedImages([]);
-  }, []);
+  }, [buildPdf, sessionId, sessionState]);
 
   const toggleTorch = useCallback(async () => {
-    if (!streamRef.current) return;
-
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
     try {
-      const videoTrack = streamRef.current.getVideoTracks()[0];
-      await videoTrack.applyConstraints({
+      await track.applyConstraints({
         advanced: [{ torch: !torchEnabled }],
       });
-      setTorchEnabled(!torchEnabled);
-      console.log("Torch:", !torchEnabled ? "ON" : "OFF");
-    } catch (err) {
-      console.error("Failed to toggle torch:", err);
+      setTorchEnabled((enabled) => !enabled);
+    } catch {
+      setTorchSupported(false);
     }
   }, [torchEnabled]);
 
-  // Show loading while validating
-  if (sessionValid === null) {
+  const updateCorner = useCallback(
+    (event: React.PointerEvent<SVGSVGElement>) => {
+      if (!activeCorner || !currentPreview) return;
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const point = {
+        x: clampNormalized((event.clientX - bounds.left) / bounds.width),
+        y: clampNormalized((event.clientY - bounds.top) / bounds.height),
+      };
+      setCurrentPreview({
+        ...currentPreview,
+        corners: { ...currentPreview.corners, [activeCorner]: point },
+      });
+    },
+    [activeCorner, currentPreview],
+  );
+
+  if (sessionState === "checking") {
     return (
-      <Box
-        p="xl"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "1rem",
-        }}
-      >
-        <Text size="lg">
-          {t("mobileScanner.validating", "Validating session...")}
+      <Box p="xl">
+        <Text ta="center">
+          {t("mobileScanner.validating", "Connecting to desktop…")}
         </Text>
       </Box>
     );
   }
 
-  // Show error if session is invalid
-  if (!sessionValid || !sessionId) {
+  if (sessionState === "invalid") {
     return (
-      <Box p="xl">
+      <Stack p="xl" maw={520} mx="auto">
         <Alert
-          color="red"
-          title={t("mobileScanner.sessionInvalid", "Session Error")}
+          color="orange"
+          title={t(
+            "mobileScanner.sessionInvalid",
+            "Transfer session unavailable",
+          )}
         >
-          {sessionError ||
-            t(
-              "mobileScanner.noSessionMessage",
-              "Session not found. Please try again.",
-            )}
+          {sessionMessage}
         </Alert>
-      </Box>
+        <DSButton
+          variant="primary"
+          onClick={() => {
+            setSessionState("local");
+            setSessionMessage(
+              t(
+                "mobileScanner.localMode",
+                "Local mode: scans stay in this browser until you export them.",
+              ),
+            );
+          }}
+        >
+          {t("mobileScanner.continueLocally", "Continue locally")}
+        </DSButton>
+      </Stack>
     );
   }
 
   if (uploadSuccess) {
     return (
-      <Box
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100dvh",
-          padding: "2rem",
-        }}
-      >
+      <Stack align="center" justify="center" mih="100dvh" p="xl">
         <CheckCircleRoundedIcon
           style={{ fontSize: "4rem", color: "var(--mantine-color-green-6)" }}
         />
-        <Text size="xl" fw="bold" mt="md">
-          {t("mobileScanner.uploadSuccess", "Upload Successful!")}
+        <Text size="xl" fw={700}>
+          {t("mobileScanner.uploadSuccess", "PDF transferred")}
         </Text>
-        <Text size="sm" c="dimmed">
+        <Text ta="center" c="dimmed">
           {t(
             "mobileScanner.uploadSuccessMessage",
-            "Your images have been transferred.",
+            "The ordered multi-page PDF is ready on the desktop for OCR, signing, or export.",
           )}
         </Text>
-      </Box>
+      </Stack>
     );
   }
 
@@ -1000,7 +961,6 @@ export default function MobileScannerPage() {
         flexDirection: "column",
       }}
     >
-      {/* Header */}
       <Box
         p="md"
         style={{
@@ -1008,452 +968,556 @@ export default function MobileScannerPage() {
           borderBottom: "1px solid var(--c-border-subtle)",
         }}
       >
-        <Group gap="sm" align="center">
-          <LogoIcon
-            alt={t("home.mobile.brandAlt", "RustlingPDF logo")}
-            style={{ height: "32px", width: "32px" }}
-          />
-          <Wordmark alt="RustlingPDF" style={{ height: "24px" }} />
+        <Group justify="space-between">
+          <Group gap="sm">
+            <LogoIcon
+              alt={t("home.mobile.brandAlt", "RustlingPDF logo")}
+              style={{ height: 32, width: 32 }}
+            />
+            <Wordmark alt="RustlingPDF" style={{ height: 24 }} />
+          </Group>
+          <Badge
+            color={sessionState === "transfer" && online ? "green" : "gray"}
+          >
+            {sessionState === "transfer" && online
+              ? t("mobileScanner.desktopConnected", "Desktop connected")
+              : t("mobileScanner.localOnly", "Local only")}
+          </Badge>
         </Group>
       </Box>
 
-      {/* Status Banner - only show during camera loading or errors */}
-      {loadingStatus && mode === "camera" && !loadingStatus.includes("✓") && (
-        <Box
-          p="xs"
-          style={{
-            background: loadingStatus.includes("✗")
-              ? "var(--mantine-color-red-1)"
-              : "var(--mantine-color-blue-1)",
-            borderBottom: "1px solid var(--c-border-subtle)",
-            fontSize: "0.85rem",
-            fontFamily: "monospace",
-            textAlign: "center",
-          }}
-        >
-          {loadingStatus}
+      {(sessionMessage || !online) && (
+        <Box p="sm">
+          <Alert color="blue" icon={<InfoRoundedIcon />}>
+            {sessionMessage ??
+              t(
+                "mobileScanner.offlineReady",
+                "Offline mode: capture, correction, cleanup, ordering, and PDF export remain local.",
+              )}
+          </Alert>
         </Box>
       )}
-
       {uploadError && (
-        <Box p="md">
+        <Box p="sm">
           <Alert
             color="red"
             icon={<ErrorRoundedIcon />}
-            onClose={() => setUploadError(null)}
             withCloseButton
+            onClose={() => setUploadError(null)}
           >
             {uploadError}
           </Alert>
         </Box>
       )}
-
       {isUploading && (
         <Box p="sm">
           <Text size="sm" mb="xs">
-            {t("mobileScanner.uploading", "Uploading...")}
+            {t("mobileScanner.uploading", "Building and transferring PDF…")}
           </Text>
           <Progress value={uploadProgress} animated />
         </Box>
       )}
-
       {cameraError && (
-        <Box p="md">
+        <Box p="sm">
           <Alert color="orange" icon={<InfoRoundedIcon />}>
             {cameraError}
           </Alert>
         </Box>
       )}
 
-      {/* Choice screen */}
       {mode === "choice" && !currentPreview && (
-        <Stack
-          gap="lg"
-          p="xl"
-          align="center"
-          style={{ maxWidth: "500px", margin: "0 auto" }}
-        >
+        <Stack gap="lg" p="xl" maw={520} mx="auto" w="100%">
           <Stack gap="xs" align="center">
             <Text size="xl" fw={700} ta="center">
-              {t("mobileScanner.chooseMethod", "Choose Upload Method")}
+              {t("mobileScanner.title", "Scan on this device")}
             </Text>
             <Text size="sm" c="dimmed" ta="center">
               {t(
-                "mobileScanner.chooseMethodDescription",
-                "Select how you want to scan and upload documents",
+                "mobileScanner.localPrivacy",
+                "Capture and edit locally. Nothing leaves this browser unless you choose desktop transfer.",
               )}
             </Text>
           </Stack>
-
-          <Stack gap="md" style={{ width: "100%" }}>
-            <Card
-              shadow="sm"
-              padding="xl"
-              radius="md"
-              withBorder
-              style={{ cursor: "pointer" }}
-              onClick={() => setMode("camera")}
-              styles={{
-                root: {
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  "&:hover": {
-                    transform: "scale(1.02)",
-                    boxShadow: "var(--mantine-shadow-md)",
-                  },
-                },
-              }}
-            >
-              <Stack align="center" gap="md">
-                <PhotoCameraRoundedIcon
-                  style={{
-                    fontSize: "3rem",
-                    color: "var(--mantine-color-blue-6)",
-                  }}
-                />
-                <Text size="lg" fw={600}>
-                  {t("mobileScanner.camera", "Camera")}
-                </Text>
-                <Text size="sm" c="dimmed" ta="center">
-                  {t(
-                    "mobileScanner.cameraDescription",
-                    "Scan documents using your device camera with automatic edge detection",
-                  )}
-                </Text>
-              </Stack>
-            </Card>
-
-            <Card
-              shadow="sm"
-              padding="xl"
-              radius="md"
-              withBorder
-              style={{ cursor: "pointer" }}
-              onClick={() => setMode("file")}
-              styles={{
-                root: {
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  "&:hover": {
-                    transform: "scale(1.02)",
-                    boxShadow: "var(--mantine-shadow-md)",
-                  },
-                },
-              }}
-            >
-              <Stack align="center" gap="md">
-                <UploadRoundedIcon
-                  style={{
-                    fontSize: "3rem",
-                    color: "var(--mantine-color-green-6)",
-                  }}
-                />
-                <Text size="lg" fw={600}>
-                  {t("mobileScanner.fileUpload", "File Upload")}
-                </Text>
-                <Text size="sm" c="dimmed" ta="center">
-                  {t(
-                    "mobileScanner.fileDescription",
-                    "Upload existing photos or documents from your device",
-                  )}
-                </Text>
-              </Stack>
-            </Card>
-          </Stack>
+          <Card
+            withBorder
+            p="xl"
+            onClick={() => setMode("camera")}
+            style={{ cursor: "pointer" }}
+          >
+            <Stack align="center">
+              <PhotoCameraRoundedIcon
+                style={{
+                  fontSize: "3rem",
+                  color: "var(--mantine-color-blue-6)",
+                }}
+              />
+              <Text fw={600}>{t("mobileScanner.camera", "Camera")}</Text>
+              <Text size="sm" c="dimmed" ta="center">
+                {t(
+                  "mobileScanner.cameraDescription",
+                  "Live edge detection with perspective correction",
+                )}
+              </Text>
+            </Stack>
+          </Card>
+          <Card
+            withBorder
+            p="xl"
+            onClick={() => setMode("file")}
+            style={{ cursor: "pointer" }}
+          >
+            <Stack align="center">
+              <UploadRoundedIcon
+                style={{
+                  fontSize: "3rem",
+                  color: "var(--mantine-color-green-6)",
+                }}
+              />
+              <Text fw={600}>{t("mobileScanner.fileUpload", "Photos")}</Text>
+              <Text size="sm" c="dimmed" ta="center">
+                {t(
+                  "mobileScanner.fileDescription",
+                  "Select one or many existing document photos",
+                )}
+              </Text>
+            </Stack>
+          </Card>
         </Stack>
       )}
 
-      {/* Camera interface */}
       {mode === "camera" && !currentPreview && (
         <Box
           style={{
-            position: "relative",
-            height: "calc(100dvh - 60px)",
             display: "flex",
             flexDirection: "column",
+            minHeight: "70dvh",
           }}
         >
-          {/* Back button - floating top left */}
-          <DSButton
-            onClick={() => setMode("choice")}
-            variant="primary"
-            size="sm"
-            style={{
-              position: "absolute",
-              top: "1rem",
-              left: "1rem",
-              zIndex: 10,
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
-              backdropFilter: "blur(8px)",
-              border: "none",
-            }}
-          >
-            ← {t("mobileScanner.back", "Back")}
-          </DSButton>
-          {/* Video feed - fills available space */}
           <Box
             style={{
               position: "relative",
               flex: 1,
+              minHeight: 420,
               background: "#000",
-              overflow: "hidden",
             }}
           >
             <video
               ref={videoRef}
               autoPlay
-              playsInline
               muted
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "block",
-                objectFit: "contain",
-              }}
+              playsInline
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
             />
-            <canvas ref={canvasRef} style={{ display: "none" }} />
-            {/* Highlight overlay canvas - shows real-time document edge detection */}
+            <canvas ref={captureCanvasRef} style={{ display: "none" }} />
             <canvas
               ref={highlightCanvasRef}
               style={{
                 position: "absolute",
-                top: 0,
-                left: 0,
+                inset: 0,
                 width: "100%",
                 height: "100%",
                 pointerEvents: "none",
-                opacity: autoEnhance ? 1 : 0,
-                transition: "opacity 0.2s",
-                objectFit: "contain",
-                imageRendering: "auto",
               }}
             />
+            <DSButton
+              size="sm"
+              variant="secondary"
+              onClick={() => setMode("choice")}
+              style={{ position: "absolute", top: 12, left: 12 }}
+            >
+              ← {t("mobileScanner.back", "Back")}
+            </DSButton>
           </Box>
-
-          {/* Controls bar - fixed at bottom */}
-          <Box
-            style={{
-              backgroundColor: "var(--c-bg-raised)",
-              borderTop: "1px solid var(--c-border-subtle)",
-              padding: "0.75rem 1rem",
-            }}
-          >
-            <Stack gap="sm">
-              {/* Settings toggles */}
-              <Group justify="space-around" style={{ width: "100%" }}>
-                <Group gap="xs">
-                  <Switch
-                    size="sm"
-                    checked={autoEnhance}
-                    onChange={(e) => setAutoEnhance(e.currentTarget.checked)}
-                    disabled={!openCvReady}
-                  />
-                  <Text size="xs">
-                    {t("mobileScanner.edgeDetection", "Edge Detection")}
-                  </Text>
-                </Group>
-                {torchSupported && (
-                  <Group gap="xs">
-                    <Switch
-                      size="sm"
-                      checked={torchEnabled}
-                      onChange={toggleTorch}
-                    />
-                    <Text size="xs">
-                      {t("mobileScanner.flashlight", "Flash")}
-                    </Text>
-                  </Group>
-                )}
-              </Group>
-
-              {/* Capture button */}
-              <DSButton
-                fullWidth
-                size="md"
-                onClick={captureImage}
-                loading={isProcessing}
-                variant="primary"
-              >
-                {isProcessing
-                  ? t("mobileScanner.processing", "Processing...")
-                  : t("mobileScanner.capture", "Capture")}
-              </DSButton>
-            </Stack>
-          </Box>
+          <Stack p="md" gap="sm">
+            <Group justify="space-between">
+              <Switch
+                label={t("mobileScanner.edgeDetection", "Edge detection")}
+                checked={autoEnhance}
+                onChange={(event) =>
+                  setAutoEnhance(event.currentTarget.checked)
+                }
+                disabled={!openCvReady}
+              />
+              {torchSupported && (
+                <Switch
+                  label={t("mobileScanner.flashlight", "Flash")}
+                  checked={torchEnabled}
+                  onChange={() => void toggleTorch()}
+                />
+              )}
+            </Group>
+            <DSButton
+              fullWidth
+              size="md"
+              variant="primary"
+              onClick={() => void captureImage()}
+              loading={isProcessing}
+              disabled={!cameraReady}
+            >
+              {t("mobileScanner.capture", "Capture page")}
+            </DSButton>
+            {!openCvReady && (
+              <Text size="xs" c="dimmed" ta="center">
+                {loadingStatus}
+              </Text>
+            )}
+          </Stack>
         </Box>
       )}
 
-      {/* File upload interface */}
       {mode === "file" && !currentPreview && (
-        <Stack
-          gap="lg"
-          p="xl"
-          align="center"
-          style={{ maxWidth: "500px", margin: "0 auto" }}
-        >
+        <Stack gap="lg" p="xl" maw={520} mx="auto" w="100%">
           <DSButton
-            onClick={() => setMode("choice")}
             variant="tertiary"
             size="sm"
-            style={{ alignSelf: "flex-start" }}
+            onClick={() => setMode("choice")}
           >
             ← {t("mobileScanner.back", "Back")}
           </DSButton>
-          <Card
-            shadow="sm"
-            padding="xl"
-            radius="md"
-            withBorder
-            style={{ width: "100%" }}
-          >
-            <Stack align="center" gap="lg">
-              <UploadRoundedIcon
+          <Card withBorder p="xl">
+            <Stack align="center">
+              <AddPhotoAlternateRoundedIcon
                 style={{
                   fontSize: "4rem",
                   color: "var(--mantine-color-gray-5)",
                 }}
               />
-              <Text size="lg" fw={600} ta="center">
-                {t("mobileScanner.selectFilesPrompt", "Select files to upload")}
+              <Text fw={600} ta="center">
+                {t("mobileScanner.selectFilesPrompt", "Select document photos")}
               </Text>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 multiple
-                style={{ display: "none" }}
-                onChange={handleFileSelect}
+                hidden
+                onChange={(event) => void handleFileSelect(event)}
               />
               <DSButton
-                size="lg"
                 fullWidth
+                size="lg"
+                loading={isProcessing}
                 onClick={() => fileInputRef.current?.click()}
-                leftSection={<AddPhotoAlternateRoundedIcon />}
               >
-                {t("mobileScanner.selectImage", "Select Image")}
+                {t("mobileScanner.selectImages", "Select images")}
               </DSButton>
             </Stack>
           </Card>
         </Stack>
       )}
 
-      {/* Preview interface */}
       {currentPreview && (
-        <Box
-          style={{
-            position: "relative",
-            height: "calc(100dvh - 60px)",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {/* Preview image - fills available space */}
+        <Stack gap="sm" p="sm" maw={760} mx="auto" w="100%">
           <Box
             style={{
-              position: "relative",
-              flex: 1,
+              minHeight: 360,
+              maxHeight: "62dvh",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
               background: "#000",
               overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
             }}
           >
-            <img
-              src={currentPreview}
-              alt="Preview"
-              style={{
-                maxWidth: "100%",
-                maxHeight: "100%",
-                display: "block",
-                objectFit: "contain",
-              }}
-            />
+            {adjustingCorners ? (
+              <Box
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  maxWidth: "100%",
+                  maxHeight: "62dvh",
+                }}
+              >
+                <img
+                  src={currentPreview.sourceDataUrl}
+                  alt={t(
+                    "mobileScanner.cornerPreview",
+                    "Adjust document corners",
+                  )}
+                  style={{
+                    display: "block",
+                    maxWidth: "100%",
+                    maxHeight: "62dvh",
+                  }}
+                />
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  onPointerMove={updateCorner}
+                  onPointerUp={() => setActiveCorner(null)}
+                  onPointerCancel={() => setActiveCorner(null)}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    touchAction: "none",
+                  }}
+                >
+                  <polygon
+                    points={CORNER_KEYS.map(
+                      (key) =>
+                        `${currentPreview.corners[key].x * 100},${currentPreview.corners[key].y * 100}`,
+                    ).join(" ")}
+                    fill="rgba(34,197,94,0.16)"
+                    stroke="#22c55e"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {CORNER_KEYS.map((key) => (
+                    <circle
+                      key={key}
+                      cx={currentPreview.corners[key].x * 100}
+                      cy={currentPreview.corners[key].y * 100}
+                      r="3"
+                      fill="#fff"
+                      stroke="#16a34a"
+                      strokeWidth="1"
+                      vectorEffect="non-scaling-stroke"
+                      onPointerDown={(event) => {
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                        setActiveCorner(key);
+                      }}
+                    />
+                  ))}
+                </svg>
+              </Box>
+            ) : (
+              <img
+                src={currentPreview.dataUrl}
+                alt={t("mobileScanner.preview", "Scanned page preview")}
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "62dvh",
+                  objectFit: "contain",
+                }}
+              />
+            )}
           </Box>
 
-          {/* Controls bar - fixed at bottom */}
-          <Box
-            style={{
-              backgroundColor: "var(--c-bg-raised)",
-              borderTop: "1px solid var(--c-border-subtle)",
-              padding: "0.75rem 1rem",
-            }}
-          >
-            <Stack gap="sm">
+          {adjustingCorners ? (
+            <Group grow>
+              <DSButton
+                variant="secondary"
+                onClick={() => setAdjustingCorners(false)}
+              >
+                {t("mobileScanner.cancel", "Cancel")}
+              </DSButton>
+              <DSButton
+                variant="primary"
+                loading={isProcessing}
+                onClick={() => void applyCorners()}
+              >
+                {t("mobileScanner.applyPerspective", "Apply perspective")}
+              </DSButton>
+            </Group>
+          ) : (
+            <>
               <Group grow>
-                <DSButton variant="secondary" onClick={retake} size="md">
-                  {t("mobileScanner.retake", "Retake")}
+                <DSButton
+                  variant="secondary"
+                  onClick={() => setAdjustingCorners(true)}
+                >
+                  {t("mobileScanner.adjustCorners", "Adjust corners")}
                 </DSButton>
-                <DSButton variant="primary" onClick={addToBatch} size="md">
-                  {t("mobileScanner.addToBatch", "Add to Batch")}
+                <DSButton
+                  variant="secondary"
+                  onClick={() => void rotatePreview()}
+                >
+                  {t("mobileScanner.rotate", "Rotate")}
                 </DSButton>
               </Group>
-              <DSButton
+              <SegmentedControl
                 fullWidth
-                variant="primary"
-                size="md"
-                onClick={uploadImages}
-                loading={isUploading}
-              >
-                {t("mobileScanner.upload", "Upload")}
-              </DSButton>
-            </Stack>
-          </Box>
-        </Box>
+                value={currentPreview.filter}
+                onChange={(value) => void selectFilter(value)}
+                options={[
+                  {
+                    value: "color",
+                    label: t("mobileScanner.filterColor", "Color"),
+                  },
+                  {
+                    value: "clean",
+                    label: t("mobileScanner.filterClean", "Clean"),
+                  },
+                  {
+                    value: "grayscale",
+                    label: t("mobileScanner.filterGray", "Gray"),
+                  },
+                  {
+                    value: "blackWhite",
+                    label: t("mobileScanner.filterBw", "B&W"),
+                  },
+                ]}
+              />
+              <Group grow>
+                <DSButton
+                  variant="secondary"
+                  onClick={() => {
+                    setCurrentPreview(null);
+                    setAdjustingCorners(false);
+                  }}
+                >
+                  {t("mobileScanner.retake", "Discard")}
+                </DSButton>
+                <DSButton variant="primary" onClick={addToBatch}>
+                  {t("mobileScanner.addToBatch", "Add page")}
+                </DSButton>
+              </Group>
+            </>
+          )}
+        </Stack>
       )}
 
       {capturedImages.length > 0 && (
         <Box p="sm" style={{ borderTop: "1px solid var(--c-border-subtle)" }}>
           <Group justify="space-between" mb="sm">
-            <Text size="sm" fw={600}>
-              {t("mobileScanner.batchImages", "Batch")} ({capturedImages.length}
-              )
+            <Text fw={600}>
+              {t("mobileScanner.pages", "Pages")} ({capturedImages.length})
             </Text>
-            <Group gap="xs">
-              <DSButton
-                size="sm"
-                variant="secondary"
-                accent="danger"
-                onClick={clearBatch}
-              >
-                {t("mobileScanner.clearBatch", "Clear")}
-              </DSButton>
-              <DSButton
-                variant="primary"
-                size="sm"
-                onClick={uploadImages}
-                loading={isUploading}
-              >
-                {t("mobileScanner.uploadAll", "Upload All")}
-              </DSButton>
-            </Group>
+            <DSButton
+              size="sm"
+              variant="secondary"
+              accent="danger"
+              onClick={() => {
+                setCapturedImages([]);
+                setExportedPdf(null);
+              }}
+            >
+              {t("mobileScanner.clearBatch", "Clear")}
+            </DSButton>
           </Group>
           <Box
             style={{
-              display: "flex",
-              gap: "var(--space-sm)",
-              overflowX: "auto",
-              paddingBottom: "var(--space-sm)",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gap: 10,
             }}
           >
-            {capturedImages.map((img, idx) => (
-              <Box
-                key={idx}
-                style={{
-                  minWidth: "80px",
-                  height: "80px",
-                  borderRadius: "var(--radius-sm)",
-                  overflow: "hidden",
-                  border: "2px solid var(--c-border-subtle)",
-                }}
-              >
+            {capturedImages.map((scan, index) => (
+              <Card key={scan.id} withBorder p="xs">
+                <Text size="xs" fw={700} mb={4}>
+                  {t("mobileScanner.pageNumber", "Page {{number}}", {
+                    number: index + 1,
+                  })}
+                </Text>
                 <img
-                  src={img}
-                  alt={`Capture ${idx + 1}`}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  src={scan.dataUrl}
+                  alt={`Page ${index + 1}`}
+                  style={{ width: "100%", height: 100, objectFit: "cover" }}
                 />
-              </Box>
+                <Group gap={4} mt="xs" grow>
+                  <DSButton
+                    size="sm"
+                    variant="tertiary"
+                    disabled={index === 0}
+                    aria-label={`Move page ${index + 1} left`}
+                    onClick={() =>
+                      setCapturedImages((pages) => moveScan(pages, index, -1))
+                    }
+                  >
+                    ←
+                  </DSButton>
+                  <DSButton
+                    size="sm"
+                    variant="tertiary"
+                    disabled={index === capturedImages.length - 1}
+                    aria-label={`Move page ${index + 1} right`}
+                    onClick={() =>
+                      setCapturedImages((pages) => moveScan(pages, index, 1))
+                    }
+                  >
+                    →
+                  </DSButton>
+                </Group>
+                <Group gap={4} mt={4} grow>
+                  <DSButton
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => editScan(index)}
+                  >
+                    {t("mobileScanner.edit", "Edit")}
+                  </DSButton>
+                  <DSButton
+                    size="sm"
+                    variant="secondary"
+                    accent="danger"
+                    onClick={() =>
+                      setCapturedImages((pages) =>
+                        pages.filter((_, pageIndex) => pageIndex !== index),
+                      )
+                    }
+                  >
+                    {t("mobileScanner.remove", "Remove")}
+                  </DSButton>
+                </Group>
+              </Card>
             ))}
           </Box>
         </Box>
+      )}
+
+      {pageDataUrls.length > 0 && (
+        <Stack
+          p="sm"
+          gap="sm"
+          style={{ borderTop: "1px solid var(--c-border-subtle)" }}
+        >
+          <Text size="sm" c="dimmed">
+            {t(
+              "mobileScanner.pdfOrder",
+              "PDF pages follow the order above. The current preview, if any, is last.",
+            )}
+          </Text>
+          <Group grow>
+            <DSButton
+              variant="primary"
+              loading={isProcessing}
+              onClick={() => void exportPdf()}
+            >
+              {t("mobileScanner.exportPdf", "Export PDF")}
+            </DSButton>
+            {sessionState === "transfer" && (
+              <DSButton
+                variant="primary"
+                loading={isUploading}
+                disabled={!online}
+                onClick={() => void uploadPdf()}
+              >
+                {t("mobileScanner.transferPdf", "Send PDF to desktop")}
+              </DSButton>
+            )}
+          </Group>
+          {currentExportedPdf && (
+            <Alert
+              color="green"
+              title={t("mobileScanner.readyForNextStep", "PDF ready")}
+            >
+              <Stack gap="xs">
+                <Text size="sm">
+                  {t(
+                    "mobileScanner.handoffHint",
+                    "The PDF was downloaded locally. Open it in OCR or Sign for the next step.",
+                  )}
+                </Text>
+                <Group grow>
+                  <DSButton
+                    variant="secondary"
+                    onClick={() => void openNextTool("ocr")}
+                  >
+                    {t("home.ocr.title", "Open OCR")}
+                  </DSButton>
+                  <DSButton
+                    variant="secondary"
+                    onClick={() => void openNextTool("sign")}
+                  >
+                    {t("home.sign.title", "Open Sign")}
+                  </DSButton>
+                </Group>
+              </Stack>
+            </Alert>
+          )}
+        </Stack>
       )}
     </Box>
   );

@@ -1104,7 +1104,7 @@ fn update_text_widget_appearances(
     Ok(())
 }
 
-fn create_text_appearance(
+pub(crate) fn create_text_appearance(
     document: &mut Document,
     widget: &Dictionary,
     value: &str,
@@ -1355,7 +1355,7 @@ fn selected_option_indexes(options: &[(String, String)], selections: &[String]) 
         .collect()
 }
 
-fn pdf_text_string(value: &str) -> Object {
+pub(crate) fn pdf_text_string(value: &str) -> Object {
     let mut bytes = vec![0xFE, 0xFF];
     for code_unit in value.encode_utf16() {
         bytes.extend_from_slice(&code_unit.to_be_bytes());
