@@ -98,9 +98,44 @@ reconciliation resolves `<p:sldId r:id>` through
 directory of the declaring part and normalising `.`/`..`. External relationship
 targets are skipped, and a target that climbs above the package root is refused.
 A part the directory part never references is not counted, because the engine
-will not read it either. Only when the directory part or its `.rels` sibling is
-missing or unparseable does the scan fall back to the `xl/worksheets/` and
-`ppt/slides/` naming convention.
+will not read it either. `<sheet>` and `<sldId>` elements are matched at any
+depth, because the engines' readers are event-based and do not care how deeply
+an element is nested.
+
+**Discovery fails closed.** There is no naming-convention fallback, and it is
+worth saying why, because the obvious design is wrong: a convention scan of a
+package that keeps its parts elsewhere finds nothing, and "nothing" reads as "no
+rows" and "no slides" — which is the evasion the relationship walk exists to
+prevent, reinstated through the back door. Anything that stops the relationship
+walk from answering (a directory part or `.rels` that is absent, larger than the
+16 MiB read cap, or unparseable) therefore falls to the package's own
+content-type list, `[Content_Types].xml`, which types every part regardless of
+where it lives. If that cannot be read either, the answer is *undeterminable*
+and each surface takes the only safe direction available to it:
+
+- the **row count** widens to every XML part in the package. It can then
+  over-count, which at worst rejects a package the engine could not have read;
+  it can never under-count.
+- the **slide expectation** becomes unknown, and the response says so
+  (`X-Rustling-Conversion-Warning-Detail`: "the deck does not say which slides
+  it contains, so the page count could not be verified"). It does not claim a
+  loss there is no evidence for, and it does not claim a clean conversion
+  either. `X-Rustling-Conversion-Degraded` stays absent, so its meaning —
+  "content is known to be missing" — remains exact.
+
+A part that reaches the read cap is reported truncated and is never handed to
+the parser. Parsing half a document yields a syntax error indistinguishable from
+"this package declares nothing", which is precisely how an oversized `.rels` was
+used to make the row bound vanish. The cap matches the office sanitizer's own
+16 MiB per-XML-part limit, so a `.rels` that trips it cannot have arrived
+through the sanitizer in the first place.
+
+The undeterminable branch is a backstop, not a routine path. Measured on the
+real endpoint: a deck with an unparseable `.rels` is rejected by the office
+sanitizer (`400`) before any engine sees it, and a deck with an unparseable
+`presentation.xml` defeats the engine too, so the conversion fails with the
+engine's own message rather than reaching reconciliation. It exists because
+"this cannot happen" is not a safety argument.
 
 Failures caused by the document — an unparseable package, a timeout, a memory
 breach, a stack overflow that aborts the worker — are reported as `400` with a
@@ -138,7 +173,14 @@ Residual risks, stated plainly:
   can overcount a file that embeds that string elsewhere; it is a bound, not a
   statistic.
 - The hidden-slide check reads only the root element's start tag of each slide
-  part, looking for `show="0"`/`show="false"`. It does not parse the slide.
+  part; it does not parse the slide. Within that tag it mirrors the engine
+  exactly — the element's local name must be `sld`, the `show` attribute is
+  matched by qualified or local name, its value is XML-unescaped, and only the
+  literal `0` and `false` count as hidden. (Substring-matching the raw tag was
+  wrong in both directions: `show = "0"` with spaces is legal XML that the
+  engine hides, and a decoy `show="0"` inside an unrelated attribute value is
+  not a `show` attribute at all.) A start tag that cannot be read is treated as
+  visible, which can only over-count and never hide a dropped slide.
 - The memory bound is a 10 ms poll of the worker's resident set, not a hard
   allocation ceiling. It has been observed to fire reliably at the scales tested,
   but a single allocation large enough to complete between two polls can overshoot
@@ -218,8 +260,11 @@ degraded; it asserts a dropped slide *is* reported as degraded even when the
 slide parts are not named `slideN.xml`; and it asserts a document naming its
 embedded font with an absolute path cannot place a file there. Unit tests cover
 relationship-target resolution (relative, package-absolute, `..`-climbing,
-escaping, external), unreferenced parts, and the naming-convention fallback.
-HTTP tests assert unknown/unsafe input → `400` and real
+escaping, external), unreferenced parts, the content-type fallback, the
+fail-closed paths (oversized `.rels`, extra nesting level, wholly opaque
+package, undeterminable deck), and `show`-attribute reading (spaced, decoy in
+another attribute, numeric character reference, non-`sld` root). HTTP tests
+assert unknown/unsafe input → `400` and real
 text/HTML conversion when LibreOffice is present on the host (otherwise `501`).
 `runtime_config` tests assert `file-to-pdf` stays enabled with the `LibreOffice`
 group missing while `pdf-to-word` reports `DEPENDENCY`.

@@ -210,13 +210,26 @@ pub fn convert_with_worker(
 }
 
 /// Structural facts read from the input package before conversion.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 struct ArchiveFacts {
-    /// Total `<row>` elements across every worksheet the workbook references.
+    /// Total `<row>` elements across every worksheet the package declares.
     sheet_rows: u64,
-    /// Slides the deck expects to render: every referenced slide part that is
-    /// not marked `show="0"`.
-    slides: usize,
+    /// How many pages a deck is expected to produce.
+    slides: SlideExpectation,
+}
+
+/// How many pages a PPTX is expected to produce, or why that is unknown.
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
+enum SlideExpectation {
+    /// Not a PPTX; there is nothing to reconcile.
+    #[default]
+    NotApplicable,
+    /// A PPTX whose slide list could not be read. Guessing here would be worse
+    /// than admitting it: a guess that reads low turns a lossy conversion into
+    /// a clean one.
+    Undeterminable,
+    /// Slides the deck declares that are not marked hidden.
+    Visible(usize),
 }
 
 /// The OOXML relationships namespace, which carries the `r:id` attribute that
@@ -224,14 +237,37 @@ struct ArchiveFacts {
 const RELATIONSHIPS_NAMESPACE: &str =
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
-/// Read ceiling for the small directory parts (`workbook.xml`,
-/// `presentation.xml`) and their `.rels` siblings.
-const MAX_DIRECTORY_PART_BYTES: usize = 4 * 1024 * 1024;
+/// OPC content types identifying the parts this pass cares about. They are the
+/// package's own second opinion, independent of both filenames and `.rels`.
+const WORKSHEET_CONTENT_TYPE: &str =
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml";
+const SLIDE_CONTENT_TYPE: &str =
+    "application/vnd.openxmlformats-officedocument.presentationml.slide+xml";
+
+/// Read ceiling for the directory parts (`workbook.xml`, `presentation.xml`),
+/// `[Content_Types].xml`, and `.rels` siblings.
+///
+/// Matches the office sanitizer's own per-XML-part cap, so a `.rels` that
+/// reaches this size cannot have come through the sanitizer. A part that hits
+/// the cap is reported truncated and never parsed — feeding a parser half a
+/// document produces a syntax error, and treating that error as "this package
+/// declares nothing" is exactly the fail-open this cap was meant to prevent.
+const MAX_DIRECTORY_PART_BYTES: usize = 16 * 1024 * 1024;
 /// Read ceiling for the head of a slide part, which only has to contain the
 /// root element's start tag.
 const MAX_SLIDE_HEADER_BYTES: usize = 8 * 1024;
 
 type PackageArchive = zip::ZipArchive<std::io::BufReader<fs::File>>;
+
+/// The outcome of asking a package which parts it contains.
+#[derive(Debug, Clone, Eq, PartialEq)]
+enum PartDiscovery {
+    /// The package answered.
+    Resolved(Vec<String>),
+    /// The package could not be asked: a directory part was missing, too large
+    /// to read whole, or unparseable, and its content-type list was no better.
+    Undeterminable,
+}
 
 /// Reads the cheap structural facts the bounds and the reconciliation need.
 ///
@@ -242,9 +278,18 @@ type PackageArchive = zip::ZipArchive<std::io::BufReader<fs::File>>;
 /// relationship from the directory part — never by the conventional filename.
 /// OOXML paths come from `.rels` targets, so a standards-legal workbook can put
 /// its only worksheet at `xl/data/s1.xml` and a legal deck can name its slides
-/// `ppt/slides/d1.xml`. Matching on `xl/worksheets/` or `ppt/slides/slide`
-/// would make the row bound trivially evadable and would make the slide
-/// reconciliation report a lossy conversion as clean.
+/// `ppt/slides/d1.xml`. Matching on `xl/worksheets/` or `ppt/slides/` would make
+/// the row bound trivially evadable and would make the slide reconciliation
+/// report a lossy conversion as clean.
+///
+/// When the package will not say, this pass **fails closed**. It never falls
+/// back to a naming convention: a convention scan of a package that keeps its
+/// parts elsewhere returns nothing, and "nothing" reads as "no rows" and "no
+/// slides" — the same evasion, reinstated through the back door. Instead the
+/// row count widens to every XML part in the package (which can only
+/// over-count) and the slide expectation becomes
+/// [`SlideExpectation::Undeterminable`], which is reported to the caller rather
+/// than silently treated as agreement.
 ///
 /// Row counting stops as soon as `max_rows` is exceeded: the caller only needs
 /// to know that the workbook is over the line, and decompressing the rest of a
@@ -263,7 +308,18 @@ fn inspect_archive(
 
     match extension {
         "xlsx" => {
-            for name in worksheet_parts(&mut archive) {
+            let parts = match discover_parts(
+                &mut archive,
+                "xl/workbook.xml",
+                "sheet",
+                WORKSHEET_CONTENT_TYPE,
+            ) {
+                PartDiscovery::Resolved(parts) => parts,
+                // Over-counting can only reject a workbook the engine could not
+                // have read anyway; under-counting lets an attacker through.
+                PartDiscovery::Undeterminable => every_xml_part(&archive),
+            };
+            for name in parts {
                 let Ok(entry) = archive.by_name(&name) else {
                     continue;
                 };
@@ -277,56 +333,79 @@ fn inspect_archive(
             }
         }
         "pptx" => {
-            facts.slides = slide_parts(&mut archive)
-                .into_iter()
-                .filter(|name| !slide_is_hidden(&mut archive, name))
-                .count();
+            facts.slides = match discover_parts(
+                &mut archive,
+                "ppt/presentation.xml",
+                "sldId",
+                SLIDE_CONTENT_TYPE,
+            ) {
+                PartDiscovery::Resolved(parts) => SlideExpectation::Visible(
+                    parts
+                        .into_iter()
+                        .filter(|name| !slide_is_hidden(&mut archive, name))
+                        .count(),
+                ),
+                PartDiscovery::Undeterminable => SlideExpectation::Undeterminable,
+            };
         }
         _ => {}
     }
     Ok(facts)
 }
 
-/// Every worksheet part `xl/workbook.xml` references, in declaration order.
-fn worksheet_parts(archive: &mut PackageArchive) -> Vec<String> {
-    related_parts(archive, "xl/workbook.xml", "sheets", "sheet")
-        .filter(|parts| !parts.is_empty())
-        .unwrap_or_else(|| conventional_parts(archive, "xl/worksheets/"))
-}
-
-/// Every slide part `ppt/presentation.xml` references, in presentation order.
-fn slide_parts(archive: &mut PackageArchive) -> Vec<String> {
-    related_parts(archive, "ppt/presentation.xml", "sldIdLst", "sldId")
-        .filter(|parts| !parts.is_empty())
-        .unwrap_or_else(|| conventional_parts(archive, "ppt/slides/"))
-}
-
-/// Resolves the parts referenced by `<{item}>` elements inside `<{list}>` in
-/// the directory part at `part_name`.
+/// Asks the package which parts it declares, first through the relationships
+/// the engines follow, then through the OPC content-type list.
 ///
-/// Returns `None` when the directory part or its `.rels` sibling is missing or
-/// unparseable, so the caller can fall back to the naming convention rather
-/// than silently reporting an empty package.
+/// The content-type list is a genuine second source, not a guess: OPC requires
+/// every part to be typed, and the type does not depend on where the part
+/// lives. It rescues the case where a hostile `.rels` is too large to read
+/// whole while leaving an honest package's answer untouched.
+fn discover_parts(
+    archive: &mut PackageArchive,
+    directory_part: &str,
+    item_local_name: &str,
+    content_type: &str,
+) -> PartDiscovery {
+    if let Some(parts) = related_parts(archive, directory_part, item_local_name)
+        && !parts.is_empty()
+    {
+        return PartDiscovery::Resolved(parts);
+    }
+    if let Some(parts) = content_type_parts(archive, content_type)
+        && !parts.is_empty()
+    {
+        return PartDiscovery::Resolved(parts);
+    }
+    PartDiscovery::Undeterminable
+}
+
+/// Resolves the parts referenced by `<{item}>` elements in the directory part
+/// at `part_name`.
+///
+/// Returns `None` when the directory part or its `.rels` sibling is missing,
+/// truncated at the read cap, or unparseable — never an empty list, which the
+/// caller would be entitled to read as "this package declares no parts".
+///
+/// Items are matched at any depth. The engines' readers are event-based and do
+/// not care how deeply a `<sheet>` is nested, so requiring it to sit directly
+/// inside `<sheets>` let one extra wrapper element hide every worksheet from
+/// this pass while the engine still read them all.
 fn related_parts(
     archive: &mut PackageArchive,
     part_name: &str,
-    list_local_name: &str,
     item_local_name: &str,
 ) -> Option<Vec<String>> {
     let base_directory = part_name.rsplit_once('/').map_or("", |(head, _)| head);
     let rels_name = relationship_part_name(part_name);
 
-    let part = read_text_part(archive, part_name, MAX_DIRECTORY_PART_BYTES)?;
-    let rels = read_text_part(archive, &rels_name, MAX_DIRECTORY_PART_BYTES)?;
+    let part = read_text_part(archive, part_name, MAX_DIRECTORY_PART_BYTES).complete()?;
+    let rels = read_text_part(archive, &rels_name, MAX_DIRECTORY_PART_BYTES).complete()?;
     let targets = relationship_targets(&rels)?;
 
     let document = roxmltree::Document::parse(&part).ok()?;
     let mut parts = Vec::new();
     for node in document.descendants() {
-        if !node.is_element()
-            || node.tag_name().name() != item_local_name
-            || node.parent_element().map(|parent| parent.tag_name().name()) != Some(list_local_name)
-        {
+        if !node.is_element() || node.tag_name().name() != item_local_name {
             continue;
         }
         let Some(relationship) = node.attribute((RELATIONSHIPS_NAMESPACE, "id")) else {
@@ -336,6 +415,40 @@ fn related_parts(
             continue;
         };
         let Some(resolved) = resolve_relationship_target(base_directory, target) else {
+            continue;
+        };
+        if !parts.contains(&resolved) {
+            parts.push(resolved);
+        }
+    }
+    Some(parts)
+}
+
+/// Every part `[Content_Types].xml` gives the requested content type.
+///
+/// Only `<Override>` entries are read. A `<Default>` entry types a whole
+/// extension, and no OOXML package types `.xml` wholesale as a worksheet or a
+/// slide, so reading defaults would add nothing but a way to mistype every part
+/// in the package at once.
+fn content_type_parts(archive: &mut PackageArchive, content_type: &str) -> Option<Vec<String>> {
+    let types =
+        read_text_part(archive, "[Content_Types].xml", MAX_DIRECTORY_PART_BYTES).complete()?;
+    let document = roxmltree::Document::parse(&types).ok()?;
+    let mut parts = Vec::new();
+    for node in document.descendants() {
+        if !node.is_element() || node.tag_name().name() != "Override" {
+            continue;
+        }
+        if !node
+            .attribute("ContentType")
+            .is_some_and(|declared| declared.trim().eq_ignore_ascii_case(content_type))
+        {
+            continue;
+        }
+        let Some(name) = node.attribute("PartName") else {
+            continue;
+        };
+        let Some(resolved) = resolve_relationship_target("", name) else {
             continue;
         };
         if !parts.contains(&resolved) {
@@ -398,39 +511,159 @@ fn resolve_relationship_target(base_directory: &str, target: &str) -> Option<Str
     (!segments.is_empty()).then(|| segments.join("/"))
 }
 
-/// Every XML part directly under `prefix`, used only when the directory part
-/// cannot be read.
-fn conventional_parts(archive: &PackageArchive, prefix: &str) -> Vec<String> {
+/// Every XML part in the package, used when the package will not say which
+/// parts matter. Over-counting rows is the only direction that is safe.
+fn every_xml_part(archive: &PackageArchive) -> Vec<String> {
     archive
         .file_names()
-        .filter(|name| {
-            let lowered = name.to_ascii_lowercase();
-            lowered.starts_with(prefix) && is_xml_part(&lowered)
-        })
+        .filter(|name| is_xml_part(&name.to_ascii_lowercase()))
         .map(ToOwned::to_owned)
         .collect()
 }
 
 /// Whether a slide is marked hidden.
 ///
-/// `office2pdf` skips `show="0"` slides, as `PowerPoint`'s own PDF export does, so
-/// a hidden slide producing no page is a faithful conversion, not a loss.
+/// `office2pdf` skips `show="0"` slides, as `PowerPoint`'s own PDF export does,
+/// so a hidden slide producing no page is a faithful conversion, not a loss.
 /// Counting it would make the degraded signal fire on ordinary decks, and a
 /// signal that cries wolf is worse than no signal.
 ///
+/// This mirrors `office2pdf`'s own `is_hidden_slide` exactly: the first element
+/// in the part must be `sld`, its `show` attribute is matched by qualified or
+/// local name, and only the literal values `0` and `false` count as hidden.
+/// Substring-matching the raw tag instead was wrong in both directions —
+/// `show = "0"` (legal XML, engine hides it) went unnoticed, and a decoy
+/// `other='x show="0" y'` (engine sees no `show`) silently removed a slide from
+/// the expected count and took the loss signal with it.
+///
 /// Only the root element's start tag is read: it carries the attribute, and a
 /// slide part is otherwise unbounded input that this pass has no reason to
-/// parse.
+/// parse. A tag that cannot be read is treated as visible, which can only
+/// over-count and never hide a dropped slide.
 fn slide_is_hidden(archive: &mut PackageArchive, name: &str) -> bool {
-    let Some(head) = read_text_part(archive, name, MAX_SLIDE_HEADER_BYTES) else {
+    let Some(head) = read_text_part(archive, name, MAX_SLIDE_HEADER_BYTES).head() else {
         return false;
     };
     let Some(tag) = root_element_start_tag(&head) else {
         return false;
     };
-    ["show=\"0\"", "show='0'", "show=\"false\"", "show='false'"]
-        .iter()
-        .any(|marker| tag.contains(marker))
+    if element_local_name(tag) != Some("sld") {
+        return false;
+    }
+    attribute_value(tag, "show").is_some_and(|value| value == "0" || value == "false")
+}
+
+/// The local name of the element a start tag opens.
+fn element_local_name(tag: &str) -> Option<&str> {
+    let name = tag
+        .trim_start_matches('<')
+        .split(|character: char| character.is_whitespace() || character == '>' || character == '/')
+        .next()
+        .filter(|name| !name.is_empty())?;
+    Some(name.rsplit(':').next().unwrap_or(name))
+}
+
+/// Reads an attribute out of an element start tag, by qualified or local name.
+///
+/// A hand-written scan rather than an XML parse: the tag is a fragment, and the
+/// namespace prefixes it uses may be declared on the tag itself, so handing it
+/// to a namespace-aware parser would reject exactly the documents the engine
+/// accepts. Values are XML-unescaped, which is what the engine's reader does
+/// before comparing them.
+fn attribute_value(tag: &str, wanted: &str) -> Option<String> {
+    // Drop the leading `<name` and the trailing `>` / `/>`.
+    let mut rest = tag.trim_start_matches('<');
+    let name_end = rest.find(|character: char| {
+        character.is_whitespace() || character == '>' || character == '/'
+    })?;
+    rest = &rest[name_end..];
+    rest = rest.trim_end_matches('>').trim_end_matches('/');
+
+    let bytes = rest.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        let key_start = index;
+        while index < bytes.len() && !bytes[index].is_ascii_whitespace() && bytes[index] != b'=' {
+            index += 1;
+        }
+        let key = rest.get(key_start..index)?;
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        if index >= bytes.len() || bytes[index] != b'=' {
+            // A name with no value: not well-formed, and nothing more can be
+            // trusted in this tag.
+            return None;
+        }
+        index += 1;
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        let quote = *bytes.get(index)?;
+        if quote != b'"' && quote != b'\'' {
+            return None;
+        }
+        index += 1;
+        let value_start = index;
+        while index < bytes.len() && bytes[index] != quote {
+            index += 1;
+        }
+        let value = rest.get(value_start..index)?;
+        index += 1;
+        if key == wanted || key.rsplit(':').next() == Some(wanted) {
+            return Some(unescape_xml(value));
+        }
+    }
+    None
+}
+
+/// Expands the five predefined XML entities and numeric character references.
+///
+/// The engine compares the *unescaped* value, so `show="&#48;"` hides a slide
+/// there and has to hide one here too.
+fn unescape_xml(value: &str) -> String {
+    if !value.contains('&') {
+        return value.to_owned();
+    }
+    let mut out = String::with_capacity(value.len());
+    let mut rest = value;
+    while let Some(start) = rest.find('&') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start..];
+        let Some(end) = after.find(';') else {
+            out.push_str(after);
+            return out;
+        };
+        let entity = &after[1..end];
+        match entity {
+            "amp" => out.push('&'),
+            "lt" => out.push('<'),
+            "gt" => out.push('>'),
+            "quot" => out.push('"'),
+            "apos" => out.push('\''),
+            _ => {
+                let decoded = entity
+                    .strip_prefix('#')
+                    .and_then(|number| match number.strip_prefix(['x', 'X']) {
+                        Some(hexadecimal) => u32::from_str_radix(hexadecimal, 16).ok(),
+                        None => number.parse::<u32>().ok(),
+                    })
+                    .and_then(char::from_u32);
+                match decoded {
+                    Some(character) => out.push(character),
+                    // An entity this expander does not know is left verbatim,
+                    // so it cannot accidentally become `0`.
+                    None => out.push_str(&after[..=end]),
+                }
+            }
+        }
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// Returns the text of the first element start tag, skipping the XML
@@ -455,15 +688,62 @@ fn root_element_start_tag(xml: &str) -> Option<&str> {
     }
 }
 
-/// Reads at most `limit` bytes of an archive entry as lossy UTF-8.
-fn read_text_part(archive: &mut PackageArchive, name: &str, limit: usize) -> Option<String> {
-    let entry = archive.by_name(name).ok()?;
+/// The result of a bounded read of an archive entry.
+#[derive(Debug, Clone, Eq, PartialEq)]
+enum PartRead {
+    /// The entry is not in the package.
+    Missing,
+    /// The entry is larger than the read cap; this is only its head.
+    Truncated(String),
+    /// The whole entry.
+    Complete(String),
+}
+
+impl PartRead {
+    /// The content, only when the whole part was read.
+    ///
+    /// A truncated document is not a document: parsing one yields a syntax
+    /// error indistinguishable from "this package declares nothing", which is
+    /// precisely the fail-open an oversized `.rels` was used to trigger.
+    fn complete(self) -> Option<String> {
+        match self {
+            Self::Complete(text) => Some(text),
+            Self::Missing | Self::Truncated(_) => None,
+        }
+    }
+
+    /// Whatever was read, for the one caller that deliberately reads a head:
+    /// the slide part whose root start tag is all that is wanted.
+    fn head(self) -> Option<String> {
+        match self {
+            Self::Complete(text) | Self::Truncated(text) => Some(text),
+            Self::Missing => None,
+        }
+    }
+}
+
+/// Reads an archive entry as lossy UTF-8, reporting whether the whole part
+/// fitted inside `limit`.
+///
+/// One byte past the limit is requested so that "exactly at the cap" and "over
+/// the cap" are distinguishable.
+fn read_text_part(archive: &mut PackageArchive, name: &str, limit: usize) -> PartRead {
+    let Ok(entry) = archive.by_name(name) else {
+        return PartRead::Missing;
+    };
     let mut bytes = Vec::new();
-    entry
-        .take(u64::try_from(limit).unwrap_or(u64::MAX))
-        .read_to_end(&mut bytes)
-        .ok()
-        .map(|_| String::from_utf8_lossy(&bytes).into_owned())
+    let ceiling = u64::try_from(limit).unwrap_or(u64::MAX).saturating_add(1);
+    if entry.take(ceiling).read_to_end(&mut bytes).is_err() {
+        return PartRead::Missing;
+    }
+    let truncated = bytes.len() > limit;
+    bytes.truncate(limit);
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    if truncated {
+        PartRead::Truncated(text)
+    } else {
+        PartRead::Complete(text)
+    }
 }
 
 /// Returns whether an archive entry name is an XML part.
@@ -518,21 +798,34 @@ fn count_rows(mut entry: impl Read, budget: u64) -> u64 {
 /// makes the page count a usable independent check. `facts.slides` already
 /// excludes hidden slides, which the engine skips on purpose.
 fn reconcile_slides(facts: &ArchiveFacts, pdf_path: &Path, conversion: &mut BuiltinConversion) {
-    if facts.slides == 0 {
-        return;
-    }
+    let expected = match facts.slides {
+        // Nothing to reconcile: not a deck, or a deck whose every slide is
+        // hidden.
+        SlideExpectation::NotApplicable | SlideExpectation::Visible(0) => return,
+        // Saying nothing here would be indistinguishable from "checked, and
+        // nothing was lost". Say instead that nothing was checked, without
+        // claiming a loss there is no evidence for.
+        SlideExpectation::Undeterminable => {
+            conversion.warnings.push(
+                "PPTX: the deck does not say which slides it contains, so the page count could \
+                 not be verified and missing slides would not be detected"
+                    .to_owned(),
+            );
+            return;
+        }
+        SlideExpectation::Visible(expected) => expected,
+    };
     let Ok(document) = lopdf::Document::load(pdf_path) else {
         return;
     };
     let pages = document.get_pages().len();
-    if pages >= facts.slides {
+    if pages >= expected {
         return;
     }
-    let missing = facts.slides - pages;
+    let missing = expected - pages;
     conversion.dropped_content = true;
     conversion.warnings.push(format!(
-        "PPTX: {missing} of {} visible slides produced no page and were dropped",
-        facts.slides
+        "PPTX: {missing} of {expected} visible slides produced no page and were dropped"
     ));
 }
 
@@ -747,9 +1040,11 @@ fn limit(name: &str, default: u64) -> u64 {
 mod tests {
     use super::{
         ArchiveFacts, BuiltinConversion, BuiltinEngineError, DEFAULT_MAX_SHEET_ROWS,
-        RELATIONSHIPS_NAMESPACE, convert, count_rows, inspect_archive, limit, reconcile_slides,
-        relationship_part_name, relationship_targets, resolve_relationship_target,
-        root_element_start_tag, supports_extension, truncate,
+        RELATIONSHIPS_NAMESPACE, SLIDE_CONTENT_TYPE, SlideExpectation, WORKSHEET_CONTENT_TYPE,
+        attribute_value, convert, count_rows, element_local_name, inspect_archive, limit,
+        reconcile_slides, relationship_part_name, relationship_targets,
+        resolve_relationship_target, root_element_start_tag, supports_extension, truncate,
+        unescape_xml,
     };
     use std::fmt::Write as _;
     use std::io::Write as _;
@@ -914,33 +1209,172 @@ mod tests {
         Ok(())
     }
 
-    /// Without a readable directory part there is nothing to resolve, so the
-    /// naming convention is the only thing left. It must still work.
+    fn content_types(parts: &[(&str, &str)]) -> Vec<u8> {
+        let body = parts.iter().fold(String::new(), |mut xml, (name, kind)| {
+            let _ = write!(xml, r#"<Override PartName="{name}" ContentType="{kind}"/>"#);
+            xml
+        });
+        format!(
+            r#"<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">{body}</Types>"#
+        )
+        .into_bytes()
+    }
+
+    /// When the workbook cannot be read, the content-type list is asked
+    /// instead. It types parts wherever they live, so it survives the tricks
+    /// that defeat both the relationship walk and a filename scan.
     #[test]
-    fn falls_back_to_the_naming_convention_without_relationships()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn falls_back_to_the_content_type_list() -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let book = directory.path().join("book.xlsx");
         write_package(
             &book,
             &[
-                ("xl/workbook.xml", b"<workbook/>"),
-                ("xl/worksheets/sheet1.xml", SHEET),
-                ("xl/worksheets/sheet2.xml", SHEET),
+                ("xl/workbook.xml", b"<not-well-formed"),
+                (
+                    "[Content_Types].xml",
+                    &content_types(&[("/xl/data/s1.xml", WORKSHEET_CONTENT_TYPE)]),
+                ),
+                ("xl/data/s1.xml", SHEET),
             ],
         )?;
-        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 6);
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 3);
 
         let deck = directory.path().join("deck.pptx");
         write_package(
             &deck,
             &[
-                ("ppt/presentation.xml", b"<p/>"),
-                ("ppt/slides/slide1.xml", b"<p:sld/>"),
-                ("ppt/slides/slide2.xml", b"<p:sld/>"),
+                ("ppt/presentation.xml", b"<not-well-formed"),
+                (
+                    "[Content_Types].xml",
+                    &content_types(&[
+                        ("/ppt/decks/a.xml", SLIDE_CONTENT_TYPE),
+                        ("/ppt/decks/b.xml", SLIDE_CONTENT_TYPE),
+                    ]),
+                ),
+                ("ppt/decks/a.xml", b"<p:sld/>"),
+                ("ppt/decks/b.xml", b"<p:sld/>"),
             ],
         )?;
-        assert_eq!(inspect_archive(&deck, "pptx", u64::MAX)?.slides, 2);
+        assert_eq!(
+            inspect_archive(&deck, "pptx", u64::MAX)?.slides,
+            SlideExpectation::Visible(2)
+        );
+        Ok(())
+    }
+
+    /// The fail-open that reinstated the original evasion: a `.rels` too large
+    /// to read whole used to parse as nothing, and the filename scan then found
+    /// no worksheet because the real one lives elsewhere. The rows must still
+    /// be counted.
+    #[test]
+    fn an_oversized_rels_part_cannot_hide_the_worksheet() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempdir()?;
+        let book = directory.path().join("padded.xlsx");
+        let mut padded = Vec::from(
+            format!(
+                r#"<Relationships xmlns="{RELS_NS}"><Relationship Id="rId1" Target="data/s1.xml"/>"#
+            )
+            .as_bytes(),
+        );
+        padded.extend(std::iter::repeat_n(b' ', 17 * 1024 * 1024));
+        padded.extend_from_slice(b"</Relationships>");
+        write_package(
+            &book,
+            &[
+                ("xl/workbook.xml", &workbook(&["Sheet1"])),
+                ("xl/_rels/workbook.xml.rels", &padded),
+                (
+                    "[Content_Types].xml",
+                    &content_types(&[("/xl/data/s1.xml", WORKSHEET_CONTENT_TYPE)]),
+                ),
+                ("xl/data/s1.xml", SHEET),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 3);
+        Ok(())
+    }
+
+    /// The other fail-open door: one extra wrapper element defeated the
+    /// parent-element check while the engine's event-based reader still saw
+    /// every `<sheet>`.
+    #[test]
+    fn an_extra_nesting_level_cannot_hide_the_worksheet() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempdir()?;
+        let book = directory.path().join("nested.xlsx");
+        let nested = format!(
+            r#"<workbook xmlns:r="{RELATIONSHIPS_NAMESPACE}"><sheets><wrap><sheet name="S" sheetId="1" r:id="rId1"/></wrap></sheets></workbook>"#
+        );
+        write_package(
+            &book,
+            &[
+                ("xl/workbook.xml", nested.as_bytes()),
+                (
+                    "xl/_rels/workbook.xml.rels",
+                    &rels(&[("rId1", "data/s1.xml")]),
+                ),
+                ("xl/data/s1.xml", SHEET),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 3);
+        Ok(())
+    }
+
+    /// With neither a readable workbook nor a readable content-type list there
+    /// is no honest answer, so the count widens to the whole package. A scan
+    /// that reads low here is the evasion; over-counting only rejects a package
+    /// the engine could not have read either.
+    #[test]
+    fn an_undeterminable_package_counts_every_xml_part() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let book = directory.path().join("opaque.xlsx");
+        write_package(
+            &book,
+            &[
+                ("xl/workbook.xml", b"<not-well-formed"),
+                ("[Content_Types].xml", b"<not-well-formed"),
+                ("xl/somewhere/else.xml", SHEET),
+            ],
+        )?;
+        assert_eq!(inspect_archive(&book, "xlsx", u64::MAX)?.sheet_rows, 3);
+        Ok(())
+    }
+
+    /// A deck whose slide list cannot be read is reported as unverified, never
+    /// as verified-and-clean.
+    #[test]
+    fn an_undeterminable_deck_reports_that_it_was_not_verified()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let deck = directory.path().join("opaque.pptx");
+        write_package(
+            &deck,
+            &[
+                ("ppt/presentation.xml", b"<not-well-formed"),
+                ("[Content_Types].xml", b"<not-well-formed"),
+                ("ppt/slides/slide1.xml", b"<p:sld/>"),
+            ],
+        )?;
+        let facts = inspect_archive(&deck, "pptx", u64::MAX)?;
+        assert_eq!(facts.slides, SlideExpectation::Undeterminable);
+
+        let mut conversion = BuiltinConversion::default();
+        reconcile_slides(
+            &facts,
+            std::path::Path::new("/nonexistent.pdf"),
+            &mut conversion,
+        );
+        assert!(!conversion.dropped_content, "no evidence of loss to claim");
+        assert!(
+            conversion
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("could not be verified")),
+            "the caller must be told the check did not run: {:?}",
+            conversion.warnings
+        );
         Ok(())
     }
 
@@ -963,7 +1397,10 @@ mod tests {
                 ("ppt/slides/d2.xml", b"<p:sld xmlns:p=\"pml\"/>"),
             ],
         )?;
-        assert_eq!(inspect_archive(&deck, "pptx", u64::MAX)?.slides, 2);
+        assert_eq!(
+            inspect_archive(&deck, "pptx", u64::MAX)?.slides,
+            SlideExpectation::Visible(2)
+        );
         Ok(())
     }
 
@@ -998,8 +1435,121 @@ mod tests {
                 ),
             ],
         )?;
-        assert_eq!(inspect_archive(&deck, "pptx", u64::MAX)?.slides, 1);
+        assert_eq!(
+            inspect_archive(&deck, "pptx", u64::MAX)?.slides,
+            SlideExpectation::Visible(1)
+        );
         Ok(())
+    }
+
+    /// The two ways substring matching was wrong. `show = "0"` is legal XML and
+    /// the engine's real parser hides the slide; a decoy `show="0"` inside an
+    /// unrelated attribute value is not a `show` attribute at all, and treating
+    /// it as one silently removed a slide from the expected count.
+    #[test]
+    fn reads_the_show_attribute_rather_than_matching_the_raw_tag()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let deck = directory.path().join("attrs.pptx");
+        write_package(
+            &deck,
+            &[
+                ("ppt/presentation.xml", &presentation(4)),
+                (
+                    "ppt/_rels/presentation.xml.rels",
+                    &rels(&[
+                        ("rId1", "slides/spaced.xml"),
+                        ("rId2", "slides/decoy.xml"),
+                        ("rId3", "slides/entity.xml"),
+                        ("rId4", "slides/plain.xml"),
+                    ]),
+                ),
+                // Legal XML, and the engine hides it. Must not be counted.
+                (
+                    "ppt/slides/spaced.xml",
+                    b"<p:sld xmlns:p=\"pml\" show = \"0\" />",
+                ),
+                // No `show` attribute at all: the engine renders it, so it must
+                // be counted or a real drop goes unreported.
+                (
+                    "ppt/slides/decoy.xml",
+                    b"<p:sld xmlns:p=\"pml\" descr='x show=\"0\" y'/>",
+                ),
+                // The engine compares the unescaped value, so this is hidden.
+                (
+                    "ppt/slides/entity.xml",
+                    b"<p:sld xmlns:p=\"pml\" show=\"&#48;\"/>",
+                ),
+                ("ppt/slides/plain.xml", b"<p:sld xmlns:p=\"pml\"/>"),
+            ],
+        )?;
+        assert_eq!(
+            inspect_archive(&deck, "pptx", u64::MAX)?.slides,
+            SlideExpectation::Visible(2),
+            "only the decoy and the plain slide are visible"
+        );
+        Ok(())
+    }
+
+    /// A root element that is not `sld` is never hidden, matching the engine,
+    /// which gives up on the first element if it is not a slide.
+    #[test]
+    fn only_a_slide_root_element_can_be_hidden() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let deck = directory.path().join("notslide.pptx");
+        write_package(
+            &deck,
+            &[
+                ("ppt/presentation.xml", &presentation(1)),
+                (
+                    "ppt/_rels/presentation.xml.rels",
+                    &rels(&[("rId1", "slides/odd.xml")]),
+                ),
+                (
+                    "ppt/slides/odd.xml",
+                    b"<p:notASlide xmlns:p=\"pml\" show=\"0\"/>",
+                ),
+            ],
+        )?;
+        assert_eq!(
+            inspect_archive(&deck, "pptx", u64::MAX)?.slides,
+            SlideExpectation::Visible(1)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn reads_attributes_out_of_an_element_start_tag() {
+        let tag = r#"<p:sld xmlns:p="pml" show = '0' descr="a show=&quot;1&quot; b"/>"#;
+        assert_eq!(element_local_name(tag), Some("sld"));
+        assert_eq!(attribute_value(tag, "show").as_deref(), Some("0"));
+        assert_eq!(
+            attribute_value(tag, "descr").as_deref(),
+            Some(r#"a show="1" b"#)
+        );
+        assert_eq!(attribute_value(tag, "absent"), None);
+        // Matched by local name, exactly as the engine's reader does.
+        assert_eq!(
+            attribute_value(r#"<sld p:show="false">"#, "show").as_deref(),
+            Some("false")
+        );
+        assert_eq!(element_local_name("<sld>"), Some("sld"));
+        assert_eq!(element_local_name("<a:sld/>"), Some("sld"));
+    }
+
+    #[test]
+    fn unescapes_the_values_the_engine_unescapes() {
+        assert_eq!(unescape_xml("plain"), "plain");
+        assert_eq!(unescape_xml("&#48;"), "0");
+        assert_eq!(unescape_xml("&#x30;"), "0");
+        assert_eq!(
+            unescape_xml("a&amp;b&lt;c&gt;d&quot;e&apos;f"),
+            "a&b<c>d\"e'f"
+        );
+        // An entity this expander does not know must not silently become
+        // something else.
+        assert_eq!(unescape_xml("&nbsp;"), "&nbsp;");
+        assert_eq!(unescape_xml("&unterminated"), "&unterminated");
     }
 
     #[test]
@@ -1093,7 +1643,7 @@ mod tests {
         let broken = directory.path().join("broken.docx");
         std::fs::write(&broken, b"not a zip at all")?;
         let facts = inspect_archive(&broken, "docx", u64::MAX)?;
-        assert_eq!(facts.slides, 0);
+        assert_eq!(facts.slides, SlideExpectation::NotApplicable);
         assert_eq!(facts.sheet_rows, 0);
         Ok(())
     }
@@ -1102,7 +1652,7 @@ mod tests {
     fn a_missing_pdf_is_not_reconciled_into_a_false_warning() {
         let facts = ArchiveFacts {
             sheet_rows: 0,
-            slides: 3,
+            slides: SlideExpectation::Visible(3),
         };
         let mut conversion = BuiltinConversion::default();
         reconcile_slides(

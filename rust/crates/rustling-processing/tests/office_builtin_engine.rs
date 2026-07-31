@@ -192,6 +192,180 @@ fn a_relocated_worksheet_part_cannot_evade_the_row_bound() -> Result<(), Box<dyn
     Ok(())
 }
 
+/// Builds a workbook whose 30 000-row worksheet lives at `xl/data/s1.xml`,
+/// with a caller-supplied `xl/workbook.xml` and `xl/_rels/workbook.xml.rels`.
+fn relocated_workbook(
+    path: &Path,
+    workbook: &[u8],
+    workbook_rels: &[u8],
+) -> Result<(), Box<dyn std::error::Error>> {
+    const SLIDE_RELS_NS: &str = "http://schemas.openxmlformats.org/package/2006/relationships";
+
+    let mut sheet = Vec::from(*b"<worksheet><sheetData>");
+    for _ in 0..30_000 {
+        sheet.extend_from_slice(b"<row/>");
+    }
+    sheet.extend_from_slice(b"</sheetData></worksheet>");
+
+    let mut archive = ZipWriter::new(fs::File::create(path)?);
+    let options = SimpleFileOptions::default();
+    archive.start_file("[Content_Types].xml", options)?;
+    archive.write_all(
+        br#"<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/data/s1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>"#,
+    )?;
+    archive.start_file("_rels/.rels", options)?;
+    archive.write_all(
+        format!(
+            r#"<?xml version="1.0"?><Relationships xmlns="{SLIDE_RELS_NS}"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"#
+        )
+        .as_bytes(),
+    )?;
+    archive.start_file("xl/workbook.xml", options)?;
+    archive.write_all(workbook)?;
+    archive.start_file("xl/_rels/workbook.xml.rels", options)?;
+    archive.write_all(workbook_rels)?;
+    archive.start_file("xl/data/s1.xml", options)?;
+    archive.write_all(&sheet)?;
+    archive.finish()?;
+    Ok(())
+}
+
+fn plain_workbook() -> Vec<u8> {
+    br#"<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>"#.to_vec()
+}
+
+/// A `.rels` too large for the read cap used to parse as nothing, and the
+/// filename fallback then found no worksheet because the real one lives at
+/// `xl/data/s1.xml` — the original row-bound evasion, reinstated. Sized as the
+/// tester's reproduction: over the old 4 MiB cap, under the office sanitizer's
+/// 16 MiB cap, so it reaches the engine through the real HTTP path.
+#[test]
+fn an_oversized_rels_part_cannot_evade_the_row_bound() -> Result<(), Box<dyn std::error::Error>> {
+    let workspace = TempDir::new()?;
+    let input = workspace.path().join("padded.xlsx");
+
+    let mut padded = Vec::from(
+        br#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="data/s1.xml"/>"#
+            .as_slice(),
+    );
+    padded.extend(std::iter::repeat_n(b' ', 5 * 1024 * 1024));
+    padded.extend_from_slice(b"</Relationships>");
+    relocated_workbook(&input, &plain_workbook(), &padded)?;
+
+    let result = convert_with_worker(
+        &input,
+        "xlsx",
+        &workspace.path().join("padded.pdf"),
+        Some(worker()),
+    );
+    assert!(
+        matches!(result, Err(BuiltinEngineError::TooManyRows { .. })),
+        "an oversized rels must not make the bound vanish, got {result:?}"
+    );
+    Ok(())
+}
+
+/// One extra wrapper element defeated the parent-element check while the
+/// engine's event-based reader still saw every `<sheet>` and read all 30 000
+/// rows.
+#[test]
+fn an_extra_nesting_level_cannot_evade_the_row_bound() -> Result<(), Box<dyn std::error::Error>> {
+    let workspace = TempDir::new()?;
+    let input = workspace.path().join("nested.xlsx");
+    let nested = br#"<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><wrap><sheet name="Sheet1" sheetId="1" r:id="rId1"/></wrap></sheets></workbook>"#;
+    let plain_rels = br#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="data/s1.xml"/></Relationships>"#;
+    relocated_workbook(&input, nested, plain_rels)?;
+
+    let result = convert_with_worker(
+        &input,
+        "xlsx",
+        &workspace.path().join("nested.pdf"),
+        Some(worker()),
+    );
+    assert!(
+        matches!(result, Err(BuiltinEngineError::TooManyRows { .. })),
+        "an extra nesting level must not make the bound vanish, got {result:?}"
+    );
+    Ok(())
+}
+
+/// `show = "0"` with spaces is legal XML and the engine hides the slide, so
+/// substring-matching `show="0"` reported a faithful conversion as degraded.
+#[test]
+fn a_spaced_show_attribute_is_still_a_hidden_slide() -> Result<(), Box<dyn std::error::Error>> {
+    let Some(source) = corpus("sample.pptx") else {
+        return Ok(());
+    };
+    let workspace = TempDir::new()?;
+    let input = workspace.path().join("spaced.pptx");
+    rewrite_package(&source, &input, &|name, bytes| {
+        if name != "ppt/slides/slide2.xml" {
+            return Some((name.to_owned(), bytes.to_vec()));
+        }
+        let patched = String::from_utf8_lossy(bytes).replacen("<p:sld ", "<p:sld show = \"0\" ", 1);
+        Some((name.to_owned(), patched.into_bytes()))
+    })?;
+
+    let output = workspace.path().join("spaced.pdf");
+    let conversion = convert_with_worker(&input, "pptx", &output, Some(worker()))?;
+    assert_eq!(page_count(&output)?, 1, "the engine hides the slide");
+    assert!(
+        !conversion.dropped_content,
+        "a hidden slide is not lost content: {:?}",
+        conversion.warnings
+    );
+    Ok(())
+}
+
+/// The reverse: `show="0"` inside an unrelated attribute value is not a `show`
+/// attribute. The engine renders the slide, so counting it as hidden removed it
+/// from the expected count and took the loss signal with it.
+#[test]
+fn a_decoy_show_in_another_attribute_does_not_silence_the_loss_signal()
+-> Result<(), Box<dyn std::error::Error>> {
+    let Some(source) = corpus("sample.pptx") else {
+        return Ok(());
+    };
+    let workspace = TempDir::new()?;
+    let input = workspace.path().join("decoy.pptx");
+    rewrite_package(&source, &input, &|name, bytes| {
+        if name != "ppt/slides/slide2.xml" {
+            return Some((name.to_owned(), bytes.to_vec()));
+        }
+        // Keep a well-formed root start tag carrying the decoy, then make the
+        // rest unparseable so the engine really does drop the slide.
+        let text = String::from_utf8_lossy(bytes);
+        let tag_end = text
+            .find("<p:sld ")
+            .and_then(|start| text[start..].find('>').map(|offset| start + offset + 1))?;
+        let mut patched = text[..tag_end].replacen("<p:sld ", "<p:sld descr='x show=\"0\" y' ", 1);
+        patched.push_str("<<<not xml at all >>> &&&");
+        Some((name.to_owned(), patched.into_bytes()))
+    })?;
+
+    let output = workspace.path().join("decoy.pdf");
+    let conversion = convert_with_worker(&input, "pptx", &output, Some(worker()))?;
+    assert_eq!(
+        page_count(&output)?,
+        1,
+        "the broken slide should be dropped"
+    );
+    assert!(
+        conversion.dropped_content,
+        "a decoy attribute must not hide a real drop: {:?}",
+        conversion.warnings
+    );
+    assert!(
+        conversion
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("produced no page")),
+        "expected an explicit drop warning: {:?}",
+        conversion.warnings
+    );
+    Ok(())
+}
+
 /// A hidden slide producing no page is a faithful conversion — `office2pdf`
 /// skips `show="0"` slides on purpose, as `PowerPoint`'s own PDF export does.
 /// Reporting that as lost content would fire the degraded signal on ordinary
