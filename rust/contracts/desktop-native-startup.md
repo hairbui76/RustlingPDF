@@ -45,6 +45,11 @@ launcher sets:
 Unpackaged development runs leave an unavailable bundle path unset so normal
 runtime discovery can continue.
 
+Tools the bundle does not stage — LibreOffice above all — are found by the
+backend's own discovery, which on Windows falls back to the installers'
+well-known directories when `PATH` misses (see `runtime-config.md`). The
+overrides above still win outright and are never subject to that fallback.
+
 ## Configuration initialization
 
 On a fresh Tauri workspace, the processing service writes the bundled

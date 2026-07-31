@@ -71,6 +71,39 @@ Version or capability checks are applied where required:
   decompression codec;
 - every process probe has a five-second timeout.
 
+Resolution order per tool group is fixed:
+
+1. An explicit `RUSTLING_PROCESSING_*_COMMAND` override (empty value = unset)
+   resolves on its own and **never** falls through to any other source, so a
+   stale or broken override leaves the group missing rather than silently
+   resolving an unrelated installation. This is what the desktop sidecar uses
+   to point the service at its staged qpdf and Tesseract.
+2. Otherwise the platform command names are looked up on `PATH`, with `PATHEXT`
+   expansion on Windows.
+3. **Windows only**, and only when `PATH` yielded nothing: the tool's
+   well-known installation directories are probed. Several Windows installers
+   deliberately leave `PATH` alone, so a correctly installed tool was otherwise
+   invisible — the cause of Office→PDF conversion reporting `DEPENDENCY` on
+   Windows desktop installs despite a working LibreOffice.
+
+The probed directories are environment-rooted templates (`%ProgramFiles%`, the
+separate 32-bit `%ProgramFiles(x86)%`, and per-user `%LOCALAPPDATA%`), never
+hardcoded drive letters; a template naming a variable the host does not set is
+skipped. The covered groups are LibreOffice (`LibreOffice\program`), Tesseract
+(`Tesseract-OCR`, also under `%LOCALAPPDATA%\Programs` for the installer's
+per-user mode), Calibre (`Calibre2`), RAR creation (`WinRAR`), RAR extraction
+(`WinRAR` then `7-Zip`), and qpdf (`qpdf\bin` — the documented install
+directory, though qpdf's plain zips and version-suffixed directories stay
+uncovered, so this is a bonus rather than a guarantee). OCRmyPDF, WeasyPrint,
+`pdftohtml`, FFmpeg and veraPDF have no directory list: they arrive as pip
+wheels, plain zip archives unpacked wherever the operator chooses, or an
+installer with a user-chosen target — none has a citable default.
+
+Each probe is a single existence check, so no process is spawned for a path
+that does not exist and startup cost stays bounded by the number of templates.
+Non-Windows hosts skip step 3 entirely and neither read the environment nor
+touch the filesystem for it, so resolution there is unchanged.
+
 Conditional enhancements do not disable an otherwise functional route. For
 example, native PDF-to-HTML remains available without `pdftohtml`, and
 verification remains available without veraPDF for documents that do not
