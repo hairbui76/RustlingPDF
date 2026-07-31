@@ -80,8 +80,11 @@ Resolution order per tool group is fixed:
    to point the service at its staged qpdf and Tesseract.
 2. Otherwise the platform command names are looked up on `PATH`, with `PATHEXT`
    expansion on Windows.
-3. **Windows only**, and only when `PATH` yielded nothing: the tool's
-   well-known installation directories are probed. Several Windows installers
+3. **Windows only**, and only when `PATH` yielded nothing *capable*: the tool's
+   well-known installation directories are probed. "Capable" matters for the RAR
+   extraction group — a `7z` on `PATH` built without the RAR codec fails the
+   capability probe, and the directory fallback then still runs and can find a
+   genuine `UnRAR.exe`. Several Windows installers
    deliberately leave `PATH` alone, so a correctly installed tool was otherwise
    invisible — the cause of Office→PDF conversion reporting `DEPENDENCY` on
    Windows desktop installs despite a working LibreOffice.
@@ -98,6 +101,23 @@ uncovered, so this is a bonus rather than a guarantee). OCRmyPDF, WeasyPrint,
 `pdftohtml`, FFmpeg and veraPDF have no directory list: they arrive as pip
 wheels, plain zip archives unpacked wherever the operator chooses, or an
 installer with a user-chosen target — none has a citable default.
+
+**Security note on the per-user root.** `%ProgramFiles%` and `%ProgramFiles(x86)%`
+are administrator-writable by default, but `%LOCALAPPDATA%\Programs` is writable
+by the profile's own user, and a binary discovered there is executed when a
+request reaches the feature that needs it. This root is kept because it is the
+UB-Mannheim installer's per-user mode — a real installation shape — and because
+it does not cross a privilege boundary in any shipped configuration: the desktop
+bundle sets `RUSTLING_PROCESSING_TESSERACT_COMMAND` at its staged binary, which
+short-circuits probing entirely, and a service account's `%LOCALAPPDATA%` lives
+under `C:\Windows` where only administrators can write. The one configuration
+where it does matter is a backend an operator launches **elevated** from their
+own desktop session: `%LOCALAPPDATA%` is then still the medium-integrity user
+profile, so a planted `tesseract.exe` would run at high integrity. Do not run the
+service elevated. Note also that no directory-probed root is executed during
+*startup* discovery: only the `unrar` and `qpdf` groups run their binary at
+startup (a capability probe and a version probe), and both probe administrator-
+writable roots only.
 
 Each probe is a single existence check, so no process is spawned for a path
 that does not exist and startup cost stays bounded by the number of templates.

@@ -293,18 +293,6 @@ fn resolve_dependency_with(
         .find(|command| capable(command))
 }
 
-fn configured_or_platform_candidates(
-    environment: &str,
-    unix_candidates: &[&str],
-    windows_candidates: &[&str],
-) -> Vec<OsString> {
-    configured_or_platform_candidates_with(
-        crate::environment::var_os(environment),
-        unix_candidates,
-        windows_candidates,
-    )
-}
-
 /// Thin platform-selection layer: the well-known installation directories are a
 /// Windows-only concept, so on every other host this is an unconditional no-op
 /// that touches neither the environment nor the filesystem.
@@ -1146,6 +1134,43 @@ mod tests {
             ),
             Some(installed_default)
         );
+    }
+
+    /// A whitespace-only override is still an override. Only the *empty* string
+    /// is treated as unset (that is the long-standing `filter(!is_empty)` rule),
+    /// so `" "` resolves on its own and must not reach the directory fallback —
+    /// otherwise a typo in the environment would silently pick up an unrelated
+    /// installation instead of reporting the group as missing.
+    #[test]
+    fn a_whitespace_override_is_explicit_and_never_falls_through() {
+        let spec = spec_for("LibreOffice");
+        let resolved = resolve_dependency_with(
+            spec,
+            Some(OsString::from("   ")),
+            |_| None,
+            |_| panic!("an explicit override must never reach directory probing"),
+            |_| true,
+        );
+        assert_eq!(resolved, None);
+    }
+
+    /// The fallback runs when `PATH` yields nothing *capable*, not merely when it
+    /// yields nothing. A `7z` on `PATH` built without the RAR codec resolves as a
+    /// path but fails the capability filter; the directory probe must then still
+    /// run so a real `UnRAR.exe` can be found.
+    #[test]
+    fn a_path_hit_that_fails_the_capability_check_still_falls_back() {
+        let spec = spec_for("unrar");
+        let codec_less_seven_zip = PathBuf::from("/usr/bin/7z");
+        let unrar = PathBuf::from(r"C:\Program Files\WinRAR\UnRAR.exe");
+        let resolved = resolve_dependency_with(
+            spec,
+            None,
+            |_| Some(codec_less_seven_zip.clone()),
+            |_| vec![unrar.clone()],
+            |command| command != codec_less_seven_zip,
+        );
+        assert_eq!(resolved, Some(unrar));
     }
 
     #[test]
