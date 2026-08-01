@@ -121,4 +121,30 @@ describe("no remote asset defaults", () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  /**
+   * `bundle.createUpdaterArtifacts` is what makes Tauri emit the `.sig` files
+   * we publish so a manual download can be verified, and the bundler refuses to
+   * build unless `plugins.updater` exists to read a `pubkey` from — removing the
+   * block entirely failed every desktop leg with "plugins > updater doesn't
+   * exist". So the block stays, but reduced to the public key alone.
+   *
+   * It must never regrow `endpoints`. Nothing can poll today (the plugin is not
+   * a dependency and the `updater:*` capabilities are gone), but an endpoint
+   * sitting in config is an invitation to re-add the plugin and quietly restore
+   * the phone-home this release exists to remove.
+   */
+  it("keeps the updater config to a signing pubkey, with nothing to poll", () => {
+    const config = JSON.parse(
+      readFileSync(join(SRC, "..", "src-tauri", "tauri.conf.json"), "utf8"),
+    ) as {
+      plugins?: Record<string, Record<string, unknown>>;
+      bundle?: Record<string, unknown>;
+    };
+    const updater = config.plugins?.updater;
+
+    expect(updater, "plugins.updater is required by the bundler").toBeDefined();
+    expect(Object.keys(updater ?? {})).toEqual(["pubkey"]);
+    expect(config.bundle?.createUpdaterArtifacts).toBe(true);
+  });
 });

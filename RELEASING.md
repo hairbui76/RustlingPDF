@@ -136,10 +136,24 @@ in `tauri-cli` that runs minisign over the bundles (`sign_updaters` in
 `bundle.rs`). Turning it off produces **no `.sig` files at all**, which is why
 `desktop-build.yml`'s collect step fails the build when signatures stop
 appearing. It is a build-output flag with no runtime effect: the updater
-plugin, its endpoints, its capabilities and its in-app pubkey are all gone, so
-nothing in a packaged app can poll or install anything. The
-`task desktop:build:dev:*` targets override it to `false` on purpose — a local
-dev build has no signing key.
+plugin, its endpoints and its capabilities are all gone, so nothing in a
+packaged app can poll or install anything. The `task desktop:build:dev:*`
+targets override it to `false` on purpose — a local dev build has no signing
+key.
+
+**`plugins.updater` must stay, reduced to `pubkey` alone.** Deleting the block
+outright looks correct and is not: the bundler reads the signing key from it and
+aborts with `failed to get updater configuration: plugins > updater doesn't
+exist`, which failed all three desktop legs. The block is now the public key and
+nothing else — no `endpoints`, so there is no address to poll even if someone
+later re-added the plugin. A public key is public by definition; the same key is
+printed below for manual verification. `noRemoteAssetDefaults.test.ts` fails if
+any key other than `pubkey` reappears there.
+
+This is only caught by an actual bundle build. `Desktop CI (Tauri)` runs check,
+clippy and tests and stayed green throughout; the failure surfaced solely in the
+`Desktop release dry-run`, which builds real bundles. Run that workflow before
+tagging, not just CI.
 
 The application does not check for updates. It contacts no update server and
 publishes no update manifest, so nothing about an install — not even its
