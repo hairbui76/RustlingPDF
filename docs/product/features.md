@@ -19,8 +19,16 @@ self-contained: you upload a file, the service processes it in an ephemeral
 scratch directory, and the result is swept away on a TTL. Nothing about your
 documents is retained between requests, and there is nothing to configure to
 get this — it is the only mode the service has. The `/api/v1/info/*` request
-counters are in-memory only and reset on restart; they are not analytics sent
-anywhere.
+counters are in-memory only, are served solely to whoever asks those routes,
+and reset on restart.
+
+## No analytics, no tracking
+
+RustlingPDF ships no analytics, no telemetry, and no tracking pixel. There is
+no vendor SDK in the web app, no opt-in prompt, no consent banner, and no
+setting to turn any of it on — the code to do it does not exist, so there is
+nothing to trust us about. The web app talks to your own RustlingPDF backend
+and to nothing else.
 
 This also means: no roles, no per-user permissions, and no audit log. If you
 need to restrict who can reach the service, put it behind your own reverse

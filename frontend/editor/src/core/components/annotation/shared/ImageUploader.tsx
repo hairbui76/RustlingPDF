@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { FileInput, Text, Stack, Checkbox } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { removeWhiteBackground } from "@app/utils/imageTransparency";
 import { alert } from "@app/components/toast";
 
@@ -262,17 +261,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   return (
     <Stack gap="sm">
-      <PrivateContent>
-        <FileInput
-          label={label}
-          placeholder={
-            placeholder || t("sign.image.placeholder", "Select image file")
-          }
-          accept="image/*,.svg"
-          onChange={handleImageChange}
-          disabled={disabled || isProcessing}
-        />
-      </PrivateContent>
+      <FileInput
+        label={label}
+        placeholder={
+          placeholder || t("sign.image.placeholder", "Select image file")
+        }
+        accept="image/*,.svg"
+        onChange={handleImageChange}
+        disabled={disabled || isProcessing}
+      />
       {allowBackgroundRemoval && (
         <Checkbox
           label={t(

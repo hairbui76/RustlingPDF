@@ -1,7 +1,6 @@
 import WelcomeSlide from "@app/components/onboarding/slides/WelcomeSlide";
 import DesktopInstallSlide from "@app/components/onboarding/slides/DesktopInstallSlide";
 import TourOverviewSlide from "@app/components/onboarding/slides/TourOverviewSlide";
-import AnalyticsChoiceSlide from "@app/components/onboarding/slides/AnalyticsChoiceSlide";
 import type {
   OSOption,
   ButtonDefinition as ButtonDefinitionBase,
@@ -11,10 +10,9 @@ import type {
 
 export type { OSOption };
 
-export type SlideId =
-  "welcome" | "desktop-install" | "tour-overview" | "analytics-choice";
+export type SlideId = "welcome" | "desktop-install" | "tour-overview";
 
-export type HeroType = "rocket" | "dual-icon" | "analytics";
+export type HeroType = "rocket" | "dual-icon";
 
 export type ButtonAction =
   | "next"
@@ -23,9 +21,7 @@ export type ButtonAction =
   | "complete-close"
   | "download-selected"
   | "launch-tools"
-  | "skip-tour"
-  | "enable-analytics"
-  | "disable-analytics";
+  | "skip-tour";
 
 export type FlowState = object;
 
@@ -34,8 +30,6 @@ export interface SlideFactoryParams {
   osUrl: string;
   osOptions?: OSOption[];
   onDownloadUrlChange?: (url: string) => void;
-  analyticsError?: string | null;
-  analyticsLoading?: boolean;
 }
 
 export type HeroDefinition = HeroDefinitionBase<HeroType>;
@@ -122,30 +116,6 @@ export const SLIDE_DEFINITIONS: Record<SlideId, SlideDefinition> = {
         variant: "primary",
         group: "right",
         action: "launch-tools",
-      },
-    ],
-  },
-  "analytics-choice": {
-    id: "analytics-choice",
-    createSlide: ({ analyticsError }) =>
-      AnalyticsChoiceSlide({ analyticsError }),
-    hero: { type: "analytics" },
-    buttons: [
-      {
-        key: "analytics-disable",
-        type: "button",
-        label: "no",
-        variant: "secondary",
-        group: "left",
-        action: "disable-analytics",
-      },
-      {
-        key: "analytics-enable",
-        type: "button",
-        label: "yes",
-        variant: "primary",
-        group: "right",
-        action: "enable-analytics",
       },
     ],
   },

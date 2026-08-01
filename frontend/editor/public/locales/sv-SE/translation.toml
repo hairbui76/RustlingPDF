@@ -533,12 +533,6 @@ hint = "Du har osparade ändringar"
 message = "Du har osparade ändringar. Vill du förkasta dem?"
 title = "Osparade ändringar"
 
-[analytics]
-learnMore = "Läs mer"
-paragraph1 = "RustlingPDF har inaktiverad analys för att hjälpa oss förbättra produkten. Vi spårar ingen personlig information eller filinnehåll."
-paragraph2 = "Var god aktivera analyser för att hjälpa RustlingPDF att växa och tillåta oss att förstå våra användare bättre."
-title = "Vill du göra RustlingPDF bättre?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Surfplatta/telefon (med bilder)"
 targetDevice = "Målenhet"
 targetDeviceDesc = "Välj en utmatningsprofil optimerad för läsarenheten"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Okej"
-acceptNecessaryBtn = "Nej tack"
-showPreferencesBtn = "Hantera inställningar"
-title = "Hur vi använder cookies"
-
-[cookieBanner.popUp.description]
-1 = "Vi använder cookies och annan teknik för att få RustlingPDF att fungera bättre för dig—det hjälper oss att förbättra våra verktyg och fortsätta bygga funktioner du kommer att gilla."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Acceptera alla"
-acceptNecessaryBtn = "Avvisa alla"
-closeIconLabel = "Stäng modal"
-savePreferencesBtn = "Spara inställningar"
-serviceCounterLabel = "Tjänst|Tjänster"
-subtitle = "Användning av cookies"
-title = "Center för samtyckesinställningar"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Dessa cookies hjälper oss att förstå hur våra verktyg används, så att vi kan fokusera på att bygga de funktioner vår community värdesätter mest. Var lugn—RustlingPDF kan inte och kommer aldrig att spåra innehållet i de dokument du arbetar med."
-title = "Analys"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF använder cookies och liknande teknik för att förbättra din upplevelse och förstå hur våra verktyg används. Detta hjälper oss att förbättra prestanda, utveckla de funktioner du bryr dig om och ge löpande stöd till våra användare."
-2 = "RustlingPDF kan inte—och kommer aldrig att—spåra eller få åtkomst till innehållet i de dokument du använder."
-3 = "Din integritet och ditt förtroende är kärnan i det vi gör."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Absolut nödvändiga cookies"
-2 = "Alltid aktiverade"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Auto-beskär tomrum"
 noFileSelected = "Välj en PDF-fil för att börja beskära"
@@ -2960,7 +2915,6 @@ cookie = "Cockiropfer"
 iAgreeToThe = "Jag godkänner alla"
 impressum = "Riksdagens utskott för teknikfrihet"
 privacy = "Dataprotektionspolicy"
-showCookieBanner = "Cookie-inställningar"
 terms = "Villkor och betingelser"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Inkludera Ctrl, Alt eller en annan modifierare i ditt kortkommando."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

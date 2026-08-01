@@ -1,11 +1,9 @@
 import React from "react";
 import { Anchor, Group, Paper, Stack, Text } from "@mantine/core";
-import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
 import { useFooterInfo } from "@app/hooks/useFooterInfo";
-import { useCookieConsent } from "@app/hooks/useCookieConsent";
 
 interface LegalLink {
   key: string;
@@ -18,8 +16,6 @@ const LegalSection: React.FC = () => {
   const { config } = useAppConfig();
   const { footerInfo } = useFooterInfo();
 
-  const analyticsEnabled =
-    config?.enableAnalytics ?? footerInfo?.analyticsEnabled ?? false;
   const privacyPolicy = config?.privacyPolicy ?? footerInfo?.privacyPolicy;
   const termsAndConditions =
     config?.termsAndConditions ?? footerInfo?.termsAndConditions;
@@ -27,10 +23,6 @@ const LegalSection: React.FC = () => {
     config?.accessibilityStatement ?? footerInfo?.accessibilityStatement;
   const cookiePolicy = config?.cookiePolicy ?? footerInfo?.cookiePolicy;
   const impressum = config?.impressum ?? footerInfo?.impressum;
-
-  const { showCookiePreferences } = useCookieConsent({
-    analyticsEnabled: analyticsEnabled === true,
-  });
 
   const isValidLink = (link?: string) => link && link.trim().length > 0;
 
@@ -115,32 +107,6 @@ const LegalSection: React.FC = () => {
           <Stack gap="sm">{legalLinks.map(renderLink)}</Stack>
         </Stack>
       </Paper>
-
-      {analyticsEnabled === true && (
-        <Paper withBorder p="md" radius="md">
-          <Group justify="space-between" align="center">
-            <div>
-              <Text fw={600} size="sm">
-                {t("legal.showCookieBanner", "Cookie Preferences")}
-              </Text>
-              <Text size="xs" c="dimmed" mt={4}>
-                {t(
-                  "settings.legal.cookiePreferences.description",
-                  "Review or change your cookie consent choices.",
-                )}
-              </Text>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              id="cookieBanner"
-              onClick={showCookiePreferences}
-            >
-              {t("settings.legal.cookiePreferences.manage", "Manage")}
-            </Button>
-          </Group>
-        </Paper>
-      )}
     </Stack>
   );
 };

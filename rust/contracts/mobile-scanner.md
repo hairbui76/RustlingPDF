@@ -14,8 +14,8 @@ input, a selected photo whose longest edge exceeds 3,000 pixels is resampled to
 runs on a separate 240-pixel working image while perspective extraction uses
 the bounded full-resolution copy. PDF construction happens in the browser.
 Captured image data remains in page memory and is not written to Local Storage,
-IndexedDB, an analytics event, or a backend unless the user explicitly chooses
-desktop transfer.
+IndexedDB, or a backend unless the user explicitly chooses desktop transfer.
+The product has no analytics, so there is no third party for it to reach.
 
 After a local PDF export the UI offers OCR and Sign as next tools. The PDF is
 downloaded first and the user selects it in the chosen tool; the scanner does

@@ -533,12 +533,6 @@ hint = "Є незбережені зміни"
 message = "У вас є незбережені зміни. Відхилити їх?"
 title = "Незбережені зміни"
 
-[analytics]
-learnMore = "Дізнатися більше"
-paragraph1 = "RustlingPDF увімкнув аналітику, щоб допомогти нам покращити продукт. Ми не відстежуємо жодну особисту інформацію чи вміст файлів."
-paragraph2 = "Увімкніть аналітику, щоб допомогти RustlingPDF розвиватися та дозволити нам краще розуміти наших користувачів."
-title = "Бажаєте покращити RustlingPDF?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Планшет/Телефон (із зображеннями)"
 targetDevice = "Цільовий пристрій"
 targetDeviceDesc = "Виберіть профіль виводу, оптимізований для пристрою читання"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Гаразд"
-acceptNecessaryBtn = "Ні, дякую"
-showPreferencesBtn = "Керувати налаштуваннями"
-title = "Як ми використовуємо файли cookie"
-
-[cookieBanner.popUp.description]
-1 = "Ми використовуємо cookie та інші технології, щоб RustlingPDF працював для вас краще — допомагаючи нам покращувати інструменти та розвивати функції, які вам сподобаються."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Прийняти все"
-acceptNecessaryBtn = "Відхилити все"
-closeIconLabel = "Закрити модальне вікно"
-savePreferencesBtn = "Зберегти налаштування"
-serviceCounterLabel = "Служба|Служби"
-subtitle = "Використання cookie"
-title = "Центр налаштувань згоди"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Ці файли cookie допомагають нам зрозуміти, як використовуються наші інструменти, щоб ми могли зосередитися на створенні функцій, які найбільше цінує наша спільнота. Будьте певні — RustlingPDF не може і ніколи не буде відстежувати вміст документів, з якими ви працюєте."
-title = "Аналітика"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF використовує cookie та подібні технології, щоб покращити ваш досвід і зрозуміти, як використовуються наші інструменти. Це допомагає нам підвищувати продуктивність, розробляти потрібні вам функції та надавати постійну підтримку користувачам."
-2 = "RustlingPDF не може — і ніколи не буде — відстежувати чи отримувати доступ до вмісту документів, з якими ви працюєте."
-3 = "Ваша приватність і довіра — в основі нашої діяльності."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Строго необхідні файли cookie"
-2 = "Завжди увімкнено"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Автообрізання білих полів"
 noFileSelected = "Виберіть PDF, щоб почати обрізання"
@@ -2960,7 +2915,6 @@ cookie = "Політика використання файлів cookie"
 iAgreeToThe = "Я погоджуюся з усіма"
 impressum = "Вихідні дані"
 privacy = "Політика конфіденційності"
-showCookieBanner = "Параметри cookie"
 terms = "Правила та умови"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Додайте Ctrl, Alt або інший модифікатор д�
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

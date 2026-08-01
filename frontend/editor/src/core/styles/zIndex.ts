@@ -3,8 +3,6 @@
 
 export const Z_INDEX_FULLSCREEN_SURFACE = 1000;
 export const Z_INDEX_OVER_FULLSCREEN_SURFACE = 1300;
-export const Z_ANALYTICS_MODAL = 1301;
-// Config/Settings modal - should appear above analytics modal when navigating from onboarding
 export const Z_INDEX_CONFIG_MODAL = 1400;
 export const Z_INDEX_FILE_MANAGER_MODAL = 1200;
 
@@ -21,11 +19,6 @@ export const Z_INDEX_DROP_INDICATOR = 1001;
 export const Z_INDEX_DRAG_BADGE = 1001;
 // Modal that appears on top of config modal (e.g., restart confirmation, update modal)
 export const Z_INDEX_OVER_CONFIG_MODAL = 2000;
-
-// Cookie-consent banner — above normal app chrome and below modals; reaches CSS via --z-index-cookie-consent
-export const Z_INDEX_COOKIE_CONSENT_BANNER = 1060;
-// Cookie-consent preferences dialog — above the config modal it opens from; reaches CSS via --z-index-cookie-preferences
-export const Z_INDEX_COOKIE_PREFERENCES_MODAL = 1450;
 
 // Anonymous agreement modal — must appear above all application UI.
 export const Z_INDEX_AGREEMENT_MODAL = 9000;

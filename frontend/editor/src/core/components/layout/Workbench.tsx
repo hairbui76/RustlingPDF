@@ -9,8 +9,6 @@ import {
 } from "@app/contexts/NavigationContext";
 import { isBaseWorkbench } from "@app/types/workbench";
 import { VIEWER_SUPPORTED_EXTENSIONS } from "@app/utils/fileUtils";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
-import { useCookieConsent } from "@app/hooks/useCookieConsent";
 import styles from "@app/components/layout/Workbench.module.css";
 
 import WorkbenchBar from "@app/components/shared/WorkbenchBar";
@@ -32,12 +30,6 @@ const FileManagerView = lazy(
 
 // No props needed - component uses contexts directly
 export default function Workbench() {
-  const { config } = useAppConfig();
-
-  // The consent banner used to be initialised by the footer; the legal links
-  // now live in Settings → Legal, so the workbench owns the banner lifecycle.
-  useCookieConsent({ analyticsEnabled: config?.enableAnalytics === true });
-
   // Use context-based hooks to eliminate all prop drilling
   const { selectors } = useFileState();
   const { workbench: currentView } = useNavigationState();

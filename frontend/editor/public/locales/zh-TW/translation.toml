@@ -533,12 +533,6 @@ hint = "您有未儲存的變更"
 message = "您有未儲存的變更。要捨棄嗎？"
 title = "未儲存的變更"
 
-[analytics]
-learnMore = "了解更多"
-paragraph1 = "RustlingPDF 有選擇性的分析功能，可幫助我們改進產品。我們不會追蹤任何個人資訊或檔案內容。"
-paragraph2 = "請考慮啟用分析功能，以協助 RustlingPDF 成長並讓我們更了解使用者需求。"
-title = "您想協助改善 RustlingPDF 嗎？"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "平板／手機（含圖片）"
 targetDevice = "目標裝置"
 targetDeviceDesc = "選擇為閱讀裝置最佳化的輸出設定檔"
 
-[cookieBanner.popUp]
-acceptAllBtn = "接受"
-acceptNecessaryBtn = "不，謝謝"
-showPreferencesBtn = "管理偏好設定"
-title = "我們如何使用 Cookies"
-
-[cookieBanner.popUp.description]
-1 = "我們使用 Cookies 和其他技術來讓 RustlingPDF 變得更好——幫助我們改善工具並繼續創造您會喜愛的新功能"
-2 = "如果您仍不想，點選「不，謝謝」只會開啟必要的 Cookies 好讓網站功能保持運作"
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "全部接受"
-acceptNecessaryBtn = "全部拒絕"
-closeIconLabel = "關閉視窗"
-savePreferencesBtn = "儲存設定"
-serviceCounterLabel = "服務 | 服務"
-subtitle = "Cookies 的用途"
-title = "喜好設定中心"
-
-[cookieBanner.preferencesModal.analytics]
-description = "這些 Cookies 幫助我們分析您如何使用我們的工具，好讓我們能專注在打造社群最重視的功能。儘管放心—— RustlingPDF 不會且永不追蹤您的文件"
-title = "分析 Cookies"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF 使用 Cookies 與其他相似技術去改善您的體驗和分析您如何使用我們的工具。這有助於我們改善效能、開發您注目的功能，和提供使用者協助。"
-2 = "RustlingPDF 不能——且永遠不會——追蹤或存取您的文件。"
-3 = "您的隱私和信任是我們的核心理念。"
-
-[cookieBanner.preferencesModal.necessary]
-description = "這些 Cookies 對網站正常運作至關重要。它們讓核心功能，像是隱私設定、登入、填入表格能夠運作——這也是為什麼它們不能被關掉。"
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "必要的 Cookies"
-2 = "永遠開啟"
-
-[cookieBanner.services]
-posthog = "PostHog 分析"
-scarf = "Scarf 像素"
-
 [crop]
 autoCrop = "自動裁切空白"
 noFileSelected = "選取一個 PDF 檔以開始裁切"
@@ -2960,7 +2915,6 @@ cookie = "Cookie 政策"
 iAgreeToThe = "我同意所有"
 impressum = "版本說明"
 privacy = "隱私權政策"
-showCookieBanner = "Cookie 偏好設定"
 terms = "使用條款"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "請在快速鍵中包含 Ctrl、Alt 或其他修飾鍵。"
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

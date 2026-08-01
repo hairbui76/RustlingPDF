@@ -533,12 +533,6 @@ hint = "Έχετε μη αποθηκευμένες αλλαγές"
 message = "Έχετε μη αποθηκευμένες αλλαγές. Θέλετε να τις απορρίψετε;"
 title = "Μη αποθηκευμένες αλλαγές"
 
-[analytics]
-learnMore = "Μάθετε περισσότερα"
-paragraph1 = "Το RustlingPDF διαθέτει προαιρετικά analytics για να μας βοηθήσει να βελτιώσουμε το προϊόν. Δεν παρακολουθούμε προσωπικές πληροφορίες ή περιεχόμενο αρχείων."
-paragraph2 = "Παρακαλούμε σκεφτείτε να ενεργοποιήσετε τα analytics για να βοηθήσετε το RustlingPDF να αναπτυχθεί και να μας επιτρέψετε να κατανοήσουμε καλύτερα τους χρήστες μας."
-title = "Θέλετε να κάνετε το RustlingPDF καλύτερο;"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Τηλέφωνο (με εικόνες)"
 targetDevice = "Συσκευή προορισμού"
 targetDeviceDesc = "Επιλέξτε προφίλ εξόδου βελτιστοποιημένο για τη συσκευή ανάγνωσης"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Εντάξει"
-acceptNecessaryBtn = "Όχι ευχαριστώ"
-showPreferencesBtn = "Διαχείριση προτιμήσεων"
-title = "Πώς χρησιμοποιούμε τα cookies"
-
-[cookieBanner.popUp.description]
-1 = "Χρησιμοποιούμε cookies και άλλες τεχνολογίες για να λειτουργεί καλύτερα το RustlingPDF για εσάς—βοηθώντας μας να βελτιώνουμε τα εργαλεία μας και να συνεχίζουμε να δημιουργούμε δυνατότητες που θα αγαπήσετε."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Αποδοχή όλων"
-acceptNecessaryBtn = "Απόρριψη όλων"
-closeIconLabel = "Κλείσιμο παραθύρου"
-savePreferencesBtn = "Αποθήκευση προτιμήσεων"
-serviceCounterLabel = "Υπηρεσία|Υπηρεσίες"
-subtitle = "Χρήση cookies"
-title = "Κέντρο προτιμήσεων συναίνεσης"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Αυτά τα cookies μας βοηθούν να κατανοούμε πώς χρησιμοποιούνται τα εργαλεία μας, ώστε να επικεντρωνόμαστε στην ανάπτυξη των δυνατοτήτων που εκτιμά περισσότερο η κοινότητά μας. Να είστε βέβαιοι—το RustlingPDF δεν μπορεί και ποτέ δεν θα παρακολουθήσει το περιεχόμενο των εγγράφων με τα οποία εργάζεστε."
-title = "Αναλύσεις"
-
-[cookieBanner.preferencesModal.description]
-1 = "Το RustlingPDF χρησιμοποιεί cookies και παρόμοιες τεχνολογίες για να βελτιώσει την εμπειρία σας και να κατανοήσει πώς χρησιμοποιούνται τα εργαλεία μας. Αυτό μας βοηθά να βελτιώνουμε την απόδοση, να αναπτύσσουμε τις δυνατότητες που σας ενδιαφέρουν και να παρέχουμε συνεχή υποστήριξη στους χρήστες μας."
-2 = "Το RustlingPDF δεν μπορεί—και ποτέ δεν θα—παρακολουθήσει ή να αποκτήσει πρόσβαση στο περιεχόμενο των εγγράφων που χρησιμοποιείτε."
-3 = "Η ιδιωτικότητά σας και η εμπιστοσύνη σας είναι στο επίκεντρο όσων κάνουμε."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Απολύτως απαραίτητα cookies"
-2 = "Πάντα ενεργά"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Αυτόματη περικοπή κενού"
 noFileSelected = "Επιλέξτε ένα αρχείο PDF για να ξεκινήσετε την περικοπή"
@@ -2960,7 +2915,6 @@ cookie = "Πολιτική cookies"
 iAgreeToThe = "Συμφωνώ με όλα τα"
 impressum = "Ταυτότητα"
 privacy = "Πολιτική απορρήτου"
-showCookieBanner = "Προτιμήσεις cookie"
 terms = "Όροι και προϋποθέσεις"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Συμπεριλάβετε το Ctrl, Alt, ή άλλο τροποπο
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

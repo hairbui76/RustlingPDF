@@ -6,7 +6,7 @@ These read-only endpoints provide backend metadata consumed by the client.
 
 | Route | Rust response |
 | --- | --- |
-| `GET /api/v1/ui-data/footer-info` | Analytics choice and legal links from `settings.yml` / `custom_settings.yml`. |
+| `GET /api/v1/ui-data/footer-info` | Legal links from `settings.yml` / `custom_settings.yml`. |
 | `GET /api/v1/ui-data/home` | `showSurveyFromDocker`, controlled by `SHOW_SURVEY` (unset is `true`). |
 | `GET /api/v1/ui-data/licenses` | `{ "dependencies": [...] }` generated from the locked Rust dependency graph at build time. |
 | `GET /api/v1/ui-data/pipeline` | Recursive JSON templates from `pipeline/defaultWebUIConfigs`, or the Java placeholder when absent. |

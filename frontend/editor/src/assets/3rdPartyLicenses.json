@@ -246,13 +246,6 @@
       "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
     },
     {
-      "moduleName": "@posthog/react",
-      "moduleUrl": "https://github.com/PostHog/posthog-js",
-      "moduleVersion": "1.10.3",
-      "moduleLicense": "MIT",
-      "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
-    },
-    {
       "moduleName": "@reactour/tour",
       "moduleUrl": "https://github.com/elrumordelaluz/reactour",
       "moduleVersion": "3.8.0",
@@ -419,13 +412,6 @@
       "moduleVersion": "7.2.0",
       "moduleLicense": "ISC",
       "moduleLicenseUrl": "https://opensource.org/licenses/ISC"
-    },
-    {
-      "moduleName": "posthog-js",
-      "moduleUrl": "https://github.com/PostHog/posthog-js",
-      "moduleVersion": "1.407.3",
-      "moduleLicense": "(Apache-2.0 AND MIT)",
-      "moduleLicenseUrl": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     {
       "moduleName": "qrcode.react",

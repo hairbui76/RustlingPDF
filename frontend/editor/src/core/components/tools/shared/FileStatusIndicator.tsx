@@ -7,7 +7,6 @@ import { useFilesModalContext } from "@app/contexts/FilesModalContext";
 import { useAllFiles } from "@app/contexts/FileContext";
 import { useFileManager } from "@app/hooks/useFileManager";
 import { RustlingFile } from "@app/types/fileContext";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 
 export interface FileStatusIndicatorProps {
   selectedFiles?: RustlingFile[];
@@ -164,15 +163,13 @@ const FileStatusIndicator = ({
       style={{ wordBreak: "break-word", whiteSpace: "normal" }}
     >
       ✓{" "}
-      {selectedFiles.length === 1 ? (
-        <PrivateContent>
-          {t("fileSelected", "{{filename}}", {
+      {selectedFiles.length === 1
+        ? t("fileSelected", "{{filename}}", {
             filename: selectedFiles[0]?.name,
+          })
+        : t("filesSelected", "{{count}} files", {
+            count: selectedFiles.length,
           })}
-        </PrivateContent>
-      ) : (
-        t("filesSelected", "{{count}} files", { count: selectedFiles.length })
-      )}
     </Text>
   );
 };

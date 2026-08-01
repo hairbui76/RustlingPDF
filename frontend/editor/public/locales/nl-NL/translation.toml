@@ -533,12 +533,6 @@ hint = "Er zijn niet-opgeslagen wijzigingen"
 message = "Er zijn niet-opgeslagen wijzigingen. Wilt u deze verwerpen?"
 title = "Niet-opgeslagen wijzigingen"
 
-[analytics]
-learnMore = "Meer informatie"
-paragraph1 = "RustlingPDF heeft opt-in analyses om ons te helpen het product te verbeteren. We volgen geen persoonlijke informatie of bestandsinhoud."
-paragraph2 = "Overweeg analyses in te schakelen om RustlingPDF te helpen groeien en ons onze gebruikers beter te laten begrijpen."
-title = "Wilt u RustlingPDF beter maken?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Phone (with images)"
 targetDevice = "Target device"
 targetDeviceDesc = "Choose an output profile optimized for the reader device"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Oké"
-acceptNecessaryBtn = "Nee, bedankt"
-showPreferencesBtn = "Voorkeuren beheren"
-title = "Hoe we cookies gebruiken"
-
-[cookieBanner.popUp.description]
-1 = "We gebruiken cookies en andere technologieën om RustlingPDF beter voor u te laten werken—zo verbeteren we onze tools en blijven we functies bouwen die u waardeert."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Alles accepteren"
-acceptNecessaryBtn = "Alles weigeren"
-closeIconLabel = "Dialoogvenster sluiten"
-savePreferencesBtn = "Voorkeuren opslaan"
-serviceCounterLabel = "Dienst|Diensten"
-subtitle = "Cookiegebruik"
-title = "Centrum voor toestemmingsvoorkeuren"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Deze cookies helpen ons te begrijpen hoe onze tools worden gebruikt, zodat we ons kunnen richten op het bouwen van de functies die onze community het meest waardeert. Wees gerust—RustlingPDF kan niet en zal nooit de inhoud van de documenten waarmee u werkt volgen."
-title = "Analyse"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF gebruikt cookies en vergelijkbare technologieën om uw ervaring te verbeteren en te begrijpen hoe onze tools worden gebruikt. Dit helpt ons de prestaties te verbeteren, de functies te ontwikkelen die jij belangrijk vindt en doorlopende ondersteuning te bieden."
-2 = "RustlingPDF kan niet—en zal nooit—de inhoud van de documenten die u gebruikt volgen of openen."
-3 = "Uw privacy en vertrouwen staan centraal in wat we doen."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Strikt noodzakelijke cookies"
-2 = "Altijd ingeschakeld"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Witruimte autom. bijsnijden"
 noFileSelected = "Selecteer een PDF-bestand om te beginnen met bijsnijden"
@@ -2960,7 +2915,6 @@ cookie = "Cookiesbeleid"
 iAgreeToThe = "Ik ga akkoord met alle"
 impressum = "Imprint"
 privacy = "Privacybeleid"
-showCookieBanner = "Cookievoorkeuren"
 terms = "Voorwaarden van gebruik"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Neem Ctrl, Alt of een andere modificatietoets op in de sneltoets."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

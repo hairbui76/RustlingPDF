@@ -97,8 +97,8 @@ test.describe("Console hygiene: representative routes load cleanly", () => {
     test(`${route.name} (${route.path})`, async ({ page }) => {
       const entries = attachListeners(page);
       await page.goto(route.path, { waitUntil: "domcontentloaded" });
-      // Give async effects (i18n load, lazy chunks, posthog init) a beat to
-      // surface anything they were going to log.
+      // Give async effects (i18n load, lazy chunks) a beat to surface
+      // anything they were going to log.
       await page
         .waitForLoadState("networkidle", { timeout: 10_000 })
         .catch((err) => {

@@ -1,7 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import {
   mockAppApis,
-  seedCookieConsent,
   skipOnboarding,
   type MockAppApiOptions,
 } from "@app/tests/helpers/api-stubs";
@@ -11,10 +10,9 @@ import { suppressNativeFilePicker } from "@app/tests/helpers/ui-helpers";
  * Custom Playwright fixture for backend-free specs.
  *
  * Every test gets a `page` that:
- *   1. Has the cookie-consent cookie seeded (banner never renders)
- *   2. Has onboarding flags set in localStorage (modal never renders)
- *   3. Has all bootstrap API endpoints stubbed via `mockAppApis()`
- *   4. Has already navigated to `/` by default (set `autoGoto: false` to skip)
+ *   1. Has onboarding flags set in localStorage (modal never renders)
+ *   2. Has all bootstrap API endpoints stubbed via `mockAppApis()`
+ *   3. Has already navigated to `/` by default (set `autoGoto: false` to skip)
  *
  * Usage:
  *   import { test, expect } from "@app/tests/helpers/stub-test-base";
@@ -46,14 +44,12 @@ export const test = base.extend<StubFixtures>({
   autoGoto: ["/", { option: true }],
   page: async ({ page, stubOptions, autoGoto }, use) => {
     suppressNativeFilePicker(page);
-    await seedCookieConsent(page);
     await skipOnboarding(page);
     await mockAppApis(page, stubOptions);
     if (autoGoto !== false) {
-      // waitUntil: 'domcontentloaded' avoids hanging on third-party CDN
-      // resources (iconify, posthog, stripe) the stub doesn't mock — the
-      // default 'load' event waits for ALL subresources, which can time out
-      // on slow runners and is rarely what tests actually need.
+      // waitUntil: 'domcontentloaded' avoids hanging on any subresource the
+      // stub doesn't mock — the default 'load' event waits for ALL of them,
+      // which can time out on slow runners and is rarely what tests need.
       await page.goto(autoGoto, { waitUntil: "domcontentloaded" });
     }
     await use(page);

@@ -5,7 +5,6 @@ import { Button } from "@app/ui/Button";
 import { ColorSwatchButton } from "@app/components/annotation/shared/ColorPicker";
 import PenSizeSelector from "@app/components/tools/sign/PenSizeSelector";
 import SignaturePad from "signature_pad";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 
 interface DrawingCanvasProps {
   selectedColor: string;
@@ -250,24 +249,22 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     <>
       <Paper withBorder p="md">
         <Stack gap="sm">
-          <PrivateContent>
-            <Text fw={500}>
-              {t("sign.canvas.heading", "Draw your signature")}
-            </Text>
-            <canvas
-              ref={previewCanvasRef}
-              width={width}
-              height={height}
-              style={{
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                cursor: disabled ? "default" : "pointer",
-                backgroundColor: "#ffffff",
-                width: "100%",
-              }}
-              onClick={disabled ? undefined : openModal}
-            />
-          </PrivateContent>
+          <Text fw={500}>
+            {t("sign.canvas.heading", "Draw your signature")}
+          </Text>
+          <canvas
+            ref={previewCanvasRef}
+            width={width}
+            height={height}
+            style={{
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              cursor: disabled ? "default" : "pointer",
+              backgroundColor: "#ffffff",
+              width: "100%",
+            }}
+            onClick={disabled ? undefined : openModal}
+          />
           <Text size="sm" c="dimmed" ta="center">
             {t("sign.canvas.clickToOpen", "Click to open the drawing canvas")}
           </Text>
@@ -311,25 +308,23 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             </Stack>
           </Group>
 
-          <PrivateContent>
-            <canvas
-              ref={(el) => {
-                modalCanvasRef.current = el;
-                if (el) initPad(el);
-              }}
-              style={{
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                display: "block",
-                touchAction: "none",
-                backgroundColor: "white",
-                width: "100%",
-                maxWidth: "50rem",
-                height: "25rem",
-                cursor: "crosshair",
-              }}
-            />
-          </PrivateContent>
+          <canvas
+            ref={(el) => {
+              modalCanvasRef.current = el;
+              if (el) initPad(el);
+            }}
+            style={{
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              display: "block",
+              touchAction: "none",
+              backgroundColor: "white",
+              width: "100%",
+              maxWidth: "50rem",
+              height: "25rem",
+              cursor: "crosshair",
+            }}
+          />
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <Button variant="tertiary" accent="danger" onClick={clear}>

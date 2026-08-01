@@ -29,7 +29,11 @@ async fn ui_data_routes_read_the_java_compatible_runtime_tree()
     fs::write(
         configs.join("settings.yml"),
         format!(
-            "system:\n  enableAnalytics: true\n  tessdataDir: {}\nlegal:\n  termsAndConditions: https://terms.example.test\n  privacyPolicy: https://privacy.example.test\n  accessibilityStatement: https://accessibility.example.test\n  cookiePolicy: https://cookies.example.test\n  impressum: https://impressum.example.test\n",
+            // The three `enable*` keys configured the removed opt-in analytics.
+            // They are kept in this fixture on purpose: an existing install whose
+            // settings.yml still carries them must start and serve normally, with
+            // the keys simply ignored rather than refused.
+            "system:\n  enableAnalytics: true\n  enablePosthog: true\n  enableScarf: true\n  tessdataDir: {}\nlegal:\n  termsAndConditions: https://terms.example.test\n  privacyPolicy: https://privacy.example.test\n  accessibilityStatement: https://accessibility.example.test\n  cookiePolicy: https://cookies.example.test\n  impressum: https://impressum.example.test\n",
             yaml_path(&tessdata)
         ),
     )?;
@@ -50,7 +54,9 @@ async fn ui_data_routes_read_the_java_compatible_runtime_tree()
     let app = app_with_runtime_config(1024 * 1024, TimestampSettings::default(), runtime_config);
 
     let footer = response_json(request(&app, "/api/v1/ui-data/footer-info").await?).await?;
-    assert_eq!(footer["analyticsEnabled"], true);
+    // Analytics were removed: the footer payload no longer advertises a choice,
+    // and the legacy settings keys above must not resurface anywhere in it.
+    assert!(footer.get("analyticsEnabled").is_none());
     assert_eq!(footer["termsAndConditions"], "https://terms.example.test");
     assert_eq!(footer["privacyPolicy"], "https://privacy.example.test");
 

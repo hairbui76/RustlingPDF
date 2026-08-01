@@ -533,12 +533,6 @@ hint = "您有未保存的更改"
 message = "您有未保存的更改。要放弃吗？"
 title = "未保存的更改"
 
-[analytics]
-learnMore = "了解更多"
-paragraph1 = "RustlingPDF ལ་ཐོན་རྫས་ལེགས་སུ་གཏོང་བར་རོགས་རམ་བྱེད་པའི་གདམ་ག་ཡོད་པའི་དཔྱད་ཞིབ་ཡོད། ང་ཚོས་སྒེར་གྱི་ཆ་འཕྲིན་དང་ཡིག་ཆའི་ནང་དོན་གང་ཡང་རྗེས་འདེད་མི་བྱེད།"
-paragraph2 = "RustlingPDF འཕེལ་རྒྱས་དང་ང་ཚོའི་སྤྱོད་མཁན་ལེགས་པོར་རྟོགས་པར་རོགས་རམ་བྱེད་པའི་ཆེད་དུ་དཔྱད་ཞིབ་སྤྱོད་འགོ་འཛུགས་རོགས།"
-title = "ཁྱེད་ཀྱིས་ RustlingPDF ལེགས་སུ་གཏོང་འདོད་དམ།"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "平板/手机（带图像）"
 targetDevice = "目标设备"
 targetDeviceDesc = "选择为阅读设备优化的输出配置"
 
-[cookieBanner.popUp]
-acceptAllBtn = "好的"
-acceptNecessaryBtn = "不用了"
-showPreferencesBtn = "管理偏好"
-title = "我们如何使用 Cookies"
-
-[cookieBanner.popUp.description]
-1 = "我们使用 cookies 和其他技术，让 RustlingPDF 为你更好地工作——帮助我们改进工具，并持续构建你会喜欢的功能。"
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "全部接受"
-acceptNecessaryBtn = "全部拒绝"
-closeIconLabel = "关闭弹窗"
-savePreferencesBtn = "保存偏好"
-serviceCounterLabel = "服务|服务"
-subtitle = "Cookie 使用"
-title = "同意偏好中心"
-
-[cookieBanner.preferencesModal.analytics]
-description = "这些 cookies 帮助我们了解我们的工具是如何被使用的，从而让我们专注于构建社区最看重的功能。请放心——RustlingPDF 不能且绝不会跟踪你处理的文档内容。"
-title = "分析"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF 使用 cookies 和类似技术来提升你的体验，并了解我们的工具如何被使用。这有助于我们改进性能、开发你关心的功能，并为用户提供持续支持。"
-2 = "RustlingPDF 不能——也绝不会——跟踪或访问你使用的文档内容。"
-3 = "你的隐私与信任是我们工作的核心。"
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "严格必要的 Cookies"
-2 = "始终启用"
-
-[cookieBanner.services]
-posthog = "PostHog 分析"
-scarf = "Scarf 像素"
-
 [crop]
 autoCrop = "自动裁剪空白"
 noFileSelected = "选择一个 PDF 文件开始裁剪"
@@ -2960,7 +2915,6 @@ cookie = "Cookie སྲིད་བྱུས།"
 iAgreeToThe = "我同意所有的"
 impressum = "པར་འདེབས་བདག་དབང་།"
 privacy = "གསང་དོན་སྲིད་བྱུས།"
-showCookieBanner = "Cookie 偏好设置"
 terms = "བེད་སྤྱོད་ཆ་རྐྱེན།"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "快捷键需包含 Ctrl、Alt 或其他修饰键。"
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

@@ -153,7 +153,6 @@ export async function mockAppApis(
       json: {
         languages,
         defaultLocale,
-        enableAnalytics: false,
       },
     }),
   );
@@ -236,28 +235,6 @@ export async function bypassOnboarding(page: Page): Promise<void> {
       /* sessionStorage may be unavailable in some contexts — ignore */
     }
   });
-}
-
-/**
- * Seed the cookie-consent cookie so the banner (#cc-main) never renders.
- * The banner overlays the viewport and intercepts clicks on firefox/webkit.
- */
-export async function seedCookieConsent(page: Page): Promise<void> {
-  await page.context().addCookies([
-    {
-      name: "cc_cookie",
-      value: JSON.stringify({
-        categories: ["necessary"],
-        revision: 0,
-        data: null,
-        rfc_cookie: false,
-        consentTimestamp: new Date().toISOString(),
-        consentId: "playwright-test",
-      }),
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
 }
 
 /**

@@ -533,12 +533,6 @@ hint = "저장되지 않은 변경 사항이 있습니다"
 message = "저장되지 않은 변경 사항이 있습니다. 버리시겠습니까?"
 title = "저장되지 않은 변경 사항"
 
-[analytics]
-learnMore = "자세히 알아보기"
-paragraph1 = "RustlingPDF는 제품 개선을 위한 선택적 분석 기능이 있습니다. 개인정보나 파일 내용은 추적하지 않습니다."
-paragraph2 = "RustlingPDF의 성장을 돕고 사용자를 더 잘 이해할 수 있도록 분석 기능 활성화를 고려해주세요."
-title = "RustlingPDF를 더 좋게 만들고 싶으신가요?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "태블릿/휴대폰(이미지 포함)"
 targetDevice = "대상 기기"
 targetDeviceDesc = "리더 기기에 최적화된 출력 프로필 선택"
 
-[cookieBanner.popUp]
-acceptAllBtn = "확인"
-acceptNecessaryBtn = "괜찮습니다"
-showPreferencesBtn = "환경설정 관리"
-title = "쿠키 사용 방식"
-
-[cookieBanner.popUp.description]
-1 = "우리는 RustlingPDF가 더 잘 작동하도록 쿠키 및 기타 기술을 사용합니다—도구 개선과 여러분이 좋아할 기능 개발에 도움이 됩니다."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "모두 동의"
-acceptNecessaryBtn = "모두 거절"
-closeIconLabel = "모달 닫기"
-savePreferencesBtn = "환경설정 저장"
-serviceCounterLabel = "서비스|서비스"
-subtitle = "쿠키 사용"
-title = "동의 환경설정 센터"
-
-[cookieBanner.preferencesModal.analytics]
-description = "이 쿠키는 도구가 어떻게 사용되는지 이해하는 데 도움이 되며, 커뮤니티가 가장 중요하게 여기는 기능 개발에 집중할 수 있게 합니다. 안심하세요—RustlingPDF는 여러분이 작업하는 문서의 내용을 추적할 수 없으며, 앞으로도 절대 그렇게 하지 않습니다."
-title = "분석"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF는 쿠키와 유사 기술을 사용하여 여러분의 경험을 향상하고 도구 사용 방식을 이해합니다. 이는 성능 개선, 중요한 기능 개발, 지속적인 사용자 지원에 도움이 됩니다."
-2 = "RustlingPDF는 여러분이 사용하는 문서의 내용에 접근하거나 추적할 수 없으며, 앞으로도 그렇게 하지 않을 것입니다."
-3 = "여러분의 프라이버시와 신뢰는 우리의 핵심 가치입니다."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "엄격히 필수 쿠키"
-2 = "항상 활성화"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "여백 자동 자르기"
 noFileSelected = "자르기를 시작하려면 PDF 파일을 선택하세요"
@@ -2960,7 +2915,6 @@ cookie = "쿠키 정책"
 iAgreeToThe = "다음 모든 항목에 동의합니다"
 impressum = "법적 고지"
 privacy = "개인정보 처리방침"
-showCookieBanner = "쿠키 기본 설정"
 terms = "이용약관"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "단축키에 Ctrl, Alt 또는 다른 수정 키를 포함하세요."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

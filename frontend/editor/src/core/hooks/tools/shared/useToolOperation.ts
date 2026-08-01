@@ -30,7 +30,6 @@ import {
 import { createNewRustlingFileStub } from "@app/types/fileContext";
 import { ToolOperation } from "@app/types/file";
 import { ensureBackendReady } from "@app/services/backendReadinessGuard";
-import { trackEditorOperation } from "@app/services/analytics";
 import { notifyPdfProcessingComplete } from "@app/services/desktopNotificationService";
 import {
   buildInputTracking,
@@ -375,11 +374,6 @@ export const useToolOperation = <TParams>(
         }
 
         if (processedFiles.length > 0) {
-          trackEditorOperation(
-            config.operationType,
-            successSourceIds.length || validFiles.length,
-          );
-
           actions.setFiles(processedFiles);
 
           // Generate thumbnails and download URL concurrently

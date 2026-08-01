@@ -13629,9 +13629,7 @@ mod tests {
 
     #[test]
     fn unlisted_paths_are_not_async_capable() {
-        assert!(!supports_async_jobs(
-            "/api/v1/settings/get-enable-analytics"
-        ));
+        assert!(!supports_async_jobs(crate::SETTINGS_ENDPOINT_STATUS_PATH));
         assert!(!supports_async_jobs("/api/v1/general/not-a-real-endpoint"));
         assert!(!supports_async_jobs(""));
     }

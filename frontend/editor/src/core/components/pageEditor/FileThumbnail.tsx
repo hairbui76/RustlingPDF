@@ -22,7 +22,6 @@ import {
 import styles from "@app/components/pageEditor/PageEditor.module.css";
 import { useFileContext } from "@app/contexts/FileContext";
 import { FileId } from "@app/types/file";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
 import { downloadFile } from "@app/services/downloadService";
@@ -356,30 +355,28 @@ const FileThumbnail = ({
           }}
         >
           {file.thumbnail && (
-            <PrivateContent>
-              <img
-                src={file.thumbnail}
-                alt={file.name}
-                draggable={false}
-                onError={(e) => {
-                  // Hide broken image if blob URL was revoked
-                  const img = e.target as HTMLImageElement;
-                  img.style.display = "none";
-                }}
-                style={{
-                  maxWidth: "80%",
-                  maxHeight: "80%",
-                  objectFit: "contain",
-                  borderRadius: 0,
-                  background: "#ffffff",
-                  border: "1px solid var(--c-border)",
-                  display: "block",
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                  alignSelf: "start",
-                }}
-              />
-            </PrivateContent>
+            <img
+              src={file.thumbnail}
+              alt={file.name}
+              draggable={false}
+              onError={(e) => {
+                // Hide broken image if blob URL was revoked
+                const img = e.target as HTMLImageElement;
+                img.style.display = "none";
+              }}
+              style={{
+                maxWidth: "80%",
+                maxHeight: "80%",
+                objectFit: "contain",
+                borderRadius: 0,
+                background: "#ffffff",
+                border: "1px solid var(--c-border)",
+                display: "block",
+                marginLeft: "auto",
+                marginRight: "auto",
+                alignSelf: "start",
+              }}
+            />
           )}
         </div>
 

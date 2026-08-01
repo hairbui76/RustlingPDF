@@ -30,7 +30,6 @@ import HoverActionMenu, {
   HoverAction,
 } from "@app/components/shared/HoverActionMenu";
 import { downloadFile } from "@app/services/downloadService";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { VersionHistoryModal } from "@app/components/filesPage/VersionHistoryModal";
 import { useFileThumbnail } from "@app/hooks/useFileThumbnail";
 import DocumentThumbnail from "@app/components/shared/filePreview/DocumentThumbnail";
@@ -511,7 +510,7 @@ const FileEditorThumbnail = ({
       <div className={styles.fileText}>
         <p className={styles.fileName}>
           <span className={styles.fileNameText}>
-            <PrivateContent>{truncateCenter(file.name, 40)}</PrivateContent>
+            {truncateCenter(file.name, 40)}
           </span>
         </p>
         <p className={styles.fileMeta}>{metaLine}</p>
@@ -532,7 +531,7 @@ const FileEditorThumbnail = ({
                 {t("confirmCloseUnsaved", "This file has unsaved changes.")}
               </Text>
               <Text size="sm" c="dimmed" fw={500}>
-                <PrivateContent>{file.name}</PrivateContent>
+                {file.name}
               </Text>
               <Group justify="flex-end" gap="sm">
                 <Button variant="secondary" onClick={handleCancelClose}>
@@ -555,7 +554,7 @@ const FileEditorThumbnail = ({
                 )}
               </Text>
               <Text size="sm" c="dimmed" fw={500}>
-                <PrivateContent>{file.name}</PrivateContent>
+                {file.name}
               </Text>
               <Group justify="flex-end" gap="sm">
                 <Button variant="secondary" onClick={handleCancelClose}>

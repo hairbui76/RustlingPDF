@@ -243,7 +243,6 @@ function FileContextInner({
         skipAutoUnzip?: boolean;
         /** Persist to IDB without dispatching to workspace state. */
         skipWorkspaceDispatch?: boolean;
-        skipUploadTracking?: boolean;
       },
     ): Promise<RustlingFile[]> => {
       const rustlingFiles = await addFiles(
@@ -290,7 +289,6 @@ function FileContextInner({
           fileName: string,
         ) => Promise<boolean>;
         allowDuplicates?: boolean;
-        skipUploadTracking?: boolean;
       },
     ): Promise<RustlingFile[]> => {
       const rustlingFiles = await addFiles(

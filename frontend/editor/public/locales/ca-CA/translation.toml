@@ -533,12 +533,6 @@ hint = "Tens canvis no desats"
 message = "Tens canvis no desats. Vols descartar-los?"
 title = "Canvis no desats"
 
-[analytics]
-learnMore = "Més informació"
-paragraph1 = "RustlingPDF té analítiques opcionals per ajudar-nos a millorar el producte. No recopilem cap informació personal ni el contingut dels fitxers."
-paragraph2 = "Si us plau, considera habilitar les analítiques per ajudar RustlingPDF a créixer i permetre'ns entendre millor els nostres usuaris."
-title = "Vols ajudar a millorar RustlingPDF?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tauleta/Telèfon (amb imatges)"
 targetDevice = "Dispositiu de destinació"
 targetDeviceDesc = "Tria un perfil de sortida optimitzat per al dispositiu lector"
 
-[cookieBanner.popUp]
-acceptAllBtn = "D'acord"
-acceptNecessaryBtn = "No, gràcies"
-showPreferencesBtn = "Gestiona les preferències"
-title = "Com fem servir les galetes"
-
-[cookieBanner.popUp.description]
-1 = "Fem servir galetes i altres tecnologies per fer que RustlingPDF funcioni millor per a vosaltres — ajudant-nos a millorar les nostres eines i a continuar creant funcionalitats que us agradaran."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Accepta-ho tot"
-acceptNecessaryBtn = "Rebutja-ho tot"
-closeIconLabel = "Tanca el modal"
-savePreferencesBtn = "Desa les preferències"
-serviceCounterLabel = "Servei|Serveis"
-subtitle = "Ús de galetes"
-title = "Centre de preferències de consentiment"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Aquestes galetes ens ajuden a entendre com s'utilitzen les nostres eines, de manera que puguem centrar-nos a construir les funcionalitats que la nostra comunitat valora més. Tingueu la seguretat que RustlingPDF no pot i mai rastrejarà el contingut dels documents amb què treballeu."
-title = "Analítica"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF utilitza galetes i tecnologies similars per millorar la vostra experiència i entendre com s'utilitzen les nostres eines. Això ens ajuda a millorar el rendiment, desenvolupar les funcionalitats que més us importen i oferir suport continu als nostres usuaris."
-2 = "RustlingPDF no pot —i mai— rastrejar ni accedir al contingut dels documents que utilitzeu."
-3 = "La vostra privadesa i confiança són al cor del que fem."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Galetes estrictament necessàries"
-2 = "Sempre habilitades"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Retalla automàticament els espais en blanc"
 noFileSelected = "Seleccioneu un fitxer PDF per començar a retallar"
@@ -2960,7 +2915,6 @@ cookie = "Política de galetes"
 iAgreeToThe = "Accepto totes les"
 impressum = "Avís Legal"
 privacy = "Política de Privacitat"
-showCookieBanner = "Preferències de galetes"
 terms = "Termes i condicions"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Inclou Ctrl, Alt o un altre modificador a la drecera."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

@@ -3,7 +3,6 @@ import { Box, ScrollArea, Text } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
 import { useViewer } from "@app/contexts/ViewerContext";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import "@app/components/viewer/SidebarBase.css";
@@ -250,19 +249,17 @@ export function ThumbnailSidebar({
                       {/* Thumbnail Image */}
                       {thumbnails[pageIndex] &&
                       thumbnails[pageIndex] !== "error" ? (
-                        <PrivateContent>
-                          <img
-                            src={thumbnails[pageIndex]}
-                            alt={`Page ${pageIndex + 1} thumbnail`}
-                            style={{
-                              maxWidth: "100%",
-                              height: "auto",
-                              borderRadius: "4px",
-                              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                              border: "1px solid var(--c-border-subtle)",
-                            }}
-                          />
-                        </PrivateContent>
+                        <img
+                          src={thumbnails[pageIndex]}
+                          alt={`Page ${pageIndex + 1} thumbnail`}
+                          style={{
+                            maxWidth: "100%",
+                            height: "auto",
+                            borderRadius: "4px",
+                            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                            border: "1px solid var(--c-border-subtle)",
+                          }}
+                        />
                       ) : thumbnails[pageIndex] === "error" ? (
                         <div
                           style={{

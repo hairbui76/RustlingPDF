@@ -8,7 +8,6 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useTranslation } from "react-i18next";
 import { getFileSize } from "@app/utils/fileUtils";
 import { RustlingFileStub } from "@app/types/fileContext";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 
 interface CompactFileDetailsProps {
   currentFile: RustlingFileStub | null;
@@ -56,19 +55,17 @@ const CompactFileDetails: React.FC<CompactFileDetailsProps> = ({
           }}
         >
           {currentFile && thumbnail ? (
-            <PrivateContent>
-              <img
-                src={thumbnail}
-                alt={currentFile.name}
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                  borderRadius: "0.25rem",
-                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                }}
-              />
-            </PrivateContent>
+            <img
+              src={thumbnail}
+              alt={currentFile.name}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "100%",
+                objectFit: "contain",
+                borderRadius: "0.25rem",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              }}
+            />
           ) : currentFile ? (
             <Center
               style={{
@@ -88,9 +85,7 @@ const CompactFileDetails: React.FC<CompactFileDetailsProps> = ({
         {/* File info */}
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Text size="sm" fw={500} truncate>
-            <PrivateContent>
-              {currentFile ? currentFile.name : "No file loaded"}
-            </PrivateContent>
+            {currentFile ? currentFile.name : "No file loaded"}
           </Text>
           <Text size="xs" c="dimmed">
             {currentFile ? getFileSize(currentFile) : ""}

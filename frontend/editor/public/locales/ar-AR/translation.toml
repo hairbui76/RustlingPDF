@@ -533,12 +533,6 @@ hint = "لديك تغييرات غير محفوظة"
 message = "لديك تغييرات غير محفوظة. هل تريد تجاهلها؟"
 title = "تغييرات غير محفوظة"
 
-[analytics]
-learnMore = "اعرف المزيد"
-paragraph1 = "RustlingPDF يحتوي على إحصائيات مختصة للمساعدة في تحسين المنتج. لا نتبع أي معلومات شخصية أو محتوى الملفات."
-paragraph2 = "يرجى مراعاة تفعيل الإحصائيات لمساعدتنا على نمو RustlingPDF وتوفير فهم أفضل لمستخدمينا."
-title = "هل تريد تحسين RustlingPDF؟"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "جهاز لوحي/هاتف (مع صور)"
 targetDevice = "الجهاز المستهدف"
 targetDeviceDesc = "اختر ملف إخراج مُحسّن لجهاز القراءة"
 
-[cookieBanner.popUp]
-acceptAllBtn = "حسنًا"
-acceptNecessaryBtn = "لا شكرًا"
-showPreferencesBtn = "إدارة التفضيلات"
-title = "كيف نستخدم ملفات تعريف الارتباط"
-
-[cookieBanner.popUp.description]
-1 = "نستخدم ملفات تعريف الارتباط وتقنيات أخرى لجعل RustlingPDF يعمل بشكل أفضل لك—نساعدنا على تحسين أدواتنا والاستمرار في بناء ميزات ستحبها."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "قبول الكل"
-acceptNecessaryBtn = "رفض الكل"
-closeIconLabel = "إغلاق النافذة"
-savePreferencesBtn = "حفظ التفضيلات"
-serviceCounterLabel = "خدمة|خدمات"
-subtitle = "استخدام ملفات تعريف الارتباط"
-title = "مركز تفضيلات الموافقة"
-
-[cookieBanner.preferencesModal.analytics]
-description = "تساعدنا هذه الملفات على فهم كيفية استخدام أدواتنا، كي نركّز على بناء الميزات الأكثر قيمة لمجتمعنا. كن مطمئنًا—‏RustlingPDF لا يمكنه ولن يتتبع محتوى المستندات التي تعمل عليها."
-title = "التحليلات"
-
-[cookieBanner.preferencesModal.description]
-1 = "يستخدم RustlingPDF ملفات تعريف الارتباط وتقنيات مشابهة لتحسين تجربتك وفهم كيفية استخدام أدواتنا. يساعدنا ذلك على تحسين الأداء وتطوير الميزات التي تهمك وتقديم دعم مستمر لمستخدمينا."
-2 = "لا يمكن لـ RustlingPDF—ولن—يتتبع أو يصل إلى محتوى المستندات التي تستخدمها."
-3 = "خصوصيتك وثقتك في صميم ما نقوم به."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "ملفات تعريف الارتباط الضرورية للغاية"
-2 = "مفعّلة دائمًا"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "اقتصاص تلقائي للمساحات البيضاء"
 noFileSelected = "حدّد ملف PDF لبدء القص"
@@ -2960,7 +2915,6 @@ cookie = "سياسة ملفات تعريف الارتباط"
 iAgreeToThe = "أوافق على جميع"
 impressum = "بيان الهوية"
 privacy = "سياسة الخصوصية"
-showCookieBanner = "تفضيلات ملفات الارتباط"
 terms = "شروط الاستخدام"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "ضمّن Ctrl أو Alt أو معدِّلاً آخر في اختصار
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

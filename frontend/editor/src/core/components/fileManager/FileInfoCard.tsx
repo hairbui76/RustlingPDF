@@ -13,7 +13,6 @@ import { useTranslation } from "react-i18next";
 import { detectFileExtension, getFileSize } from "@app/utils/fileUtils";
 import { RustlingFileStub } from "@app/types/fileContext";
 import ToolChain from "@app/components/shared/ToolChain";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 
 interface FileInfoCardProps {
   currentFile: RustlingFileStub | null;
@@ -55,9 +54,7 @@ const FileInfoCard: React.FC<FileInfoCardProps> = ({
         <Stack gap="sm">
           <Group justify="space-between" py="xs">
             <Text size="sm" c="dimmed">
-              <PrivateContent>
-                {t("fileManager.fileName", "Name")}
-              </PrivateContent>
+              {t("fileManager.fileName", "Name")}
             </Text>
             <Text
               size="sm"

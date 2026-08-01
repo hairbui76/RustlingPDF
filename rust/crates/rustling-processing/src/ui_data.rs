@@ -46,8 +46,6 @@ pub struct Dependency {
 
 #[derive(Debug, Serialize)]
 pub struct FooterData {
-    #[serde(rename = "analyticsEnabled")]
-    analytics_enabled: Option<bool>,
     #[serde(rename = "termsAndConditions")]
     terms_and_conditions: String,
     #[serde(rename = "privacyPolicy")]
@@ -114,7 +112,6 @@ pub struct FontResource {
 pub fn footer_data(runtime_config: &RuntimeConfig) -> FooterData {
     let app_config = runtime_config.app_config(None, None);
     FooterData {
-        analytics_enabled: bool_config(&app_config, "enableAnalytics"),
         terms_and_conditions: string_config(&app_config, "termsAndConditions"),
         privacy_policy: string_config(&app_config, "privacyPolicy"),
         accessibility_statement: string_config(&app_config, "accessibilityStatement"),
@@ -183,10 +180,6 @@ pub fn sign_data(runtime_config: &RuntimeConfig) -> SignData {
         signatures: shared_signature_files(&runtime_config.shared_signatures_dir()),
         fonts: available_fonts(runtime_config),
     }
-}
-
-fn bool_config(config: &Value, key: &str) -> Option<bool> {
-    config.get(key).and_then(Value::as_bool)
 }
 
 fn string_config(config: &Value, key: &str) -> String {

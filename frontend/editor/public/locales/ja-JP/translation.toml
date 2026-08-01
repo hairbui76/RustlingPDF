@@ -533,12 +533,6 @@ hint = "未保存の変更があります"
 message = "未保存の変更があります。破棄しますか？"
 title = "未保存の変更"
 
-[analytics]
-learnMore = "詳しく見る"
-paragraph1 = "RustlingPDFでは、製品の改善に役立つ分析機能をオプトインしています。個人情報やファイルの内容を追跡することはありません。"
-paragraph2 = "RustlingPDFの成長を支援しユーザーをより深く理解できるように分析を有効にすることを検討してください。"
-title = "RustlingPDFをもっと良くしたいですか？"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "タブレット/スマートフォン（画像あり）"
 targetDevice = "対象デバイス"
 targetDeviceDesc = "リーダーデバイス向けに最適化された出力プロファイルを選択"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Ok"
-acceptNecessaryBtn = "いいえ"
-showPreferencesBtn = "設定の管理"
-title = "クッキーの使用方法"
-
-[cookieBanner.popUp.description]
-1 = "私たちはRustlingPDFをより快適にご利用いただけるようCookieやその他のテクノロジーを使用しています。これによりツールの改善やお気に入りの機能の構築を継続できます。"
-2 = "希望しない場合は「いいえ」をクリックすると、スムーズに動作するために必要なCookieのみが有効になります。"
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "すべて受け入れる"
-acceptNecessaryBtn = "すべて拒否する"
-closeIconLabel = "モーダルを閉じる"
-savePreferencesBtn = "環境設定の保存"
-serviceCounterLabel = "サービス"
-subtitle = "Cookieの使用"
-title = "同意管理センター"
-
-[cookieBanner.preferencesModal.analytics]
-description = "これらのCookieはツールがどのように使用されているかを把握するのに役立ちます。これによりコミュニティが最も重視する機能の開発に集中することができます。ご安心ください。RustlingPDFはお客様が操作するドキュメントの内容を追跡することは決してありません。"
-title = "分析"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDFはお客様の体験の向上、ツールの利用状況を把握するためにCookieなどのテクノロジーを使用しています。これによりパフォーマンスの向上、お客様が求める機能の開発、そしてユーザーへの継続的なサポートの提供が可能になります。"
-2 = "RustlingPDFはユーザーが使用するドキュメントの内容を追跡したりアクセスしたりすることはできません。"
-3 = "お客様のプライバシーと信頼は当社の活動の中核です。"
-
-[cookieBanner.preferencesModal.necessary]
-description = "これらのCookieはウェブサイトが正常に機能するために不可欠です。プライバシー設定、ログイン、フォームへの入力といったコア機能を有効にするため、無効にすることはできません。"
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "厳密に必要なCookie"
-2 = "常に有効"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "余白を自動トリミング"
 noFileSelected = "トリミングを開始する PDF ファイルを選択してください"
@@ -2960,7 +2915,6 @@ cookie = "Cookieポリシー"
 iAgreeToThe = "以下すべてに同意します："
 impressum = "著作権利者情報"
 privacy = "プライバシーポリシー"
-showCookieBanner = "クッキーの設定"
 terms = "利用規約"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "ショートカットにCtrl、Altなどの修飾キーを含めて�
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

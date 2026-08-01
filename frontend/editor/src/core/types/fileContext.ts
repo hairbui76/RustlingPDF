@@ -309,7 +309,6 @@ export interface FileContextActions {
     options?: {
       insertAfterPageId?: string;
       selectFiles?: boolean;
-      skipUploadTracking?: boolean;
     },
   ) => Promise<RustlingFile[]>;
   addFilesWithOptions: (
@@ -325,7 +324,6 @@ export interface FileContextActions {
         fileName: string,
       ) => Promise<boolean>;
       allowDuplicates?: boolean;
-      skipUploadTracking?: boolean;
     },
   ) => Promise<RustlingFile[]>;
   addRustlingFileStubs: (

@@ -40,10 +40,6 @@ tasks:
       RUSTLING_HOST: "127.0.0.1"
       RUSTLING_PORT: "8080"
       RUSTLING_PROCESSING_PORT: "8080"
-      # Suppress the analytics opt-in prompt: it renders a Mantine overlay
-      # that intercepts pointer events and can block the first interaction a
-      # spec performs after load.
-      SYSTEM_ENABLEANALYTICS: "false"
     cmds:
       # Ensure the pinned PDFium runtime is present before spawning the server.
       - task: :rust:pdfium:install

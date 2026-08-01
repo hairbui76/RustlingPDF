@@ -533,12 +533,6 @@ hint = "Nem mentett módosításai vannak"
 message = "Nem mentett módosításai vannak. El szeretné vetni ezeket?"
 title = "Nem mentett módosítások"
 
-[analytics]
-learnMore = "További információ"
-paragraph1 = "A RustlingPDF opcionális analitikai adatgyűjtést kínál a termék fejlesztésének támogatásához. Nem gyűjtünk személyes információkat vagy fájltartalmakat."
-paragraph2 = "Kérjük, fontolja meg az analitika engedélyezését, hogy segítse a RustlingPDF növekedését és jobban megérthessük felhasználóink igényeit."
-title = "Szeretne hozzájárulni a RustlingPDF fejlesztéséhez?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Telefon (képekkel)"
 targetDevice = "Cél eszköz"
 targetDeviceDesc = "A felhasználói eszközhöz optimalizált kimeneti profil kiválasztása"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Elfogadom"
-acceptNecessaryBtn = "Nem, köszönöm"
-showPreferencesBtn = "Preferenciák kezelése"
-title = "Hogy használjuk a sütiket"
-
-[cookieBanner.popUp.description]
-1 = "Sütiket és egyéb technológiákat használunk, hogy a RustlingPDF jobban működjön az Ön számára, segítve minket abban, hogy javítsuk eszközeinket és olyan funkciókat fejlesszünk, amelyeket szeretni fog"
-2 = "Ha inkább nem szeretné, a 'Nem, köszönöm' gombra kattintva csak azok az alapvető sütik lesznek engedélyezve, amelyek a zavartalan működéshez szükségesek."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Minden süti elfogadása"
-acceptNecessaryBtn = "Csak a szükséges sütik elfogadása"
-closeIconLabel = "Bezárás"
-savePreferencesBtn = "Preferenciák mentése"
-serviceCounterLabel = "Szolgáltatás|Szolgáltatások"
-subtitle = "Süti használat"
-title = "Beleegyezési preferenciák központja"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Ezek a sütik segítenek megérteni, hogyan használják eszközeinket, így a közösségünk által leginkább értékelt funkciókra összpontosíthatunk. Nyugodt lehet-a RustlingPDF nem képes és soha nem is fog nyomon követni az Ön által használt dokumentumok tartalmát."
-title = "Adatelemzések"
-
-[cookieBanner.preferencesModal.description]
-1 = "A RustlingPDF sütiket és hasonló technológiákat használ az Ön élményének javítása, valamint eszközeink használatának megértése érdekében. Ez segít nekünk abban, hogy javítsuk a teljesítményt, fejlesszük az Ön számára fontos funkciókat, és folyamatos támogatást nyújtsunk felhasználóinknak."
-2 = "A RustlingPDF nem képes-és soha nem is fog-nyomon követni vagy hozzáférni az Ön által használt dokumentumok tartalmához."
-3 = "Az Ön bizalma és adatainak védelme a tevékenységünk középpontjában áll."
-
-[cookieBanner.preferencesModal.necessary]
-description = "Ezek a sütik elengedhetetlenek a weboldal megfelelő működéséhez. Olyan alapvető funkciókat tesznek lehetővé, mint az adatvédelmi beállítások megadása, a bejelentkezés és az űrlapok kitöltése-ezért nem kapcsolhatók ki."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Szükséges sütik"
-2 = "Mindig aktív"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Üres terület automatikus levágása"
 noFileSelected = "Válasszon egy PDF-fájlt a vágás megkezdéséhez"
@@ -2960,7 +2915,6 @@ cookie = "Süti szabályzat"
 iAgreeToThe = "Elfogadom az összes"
 impressum = "Impresszum"
 privacy = "Adatvédelmi irányelvek"
-showCookieBanner = "Süti beállítások"
 terms = "Felhasználási feltételek"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "A billentyűparancs tartalmazzon Ctrl, Alt vagy más módosítóbille
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

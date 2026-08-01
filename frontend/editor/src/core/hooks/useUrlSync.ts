@@ -10,7 +10,6 @@ import {
   clearToolRoute,
 } from "@app/utils/urlRouting";
 import { ToolRegistry } from "@app/data/toolsTaxonomy";
-import { firePixel } from "@app/utils/scarfTracking";
 import { withBasePath } from "@app/constants/app";
 
 /**
@@ -36,10 +35,6 @@ export function useNavigationUrlSync(
     if (!enableSync) return;
     // Only run once on initial mount
     if (hasInitialized.current) return;
-
-    // Fire pixel for initial page load
-    const currentPath = window.location.pathname;
-    firePixel(currentPath);
 
     const route = parseToolRoute(registry);
     if (route.toolId) {
@@ -79,10 +74,6 @@ export function useNavigationUrlSync(
     const handlePopState = () => {
       const route = parseToolRoute(registry);
       if (route.toolId !== selectedTool) {
-        // Fire pixel for back/forward navigation
-        const currentPath = window.location.pathname;
-        firePixel(currentPath);
-
         if (route.toolId) {
           selectFromUrl(route.toolId);
         } else {

@@ -9,9 +9,6 @@ export interface AppConfig {
   logoStyle?: "modern" | "classic";
   shouldShowUpdate?: boolean;
   enableAlphaFunctionality?: boolean;
-  enableAnalytics?: boolean | null;
-  enablePosthog?: boolean | null;
-  enableScarf?: boolean | null;
   enableDesktopInstallSlide?: boolean;
   termsAndConditions?: string;
   privacyPolicy?: string;

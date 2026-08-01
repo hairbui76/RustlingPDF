@@ -533,12 +533,6 @@ hint = "Tiene cambios sin guardar"
 message = "Tiene cambios sin guardar. ¿Desea descartarlos?"
 title = "Cambios sin guardar"
 
-[analytics]
-learnMore = "Más información"
-paragraph1 = "RustlingPDF ha optado por analíticas para ayudarnos a mejorar el producto. No rastreamos ninguna información personal ni contenido de archivos."
-paragraph2 = "Considere habilitar analíticas para ayudar a RustlingPDF a crecer y permitirnos comprender mejor a nuestros usuarios."
-title = "¿Quieres mejorar RustlingPDF?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tableta/Teléfono (con imágenes)"
 targetDevice = "Dispositivo de destino"
 targetDeviceDesc = "Elige un perfil de salida optimizado para el dispositivo lector"
 
-[cookieBanner.popUp]
-acceptAllBtn = "De acuerdo"
-acceptNecessaryBtn = "No, gracias"
-showPreferencesBtn = "Gestionar preferencias"
-title = "Cómo usamos las cookies"
-
-[cookieBanner.popUp.description]
-1 = "Usamos cookies y otras tecnologías para optimizar el funcionamiento de RustlingPDF, lo que contribuye a mejorar nuestras herramientas y a seguir desarrollando funciones que serán de su interés."
-2 = "Si prefiere no hacerlo, al hacer clic en 'No gracias' se activarán únicamente las cookies esenciales necesarias para que todo funcione correctamente."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Aceptar todo"
-acceptNecessaryBtn = "Rechazar todo"
-closeIconLabel = "Cerrar diálogo"
-savePreferencesBtn = "Guardar preferencias"
-serviceCounterLabel = "Servicio|Servicios"
-subtitle = "Uso de cookies"
-title = "Centro de Preferencias de Consentimiento"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Estas cookies nos ayudan a entender cómo se están utilizando nuestras herramientas, para que podamos centrarnos en desarrollar las funciones que nuestra comunidad valora más. Tenga la seguridad de que RustlingPDF no puede y nunca podrá rastrear el contenido de los documentos con los que trabaja."
-title = "Análisis"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF utiliza cookies y tecnologías similares para mejorar su experiencia y entender cómo se usan nuestras herramientas. Esto nos ayuda a mejorar el rendimiento, desarrollar las funciones que le interesan y proporcionar soporte continuo a nuestros usuarios."
-2 = "RustlingPDF no puede—y nunca podrá—rastrear ni acceder al contenido de los documentos que utiliza."
-3 = "Su privacidad y confianza son el núcleo de lo que hacemos."
-
-[cookieBanner.preferencesModal.necessary]
-description = "Estas cookies son esenciales para que el sitio web funcione correctamente. Permiten funciones básicas como configurar sus preferencias de privacidad, iniciar sesión y completar formularios, por lo que no se pueden desactivar."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Cookies estrictamente necesarias"
-2 = "Siempre activado"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Recortar automáticamente espacios en blanco"
 noFileSelected = "Seleccione un archivo PDF para comenzar a recortar"
@@ -2960,7 +2915,6 @@ cookie = "Política de Cookies"
 iAgreeToThe = "Acepto todos los"
 impressum = "Aviso legal"
 privacy = "Política de Privacidad"
-showCookieBanner = "Preferencias de cookies"
 terms = "Términos y Condiciones"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Incluye Ctrl, Alt u otro modificador en tu atajo."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

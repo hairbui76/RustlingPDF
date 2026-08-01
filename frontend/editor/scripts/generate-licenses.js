@@ -358,14 +358,6 @@ try {
       licenseType = "Unknown";
     }
 
-    if (
-      "posthog-js" === dep.name &&
-      licenseType.startsWith("SEE LICENSE IN LICENSE")
-    ) {
-      licenseType =
-        "SEE LICENSE IN LICENSE https://github.com/PostHog/posthog-js/blob/main/LICENSE";
-    }
-
     return {
       name: dep.name,
       version:
@@ -672,7 +664,6 @@ function checkLicenseCompatibility(licenseSummary, licenseArray) {
     "Ruby",
     "MPL-2.0",
     "CC-BY-4.0",
-    "SEE LICENSE IN LICENSE https://github.com/PostHog/posthog-js/blob/main/LICENSE",
   ]);
 
   // Helper function to normalize license names for comparison

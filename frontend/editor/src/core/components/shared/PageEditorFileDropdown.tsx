@@ -7,7 +7,6 @@ import AddIcon from "@mui/icons-material/Add";
 import FitText from "@app/components/shared/FitText";
 import { getFileColorWithOpacity } from "@app/components/pageEditor/fileColors";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { useFileItemDragDrop } from "@app/components/shared/pageEditor/useFileItemDragDrop";
 
 import { FileId } from "@app/types/file";
@@ -134,9 +133,7 @@ const FileMenuItem: React.FC<FileMenuItemProps> = ({
             size="sm"
           />
           <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
-            <PrivateContent>
-              <FitText text={itemName} minimumFontScale={0.7} />
-            </PrivateContent>
+            <FitText text={itemName} minimumFontScale={0.7} />
           </div>
           {file.versionNumber && file.versionNumber > 1 && (
             <Text size="xs" c="dimmed">
@@ -175,10 +172,7 @@ export const PageEditorFileDropdown: React.FC<PageEditorFileDropdownProps> = ({
   return (
     <Menu trigger="click" position="bottom" width="40rem">
       <Menu.Target>
-        <div
-          className="ph-no-capture"
-          style={{ ...viewOptionStyle, cursor: "pointer" }}
-        >
+        <div style={{ ...viewOptionStyle, cursor: "pointer" }}>
           {switchingTo === "pageEditor" ? (
             <Loader size="xs" />
           ) : (
@@ -188,14 +182,13 @@ export const PageEditorFileDropdown: React.FC<PageEditorFileDropdownProps> = ({
               height="1.4rem"
             />
           )}
-          <span className="ph-no-capture">
+          <span>
             {selectedCount}/{totalCount} files selected
           </span>
           <KeyboardArrowDownIcon fontSize="small" />
         </div>
       </Menu.Target>
       <Menu.Dropdown
-        className="ph-no-capture"
         style={{
           backgroundColor: "var(--c-bg)",
           border: "1px solid var(--c-border-subtle)",
@@ -252,7 +245,6 @@ export const PageEditorFileDropdown: React.FC<PageEditorFileDropdownProps> = ({
               size="sm"
               fw={500}
               style={{ color: "var(--mantine-color-text)" }}
-              className="ph-no-capture"
             >
               Add File
             </Text>

@@ -23,7 +23,6 @@ import { useFileManagerContext } from "@app/contexts/FileManagerContext";
 import { zipFileService } from "@app/services/zipFileService";
 import ToolChain from "@app/components/shared/ToolChain";
 import { Z_INDEX_OVER_FILE_MANAGER_MODAL } from "@app/styles/zIndex";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { useFileManagement } from "@app/contexts/FileContext";
 
 interface FileListItemProps {
@@ -127,7 +126,7 @@ const FileListItem: React.FC<FileListItemProps> = ({
           <Box style={{ flex: 1, minWidth: 0 }}>
             <Group gap="xs" align="center">
               <Text size="sm" fw={500} truncate style={{ flex: 1 }}>
-                <PrivateContent>{file.name}</PrivateContent>
+                {file.name}
               </Text>
               {isActive && (
                 <Badge

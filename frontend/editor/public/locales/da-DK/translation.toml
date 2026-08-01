@@ -533,12 +533,6 @@ hint = "Du har ugemte ændringer"
 message = "Du har ugemte ændringer. Vil du kassere dem?"
 title = "Ugemte ændringer"
 
-[analytics]
-learnMore = "Lær mere"
-paragraph1 = "RustlingPDF har indsat analytics for at hjælpe os med at forbedre produktet. Vi følger ikke nogen personoplysninger eller filinhold."
-paragraph2 = "Bevægelsesmæssigt aktiver du analytics for at hjælpe RustlingPDF med at vokse og til atstå os bedre at forstå vores brugere."
-title = "Vil du gøre RustlingPDF bedre?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/telefon (med billeder)"
 targetDevice = "Målenhed"
 targetDeviceDesc = "Vælg en outputprofil optimeret til læseenheden"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Okay"
-acceptNecessaryBtn = "Nej tak"
-showPreferencesBtn = "Administrer præferencer"
-title = "Sådan bruger vi cookies"
-
-[cookieBanner.popUp.description]
-1 = "Vi bruger cookies og andre teknologier for at få RustlingPDF til at fungere bedre for dig—det hjælper os med at forbedre vores værktøjer og fortsat bygge funktioner, du vil elske."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Acceptér alle"
-acceptNecessaryBtn = "Afvis alle"
-closeIconLabel = "Luk modal"
-savePreferencesBtn = "Gem præferencer"
-serviceCounterLabel = "Tjeneste|Tjenester"
-subtitle = "Brug af cookies"
-title = "Center for samtykkepræferencer"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Disse cookies hjælper os med at forstå, hvordan vores værktøjer bruges, så vi kan fokusere på at bygge de funktioner, vores community værdsætter mest. Vær tryg—RustlingPDF kan ikke og vil aldrig spore indholdet af de dokumenter, du arbejder med."
-title = "Analyser"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF bruger cookies og lignende teknologier til at forbedre din oplevelse og forstå, hvordan vores værktøjer bruges. Det hjælper os med at forbedre ydeevnen, udvikle de funktioner, du går op i, og yde løbende support til vores brugere."
-2 = "RustlingPDF kan ikke—og vil aldrig—spore eller få adgang til indholdet af de dokumenter, du bruger."
-3 = "Din privatlivsbeskyttelse og tillid er kernen i alt, hvad vi gør."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Strengt nødvendige cookies"
-2 = "Altid aktiveret"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Auto-beskær hvidt område"
 noFileSelected = "Vælg en PDF for at begynde beskæring"
@@ -2960,7 +2915,6 @@ cookie = "Cokiebelejring"
 iAgreeToThe = "Jeg accepterer alle"
 impressum = "Angivelse af ansvar"
 privacy = "Fortrolighedspolitik"
-showCookieBanner = "Cookieindstillinger"
 terms = "Vilkår og betingelser"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Medtag Ctrl, Alt eller en anden modifikatortast i din genvej."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

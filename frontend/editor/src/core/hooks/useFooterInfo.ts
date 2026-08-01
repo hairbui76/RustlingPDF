@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import apiClient from "@app/services/apiClient";
 
 export interface FooterInfo {
-  analyticsEnabled?: boolean;
   termsAndConditions?: string;
   privacyPolicy?: string;
   accessibilityStatement?: string;
@@ -34,10 +33,8 @@ export function useFooterInfo() {
       } catch (err) {
         console.error("[useFooterInfo] Failed to fetch footer info:", err);
         setError(err as Error);
-        // Set defaults on error
-        setFooterInfo({
-          analyticsEnabled: false,
-        });
+        // No links on error; every field is optional and renders nothing.
+        setFooterInfo({});
       } finally {
         setLoading(false);
       }

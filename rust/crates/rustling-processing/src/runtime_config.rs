@@ -2,7 +2,16 @@
 //!
 //! `configs/settings.yml` is loaded before `configs/custom_settings.yml` below
 //! `RUSTLING_BASE_PATH`; the latter overrides the former. This module owns the
-//! public runtime configuration surface and analytics-onboarding mutation.
+//! public runtime configuration surface.
+//!
+//! The service collects and transmits nothing about its users. Settings keys
+//! from earlier releases that configured the removed opt-in analytics
+//! (`system.enableAnalytics`, `system.enablePosthog`, `system.enableScarf`) and
+//! their `SYSTEM_ENABLE*` environment overrides are simply never read: this
+//! reader resolves each key by explicit path, so an unrecognised key in an
+//! existing `settings.yml` is ignored, never refused. Nothing prunes them from
+//! the file either — `update_settings_file_values` only upserts the
+//! `AutomaticallyGenerated` identity section.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -919,17 +928,6 @@ impl RuntimeConfig {
                 false,
             ),
         );
-        insert(config, "enableAnalytics", self.analytics_enabled());
-        insert(
-            config,
-            "enablePosthog",
-            self.optional_boolean(&["system", "enablePosthog"], "SYSTEM_ENABLEPOSTHOG"),
-        );
-        insert(
-            config,
-            "enableScarf",
-            self.optional_boolean(&["system", "enableScarf"], "SYSTEM_ENABLESCARF"),
-        );
         insert(
             config,
             "enableDesktopInstallSlide",
@@ -1387,10 +1385,6 @@ impl RuntimeConfig {
 
     fn optional_boolean(&self, path: &[&str], environment: &str) -> Option<bool> {
         env_bool(environment).or_else(|| value_at(&self.settings, path).and_then(yaml_bool))
-    }
-
-    fn analytics_enabled(&self) -> Option<bool> {
-        self.optional_boolean(&["system", "enableAnalytics"], "SYSTEM_ENABLEANALYTICS")
     }
 
     fn string(&self, path: &[&str], environment: &str, default: &str) -> String {
@@ -2079,6 +2073,37 @@ mod tests {
                 vec!["https://custom-tsa.example.test".to_owned()]
             )
         );
+        Ok(())
+    }
+
+    /// The opt-in analytics were removed, and with them the
+    /// `system.enableAnalytics` / `enablePosthog` / `enableScarf` settings keys.
+    /// An existing install's `settings.yml` still carries them, so this pins
+    /// the two halves of that promise: the keys are IGNORED (never surfaced on
+    /// the public app config, which is what the SPA reads) and never REFUSED
+    /// (the file still loads cleanly and every neighbouring key still resolves).
+    #[test]
+    fn removed_analytics_settings_keys_are_ignored_not_refused()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(
+            &settings,
+            "system:\n  enableAnalytics: true\n  enablePosthog: true\n  enableScarf: true\n  defaultLocale: en-GB\n",
+        )?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        assert_eq!(config.load_error, None);
+
+        let app_config = config.app_config(None, None);
+        for key in ["enableAnalytics", "enablePosthog", "enableScarf"] {
+            assert!(
+                app_config.get(key).is_none(),
+                "{key} must not reappear on the public app config",
+            );
+        }
+        // A neighbouring key in the same `system` block still resolves, proving
+        // the unrecognised keys did not poison the load.
+        assert_eq!(app_config["defaultLocale"], "en-GB");
         Ok(())
     }
 

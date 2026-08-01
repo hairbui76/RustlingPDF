@@ -272,7 +272,7 @@ const DraggableItemInner = <T extends DragDropItem>({
 
         const element = itemRefs.current.get(item.id);
         const imgElement = element?.querySelector(
-          "img.ph-no-capture",
+          "img.page-thumbnail-image",
         ) as HTMLImageElement;
         if (imgElement?.src) {
           return {

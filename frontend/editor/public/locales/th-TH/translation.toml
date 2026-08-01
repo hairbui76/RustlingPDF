@@ -533,12 +533,6 @@ hint = "คุณมีการเปลี่ยนแปลงที่ยั
 message = "คุณมีการเปลี่ยนแปลงที่ยังไม่บันทึก ต้องการละทิ้งหรือไม่?"
 title = "การเปลี่ยนแปลงที่ยังไม่บันทึก"
 
-[analytics]
-learnMore = "เรียนรู้เพิ่มเติม"
-paragraph1 = "RustlingPDF มีการวิเคราะห์แบบสมัครใจเพื่อช่วยเราปรับปรุงผลิตภัณฑ์ เราไม่นำทางความเป็นส่วนตัวหรือเนื้อหาของไฟล์ไปเก็บข้อมูลใด ๆ"
-paragraph2 = "โปรดพิจารณาการเปิดใช้งานการวิเคราะห์เพื่อช่วยให้ RustlingPDF เจริญเติบโตและทำให้เราเข้าใจผู้ใช้งานมากขึ้น"
-title = "คุณต้องการที่จะทำให้ RustlingPDF ดียิ่งขึ้นไหม?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "แท็บเล็ต/โทรศัพท์ (พร้อ�
 targetDevice = "อุปกรณ์เป้าหมาย"
 targetDeviceDesc = "เลือกโปรไฟล์เอาต์พุตที่ปรับให้เหมาะกับอุปกรณ์อ่าน"
 
-[cookieBanner.popUp]
-acceptAllBtn = "ตกลง"
-acceptNecessaryBtn = "ไม่เป็นไร"
-showPreferencesBtn = "จัดการการตั้งค่า"
-title = "เราใช้คุกกี้อย่างไร"
-
-[cookieBanner.popUp.description]
-1 = "เราใช้คุกกี้และเทคโนโลยีอื่น ๆ เพื่อให้ RustlingPDF ทำงานได้ดียิ่งขึ้นสำหรับคุณ—ช่วยให้เราพัฒนาเครื่องมือและสร้างฟีเจอร์ที่คุณชื่นชอบต่อไป"
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "ยอมรับทั้งหมด"
-acceptNecessaryBtn = "ปฏิเสธทั้งหมด"
-closeIconLabel = "ปิดหน้าต่าง"
-savePreferencesBtn = "บันทึกการตั้งค่า"
-serviceCounterLabel = "บริการ|บริการ"
-subtitle = "การใช้คุกกี้"
-title = "ศูนย์การตั้งค่าความยินยอม"
-
-[cookieBanner.preferencesModal.analytics]
-description = "คุกกี้เหล่านี้ช่วยให้เราเข้าใจว่าเครื่องมือของเราถูกใช้อย่างไร เพื่อให้เรามุ่งเน้นสร้างฟีเจอร์ที่ชุมชนให้คุณค่ามากที่สุด มั่นใจได้ว่า RustlingPDF ไม่สามารถและจะไม่มีวันติดตามเนื้อหาของเอกสารที่คุณทำงานด้วย"
-title = "การวิเคราะห์"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF ใช้คุกกี้และเทคโนโลยีที่คล้ายกันเพื่อยกระดับประสบการณ์ของคุณและเข้าใจการใช้งานเครื่องมือของเรา ซึ่งช่วยให้เราปรับปรุงประสิทธิภาพ พัฒนาฟีเจอร์ที่คุณให้ความสำคัญ และสนับสนุนผู้ใช้อย่างต่อเนื่อง"
-2 = "RustlingPDF ไม่สามารถ—และจะไม่มีวัน—ติดตามหรือเข้าถึงเนื้อหาของเอกสารที่คุณใช้"
-3 = "ความเป็นส่วนตัวและความไว้วางใจของคุณคือหัวใจสำคัญของงานที่เราทำ"
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "คุกกี้ที่จำเป็นอย่างเคร่งครัด"
-2 = "เปิดใช้งานเสมอ"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "ครอบตัดช่องว่างอัตโนมัติ"
 noFileSelected = "เลือกไฟล์ PDF เพื่อเริ่มการครอบตัด"
@@ -2960,7 +2915,6 @@ cookie = "นโยบายคุกกี้"
 iAgreeToThe = "ฉันยอมรับทั้งหมดของ"
 impressum = "ปฏิญญา"
 privacy = "นโยบายความเป็นส่วนตัว"
-showCookieBanner = "การตั้งค่าคุกกี้"
 terms = "ข้อกำหนดการใช้งาน"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "ให้มี Ctrl, Alt หรือปุ่มดัดแปล�
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

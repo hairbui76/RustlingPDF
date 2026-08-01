@@ -50,7 +50,6 @@ const Overview: React.FC = () => {
   const systemConfig = config
     ? {
         enableAlphaFunctionality: config.enableAlphaFunctionality,
-        enableAnalytics: config.enableAnalytics,
       }
     : null;
 

@@ -29,7 +29,9 @@ query routes other than status and health return
 `403 This endpoint is disabled.`.
 
 Counters are process-local, leave the service only when a caller requests the
-info routes, and reset on restart. They are not external analytics.
+info routes, and reset on restart. The service has no analytics of any kind:
+nothing here — or anywhere else in the product — is reported to a vendor, and
+there is no code path that could.
 
 Unit and HTTP tests cover version reporting, filters, uniqueness, browser
 identifiers, request counts, weekly-active output, and disabled metrics.

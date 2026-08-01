@@ -149,5 +149,5 @@ and human-review policy that this programme has not authorized.
 
 Temporary upload directories are request-owned and deleted on every success or
 error path. There is no document store, vector database, retrieval index,
-conversation history, analytics payload, or background retry for these
-operations.
+conversation history, or background retry for these operations, and the product
+carries no analytics that could report on them.

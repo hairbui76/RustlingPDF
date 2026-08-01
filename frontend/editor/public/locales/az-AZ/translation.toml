@@ -533,12 +533,6 @@ hint = "Yadda saxlanmamış dəyişiklikləriniz var"
 message = "Yadda saxlanmamış dəyişiklikləriniz var. Ləğv etmək istəyirsiniz?"
 title = "Yadda saxlanmamış dəyişikliklər"
 
-[analytics]
-learnMore = "Daha ətraflı öyrənin"
-paragraph1 = "RustlingPDF bizə məhsulu inkişaf etdirməyə kömək etmək üçün analitikaya üstünlük verib. Biz heç bir şəxsi məlumatı və ya fayl məzmununu izləmirik."
-paragraph2 = "Zəhmət olmasa, Stringling-PDF-ə inkişaf etməkdə və istifadəçilərimizi daha yaxşı anlamaqda yardım etmək üçün analitikanı aktivləşdirməyi nəzərə alın."
-title = "RustlingPDF-i daha yaxşı etmək istəyirsinizmi?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Planşet/Telefon (şəkillərlə)"
 targetDevice = "Hədəf cihaz"
 targetDeviceDesc = "Oxuyucu cihaz üçün optimallaşdırılmış çıxış profilini seçin"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Oldu"
-acceptNecessaryBtn = "Xeyr, sağ olun"
-showPreferencesBtn = "Seçimləri idarə et"
-title = "Çərəzlərdən necə istifadə edirik"
-
-[cookieBanner.popUp.description]
-1 = "RustlingPDF-i sizin üçün daha yaxşı işlətmək üçün çərəzlərdən və digər texnologiyalardan istifadə edirik — alətlərimizi yaxşılaşdırmağa və sevəcəyiniz funksiyalar yaratmağa kömək edir."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Hamısını qəbul et"
-acceptNecessaryBtn = "Hamısını rədd et"
-closeIconLabel = "Pəncərəni bağla"
-savePreferencesBtn = "Seçimləri yadda saxla"
-serviceCounterLabel = "Xidmət|Xidmətlər"
-subtitle = "Kukilərdən istifadə"
-title = "Razılıq Seçimləri Mərkəzi"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Bu kukilər alətlərimizin necə istifadə olunduğunu anlamağa kömək edir ki, icmamızın ən çox dəyər verdiyi xüsusiyyətlərin yaradılmasına fokuslanaq. Arxayın olun — RustlingPDF işlədiyiniz sənədlərin məzmununu izləyə bilməz və heç vaxt izləməyəcək."
-title = "Analitika"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF təcrübənizi yaxşılaşdırmaq və alətlərimizin necə istifadə olunduğunu anlamaq üçün kukilər və oxşar texnologiyalardan istifadə edir. Bu, performansı yaxşılaşdırmağa, sizin üçün vacib funksiyaları inkişaf etdirməyə və istifadəçilərimizə davamlı dəstək göstərməyə kömək edir."
-2 = "RustlingPDF istifadə etdiyiniz sənədlərin məzmununu izləyə və ya ona çıxış əldə edə bilməz və heç vaxt etməyəcək."
-3 = "Məxfilik və etimadınız gördüyümüz işin mərkəzindədir."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Mütləq Zəruri Kukilər"
-2 = "Həmişə aktiv"
-
-[cookieBanner.services]
-posthog = "PostHog Analitika"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Boşluqları avtomatik qırp"
 noFileSelected = "Kəsməyə başlamaq üçün bir PDF faylı seçin"
@@ -2960,7 +2915,6 @@ cookie = "Kuki Siyasəti"
 iAgreeToThe = "Mən bütün şərtlərlə razıyam"
 impressum = "Təəssürat"
 privacy = "Məxfilik Siyasəti"
-showCookieBanner = "Kuki parametrləri"
 terms = "Qaydalar və Şərtlər"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Qısayolda Ctrl, Alt və ya başqa bir modifikator daxil edin."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

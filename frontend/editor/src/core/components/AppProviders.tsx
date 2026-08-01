@@ -25,8 +25,6 @@ import { TourOrchestrationProvider } from "@app/contexts/TourOrchestrationContex
 import { PageEditorProvider } from "@app/contexts/PageEditorContext";
 import { BannerProvider } from "@app/contexts/BannerContext";
 import ErrorBoundary from "@app/components/shared/ErrorBoundary";
-import { usePosthogTracking } from "@app/hooks/usePosthogTracking";
-import { useScarfTracking } from "@app/hooks/useScarfTracking";
 import { useAppInitialization } from "@app/hooks/useAppInitialization";
 import { useLogoAssets } from "@app/hooks/useLogoAssets";
 import AppConfigLoader from "@app/components/shared/AppConfigLoader";
@@ -35,17 +33,6 @@ import { RedactionProvider } from "@app/contexts/RedactionContext";
 import { FormFillProvider } from "@app/tools/formFill/FormFillContext";
 import { FormDesignerProvider } from "@app/tools/formFill/FormDesignerContext";
 import { FolderProvider } from "@app/contexts/FolderContext";
-
-// Component to initialize scarf tracking (must be inside AppConfigProvider)
-function ScarfTrackingInitializer() {
-  useScarfTracking();
-  return null;
-}
-
-function PosthogTrackingInitializer() {
-  usePosthogTracking();
-  return null;
-}
 
 // Component to run app-level initialization (must be inside AppProviders for context access)
 function AppInitializer() {
@@ -126,8 +113,6 @@ export function AppProviders({
               retryOptions={appConfigRetryOptions}
               {...appConfigProviderProps}
             >
-              <PosthogTrackingInitializer />
-              <ScarfTrackingInitializer />
               <AppConfigLoader />
               <ServerDefaultsSync />
               {/* Auto-popup on startup when a newer RustlingPDF release is available.

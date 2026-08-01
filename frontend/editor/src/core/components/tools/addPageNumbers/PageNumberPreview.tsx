@@ -4,7 +4,6 @@ import { AddPageNumbersParameters } from "@app/components/tools/addPageNumbers/u
 import { pdfWorkerManager } from "@app/services/pdfWorkerManager";
 import { useThumbnailGeneration } from "@app/hooks/useThumbnailGeneration";
 import styles from "@app/components/tools/addPageNumbers/PageNumberPreview.module.css";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { Button } from "@app/ui/Button";
 
 // Simple utilities for page numbers (adapted from stamp)
@@ -240,14 +239,12 @@ export default function PageNumberPreview({
         style={containerStyle}
       >
         {pageThumbnail && (
-          <PrivateContent>
-            <img
-              src={pageThumbnail}
-              alt="page preview"
-              className={styles.pageThumbnail}
-              draggable={false}
-            />
-          </PrivateContent>
+          <img
+            src={pageThumbnail}
+            alt="page preview"
+            className={styles.pageThumbnail}
+            draggable={false}
+          />
         )}
 
         {/* Quick position overlay grid - EXACT copy from stamp */}

@@ -533,12 +533,6 @@ hint = "Imate nesačuvane promene"
 message = "Imate nesačuvane promene. Želite li da ih odbacite?"
 title = "Nesačuvane promene"
 
-[analytics]
-learnMore = "Saznaj više"
-paragraph1 = "RustlingPDF ima opcioni sistem analitike koji nam pomaže da unapredimo proizvod. Ne pratimo nikakve lične podatke niti sadržaj fajlova."
-paragraph2 = "Molimo te da razmotriš uključivanje analitike kako bi pomogao RustlingPDF-u da raste i omogućio nam bolje razumevanje naših korisnika."
-title = "Želiš li da učiniš RustlingPDF boljim?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Telefon (sa slikama)"
 targetDevice = "Ciljni uređaj"
 targetDeviceDesc = "Izaberite izlazni profil optimizovan za uređaj za čitanje"
 
-[cookieBanner.popUp]
-acceptAllBtn = "U redu"
-acceptNecessaryBtn = "Ne, hvala"
-showPreferencesBtn = "Upravljaj podešavanjima"
-title = "Kako koristimo kolačiće"
-
-[cookieBanner.popUp.description]
-1 = "Koristimo kolačiće i druge tehnologije kako bismo poboljšali rad RustlingPDF-a — pomažući nam da unapredimo naše alate i nastavimo da razvijamo funkcije koje ćete voleti."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Prihvati sve"
-acceptNecessaryBtn = "Odbij sve"
-closeIconLabel = "Zatvori modal"
-savePreferencesBtn = "Sačuvaj podešavanja"
-serviceCounterLabel = "Usluga|Usluge"
-subtitle = "Korišćenje kolačića"
-title = "Centar za podešavanja saglasnoti"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Ovi kolačići nam pomažu da razumemo kako se naši alati koriste, kako bismo mogli da se fokusiramo na razvoj funkcija koje naša zajednica najviše ceni. Budite sigurni — RustlingPDF ne može i nikada neće pratiti sadržaj dokumenata sa kojima radite."
-title = "Analitika"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF koristi kolačiće i slične tehnologije kako bi poboljšao vaše iskustvo i razumeo kako se naši alati koriste. Ovo nam pomaže da unapredimo performanse, razvijamo funkcije koje su vam važne i pružimo kontinuiranu podršku našim korisnicima."
-2 = "RustlingPDF ne može — i nikada neće — pratiti ili pristupati sadržaju dokumenata koje koristite."
-3 = "Vaša privatnost i poverenje su osnovni principi našeg rada."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Isključivo neophodni kolačići"
-2 = "Uvek omogućeno"
-
-[cookieBanner.services]
-posthog = "PostHog analitika"
-scarf = "Scarf piksel"
-
 [crop]
 autoCrop = "Automatski iseci beline"
 noFileSelected = "Izaberite PDF fajl da biste započeli isecanje"
@@ -2960,7 +2915,6 @@ cookie = "Politika kolačića"
 iAgreeToThe = "Slažem se sa svim"
 impressum = "Impresum"
 privacy = "Politika privatnosti"
-showCookieBanner = "Podešavanje kolačića"
 terms = "Uslovi i odredbe"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Uključite Ctrl, Alt ili neki drugi modifikator u prečicu."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

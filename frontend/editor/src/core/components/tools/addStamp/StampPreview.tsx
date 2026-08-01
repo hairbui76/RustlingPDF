@@ -10,7 +10,6 @@ import {
   getAlphabetPreviewScale,
 } from "@app/components/tools/addStamp/StampPreviewUtils";
 import styles from "@app/components/tools/addStamp/StampPreview.module.css";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
 
@@ -380,14 +379,12 @@ export default function StampPreview({
         onPointerUp={handlePointerUp}
       >
         {pageThumbnail && (
-          <PrivateContent>
-            <img
-              src={pageThumbnail}
-              alt="page preview"
-              className={styles.pageThumbnail}
-              draggable={false}
-            />
-          </PrivateContent>
+          <img
+            src={pageThumbnail}
+            alt="page preview"
+            className={styles.pageThumbnail}
+            draggable={false}
+          />
         )}
         {parameters.stampType === "text" && (
           <div

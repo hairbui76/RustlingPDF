@@ -20,7 +20,6 @@ import { RustlingFile } from "@app/types/fileContext";
 import { fileStorage } from "@app/services/fileStorage";
 import { zipFileService } from "@app/services/zipFileService";
 import { FileAnalyzer } from "@app/services/fileAnalyzer";
-import { trackPdfUploaded } from "@app/services/analytics";
 import {
   reportBulkAddProgress,
   clearBulkAddProgress,
@@ -257,7 +256,6 @@ interface AddFileOptions {
     fileName: string,
   ) => Promise<boolean>; // Optional callback to confirm extraction of large ZIP files
   allowDuplicates?: boolean;
-  skipUploadTracking?: boolean;
 }
 
 /**
@@ -572,10 +570,6 @@ export async function addFiles(
           }
         }),
       );
-    }
-
-    if (!options.skipUploadTracking && rustlingFiles.length > 0) {
-      trackPdfUploaded(rustlingFiles);
     }
 
     return rustlingFiles;

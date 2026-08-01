@@ -6,7 +6,6 @@ import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import CloseIcon from "@mui/icons-material/Close";
 import FitText from "@app/components/shared/FitText";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { FileId } from "@app/types/file";
 import { truncateCenter } from "@app/utils/textUtils";
 
@@ -42,13 +41,11 @@ export const FileDropdownMenu: React.FC<FileDropdownMenuProps> = ({
           ) : (
             <InsertDriveFileIcon fontSize="small" style={{ flexShrink: 0 }} />
           )}
-          <PrivateContent>
-            <FitText
-              text={truncateCenter(displayName, 30)}
-              minimumFontScale={0.6}
-              style={{ maxWidth: "12rem", display: "inline-block" }}
-            />
-          </PrivateContent>
+          <FitText
+            text={truncateCenter(displayName, 30)}
+            minimumFontScale={0.6}
+            style={{ maxWidth: "12rem", display: "inline-block" }}
+          />
           <KeyboardArrowDownIcon fontSize="small" style={{ flexShrink: 0 }} />
         </div>
       </Menu.Target>
@@ -83,13 +80,11 @@ export const FileDropdownMenu: React.FC<FileDropdownMenuProps> = ({
                 style={{ width: "100%", justifyContent: "space-between" }}
               >
                 <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
-                  <PrivateContent>
-                    <FitText
-                      text={truncateCenter(itemName, 50)}
-                      minimumFontScale={0.7}
-                      style={{ display: "block", width: "100%" }}
-                    />
-                  </PrivateContent>
+                  <FitText
+                    text={truncateCenter(itemName, 50)}
+                    minimumFontScale={0.7}
+                    style={{ display: "block", width: "100%" }}
+                  />
                 </div>
                 <Group gap="xs" style={{ flexShrink: 0 }}>
                   {file.versionNumber && file.versionNumber > 1 && (

@@ -533,12 +533,6 @@ hint = "Tá athruithe gan sábháil agat"
 message = "Tá athruithe gan sábháil agat. Ar mhaith leat iad a chur i leataobh?"
 title = "Athruithe gan sábháil"
 
-[analytics]
-learnMore = "Tuilleadh eolais"
-paragraph1 = "Tá rogha an diúltaithe ag PDF Rustling chun cabhrú linn an táirge a fheabhsú. Ní rianaimid aon fhaisnéis phearsanta nó ábhar comhaid."
-paragraph2 = "Smaoinigh le do thoil ar anailísíocht a chumasú chun cabhrú le RustlingPDF fás agus chun ligean dúinn ár n-úsáideoirí a thuiscint níos fearr."
-title = "An bhfuil fonn ort PDF Rustling a fheabhsú?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Phone (with images)"
 targetDevice = "Target device"
 targetDeviceDesc = "Choose an output profile optimized for the reader device"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Ceart go leor"
-acceptNecessaryBtn = "Níl, go raibh maith agat"
-showPreferencesBtn = "Bainistigh sainroghanna"
-title = "Conas a Úsáidimid Fianáin"
-
-[cookieBanner.popUp.description]
-1 = "Úsáidimid fianáin agus teicneolaíochtaí eile chun RustlingPDF a dhéanamh níos fearr duit—ag cabhrú linn ár n-uirlisí a fheabhsú agus gnéithe a thógáil a thaitneoidh leat."
-2 = "Mura mian leat, ní chuirfear ar chumas ach na fianáin riachtanacha atá riachtanach chun go n-oibreoidh rudaí go réidh má chliceálann tú ar 'Níl Go raibh maith agat'."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Glac le gach rud"
-acceptNecessaryBtn = "Diúltaigh do chách"
-closeIconLabel = "Dún an mhodal"
-savePreferencesBtn = "Sábháil sainroghanna"
-serviceCounterLabel = "Seirbhís|Seirbhísí"
-subtitle = "Úsáid Fianáin"
-title = "Lárionad Sainroghanna Toilithe"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Cuidíonn na fianáin seo linn a thuiscint conas a úsáidtear ár n-uirlisí, ionas gur féidir linn díriú ar na gnéithe is tábhachtaí dár bpobal a thógáil. Bí cinnte—ní féidir le RustlingPDF agus ní dhéanfaidh sé riamh ábhar na ndoiciméad a n-oibríonn tú leo a rianú."
-title = "Anailísíocht"
-
-[cookieBanner.preferencesModal.description]
-1 = "Úsáideann RustlingPDF fianáin agus teicneolaíochtaí cosúil leo chun do thaithí a fheabhsú agus chun tuiscint a fháil ar conas a úsáidtear ár n-uirlisí. Cabhraíonn sé seo linn feidhmíocht a fheabhsú, na gnéithe a bhfuil cúram agat fúthu a fhorbairt, agus tacaíocht leanúnach a sholáthar dár n-úsáideoirí."
-2 = "Ní féidir le RustlingPDF—agus ní dhéanfaidh sé riamh—ábhar na ndoiciméad a úsáideann tú a rianú ná a rochtain."
-3 = "Tá do phríobháideachas agus do mhuinín i gcroílár ár gcuid oibre."
-
-[cookieBanner.preferencesModal.necessary]
-description = "Tá na fianáin seo riachtanach chun go bhfeidhmeoidh an suíomh Gréasáin i gceart. Cuireann siad gnéithe lárnacha ar chumas amhail do chuid roghanna príobháideachais a shocrú, logáil isteach agus foirmeacha a líonadh—agus is é sin an fáth nach féidir iad a mhúchadh."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Fianáin Riachtanacha go Docht"
-2 = "Cumasaithe i gcónaí"
-
-[cookieBanner.services]
-posthog = "Anailísíocht PostHog"
-scarf = "Scairf Picteilín"
-
 [crop]
 autoCrop = "Spás bán a bhearradh go huathoibríoch"
 noFileSelected = "Roghnaigh comhad PDF chun tosú ar bhearradh"
@@ -2960,7 +2915,6 @@ cookie = "Polasaí Fianán"
 iAgreeToThe = "Aontaím le gach ceann de na"
 impressum = "Impressum"
 privacy = "Polasaí Príobháideachta"
-showCookieBanner = "Sainroghanna Fianán"
 terms = "Téarmaí agus Coinníollacha"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Cuir Ctrl, Alt, nó modhnóir eile i do aicearra."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

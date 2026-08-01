@@ -533,12 +533,6 @@ hint = "Имате незаписани промени"
 message = "Имате незаписани промени. Искате ли да ги отхвърлите?"
 title = "Незаписани промени"
 
-[analytics]
-learnMore = "Научете повече"
-paragraph1 = "RustlingPDF включва анализи, за да ни помогне да подобрим продукта. Ние не проследяваме лична информация или съдържание на файлове."
-paragraph2 = "Моля, обмислете възможността за анализ, за ​​да помогнете на RustlingPDF да расте и да ни позволи да разберем по-добре нашите потребители."
-title = "Искате ли да подобрите RustlingPDF?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Таблет/Телефон (с изображения)"
 targetDevice = "Целево устройство"
 targetDeviceDesc = "Изберете изходен профил, оптимизиран за устройството-четец"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Добре"
-acceptNecessaryBtn = "Не, благодаря"
-showPreferencesBtn = "Управление на предпочитанията"
-title = "Как използваме бисквитките"
-
-[cookieBanner.popUp.description]
-1 = "Използваме бисквитки и други технологии, за да работи RustlingPDF по-добре за вас — помагайки ни да подобряваме инструментите и да продължим да изграждаме функции, които ще харесате."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Приеми всички"
-acceptNecessaryBtn = "Откажи всички"
-closeIconLabel = "Затвори прозореца"
-savePreferencesBtn = "Запази предпочитанията"
-serviceCounterLabel = "Услуга|Услуги"
-subtitle = "Използване на бисквитки"
-title = "Център за предпочитания за съгласие"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Тези бисквитки ни помагат да разберем как се използват инструментите ни, за да се фокусираме върху изграждането на функциите, които общността най-много цени. Бъдете спокойни — RustlingPDF не може и никога няма да проследява съдържанието на документите, с които работите."
-title = "Анализи"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF използва бисквитки и подобни технологии, за да подобри вашето изживяване и да разбере как се използват нашите инструменти. Това ни помага да подобряваме производителността, да развиваме функциите, които ви интересуват, и да предоставяме постоянна поддръжка на потребителите."
-2 = "RustlingPDF не може — и никога няма да — проследява или да има достъп до съдържанието на документите, които използвате."
-3 = "Вашата поверителност и доверие са в основата на това, което правим."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Строго необходими бисквитки"
-2 = "Винаги активни"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Автоматично изрязване на бели полета"
 noFileSelected = "Изберете PDF файл, за да започнете изрязването"
@@ -2960,7 +2915,6 @@ cookie = "Политика за бисквитки"
 iAgreeToThe = "Съгласявам се с всички"
 impressum = "Отпечатък"
 privacy = "Политика за поверителност"
-showCookieBanner = "Предпочитания за бисквитки"
 terms = "Правила и условия"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Включете Ctrl, Alt или друг модификатор в 
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

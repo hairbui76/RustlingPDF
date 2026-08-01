@@ -3,7 +3,6 @@ import { Box, Center, Loader, Stack, Text } from "@mantine/core";
 import LockIcon from "@mui/icons-material/Lock";
 import { getFileTypeIcon } from "@app/components/shared/filePreview/getFileTypeIcon";
 import { RustlingFileStub } from "@app/types/fileContext";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 import { detectFileExtension } from "@app/utils/fileUtils";
 
 export interface DocumentThumbnailProps {
@@ -48,28 +47,26 @@ const DocumentThumbnail: React.FC<DocumentThumbnailProps> = ({
   if (thumbnail && !isEncrypted) {
     return (
       <Box style={containerStyle} onClick={onClick}>
-        <PrivateContent>
-          <img
-            src={thumbnail}
-            alt={`Preview of ${file.name}`}
-            className={imgClassName}
-            style={
-              imgClassName
-                ? undefined
-                : {
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    width: "auto",
-                    height: "auto",
-                    objectFit: "contain",
-                  }
-            }
-            draggable={false}
-            loading="lazy"
-            decoding="async"
-            onError={onImageError}
-          />
-        </PrivateContent>
+        <img
+          src={thumbnail}
+          alt={`Preview of ${file.name}`}
+          className={imgClassName}
+          style={
+            imgClassName
+              ? undefined
+              : {
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "auto",
+                  height: "auto",
+                  objectFit: "contain",
+                }
+          }
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          onError={onImageError}
+        />
         {children}
       </Box>
     );
@@ -145,7 +142,7 @@ const DocumentThumbnail: React.FC<DocumentThumbnailProps> = ({
           gap: "0.75rem",
         }}
       >
-        <PrivateContent>{getFileTypeIcon(file, iconSize)}</PrivateContent>
+        {getFileTypeIcon(file, iconSize)}
         {ext && (
           <span
             style={{

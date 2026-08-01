@@ -10,7 +10,6 @@ import {
   getToolWorkbench,
   getToolUrlPath,
 } from "@app/data/toolsTaxonomy";
-import { firePixel } from "@app/utils/scarfTracking";
 import { URL_TO_TOOL_MAP } from "@app/utils/urlMapping";
 import { BASE_PATH, withBasePath } from "@app/constants/app";
 
@@ -65,7 +64,7 @@ export function parseToolRoute(registry: ToolRegistry): ToolRoute {
 }
 
 /**
- * Update URL and fire analytics pixel
+ * Update the browser URL for a tool navigation.
  */
 function updateUrl(
   newPath: string,
@@ -76,7 +75,7 @@ function updateUrl(
   const queryString = searchParams.toString();
   const fullUrl = newPath + (queryString ? `?${queryString}` : "");
 
-  // Only update URL and fire pixel if something actually changed
+  // Only touch history if something actually changed
   if (
     currentPath !== newPath ||
     window.location.search !== (queryString ? `?${queryString}` : "")
@@ -86,7 +85,6 @@ function updateUrl(
     } else {
       window.history.pushState(null, "", fullUrl);
     }
-    firePixel(newPath);
   }
 }
 

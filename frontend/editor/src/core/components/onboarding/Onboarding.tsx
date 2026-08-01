@@ -10,7 +10,6 @@ import OnboardingTour, {
   type CloseArgs,
 } from "@app/components/onboarding/OnboardingTour";
 import OnboardingModalSlide from "@app/components/onboarding/OnboardingModalSlide";
-import StaticOnboardingSlide from "@app/components/onboarding/StaticOnboardingSlide";
 import { useTourRequest } from "@app/components/onboarding/useOnboardingEffects";
 import { useOnboardingDownload } from "@app/components/onboarding/useOnboardingDownload";
 import {
@@ -23,8 +22,6 @@ import { useTourOrchestration } from "@app/contexts/TourOrchestrationContext";
 import { getTourSteps } from "@app/components/onboarding/tourRegistry";
 import { removeAllGlows } from "@app/components/onboarding/tourGlow";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
-import apiClient from "@app/services/apiClient";
 import "@app/components/onboarding/OnboardingTour.css";
 
 export default function Onboarding() {
@@ -41,51 +38,6 @@ export default function Onboarding() {
     requestedTourType,
     clearTourRequest,
   } = useTourRequest();
-  const { config, refetch: refetchConfig } = useAppConfig();
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
-  const [analyticsModalDismissed, setAnalyticsModalDismissed] = useState(false);
-
-  // Check if we should show analytics modal before onboarding
-  useEffect(() => {
-    if (
-      !isLoading &&
-      !analyticsModalDismissed &&
-      config?.enableAnalytics == null
-    ) {
-      setShowAnalyticsModal(true);
-    }
-  }, [isLoading, analyticsModalDismissed, config?.enableAnalytics]);
-
-  const handleAnalyticsChoice = useCallback(
-    async (enableAnalytics: boolean) => {
-      if (analyticsLoading) return;
-      setAnalyticsLoading(true);
-      setAnalyticsError(null);
-
-      const formData = new FormData();
-      formData.append("enabled", enableAnalytics.toString());
-
-      try {
-        await apiClient.post(
-          "/api/v1/settings/update-enable-analytics",
-          formData,
-        );
-        await refetchConfig();
-        setShowAnalyticsModal(false);
-        setAnalyticsModalDismissed(true);
-      } catch (error) {
-        setAnalyticsError(
-          error instanceof Error ? error.message : "Unknown error",
-        );
-      } finally {
-        setAnalyticsLoading(false);
-      }
-    },
-    [analyticsLoading, refetchConfig],
-  );
-
   const handleButtonAction = useCallback(
     async (action: ButtonAction) => {
       switch (action) {
@@ -110,15 +62,9 @@ export default function Onboarding() {
         case "skip-tour":
           actions.complete();
           break;
-        case "enable-analytics":
-          await handleAnalyticsChoice(true);
-          break;
-        case "disable-analytics":
-          await handleAnalyticsChoice(false);
-          break;
       }
     },
-    [actions, handleAnalyticsChoice, handleDownloadSelected],
+    [actions, handleDownloadSelected],
   );
 
   const isRTL =
@@ -215,17 +161,8 @@ export default function Onboarding() {
       osUrl: osInfo.url,
       osOptions,
       onDownloadUrlChange: setSelectedDownloadUrl,
-      analyticsError,
-      analyticsLoading,
     });
-  }, [
-    analyticsError,
-    analyticsLoading,
-    currentSlideDefinition,
-    osInfo,
-    osOptions,
-    setSelectedDownloadUrl,
-  ]);
+  }, [currentSlideDefinition, osInfo, osOptions, setSelectedDownloadUrl]);
 
   const modalSlideCount = useMemo(() => {
     return activeFlow.filter((step) => step.type === "modal-slide").length;
@@ -241,27 +178,6 @@ export default function Onboarding() {
 
   if (bypassOnboarding) {
     return null;
-  }
-
-  // Analytics consent is shown before the optional product tour.
-  if (showAnalyticsModal) {
-    return (
-      <StaticOnboardingSlide
-        key="analytics-choice"
-        slideId="analytics-choice"
-        runtimeState={runtimeState}
-        params={{ analyticsError, analyticsLoading }}
-        onSkip={() => {}} // No skip allowed
-        allowDismiss={false}
-        onAction={async (action) => {
-          if (action === "enable-analytics") {
-            await handleAnalyticsChoice(true);
-          } else if (action === "disable-analytics") {
-            await handleAnalyticsChoice(false);
-          }
-        }}
-      />
-    );
   }
 
   // Always render the tour component (it controls its own visibility with isOpen)

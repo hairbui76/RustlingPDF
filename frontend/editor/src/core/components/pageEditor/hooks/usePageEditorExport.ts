@@ -306,7 +306,6 @@ export const usePageEditorExport = ({
 
       const newRustlingFiles = await actions.addFiles(renamedFiles, {
         selectFiles: true,
-        skipUploadTracking: true,
       });
       if (newRustlingFiles.length > 0) {
         actions.setSelectedFiles(newRustlingFiles.map((file) => file.fileId));

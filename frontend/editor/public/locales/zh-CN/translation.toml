@@ -533,12 +533,6 @@ hint = "您有未保存的更改"
 message = "您有未保存的更改。要丢弃吗？"
 title = "未保存的更改"
 
-[analytics]
-learnMore = "了解详情"
-paragraph1 = "RustlingPDF有选择性分析功能，可以帮助我们改进产品。我们不跟踪任何个人信息或文件内容。"
-paragraph2 = "请考虑启用分析来帮助RustlingPDF的发展，并让我们更好地了解我们的用户。"
-title = "你想协助改善RustlingPDF吗"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "平板/手机（含图像）"
 targetDevice = "目标设备"
 targetDeviceDesc = "选择为阅读设备优化的输出配置"
 
-[cookieBanner.popUp]
-acceptAllBtn = "全部接受"
-acceptNecessaryBtn = "拒绝"
-showPreferencesBtn = "管理偏好设置"
-title = "我们如何使用 Cookie"
-
-[cookieBanner.popUp.description]
-1 = "我们使用 Cookie 和其他技术来使 RustlingPDF 更好地为您服务——帮助我们改进工具并构建您喜爱的功能。"
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "全部接受"
-acceptNecessaryBtn = "拒绝所有"
-closeIconLabel = "关闭弹窗"
-savePreferencesBtn = "保存设置"
-serviceCounterLabel = "服务"
-subtitle = "Cookie使用说明"
-title = "隐私偏好设置中心"
-
-[cookieBanner.preferencesModal.analytics]
-description = "这些Cookie帮助我们分析工具使用情况，以便聚焦开发用户最需要的功能。再次强调：RustlingPDF绝不会追踪您处理的文档内容。"
-title = "分析统计"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF通过Cookie及类似技术优化用户体验并分析工具使用情况，帮助我们提升性能、开发实用功能并提供持续支持。"
-2 = "我们承诺：RustlingPDF永远不会追踪或访问您使用的文档内容。"
-3 = "用户隐私与信任是我们一切工作的核心。"
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "必要Cookie"
-2 = "始终启用"
-
-[cookieBanner.services]
-posthog = "PostHog 分析"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "自动裁剪空白"
 noFileSelected = "选择一个 PDF 文件开始裁剪"
@@ -2960,7 +2915,6 @@ cookie = "Cookie 政策"
 iAgreeToThe = "我同意所有"
 impressum = "版权声明"
 privacy = "隐私政策"
-showCookieBanner = "Cookie 偏好设置"
 terms = "服务条款"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "请在快捷键中包含 Ctrl、Alt 或其他修饰键。"
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

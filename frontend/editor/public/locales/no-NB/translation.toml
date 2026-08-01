@@ -533,12 +533,6 @@ hint = "Du har ulagrede endringer"
 message = "Du har ulagrede endringer. Vil du forkaste dem?"
 title = "Ulagrede endringer"
 
-[analytics]
-learnMore = "Lær mer"
-paragraph1 = "RustlingPDF har valgfri analyse for å hjelpe oss med å forbedre produktet. Vi sporer ikke personlig informasjon eller filinnhold."
-paragraph2 = "Vennligst vurder å aktivere analyse for å hjelpe RustlingPDF å vokse og for å la oss forstå brukerne våre bedre."
-title = "Vill du gjøre RustlingPDF bedre?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Nettbrett/mobil (med bilder)"
 targetDevice = "Målenhet"
 targetDeviceDesc = "Velg en utdata-profil optimalisert for leserenheten"
 
-[cookieBanner.popUp]
-acceptAllBtn = "OK"
-acceptNecessaryBtn = "Nei takk"
-showPreferencesBtn = "Administrer innstillinger"
-title = "Hvordan vi bruker informasjonskapsler"
-
-[cookieBanner.popUp.description]
-1 = "Vi bruker informasjonskapsler og andre teknologier for å gjøre RustlingPDF bedre for deg—som hjelper oss å forbedre verktøyene våre og fortsette å bygge funksjoner du vil like."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Godta alle"
-acceptNecessaryBtn = "Avslå alle"
-closeIconLabel = "Lukk dialog"
-savePreferencesBtn = "Lagre innstillinger"
-serviceCounterLabel = "Tjeneste|Tjenester"
-subtitle = "Bruk av informasjonskapsler"
-title = "Senter for samtykkeinnstillinger"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Disse informasjonskapslene hjelper oss å forstå hvordan verktøyene våre brukes, slik at vi kan fokusere på å bygge funksjonene fellesskapet vårt verdsetter mest. Vær trygg—RustlingPDF kan ikke og vil aldri spore innholdet i dokumentene du jobber med."
-title = "Analyse"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF bruker informasjonskapsler og lignende teknologier for å forbedre opplevelsen din og forstå hvordan verktøyene våre brukes. Dette hjelper oss å forbedre ytelsen, utvikle funksjonene du bryr deg om, og gi løpende støtte til brukerne våre."
-2 = "RustlingPDF kan ikke—og vil aldri—spore eller få tilgang til innholdet i dokumentene du bruker."
-3 = "Personvernet ditt og tilliten din står i sentrum av det vi gjør."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Strengt nødvendige informasjonskapsler"
-2 = "Alltid aktivert"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Beskjær hvite mellomrom automatisk"
 noFileSelected = "Velg en PDF-fil for å begynne beskjæring"
@@ -2960,7 +2915,6 @@ cookie = "Informasjonskapsler"
 iAgreeToThe = "Jeg godtar alle"
 impressum = "Juridisk informasjon"
 privacy = "Personvernerklæring"
-showCookieBanner = "Innstillinger for informasjonskapsler"
 terms = "Vilkår og betingelser"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Inkluder Ctrl, Alt eller en annen modifikator i snarveien."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

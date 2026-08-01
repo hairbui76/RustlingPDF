@@ -9,7 +9,6 @@ import { createPluginRegistration } from "@embedpdf/core";
 import type { PluginRegistry } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
 import { usePdfiumEngine } from "@embedpdf/engines/react";
-import { PrivateContent } from "@app/components/shared/PrivateContent";
 
 // Import the essential plugins
 import {
@@ -399,11 +398,9 @@ export function LocalEmbedPDF({
           >
             {t("viewer.onlyPdfSupported")}
           </Text>
-          <PrivateContent>
-            <Text c="dimmed" size="xs" style={{ fontFamily: "monospace" }}>
-              {fileName}
-            </Text>
-          </PrivateContent>
+          <Text c="dimmed" size="xs" style={{ fontFamily: "monospace" }}>
+            {fileName}
+          </Text>
         </Stack>
       </Center>
     );
@@ -428,759 +425,746 @@ export function LocalEmbedPDF({
 
   // Wrap your UI with the <EmbedPDF> provider
   return (
-    <PrivateContent>
-      <div
-        style={{
-          height: "100%",
-          width: "100%",
-          position: "relative",
-          flex: 1,
-          minHeight: 0,
-          minWidth: 0,
-        }}
-      >
-        <EmbedPDF
-          engine={engine}
-          plugins={plugins}
-          onInitialized={async (registry: PluginRegistry) => {
-            // v2.0: Use registry.getPlugin() to access plugin APIs
-            const annotationPlugin = registry.getPlugin("annotation");
-            if (!annotationPlugin || !annotationPlugin.provides) return;
+    <div
+      style={{
+        height: "100%",
+        width: "100%",
+        position: "relative",
+        flex: 1,
+        minHeight: 0,
+        minWidth: 0,
+      }}
+    >
+      <EmbedPDF
+        engine={engine}
+        plugins={plugins}
+        onInitialized={async (registry: PluginRegistry) => {
+          // v2.0: Use registry.getPlugin() to access plugin APIs
+          const annotationPlugin = registry.getPlugin("annotation");
+          if (!annotationPlugin || !annotationPlugin.provides) return;
 
-            const annotationApi = annotationPlugin.provides();
-            if (!annotationApi) return;
+          const annotationApi = annotationPlugin.provides();
+          if (!annotationApi) return;
 
-            if (enableAnnotations) {
-              // LooseAnnotationTool bypasses strict Partial<T> defaults typing from the library —
-              // EmbedPDF accepts extra runtime properties (borderWidth, textColor, finishOnDoubleClick,
-              // etc.) that aren't reflected in the TypeScript model types.
-              type LooseAnnotationTool = {
-                id: string;
-                name: string;
-                interaction?: {
-                  exclusive: boolean;
-                  cursor: string;
-                  textSelection?: boolean;
-                  isRotatable?: boolean;
-                };
-                matchScore?: (annotation: PdfAnnotationObject) => number;
-                defaults?: Record<string, unknown>;
-                clickBehavior?: Record<string, unknown>;
-                behavior?: {
-                  deactivateToolAfterCreate?: boolean;
-                  selectAfterCreate?: boolean;
-                };
+          if (enableAnnotations) {
+            // LooseAnnotationTool bypasses strict Partial<T> defaults typing from the library —
+            // EmbedPDF accepts extra runtime properties (borderWidth, textColor, finishOnDoubleClick,
+            // etc.) that aren't reflected in the TypeScript model types.
+            type LooseAnnotationTool = {
+              id: string;
+              name: string;
+              interaction?: {
+                exclusive: boolean;
+                cursor: string;
+                textSelection?: boolean;
+                isRotatable?: boolean;
               };
-              const ensureTool = (tool: LooseAnnotationTool) => {
-                const existing = annotationApi.getTool?.(tool.id);
-                if (!existing) {
-                  annotationApi.addTool(tool as unknown as AnnotationTool);
-                }
+              matchScore?: (annotation: PdfAnnotationObject) => number;
+              defaults?: Record<string, unknown>;
+              clickBehavior?: Record<string, unknown>;
+              behavior?: {
+                deactivateToolAfterCreate?: boolean;
+                selectAfterCreate?: boolean;
               };
+            };
+            const ensureTool = (tool: LooseAnnotationTool) => {
+              const existing = annotationApi.getTool?.(tool.id);
+              if (!existing) {
+                annotationApi.addTool(tool as unknown as AnnotationTool);
+              }
+            };
 
-              ensureTool({
-                id: "highlight",
-                name: "Highlight",
-                interaction: {
-                  exclusive: true,
-                  cursor: "text",
-                  textSelection: true,
-                },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.HIGHLIGHT ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.HIGHLIGHT,
-                  strokeColor: "#ffd54f",
-                  color: "#ffd54f",
-                  opacity: 0.6,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: false,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "highlight",
+              name: "Highlight",
+              interaction: {
+                exclusive: true,
+                cursor: "text",
+                textSelection: true,
+              },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.HIGHLIGHT ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.HIGHLIGHT,
+                strokeColor: "#ffd54f",
+                color: "#ffd54f",
+                opacity: 0.6,
+              },
+              behavior: {
+                deactivateToolAfterCreate: false,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "underline",
-                name: "Underline",
-                interaction: {
-                  exclusive: true,
-                  cursor: "text",
-                  textSelection: true,
-                },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.UNDERLINE ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.UNDERLINE,
-                  strokeColor: "#ffb300",
-                  color: "#ffb300",
-                  opacity: 1,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: false,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "underline",
+              name: "Underline",
+              interaction: {
+                exclusive: true,
+                cursor: "text",
+                textSelection: true,
+              },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.UNDERLINE ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.UNDERLINE,
+                strokeColor: "#ffb300",
+                color: "#ffb300",
+                opacity: 1,
+              },
+              behavior: {
+                deactivateToolAfterCreate: false,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "strikeout",
-                name: "Strikeout",
-                interaction: {
-                  exclusive: true,
-                  cursor: "text",
-                  textSelection: true,
-                },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.STRIKEOUT ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.STRIKEOUT,
-                  strokeColor: "#e53935",
-                  color: "#e53935",
-                  opacity: 1,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: false,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "strikeout",
+              name: "Strikeout",
+              interaction: {
+                exclusive: true,
+                cursor: "text",
+                textSelection: true,
+              },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.STRIKEOUT ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.STRIKEOUT,
+                strokeColor: "#e53935",
+                color: "#e53935",
+                opacity: 1,
+              },
+              behavior: {
+                deactivateToolAfterCreate: false,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "squiggly",
-                name: "Squiggly",
-                interaction: {
-                  exclusive: true,
-                  cursor: "text",
-                  textSelection: true,
-                },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.SQUIGGLY ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.SQUIGGLY,
-                  strokeColor: "#00acc1",
-                  color: "#00acc1",
-                  opacity: 1,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: false,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "squiggly",
+              name: "Squiggly",
+              interaction: {
+                exclusive: true,
+                cursor: "text",
+                textSelection: true,
+              },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.SQUIGGLY ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.SQUIGGLY,
+                strokeColor: "#00acc1",
+                color: "#00acc1",
+                opacity: 1,
+              },
+              behavior: {
+                deactivateToolAfterCreate: false,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "ink",
-                name: "Pen",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.INK ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.INK,
-                  strokeColor: "#1f2933",
-                  color: "#1f2933",
-                  opacity: 1,
-                  borderWidth: 2,
-                  lineWidth: 2,
-                  strokeWidth: 2,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: false,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "ink",
+              name: "Pen",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.INK ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.INK,
+                strokeColor: "#1f2933",
+                color: "#1f2933",
+                opacity: 1,
+                borderWidth: 2,
+                lineWidth: 2,
+                strokeWidth: 2,
+              },
+              behavior: {
+                deactivateToolAfterCreate: false,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "inkHighlighter",
-                name: "Ink Highlighter",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.INK &&
-                  (annotation.strokeColor === "#ffd54f" ||
-                    annotation.color === "#ffd54f")
-                    ? 8
-                    : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.INK,
-                  strokeColor: "#ffd54f",
-                  color: "#ffd54f",
-                  opacity: 0.5,
-                  borderWidth: 6,
-                  lineWidth: 6,
-                  strokeWidth: 6,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: false,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "inkHighlighter",
+              name: "Ink Highlighter",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.INK &&
+                (annotation.strokeColor === "#ffd54f" ||
+                  annotation.color === "#ffd54f")
+                  ? 8
+                  : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.INK,
+                strokeColor: "#ffd54f",
+                color: "#ffd54f",
+                opacity: 0.5,
+                borderWidth: 6,
+                lineWidth: 6,
+                strokeWidth: 6,
+              },
+              behavior: {
+                deactivateToolAfterCreate: false,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "square",
-                name: "Square",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.SQUARE ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.SQUARE,
-                  color: "#0000ff", // fill color (blue)
-                  strokeColor: "#cf5b5b", // border color (reddish pink)
-                  opacity: 0.5,
-                  borderWidth: 1,
-                  strokeWidth: 1,
-                  lineWidth: 1,
-                },
-                clickBehavior: {
-                  enabled: true,
-                  defaultSize: { width: 120, height: 90 },
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "square",
+              name: "Square",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.SQUARE ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.SQUARE,
+                color: "#0000ff", // fill color (blue)
+                strokeColor: "#cf5b5b", // border color (reddish pink)
+                opacity: 0.5,
+                borderWidth: 1,
+                strokeWidth: 1,
+                lineWidth: 1,
+              },
+              clickBehavior: {
+                enabled: true,
+                defaultSize: { width: 120, height: 90 },
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "circle",
-                name: "Circle",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.CIRCLE ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.CIRCLE,
-                  color: "#0000ff", // fill color (blue)
-                  strokeColor: "#cf5b5b", // border color (reddish pink)
-                  opacity: 0.5,
-                  borderWidth: 1,
-                  strokeWidth: 1,
-                  lineWidth: 1,
-                },
-                clickBehavior: {
-                  enabled: true,
-                  defaultSize: { width: 100, height: 100 },
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "circle",
+              name: "Circle",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.CIRCLE ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.CIRCLE,
+                color: "#0000ff", // fill color (blue)
+                strokeColor: "#cf5b5b", // border color (reddish pink)
+                opacity: 0.5,
+                borderWidth: 1,
+                strokeWidth: 1,
+                lineWidth: 1,
+              },
+              clickBehavior: {
+                enabled: true,
+                defaultSize: { width: 100, height: 100 },
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "line",
-                name: "Line",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.LINE ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.LINE,
-                  color: "#1565c0",
-                  opacity: 1,
-                  borderWidth: 2,
-                  strokeWidth: 2,
-                  lineWidth: 2,
-                },
-                clickBehavior: {
-                  enabled: true,
-                  defaultLength: 120,
-                  defaultAngle: 0,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "line",
+              name: "Line",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.LINE ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.LINE,
+                color: "#1565c0",
+                opacity: 1,
+                borderWidth: 2,
+                strokeWidth: 2,
+                lineWidth: 2,
+              },
+              clickBehavior: {
+                enabled: true,
+                defaultLength: 120,
+                defaultAngle: 0,
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "lineArrow",
-                name: "Arrow",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) => {
-                  if (annotation.type !== PdfAnnotationSubtype.LINE) return 0;
-                  // EmbedPDF stores endStyle/lineEndingStyles at runtime; library types use lineEndings
-                  const ann = annotation as PdfAnnotationObject & {
-                    endStyle?: string;
-                    lineEndingStyles?: { end?: string };
-                  };
-                  return ann.endStyle === "ClosedArrow" ||
-                    ann.lineEndingStyles?.end === "ClosedArrow"
-                    ? 9
-                    : 0;
-                },
-                defaults: {
-                  type: PdfAnnotationSubtype.LINE,
-                  color: "#1565c0",
-                  opacity: 1,
-                  borderWidth: 2,
-                  startStyle: "None",
-                  endStyle: "ClosedArrow",
-                  lineEndingStyles: { start: "None", end: "ClosedArrow" },
-                },
-                clickBehavior: {
-                  enabled: true,
-                  defaultLength: 120,
-                  defaultAngle: 0,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "lineArrow",
+              name: "Arrow",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) => {
+                if (annotation.type !== PdfAnnotationSubtype.LINE) return 0;
+                // EmbedPDF stores endStyle/lineEndingStyles at runtime; library types use lineEndings
+                const ann = annotation as PdfAnnotationObject & {
+                  endStyle?: string;
+                  lineEndingStyles?: { end?: string };
+                };
+                return ann.endStyle === "ClosedArrow" ||
+                  ann.lineEndingStyles?.end === "ClosedArrow"
+                  ? 9
+                  : 0;
+              },
+              defaults: {
+                type: PdfAnnotationSubtype.LINE,
+                color: "#1565c0",
+                opacity: 1,
+                borderWidth: 2,
+                startStyle: "None",
+                endStyle: "ClosedArrow",
+                lineEndingStyles: { start: "None", end: "ClosedArrow" },
+              },
+              clickBehavior: {
+                enabled: true,
+                defaultLength: 120,
+                defaultAngle: 0,
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "polyline",
-                name: "Polyline",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.POLYLINE ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.POLYLINE,
-                  color: "#1565c0",
-                  opacity: 1,
-                  borderWidth: 2,
-                },
-                clickBehavior: {
-                  enabled: true,
-                  finishOnDoubleClick: true,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "polyline",
+              name: "Polyline",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.POLYLINE ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.POLYLINE,
+                color: "#1565c0",
+                opacity: 1,
+                borderWidth: 2,
+              },
+              clickBehavior: {
+                enabled: true,
+                finishOnDoubleClick: true,
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "polygon",
-                name: "Polygon",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.POLYGON ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.POLYGON,
-                  color: "#0000ff", // fill color (blue)
-                  strokeColor: "#cf5b5b", // border color (reddish pink)
-                  opacity: 0.5,
-                  borderWidth: 1,
-                },
-                clickBehavior: {
-                  enabled: true,
-                  finishOnDoubleClick: true,
-                  defaultSize: { width: 140, height: 100 },
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "polygon",
+              name: "Polygon",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.POLYGON ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.POLYGON,
+                color: "#0000ff", // fill color (blue)
+                strokeColor: "#cf5b5b", // border color (reddish pink)
+                opacity: 0.5,
+                borderWidth: 1,
+              },
+              clickBehavior: {
+                enabled: true,
+                finishOnDoubleClick: true,
+                defaultSize: { width: 140, height: 100 },
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "text",
-                name: "Text",
-                interaction: {
-                  exclusive: true,
-                  cursor: "text",
-                  isRotatable: false,
-                },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.FREETEXT ? 10 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.FREETEXT,
-                  textColor: "#111111",
-                  fontSize: 14,
-                  fontFamily: "Helvetica",
-                  opacity: 1,
-                  interiorColor: "#fffef7",
-                  contents: "Text",
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "text",
+              name: "Text",
+              interaction: {
+                exclusive: true,
+                cursor: "text",
+                isRotatable: false,
+              },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.FREETEXT ? 10 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.FREETEXT,
+                textColor: "#111111",
+                fontSize: 14,
+                fontFamily: "Helvetica",
+                opacity: 1,
+                interiorColor: "#fffef7",
+                contents: "Text",
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "note",
-                name: "Note",
-                interaction: {
-                  exclusive: true,
-                  cursor: "pointer",
-                  isRotatable: false,
-                },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.FREETEXT ? 8 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.FREETEXT,
-                  textColor: "#1b1b1b",
-                  color: "#ffa000",
-                  interiorColor: "#fff8e1",
-                  opacity: 1,
-                  contents: "Note",
-                  fontSize: 12,
-                },
-                clickBehavior: {
-                  enabled: true,
-                  defaultSize: { width: 160, height: 100 },
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "note",
+              name: "Note",
+              interaction: {
+                exclusive: true,
+                cursor: "pointer",
+                isRotatable: false,
+              },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.FREETEXT ? 8 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.FREETEXT,
+                textColor: "#1b1b1b",
+                color: "#ffa000",
+                interiorColor: "#fff8e1",
+                opacity: 1,
+                contents: "Note",
+                fontSize: 12,
+              },
+              clickBehavior: {
+                enabled: true,
+                defaultSize: { width: 160, height: 100 },
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "stamp",
-                name: "Image Stamp",
-                interaction: { exclusive: false, cursor: "copy" },
-                matchScore: (annotation: PdfAnnotationObject) =>
-                  annotation.type === PdfAnnotationSubtype.STAMP ? 5 : 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.STAMP,
-                },
-                behavior: {
-                  deactivateToolAfterCreate: true,
-                  selectAfterCreate: true,
-                },
-              });
+            ensureTool({
+              id: "stamp",
+              name: "Image Stamp",
+              interaction: { exclusive: false, cursor: "copy" },
+              matchScore: (annotation: PdfAnnotationObject) =>
+                annotation.type === PdfAnnotationSubtype.STAMP ? 5 : 0,
+              defaults: {
+                type: PdfAnnotationSubtype.STAMP,
+              },
+              behavior: {
+                deactivateToolAfterCreate: true,
+                selectAfterCreate: true,
+              },
+            });
 
-              ensureTool({
-                id: "signatureStamp",
-                name: "Digital Signature",
-                interaction: { exclusive: false, cursor: "copy" },
-                matchScore: () => 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.STAMP,
-                },
-              });
+            ensureTool({
+              id: "signatureStamp",
+              name: "Digital Signature",
+              interaction: { exclusive: false, cursor: "copy" },
+              matchScore: () => 0,
+              defaults: {
+                type: PdfAnnotationSubtype.STAMP,
+              },
+            });
 
-              ensureTool({
-                id: "signatureInk",
-                name: "Signature Draw",
-                interaction: { exclusive: true, cursor: "crosshair" },
-                matchScore: () => 0,
-                defaults: {
-                  type: PdfAnnotationSubtype.INK,
-                  strokeColor: "#000000",
-                  color: "#000000",
-                  opacity: 1.0,
-                  borderWidth: 2,
-                },
-              });
+            ensureTool({
+              id: "signatureInk",
+              name: "Signature Draw",
+              interaction: { exclusive: true, cursor: "crosshair" },
+              matchScore: () => 0,
+              defaults: {
+                type: PdfAnnotationSubtype.INK,
+                strokeColor: "#000000",
+                color: "#000000",
+                opacity: 1.0,
+                borderWidth: 2,
+              },
+            });
 
-              annotationApi.onAnnotationEvent((event: AnnotationEvent) => {
-                if (event.type === "create" && event.committed) {
-                  setAnnotations((prev) => [
-                    ...prev,
-                    {
-                      id: event.annotation.id,
-                      pageIndex: event.pageIndex,
-                      rect: event.annotation.rect,
-                    },
-                  ]);
+            annotationApi.onAnnotationEvent((event: AnnotationEvent) => {
+              if (event.type === "create" && event.committed) {
+                setAnnotations((prev) => [
+                  ...prev,
+                  {
+                    id: event.annotation.id,
+                    pageIndex: event.pageIndex,
+                    rect: event.annotation.rect,
+                  },
+                ]);
 
-                  // If the annotation doesn't have customData.toolId, patch it from the active tool.
-                  // EmbedPDF doesn't always persist customData from setToolDefaults into created annotations.
-                  const annotationId = event.annotation.id;
-                  const existingCustomData = (
-                    event.annotation as unknown as {
-                      customData?: Record<string, unknown>;
-                    }
-                  ).customData;
-                  if (annotationId && !existingCustomData?.toolId) {
-                    const activeTool = (
-                      annotationApi as unknown as {
-                        getActiveTool?: () => { id: string } | null;
-                      }
-                    ).getActiveTool?.();
-                    if (activeTool?.id && activeTool.id !== "select") {
-                      (
-                        annotationApi as unknown as {
-                          updateAnnotation?: (
-                            page: number,
-                            id: string,
-                            patch: Record<string, unknown>,
-                          ) => void;
-                        }
-                      ).updateAnnotation?.(event.pageIndex, annotationId, {
-                        customData: {
-                          ...(existingCustomData ?? {}),
-                          toolId: activeTool.id,
-                        },
-                      });
-                    }
+                // If the annotation doesn't have customData.toolId, patch it from the active tool.
+                // EmbedPDF doesn't always persist customData from setToolDefaults into created annotations.
+                const annotationId = event.annotation.id;
+                const existingCustomData = (
+                  event.annotation as unknown as {
+                    customData?: Record<string, unknown>;
                   }
-
-                  // Auto-select the annotation after creation so the selection menu appears immediately,
-                  // letting users discover the editing options before they click away.
-                  if (annotationId) {
+                ).customData;
+                if (annotationId && !existingCustomData?.toolId) {
+                  const activeTool = (
+                    annotationApi as unknown as {
+                      getActiveTool?: () => { id: string } | null;
+                    }
+                  ).getActiveTool?.();
+                  if (activeTool?.id && activeTool.id !== "select") {
                     (
                       annotationApi as unknown as {
-                        selectAnnotation?: (
-                          pageIndex: number,
+                        updateAnnotation?: (
+                          page: number,
                           id: string,
+                          patch: Record<string, unknown>,
                         ) => void;
                       }
-                    ).selectAnnotation?.(event.pageIndex, annotationId);
+                    ).updateAnnotation?.(event.pageIndex, annotationId, {
+                      customData: {
+                        ...(existingCustomData ?? {}),
+                        toolId: activeTool.id,
+                      },
+                    });
                   }
-
-                  if (onSignatureAdded) {
-                    onSignatureAdded(event.annotation);
-                  }
-                } else if (event.type === "delete" && event.committed) {
-                  setAnnotations((prev) =>
-                    prev.filter((ann) => ann.id !== event.annotation.id),
-                  );
                 }
-              });
-            }
-          }}
-        >
-          <ActiveDocumentProvider>
-            <ZoomAPIBridge />
-            <ScrollAPIBridge />
-            <SelectionAPIBridge />
-            <PanAPIBridge />
-            <SpreadAPIBridge />
-            <SearchAPIBridge />
-            <ThumbnailAPIBridge />
-            <RotateAPIBridge />
-            {(enableAnnotations ||
-              enableRedaction ||
-              isManualRedactionMode) && (
-              <HistoryAPIBridge ref={historyApiRef} />
-            )}
-            {/* Always render RedactionAPIBridge when in manual redaction mode so buttons can switch from annotation mode */}
-            {(enableRedaction || isManualRedactionMode) && (
-              <RedactionAPIBridge />
-            )}
-            {/* Always render SignatureAPIBridge so annotation tools (draw) can be activated even when starting in redaction mode */}
-            {(enableAnnotations ||
-              enableRedaction ||
-              isManualRedactionMode) && (
-              <SignatureAPIBridge
-                ref={signatureApiRef}
-                isSignMode={isSignMode}
-              />
-            )}
-            {(enableRedaction || isManualRedactionMode) && (
-              <RedactionPendingTracker ref={redactionTrackerRef} />
-            )}
-            {enableAnnotations && (
-              <AnnotationAPIBridge ref={annotationApiRef} />
-            )}
 
-            <ExportAPIBridge />
-            <BookmarkAPIBridge />
-            <AttachmentAPIBridge />
-            <PrintAPIBridge file={file} url={pdfUrl} fileName={fileName} />
-            <DocumentPermissionsAPIBridge />
-            <DocumentReadyWrapper
-              fallback={
-                <Center style={{ height: "100%", width: "100%" }}>
-                  <ToolLoadingFallback />
-                </Center>
+                // Auto-select the annotation after creation so the selection menu appears immediately,
+                // letting users discover the editing options before they click away.
+                if (annotationId) {
+                  (
+                    annotationApi as unknown as {
+                      selectAnnotation?: (
+                        pageIndex: number,
+                        id: string,
+                      ) => void;
+                    }
+                  ).selectAnnotation?.(event.pageIndex, annotationId);
+                }
+
+                if (onSignatureAdded) {
+                  onSignatureAdded(event.annotation);
+                }
+              } else if (event.type === "delete" && event.committed) {
+                setAnnotations((prev) =>
+                  prev.filter((ann) => ann.id !== event.annotation.id),
+                );
               }
-            >
-              {(documentId) => (
-                <>
-                  <GlobalPointerProvider documentId={documentId}>
-                    <Viewport
+            });
+          }
+        }}
+      >
+        <ActiveDocumentProvider>
+          <ZoomAPIBridge />
+          <ScrollAPIBridge />
+          <SelectionAPIBridge />
+          <PanAPIBridge />
+          <SpreadAPIBridge />
+          <SearchAPIBridge />
+          <ThumbnailAPIBridge />
+          <RotateAPIBridge />
+          {(enableAnnotations || enableRedaction || isManualRedactionMode) && (
+            <HistoryAPIBridge ref={historyApiRef} />
+          )}
+          {/* Always render RedactionAPIBridge when in manual redaction mode so buttons can switch from annotation mode */}
+          {(enableRedaction || isManualRedactionMode) && <RedactionAPIBridge />}
+          {/* Always render SignatureAPIBridge so annotation tools (draw) can be activated even when starting in redaction mode */}
+          {(enableAnnotations || enableRedaction || isManualRedactionMode) && (
+            <SignatureAPIBridge ref={signatureApiRef} isSignMode={isSignMode} />
+          )}
+          {(enableRedaction || isManualRedactionMode) && (
+            <RedactionPendingTracker ref={redactionTrackerRef} />
+          )}
+          {enableAnnotations && <AnnotationAPIBridge ref={annotationApiRef} />}
+
+          <ExportAPIBridge />
+          <BookmarkAPIBridge />
+          <AttachmentAPIBridge />
+          <PrintAPIBridge file={file} url={pdfUrl} fileName={fileName} />
+          <DocumentPermissionsAPIBridge />
+          <DocumentReadyWrapper
+            fallback={
+              <Center style={{ height: "100%", width: "100%" }}>
+                <ToolLoadingFallback />
+              </Center>
+            }
+          >
+            {(documentId) => (
+              <>
+                <GlobalPointerProvider documentId={documentId}>
+                  <Viewport
+                    documentId={documentId}
+                    style={{
+                      backgroundColor: "var(--c-bg)",
+                      height: "100%",
+                      width: "100%",
+                      maxHeight: "100%",
+                      maxWidth: "100%",
+                      overflow: "auto",
+                      position: "relative",
+                      flex: 1,
+                      minHeight: 0,
+                      minWidth: 0,
+                      contain: "strict",
+                    }}
+                  >
+                    <Scroller
                       documentId={documentId}
-                      style={{
-                        backgroundColor: "var(--c-bg)",
-                        height: "100%",
-                        width: "100%",
-                        maxHeight: "100%",
-                        maxWidth: "100%",
-                        overflow: "auto",
-                        position: "relative",
-                        flex: 1,
-                        minHeight: 0,
-                        minWidth: 0,
-                        contain: "strict",
-                      }}
-                    >
-                      <Scroller
-                        documentId={documentId}
-                        renderPage={({ width, height, pageIndex }) => {
-                          return (
-                            <Rotate
-                              key={`${documentId}-${pageIndex}`}
+                      renderPage={({ width, height, pageIndex }) => {
+                        return (
+                          <Rotate
+                            key={`${documentId}-${pageIndex}`}
+                            documentId={documentId}
+                            pageIndex={pageIndex}
+                          >
+                            <PagePointerProvider
                               documentId={documentId}
                               pageIndex={pageIndex}
                             >
-                              <PagePointerProvider
-                                documentId={documentId}
-                                pageIndex={pageIndex}
+                              <div
+                                data-page-index={pageIndex}
+                                data-page-width={width}
+                                data-page-height={height}
+                                style={{
+                                  width,
+                                  height,
+                                  position: "relative",
+                                  overflow: "hidden", // clip overlays (buttons, fields) that extend beyond the page rect
+                                  userSelect: "none",
+                                  WebkitUserSelect: "none",
+                                  MozUserSelect: "none",
+                                  msUserSelect: "none",
+                                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                                }}
+                                draggable={false}
+                                onDragStart={(e) => e.preventDefault()}
+                                onDrop={(e) => e.preventDefault()}
+                                onDragOver={(e) => e.preventDefault()}
                               >
                                 <div
-                                  data-page-index={pageIndex}
-                                  data-page-width={width}
-                                  data-page-height={height}
                                   style={{
-                                    width,
-                                    height,
-                                    position: "relative",
-                                    overflow: "hidden", // clip overlays (buttons, fields) that extend beyond the page rect
-                                    userSelect: "none",
-                                    WebkitUserSelect: "none",
-                                    MozUserSelect: "none",
-                                    msUserSelect: "none",
-                                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                                    position: "absolute",
+                                    inset: 0,
+                                    transition: "filter 0.25s ease",
+                                    filter:
+                                      pdfRenderMode === "dark"
+                                        ? "invert(1) hue-rotate(180deg)"
+                                        : pdfRenderMode === "sepia"
+                                          ? "sepia(0.7) brightness(0.85)"
+                                          : undefined,
                                   }}
-                                  draggable={false}
-                                  onDragStart={(e) => e.preventDefault()}
-                                  onDrop={(e) => e.preventDefault()}
-                                  onDragOver={(e) => e.preventDefault()}
                                 >
-                                  <div
-                                    style={{
-                                      position: "absolute",
-                                      inset: 0,
-                                      transition: "filter 0.25s ease",
-                                      filter:
-                                        pdfRenderMode === "dark"
-                                          ? "invert(1) hue-rotate(180deg)"
-                                          : pdfRenderMode === "sepia"
-                                            ? "sepia(0.7) brightness(0.85)"
-                                            : undefined,
-                                    }}
-                                  >
-                                    <TilingLayer
-                                      documentId={documentId}
-                                      pageIndex={pageIndex}
-                                    />
-                                  </div>
-
-                                  <CustomSearchLayer
+                                  <TilingLayer
                                     documentId={documentId}
                                     pageIndex={pageIndex}
                                   />
-
-                                  <div
-                                    className="pdf-selection-layer"
-                                    style={{
-                                      position: "absolute",
-                                      inset: 0,
-                                      pointerEvents: "none",
-                                    }}
-                                  >
-                                    <SelectionLayer
-                                      documentId={documentId}
-                                      pageIndex={pageIndex}
-                                      background="var(--pdf-selection-bg)"
-                                      selectionMenu={(props) => (
-                                        <TextSelectionMenu {...props} />
-                                      )}
-                                    />
-                                  </div>
-                                  <TextSelectionHandler
-                                    documentId={documentId}
-                                    pageIndex={pageIndex}
-                                  />
-
-                                  {/* ButtonAppearanceOverlay — renders PDF-native button visuals as bitmaps */}
-                                  {enableFormFill && file && (
-                                    <ButtonAppearanceOverlay
-                                      pageIndex={pageIndex}
-                                      pdfSource={file}
-                                      pageWidth={width}
-                                      pageHeight={height}
-                                    />
-                                  )}
-
-                                  {/* FormFieldOverlay for interactive form filling */}
-                                  {enableFormFill && (
-                                    <FormFieldOverlay
-                                      documentId={documentId}
-                                      pageIndex={pageIndex}
-                                      pageWidth={width}
-                                      pageHeight={height}
-                                      fileId={fileId}
-                                    />
-                                  )}
-
-                                  {/* SignatureFieldOverlay — bitmaps of digital-signature appearances */}
-                                  {file && (
-                                    <SignatureFieldOverlay
-                                      documentId={documentId}
-                                      pageIndex={pageIndex}
-                                      pdfSource={file}
-                                      pageWidth={width}
-                                      pageHeight={height}
-                                    />
-                                  )}
-
-                                  {/* AnnotationLayer for annotation editing and annotation-based redactions */}
-                                  {(enableAnnotations || enableRedaction) && (
-                                    <AnnotationLayer
-                                      documentId={documentId}
-                                      pageIndex={pageIndex}
-                                      selectionOutline={{ color: "#007ACC" }}
-                                      selectionMenu={(props) => (
-                                        <AnnotationSelectionMenu {...props} />
-                                      )}
-                                      style={
-                                        !showBakedAnnotations
-                                          ? {
-                                              opacity: 0,
-                                              pointerEvents: "none",
-                                            }
-                                          : undefined
-                                      }
-                                    />
-                                  )}
-
-                                  {enableRedaction && (
-                                    <RedactionLayer
-                                      documentId={documentId}
-                                      pageIndex={pageIndex}
-                                      selectionMenu={(props) => (
-                                        <RedactionSelectionMenu {...props} />
-                                      )}
-                                    />
-                                  )}
-
-                                  {/* LinkLayer – uses EmbedPDF annotation state for link rendering */}
-                                  <LinkLayer
-                                    documentId={documentId}
-                                    pageIndex={pageIndex}
-                                  />
-
-                                  {/* Signature preview overlay (opt-in; off by default) */}
-                                  {signatureOverlayEnabled && (
-                                    <SignaturePreviewLayer
-                                      pageIndex={pageIndex}
-                                      pageWidth={width}
-                                      pageHeight={height}
-                                      previews={localSignaturePreviews}
-                                      readOnly={signaturePreviewsReadOnly}
-                                      placementMode={signaturePlacementMode}
-                                      placementData={signaturePlacementData}
-                                      placementType={signaturePlacementType}
-                                      onChange={handleSignaturePreviewsChange}
-                                      selectedId={selectedSignatureId}
-                                      onSelect={setSelectedSignatureId}
-                                    />
-                                  )}
                                 </div>
-                              </PagePointerProvider>
-                            </Rotate>
-                          );
-                        }}
-                      />
-                    </Viewport>
-                  </GlobalPointerProvider>
-                  {enableAnnotations && (
-                    <CommentAuthorProvider displayName={commentAuthorName}>
-                      <CommentsSidebar
-                        documentId={documentId}
-                        visible={isCommentsSidebarVisible}
-                        rightOffset={commentsSidebarRightOffset}
-                      />
-                    </CommentAuthorProvider>
-                  )}
-                </>
-              )}
-            </DocumentReadyWrapper>
-          </ActiveDocumentProvider>
-        </EmbedPDF>
-      </div>
-    </PrivateContent>
+
+                                <CustomSearchLayer
+                                  documentId={documentId}
+                                  pageIndex={pageIndex}
+                                />
+
+                                <div
+                                  className="pdf-selection-layer"
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    pointerEvents: "none",
+                                  }}
+                                >
+                                  <SelectionLayer
+                                    documentId={documentId}
+                                    pageIndex={pageIndex}
+                                    background="var(--pdf-selection-bg)"
+                                    selectionMenu={(props) => (
+                                      <TextSelectionMenu {...props} />
+                                    )}
+                                  />
+                                </div>
+                                <TextSelectionHandler
+                                  documentId={documentId}
+                                  pageIndex={pageIndex}
+                                />
+
+                                {/* ButtonAppearanceOverlay — renders PDF-native button visuals as bitmaps */}
+                                {enableFormFill && file && (
+                                  <ButtonAppearanceOverlay
+                                    pageIndex={pageIndex}
+                                    pdfSource={file}
+                                    pageWidth={width}
+                                    pageHeight={height}
+                                  />
+                                )}
+
+                                {/* FormFieldOverlay for interactive form filling */}
+                                {enableFormFill && (
+                                  <FormFieldOverlay
+                                    documentId={documentId}
+                                    pageIndex={pageIndex}
+                                    pageWidth={width}
+                                    pageHeight={height}
+                                    fileId={fileId}
+                                  />
+                                )}
+
+                                {/* SignatureFieldOverlay — bitmaps of digital-signature appearances */}
+                                {file && (
+                                  <SignatureFieldOverlay
+                                    documentId={documentId}
+                                    pageIndex={pageIndex}
+                                    pdfSource={file}
+                                    pageWidth={width}
+                                    pageHeight={height}
+                                  />
+                                )}
+
+                                {/* AnnotationLayer for annotation editing and annotation-based redactions */}
+                                {(enableAnnotations || enableRedaction) && (
+                                  <AnnotationLayer
+                                    documentId={documentId}
+                                    pageIndex={pageIndex}
+                                    selectionOutline={{ color: "#007ACC" }}
+                                    selectionMenu={(props) => (
+                                      <AnnotationSelectionMenu {...props} />
+                                    )}
+                                    style={
+                                      !showBakedAnnotations
+                                        ? {
+                                            opacity: 0,
+                                            pointerEvents: "none",
+                                          }
+                                        : undefined
+                                    }
+                                  />
+                                )}
+
+                                {enableRedaction && (
+                                  <RedactionLayer
+                                    documentId={documentId}
+                                    pageIndex={pageIndex}
+                                    selectionMenu={(props) => (
+                                      <RedactionSelectionMenu {...props} />
+                                    )}
+                                  />
+                                )}
+
+                                {/* LinkLayer – uses EmbedPDF annotation state for link rendering */}
+                                <LinkLayer
+                                  documentId={documentId}
+                                  pageIndex={pageIndex}
+                                />
+
+                                {/* Signature preview overlay (opt-in; off by default) */}
+                                {signatureOverlayEnabled && (
+                                  <SignaturePreviewLayer
+                                    pageIndex={pageIndex}
+                                    pageWidth={width}
+                                    pageHeight={height}
+                                    previews={localSignaturePreviews}
+                                    readOnly={signaturePreviewsReadOnly}
+                                    placementMode={signaturePlacementMode}
+                                    placementData={signaturePlacementData}
+                                    placementType={signaturePlacementType}
+                                    onChange={handleSignaturePreviewsChange}
+                                    selectedId={selectedSignatureId}
+                                    onSelect={setSelectedSignatureId}
+                                  />
+                                )}
+                              </div>
+                            </PagePointerProvider>
+                          </Rotate>
+                        );
+                      }}
+                    />
+                  </Viewport>
+                </GlobalPointerProvider>
+                {enableAnnotations && (
+                  <CommentAuthorProvider displayName={commentAuthorName}>
+                    <CommentsSidebar
+                      documentId={documentId}
+                      visible={isCommentsSidebarVisible}
+                      rightOffset={commentsSidebarRightOffset}
+                    />
+                  </CommentAuthorProvider>
+                )}
+              </>
+            )}
+          </DocumentReadyWrapper>
+        </ActiveDocumentProvider>
+      </EmbedPDF>
+    </div>
   );
 }

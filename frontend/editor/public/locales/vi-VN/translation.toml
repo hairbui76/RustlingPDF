@@ -533,12 +533,6 @@ hint = "Bạn có thay đổi chưa lưu"
 message = "Bạn có thay đổi chưa lưu. Bạn có muốn bỏ chúng không?"
 title = "Thay đổi chưa lưu"
 
-[analytics]
-learnMore = "Tìm hiểu thêm"
-paragraph1 = "RustlingPDF có thu thập phân tích theo tùy chọn để giúp chúng tôi cải thiện sản phẩm. Chúng tôi không theo dõi bất kỳ thông tin cá nhân hoặc nội dung tệp nào."
-paragraph2 = "Vui lòng cân nhắc bật phân tích để giúp RustlingPDF phát triển và cho phép chúng tôi hiểu người dùng tốt hơn."
-title = "Bạn muốn giúp cải thiện RustlingPDF không?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1844,45 +1838,6 @@ tabletPhone = "Máy tính bảng/Điện thoại (có hình ảnh)"
 targetDevice = "Thiết bị đích"
 targetDeviceDesc = "Chọn cấu hình đầu ra tối ưu cho thiết bị đọc"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Đồng ý"
-acceptNecessaryBtn = "Không, cảm ơn"
-showPreferencesBtn = "Quản lý tùy chọn"
-title = "Cách chúng tôi sử dụng Cookie"
-
-[cookieBanner.popUp.description]
-1 = "Chúng tôi sử dụng cookie và các công nghệ khác để RustlingPDF hoạt động tốt hơn cho bạn — giúp cải thiện công cụ và tiếp tục xây dựng các tính năng bạn sẽ yêu thích."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Chấp nhận tất cả"
-acceptNecessaryBtn = "Từ chối tất cả"
-closeIconLabel = "Đóng hộp thoại"
-savePreferencesBtn = "Lưu tùy chọn"
-serviceCounterLabel = "Dịch vụ|Các dịch vụ"
-subtitle = "Cách sử dụng cookie"
-title = "Trung tâm tùy chọn đồng ý"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Những cookie này giúp chúng tôi hiểu cách công cụ được sử dụng, để chúng tôi tập trung xây dựng các tính năng mà cộng đồng coi trọng nhất. Hãy yên tâm — RustlingPDF không và sẽ không bao giờ theo dõi nội dung tài liệu bạn làm việc cùng."
-title = "Phân tích"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF sử dụng cookie và các công nghệ tương tự để nâng cao trải nghiệm của bạn và hiểu cách các công cụ được sử dụng. Điều này giúp chúng tôi cải thiện hiệu năng, phát triển các tính năng bạn quan tâm và hỗ trợ người dùng lâu dài."
-2 = "RustlingPDF không thể — và sẽ không bao giờ — theo dõi hoặc truy cập nội dung các tài liệu bạn sử dụng."
-3 = "Quyền riêng tư và sự tin tưởng của bạn là cốt lõi trong những gì chúng tôi làm."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Cookie tuyệt đối cần thiết"
-2 = "Luôn bật"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Tự động cắt khoảng trắng"
 noFileSelected = "Chọn một tệp PDF để bắt đầu cắt xén"
@@ -2964,7 +2919,6 @@ cookie = "Chính sách Cookie"
 iAgreeToThe = "Tôi đồng ý với tất cả"
 impressum = "Impressum"
 privacy = "Chính sách quyền riêng tư"
-showCookieBanner = "Tùy chọn Cookie"
 terms = "Điều khoản và điều kiện"
 
 [licenses]
@@ -4265,10 +4219,6 @@ windows = "Bao gồm Ctrl, Alt, hoặc phím bổ trợ khác trong phím tắt 
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

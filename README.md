@@ -193,11 +193,15 @@ inputs, pipeline semantics, stdout rules, optional dependencies, and exit codes.
 
 RustlingPDF has one server mode: stateless and account-free.
 
+- No analytics, telemetry, or tracking pixel is shipped, in the web app or the
+  service. There is no vendor SDK, no opt-in prompt, no consent banner, and no
+  setting that enables one — the code does not exist. The web app talks to your
+  RustlingPDF backend and to nothing else.
 - No authentication, users, teams, database, audit log, or durable document
   store exists in the application.
 - Requests use bounded temporary workspace and result storage that expires.
-- In-memory counters reset when the process restarts and are not external
-  analytics.
+- The `/api/v1/info/*` request counters are in-memory, reset when the process
+  restarts, and are served only to whoever asks those routes.
 - The optional AI engine is disabled by default. When enabled, dedicated
   document-understanding requests keep PDF bytes in the processing service and
   send only bounded extracted text to the configured provider.

@@ -31,8 +31,6 @@ const BASE_PARAMS: SlideFactoryParams = {
     { label: "Linux", url: "#", value: "linux" },
   ],
   onDownloadUrlChange: () => {},
-  analyticsError: null,
-  analyticsLoading: false,
 };
 
 interface SlideStageProps {
@@ -105,14 +103,3 @@ export const DesktopInstall: Story = { args: { slideId: "desktop-install" } };
 
 /** Quick tour offer before dropping the user into the tools. */
 export const TourOverview: Story = { args: { slideId: "tour-overview" } };
-
-/** Opt-in analytics choice (analytics hero). */
-export const AnalyticsChoice: Story = { args: { slideId: "analytics-choice" } };
-
-/** Analytics choice showing an error banner (e.g. save failed). */
-export const AnalyticsChoiceError: Story = {
-  args: {
-    slideId: "analytics-choice",
-    params: { analyticsError: "Couldn't save your analytics preference." },
-  },
-};

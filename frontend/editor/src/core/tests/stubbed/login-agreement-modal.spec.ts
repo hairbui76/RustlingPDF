@@ -1,9 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import {
-  mockAppApis,
-  seedCookieConsent,
-  skipOnboarding,
-} from "@app/tests/helpers/api-stubs";
+import { mockAppApis, skipOnboarding } from "@app/tests/helpers/api-stubs";
 
 /**
  * The LoginAgreementModal shows a blocking Accept/Decline disclaimer on
@@ -33,7 +29,6 @@ async function stubDisclaimer(page: Page, opts: DisclaimerStub = {}) {
 }
 
 async function setUpDisclaimer(page: Page, disclaimer: DisclaimerStub = {}) {
-  await seedCookieConsent(page);
   await skipOnboarding(page);
   await mockAppApis(page);
   await stubDisclaimer(page, disclaimer);
@@ -104,7 +99,6 @@ test.describe("Login agreement modal", () => {
   });
 
   test("shows in anonymous (no-login) mode when allowed", async ({ page }) => {
-    await seedCookieConsent(page);
     await skipOnboarding(page);
     await mockAppApis(page);
     await stubDisclaimer(page, { showInAnonymousMode: true });
@@ -116,7 +110,6 @@ test.describe("Login agreement modal", () => {
   });
 
   test("does not show in anonymous mode when suppressed", async ({ page }) => {
-    await seedCookieConsent(page);
     await skipOnboarding(page);
     await mockAppApis(page);
     await stubDisclaimer(page, { showInAnonymousMode: false });

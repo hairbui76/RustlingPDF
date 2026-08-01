@@ -533,12 +533,6 @@ hint = "Gorde gabeko aldaketak dituzu"
 message = "Gorde gabeko aldaketak dituzu. Baztertu nahi dituzu?"
 title = "Gorde gabeko aldaketak"
 
-[analytics]
-learnMore = "Argibide gehiago"
-paragraph1 = "RustlingPDF-k aukerazko analitikak ditu produktua hobetzen laguntzeko. Ez dugu informazio pertsonalik edo fitxategi-edukirik jarraitzen."
-paragraph2 = "Mesedez, kontuan hartu analitikak gaitzea RustlingPDF hazten laguntzeko eta gure erabiltzaileak hobeto ulertzeko."
-title = "RustlingPDF hobetzea nahi duzu?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tableta/Mugikorra (irudiekin)"
 targetDevice = "Helburu gailua"
 targetDeviceDesc = "Aukeratu irakurgailurako optimizatutako irteera-profila"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Ados"
-acceptNecessaryBtn = "Ez, eskerrik asko"
-showPreferencesBtn = "Kudeatu hobespenak"
-title = "Cookieak nola erabiltzen ditugu"
-
-[cookieBanner.popUp.description]
-1 = "Cookieak eta beste teknologiak erabiltzen ditugu RustlingPDF zuretzat hobeto funtziona dadin—gure tresnak hobetzen eta gustuko izango dituzun ezaugarriak eraikitzen jarraitzen laguntzen digute."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Onartu dena"
-acceptNecessaryBtn = "Ukatu dena"
-closeIconLabel = "Itxi modala"
-savePreferencesBtn = "Gorde hobespenak"
-serviceCounterLabel = "Zerbitzua|Zerbitzuak"
-subtitle = "Cookieen erabilera"
-title = "Baimen-hobespenen zentroa"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Cookie hauek gure tresnak nola erabiltzen diren ulertzen laguntzen digute, gure komunitateak baloratzen dituen ezaugarriak eraikitzera bideratu ahal izateko. Ziur egon—RustlingPDFk ezin du eta ez du inoiz jarraituko lantzen dituzun dokumentuen edukia."
-title = "Analitika"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDFk cookieak eta antzeko teknologiak erabiltzen ditu zure esperientzia hobetzeko eta gure tresnak nola erabiltzen diren ulertzeko. Honek errendimendua hobetzen eta axola zaizkizun ezaugarriak garatzen laguntzen digu, eta erabiltzaileei etengabeko laguntza ematen die."
-2 = "RustlingPDF ezin da—eta ez du inoiz egingo—zuri erabiltzen dituzun dokumentuen edukia jarraitu edo atzitu."
-3 = "Zure pribatutasuna eta konfiantza gure lanaren muinean daude."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Behar-beharrezko cookieak"
-2 = "Beti gaituta"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Moztu automatikoki zuriuneak"
 noFileSelected = "Hautatu PDF fitxategi bat mozten hasteko"
@@ -2960,7 +2915,6 @@ cookie = "Cookie politika"
 iAgreeToThe = "Onartzen ditut honako hauek guztiak"
 impressum = "Impressum"
 privacy = "Pribatutasun-politika"
-showCookieBanner = "Cookie-hobespenak"
 terms = "Baldintzak eta erabilera-baldintzak"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Sartu Ctrl, Alt edo beste aldatzaile bat zure laster-teklean."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

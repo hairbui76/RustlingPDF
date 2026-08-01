@@ -36,7 +36,6 @@ const HERO_ICON: Record<string, string> = {
   rocket: "rocket-launch",
   shield: "verified-user-outline",
   lock: "lock-outline",
-  analytics: "analytics",
 };
 
 export default function OnboardingModalSlide({

@@ -533,12 +533,6 @@ hint = "Kaydedilmemiş değişiklikleriniz var"
 message = "Kaydedilmemiş değişiklikleriniz var. Vazgeçmek istiyor musunuz?"
 title = "Kaydedilmemiş Değişiklikler"
 
-[analytics]
-learnMore = "Daha fazla bilgi edinin"
-paragraph1 = "RustlingPDF, ürünü geliştirmemize yardımcı olmak için isteğe bağlı analizleri içerir. Kişisel bilgileri veya dosya içeriklerini asla takip etmiyoruz."
-paragraph2 = "RustlingPDF’in büyümesine destek olmak ve kullanıcılarımızı daha iyi anlayabilmemiz için analizleri etkinleştirmeyi düşünebilirsiniz."
-title = "RustlingPDF’i daha iyi hale getirmek ister misiniz?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Telefon (görsellerle)"
 targetDevice = "Hedef cihaz"
 targetDeviceDesc = "Okuyucu cihaz için optimize edilmiş bir çıktı profili seçin"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Tamam"
-acceptNecessaryBtn = "Hayır Teşekkürler"
-showPreferencesBtn = "Tercihleri Yönet"
-title = "Çerezleri Nasıl Kullanıyoruz"
-
-[cookieBanner.popUp.description]
-1 = "RustlingPDF’yi sizin için daha iyi çalıştırmak için çerezler ve diğer teknolojileri kullanıyoruz — araçlarımızı geliştirmemize ve seveceğiniz özellikler oluşturmamıza yardımcı oluyorlar."
-2 = "İstemiyorsanız, ‘Hayır Teşekkürler’ butonuna tıklayarak yalnızca temel, gerekli çerezleri etkinleştirebilirsiniz."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Tümünü Kabul Et"
-acceptNecessaryBtn = "Tümünü Reddet"
-closeIconLabel = "Kapat"
-savePreferencesBtn = "Tercihleri Kaydet"
-serviceCounterLabel = "Hizmet|Hizmetler"
-subtitle = "Çerez Kullanımı"
-title = "Onay Tercih Merkezi"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Bu çerezler, araçlarımızın nasıl kullanıldığını anlamamıza yardımcı olur, böylece topluluğumuzun en çok değer verdiği özellikleri geliştirmeye odaklanabiliriz. İçiniz rahat olsun — RustlingPDF, belgelerinizin içeriğini asla takip etmez ve etmeyecektir."
-title = "Analitik"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF, deneyiminizi geliştirmek ve araçlarımızın nasıl kullanıldığını anlamak için çerezler ve benzeri teknolojiler kullanır. Bu, performansı iyileştirmemize, önemsediğiniz özellikleri geliştirmemize ve kullanıcılarımıza sürekli destek sağlamamıza yardımcı olur."
-2 = "RustlingPDF, kullandığınız belgelerin içeriğini asla takip edemez veya erişemez."
-3 = "Gizliliğiniz ve güveniniz bizim için en önemli şeydir."
-
-[cookieBanner.preferencesModal.necessary]
-description = "Bu çerezler, web sitesinin düzgün çalışabilmesi için gereklidir. Gizlilik tercihlerinizi ayarlama, giriş yapma ve form doldurma gibi temel işlevleri mümkün kılarlar — bu nedenle devre dışı bırakılamazlar."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Kesinlikle Gerekli Çerezler"
-2 = "Her Zaman Etkin"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Boşlukları otomatik kırp"
 noFileSelected = "Kırpmaya başlamak için bir PDF seçin"
@@ -2960,7 +2915,6 @@ cookie = "Çerez Politikası"
 iAgreeToThe = "Şunların tümünü kabul ediyorum"
 impressum = "Hakkımızda"
 privacy = "Gizlilik Politikası"
-showCookieBanner = "Çerez Tercihleri"
 terms = "Şartlar ve koşullar"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Kısayolunuza Ctrl, Alt veya başka bir değiştirici ekleyin."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

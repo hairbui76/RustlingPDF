@@ -533,12 +533,6 @@ hint = "Anda memiliki perubahan yang belum disimpan"
 message = "Anda memiliki perubahan yang belum disimpan. Apakah Anda ingin membuangnya?"
 title = "Perubahan Belum Disimpan"
 
-[analytics]
-learnMore = "Pelajari lebih lanjut"
-paragraph1 = "RustlingPDF memiliki analitik yang dapat diaktifkan untuk membantu kami meningkatkan produk. Kami tidak melacak informasi pribadi atau konten berkas."
-paragraph2 = "Silakan pertimbangkan untuk mengaktifkan analitik agar RustlingPDF dapat berkembang dan untuk memungkinkan kami memahami pengguna kami dengan lebih baik."
-title = "Apakah Anda ingin membuat RustlingPDF lebih baik?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Ponsel (dengan gambar)"
 targetDevice = "Perangkat target"
 targetDeviceDesc = "Pilih profil keluaran yang dioptimalkan untuk perangkat pembaca"
 
-[cookieBanner.popUp]
-acceptAllBtn = "Oke"
-acceptNecessaryBtn = "Tidak, terima kasih"
-showPreferencesBtn = "Kelola preferensi"
-title = "Bagaimana kami menggunakan Cookie"
-
-[cookieBanner.popUp.description]
-1 = "Kami menggunakan cookie dan teknologi lain untuk membuat RustlingPDF bekerja lebih baik untuk Anda—membantu kami meningkatkan alat dan terus membangun fitur yang Anda sukai."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Terima semua"
-acceptNecessaryBtn = "Tolak semua"
-closeIconLabel = "Tutup modal"
-savePreferencesBtn = "Simpan preferensi"
-serviceCounterLabel = "Layanan|Layanan"
-subtitle = "Penggunaan Cookie"
-title = "Pusat Preferensi Persetujuan"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Cookie ini membantu kami memahami bagaimana alat kami digunakan, sehingga kami dapat fokus membangun fitur yang paling dihargai komunitas kami. Tenang—RustlingPDF tidak dan tidak akan pernah melacak konten dokumen yang Anda kerjakan."
-title = "Analitik"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF menggunakan cookie dan teknologi serupa untuk meningkatkan pengalaman Anda dan memahami bagaimana alat kami digunakan. Ini membantu kami meningkatkan kinerja, mengembangkan fitur yang Anda pedulikan, dan memberikan dukungan berkelanjutan kepada pengguna kami."
-2 = "RustlingPDF tidak dapat—dan tidak akan pernah—melacak atau mengakses konten dokumen yang Anda gunakan."
-3 = "Privasi dan kepercayaan Anda adalah inti dari apa yang kami lakukan."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Cookie yang Sangat Diperlukan"
-2 = "Selalu Diaktifkan"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Pangkas otomatis ruang kosong"
 noFileSelected = "Pilih file PDF untuk mulai memotong"
@@ -2960,7 +2915,6 @@ cookie = "Kebijakan Kuki"
 iAgreeToThe = "Saya menyetujui semua"
 impressum = "Impresum"
 privacy = "Kebijakan Privasi"
-showCookieBanner = "Preferensi Cookie"
 terms = "Syarat dan Ketentuan"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Sertakan Ctrl, Alt, atau modifier lainnya dalam pintasan Anda."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

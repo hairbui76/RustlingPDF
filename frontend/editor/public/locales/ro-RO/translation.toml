@@ -533,12 +533,6 @@ hint = "Aveți modificări nesalvate"
 message = "Aveți modificări nesalvate. Doriți să renunțați la ele?"
 title = "Modificări nesalvate"
 
-[analytics]
-learnMore = "Aflați mai multe"
-paragraph1 = "RustlingPDF are analize opționale pentru a ne ajuta să îmbunătățim produsul. Nu urmărim nicio informație personală sau conținutul fișierelor."
-paragraph2 = "Vă rugăm să luați în considerare activarea analizelor pentru a ajuta RustlingPDF să crească și pentru a ne permite să ne înțelegem mai bine utilizatorii."
-title = "Vreți să faceți RustlingPDF mai bun?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tabletă/Telefon (cu imagini)"
 targetDevice = "Dispozitiv țintă"
 targetDeviceDesc = "Alege un profil de ieșire optimizat pentru dispozitivul de citire"
 
-[cookieBanner.popUp]
-acceptAllBtn = "OK"
-acceptNecessaryBtn = "Nu, mulțumesc"
-showPreferencesBtn = "Gestionați preferințele"
-title = "Cum folosim cookie-urile"
-
-[cookieBanner.popUp.description]
-1 = "Folosim cookie-uri și alte tehnologii pentru a face RustlingPDF să funcționeze mai bine pentru dvs.—ajutându-ne să ne îmbunătățim instrumentele și să continuăm să dezvoltăm funcții pe placul dvs."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Acceptă toate"
-acceptNecessaryBtn = "Respinge toate"
-closeIconLabel = "Închide fereastra"
-savePreferencesBtn = "Salvează preferințele"
-serviceCounterLabel = "Serviciu|Servicii"
-subtitle = "Utilizarea cookie-urilor"
-title = "Centrul preferințelor de consimțământ"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Aceste cookie-uri ne ajută să înțelegem cum sunt folosite instrumentele noastre, astfel încât să ne concentrăm pe construirea funcțiilor pe care comunitatea noastră le apreciază cel mai mult. Stați liniștit—RustlingPDF nu poate și nu va urmări conținutul documentelor cu care lucrați."
-title = "Analiză"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF folosește cookie-uri și tehnologii similare pentru a vă îmbunătăți experiența și a înțelege cum sunt folosite instrumentele noastre. Aceasta ne ajută să îmbunătățim performanța, să dezvoltăm funcțiile care vă interesează și să oferim suport constant utilizatorilor noștri."
-2 = "RustlingPDF nu poate—și nu va—urmări sau accesa conținutul documentelor pe care le utilizați."
-3 = "Confidențialitatea și încrederea dvs. sunt în centrul a tot ceea ce facem."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Cookie-uri strict necesare"
-2 = "Întotdeauna activat"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Decupare automată a spațiilor albe"
 noFileSelected = "Selectați un fișier PDF pentru a începe decuparea"
@@ -2960,7 +2915,6 @@ cookie = "Politica privind cookie-urile"
 iAgreeToThe = "Sunt de acord cu toate"
 impressum = "Impressum"
 privacy = "Politica de confidențialitate"
-showCookieBanner = "Preferințe cookie"
 terms = "Termeni și condiții"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Includeți Ctrl, Alt sau un alt modificator în scurtătură."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

@@ -12,7 +12,6 @@ import { useTranslation } from "react-i18next";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import { useConfigNavSections } from "@app/components/shared/config/configNavSections";
 import { NavKey, VALID_NAV_KEYS } from "@app/components/shared/config/types";
-import { COOKIE_CONSENT_SCROLL_SHARD } from "@app/hooks/useCookieConsent";
 import "@app/components/shared/AppConfigModal.css";
 import { useIsMobile } from "@app/hooks/useIsMobile";
 import {
@@ -204,7 +203,6 @@ const AppConfigModalInner: React.FC<AppConfigModalProps> = ({
       padding={0}
       fullScreen={isMobile}
       styles={{ content: { overflowY: "hidden", overscrollBehavior: "none" } }}
-      removeScrollProps={{ shards: [COOKIE_CONSENT_SCROLL_SHARD] }}
     >
       <div className="modal-container" data-tour="settings-modal">
         {/* Left navigation */}

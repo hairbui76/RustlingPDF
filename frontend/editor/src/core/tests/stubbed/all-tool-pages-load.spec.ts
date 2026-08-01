@@ -92,9 +92,9 @@ async function verifyToolPageLoads(
   page: import("@playwright/test").Page,
   urlPath: string,
 ) {
-  // waitUntil: 'domcontentloaded' avoids hanging on third-party CDN resources
-  // (iconify, posthog, stripe) the stub doesn't mock — the default 'load'
-  // event waits for ALL subresources, which can time out on slow runners.
+  // waitUntil: 'domcontentloaded' avoids hanging on any subresource the stub
+  // doesn't mock — the default 'load' event waits for ALL of them, which can
+  // time out on slow runners.
   await page.goto(urlPath, { waitUntil: "domcontentloaded" });
 
   // Page should not show an unhandled error / white screen

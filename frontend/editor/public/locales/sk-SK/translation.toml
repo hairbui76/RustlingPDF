@@ -533,12 +533,6 @@ hint = "Máte neuložené zmeny"
 message = "Máte neuložené zmeny. Chcete ich zahodiť?"
 title = "Neuložené zmeny"
 
-[analytics]
-learnMore = "Viac informácií"
-paragraph1 = "RustlingPDF má dobrovoľnú analytiku, ktorá nám pomáha zlepšovať produkt. Nesledujeme žiadne osobné informácie ani obsah súborov."
-paragraph2 = "Zvážte, prosím, povolenie analytiky, aby mohol RustlingPDF rásť a aby sme lepšie porozumeli našim používateľom."
-title = "Chcete zlepšiť RustlingPDF?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "Tablet/Telefón (s obrázkami)"
 targetDevice = "Cieľové zariadenie"
 targetDeviceDesc = "Vyberte výstupný profil optimalizovaný pre čítačku"
 
-[cookieBanner.popUp]
-acceptAllBtn = "OK"
-acceptNecessaryBtn = "Nie, ďakujem"
-showPreferencesBtn = "Spravovať nastavenia"
-title = "Ako používame súbory cookie"
-
-[cookieBanner.popUp.description]
-1 = "Používame cookies a iné technológie, aby RustlingPDF fungoval lepšie pre vás—pomáhajú nám vylepšovať naše nástroje a ďalej budovať funkcie, ktoré si obľúbite."
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "Prijať všetko"
-acceptNecessaryBtn = "Odmietnuť všetko"
-closeIconLabel = "Zavrieť okno"
-savePreferencesBtn = "Uložiť nastavenia"
-serviceCounterLabel = "Služba|Služby"
-subtitle = "Používanie súborov cookie"
-title = "Centrum nastavení súhlasu"
-
-[cookieBanner.preferencesModal.analytics]
-description = "Tieto súbory cookie nám pomáhajú pochopiť, ako sa naše nástroje používajú, aby sme sa mohli sústrediť na budovanie funkcií, ktoré si naša komunita najviac cení. Bez obáv—RustlingPDF nemôže a nikdy nebude sledovať obsah dokumentov, s ktorými pracujete."
-title = "Analytika"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF používa súbory cookie a podobné technológie na zlepšenie vašej skúsenosti a pochopenie toho, ako sa naše nástroje používajú. Pomáha nám to zlepšovať výkon, vyvíjať funkcie, na ktorých vám záleží, a poskytovať priebežnú podporu používateľom."
-2 = "RustlingPDF nemôže—and nikdy nebude—sledovať ani pristupovať k obsahu dokumentov, ktoré používate."
-3 = "Vaše súkromie a dôvera sú základom toho, čo robíme."
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "Nevyhnutne potrebné súbory cookie"
-2 = "Vždy povolené"
-
-[cookieBanner.services]
-posthog = "PostHog Analytics"
-scarf = "Scarf Pixel"
-
 [crop]
 autoCrop = "Automaticky orezať biele okraje"
 noFileSelected = "Vyberte súbor PDF a začnite orezávať"
@@ -2960,7 +2915,6 @@ cookie = "Zásady používania súborov cookie"
 iAgreeToThe = "Súhlasím so všetkými"
 impressum = "Impressum"
 privacy = "Zásady ochrany osobných údajov"
-showCookieBanner = "Predvoľby súborov cookie"
 terms = "Podmienkami používania"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "Do skratky zahrňte Ctrl, Alt alebo iný modifikátor."
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."

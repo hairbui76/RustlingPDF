@@ -533,12 +533,6 @@ hint = "आपके कुछ परिवर्तन सहेजे नह�
 message = "आपके कुछ परिवर्तन सहेजे नहीं गए हैं। क्या आप उन्हें त्यागना चाहते हैं?"
 title = "असहेजे परिवर्तन"
 
-[analytics]
-learnMore = "और जानें"
-paragraph1 = "RustlingPDF में उत्पाद को बेहतर बनाने में मदद करने के लिए विकल्प विश्लेषण है। हम किसी भी व्यक्तिगत जानकारी या फ़ाइल सामग्री को ट्रैक नहीं करते हैं।"
-paragraph2 = "कृपया RustlingPDF को बढ़ने में मदद करने और हमें अपने उपयोगकर्ताओं को बेहतर समझने के लिए विश्लेषण सक्षम करने पर विचार करें।"
-title = "क्या आप RustlingPDF को बेहतर बनाना चाहते हैं?"
-
 [annotate]
 tags = "annotate,highlight,draw,markup,comment,notes,review,redline,feedback,markup tools,sticky notes,shapes,arrows,text box,freehand"
 
@@ -1840,45 +1834,6 @@ tabletPhone = "टैबलेट/फ़ोन (चित्र सहित)"
 targetDevice = "लक्षित डिवाइस"
 targetDeviceDesc = "रीडर डिवाइस के लिए अनुकूलित आउटपुट प्रोफाइल चुनें"
 
-[cookieBanner.popUp]
-acceptAllBtn = "ठीक है"
-acceptNecessaryBtn = "नहीं, धन्यवाद"
-showPreferencesBtn = "प्राथमिकताएँ प्रबंधित करें"
-title = "हम कुकीज़ का उपयोग कैसे करते हैं"
-
-[cookieBanner.popUp.description]
-1 = "हम RustlingPDF को आपके लिए बेहतर बनाने हेतु कुकीज़ और अन्य तकनीकों का उपयोग करते हैं—जो हमें अपने टूल सुधारने और वे फीचर्स बनाने में मदद करता है जिन्हें आप पसंद करेंगे।"
-2 = "If you’d rather not, clicking 'No Thanks' will only enable the essential cookies needed to keep things running smoothly."
-
-[cookieBanner.preferencesModal]
-acceptAllBtn = "सभी स्वीकार करें"
-acceptNecessaryBtn = "सभी अस्वीकार करें"
-closeIconLabel = "मोडल बंद करें"
-savePreferencesBtn = "प्राथमिकताएँ सहेजें"
-serviceCounterLabel = "सेवा|सेवाएँ"
-subtitle = "कुकी उपयोग"
-title = "सहमति प्राथमिकताएँ केंद्र"
-
-[cookieBanner.preferencesModal.analytics]
-description = "ये कुकीज़ हमें समझने में मदद करती हैं कि हमारे टूल कैसे उपयोग हो रहे हैं, ताकि हम उन फीचर्स के निर्माण पर ध्यान दे सकें जिन्हें हमारा समुदाय सबसे अधिक महत्व देता है। निश्चिंत रहें—RustlingPDF आपके काम के दस्तावेज़ों की सामग्री को ट्रैक नहीं कर सकता और कभी नहीं करेगा।"
-title = "एनालिटिक्स"
-
-[cookieBanner.preferencesModal.description]
-1 = "RustlingPDF आपके अनुभव को बेहतर बनाने और यह समझने के लिए कि हमारे टूल कैसे उपयोग होते हैं, कुकीज़ और समान तकनीकों का उपयोग करता है। इससे हमें प्रदर्शन सुधारने, आपकी पसंद के फीचर्स विकसित करने और उपयोगकर्ताओं को निरंतर समर्थन देने में मदद मिलती है।"
-2 = "RustlingPDF आपके उपयोग किए गए दस्तावेज़ों की सामग्री को ट्रैक या एक्सेस नहीं कर सकता—और कभी नहीं करेगा।"
-3 = "आपकी गोपनीयता और भरोसा हमारे कार्य के मूल में है।"
-
-[cookieBanner.preferencesModal.necessary]
-description = "These cookies are essential for the website to function properly. They enable core features like setting your privacy preferences, logging in, and filling out forms—which is why they can’t be turned off."
-
-[cookieBanner.preferencesModal.necessary.title]
-1 = "कड़ाई से आवश्यक कुकीज़"
-2 = "हमेशा सक्षम"
-
-[cookieBanner.services]
-posthog = "PostHog एनालिटिक्स"
-scarf = "Scarf पिक्सेल"
-
 [crop]
 autoCrop = "खाली स्थान स्वतः क्रॉप करें"
 noFileSelected = "क्रॉप शुरू करने के लिए एक PDF फ़ाइल चुनें"
@@ -2960,7 +2915,6 @@ cookie = "कुकी नीति"
 iAgreeToThe = "मैं सभी से सहमत हूँ"
 impressum = "इम्प्रेसम"
 privacy = "गोपनीयता नीति"
-showCookieBanner = "कुकी प्राथमिकताएँ"
 terms = "नियम और शर्तें"
 
 [licenses]
@@ -4261,10 +4215,6 @@ windows = "अपने शॉर्टकट में Ctrl, Alt, या को
 [settings.legal]
 label = "Legal"
 title = "Legal"
-
-[settings.legal.cookiePreferences]
-description = "Review or change your cookie consent choices."
-manage = "Manage"
 
 [settings.legal.documents]
 description = "Policies and legal information for this service."
