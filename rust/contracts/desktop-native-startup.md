@@ -101,3 +101,29 @@ minisign id `9ADA2DC8FC4FAF0B`; the public half is published in `RELEASING.md`
 and its private counterpart is stored outside the repository and provided to
 release CI through `TAURI_SIGNING_PRIVATE_KEY`. Signatures serve verification
 only — nothing in the application consumes them at runtime.
+
+## Fallback fonts
+
+Fallback fonts for PDFs that name a font without embedding it are **bundled
+into the build and served from the app's own origin**. No font is ever fetched
+from a third party. `@embedpdf/engines` defaults its font config to
+`cdn.jsdelivr.net`, and that default is selected by leaving the option
+`undefined`; the frontend therefore pins a local config in a single wrapper
+(`@app/services/pdfiumEngine`), enforced by an ESLint rule and by
+`noRemoteAssetDefaults.test.ts`.
+
+The bundled set — copied out of `node_modules` at build time by
+`viteStaticCopy`, the same mechanism that emits `pdfium.wasm` — is Noto Sans
+(Latin, Cyrillic, Greek, Vietnamese), Noto Naskh Arabic and Noto Sans Hebrew.
+It adds about 11 MB to `dist/`, and therefore to the desktop bundle and the
+Docker image; nothing is added to initial page load, because a font is fetched
+only when a document actually needs a substitute.
+
+**CJK is deliberately absent.** The Japanese, Korean, Simplified and
+Traditional Chinese sets total roughly 141 MB. A CJK document that does not
+embed its fonts renders no glyphs for those runs. That is accepted so that no
+document, in any script, causes a request to a third party.
+
+Untree-shaken `cdn.jsdelivr.net` string constants remain in the compiled
+JavaScript. No code path reaches them; the guards above are what establish
+that, and a bundle grep finding those strings is not a finding.

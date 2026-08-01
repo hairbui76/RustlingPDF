@@ -201,6 +201,22 @@ RustlingPDF has one server mode: stateless and account-free.
   host at any point. The web app talks to your RustlingPDF backend and to
   nothing else. Nothing about you — not your IP, not your version, not the fact
   that you run RustlingPDF — is disclosed to anyone by the software running.
+- **Fallback fonts ship with the app.** When a PDF names a font it does not
+  embed, the viewer substitutes one from a set bundled into the build and served
+  from your own origin — never fetched. The bundled set is Noto Sans (which
+  covers Latin, Cyrillic, Greek and Vietnamese), Noto Naskh Arabic, and Noto
+  Sans Hebrew, about 11 MB in total. **CJK is deliberately not bundled**: the
+  Japanese, Korean and Chinese sets are roughly 141 MB together, an order of
+  magnitude more than the rest of the application, so a CJK document that does
+  not embed its fonts renders no glyphs for those runs. That is a real
+  limitation, and it is the deliberate trade — no document, in any script,
+  causes a request to a third party.
+- The compiled JavaScript still *contains* a few `cdn.jsdelivr.net` strings:
+  they are unused constants left in a vendored library by tree-shaking, and no
+  code path reaches them. This is verified rather than assumed — see
+  `noRemoteAssetDefaults.test.ts`, plus the ESLint rule and the single
+  `useLocalPdfiumEngine` wrapper that make a remote default unreachable. If an
+  audit greps the bundle and finds those strings, this is what they are.
 - **Checking for new versions is your job, not the app's.** There is no
   auto-updater and no update prompt. When you want to know whether a newer
   version exists, look at the

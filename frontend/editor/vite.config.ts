@@ -273,6 +273,26 @@ export default defineConfig(async ({ mode, command }) => {
             dest: "pdfjs/standard_fonts",
           },
           {
+            // Fallback fonts for PDFs that reference a font without embedding
+            // it. These MUST be served same-origin: @embedpdf's default font
+            // config points at cdn.jsdelivr.net, which would disclose the
+            // reader's IP, User-Agent and the document's script system on
+            // document open. See @app/services/pdfiumEngine.
+            //
+            // Latin covers Cyrillic, Greek and Vietnamese as well. CJK
+            // (fonts-jp/kr/sc/tc) is deliberately NOT shipped: it is ~141 MB.
+            src: "../node_modules/@embedpdf/fonts-latin/fonts/*",
+            dest: "fonts/latin",
+          },
+          {
+            src: "../node_modules/@embedpdf/fonts-arabic/fonts/*",
+            dest: "fonts/arabic",
+          },
+          {
+            src: "../node_modules/@embedpdf/fonts-hebrew/fonts/*",
+            dest: "fonts/hebrew",
+          },
+          {
             // Brand assets live in core; the editor serves them by URL per
             // variant, so copy each set to the /{variant}-logo path its
             // manifests, index.html and useLogoAssets resolve against.

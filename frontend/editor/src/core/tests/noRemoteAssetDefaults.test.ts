@@ -54,23 +54,49 @@ describe("no remote asset defaults", () => {
   });
 
   it("the wrapper pins every remote-defaulting option to a local value", () => {
-    // Strip comments FIRST. The doc comment in that module quotes
-    // `fontFallback: null` while explaining the leak, so a naive match against
-    // the raw file passes even when the real option has been deleted — this
-    // guard was written that way, verified against a reintroduced regression,
-    // and found to be useless. Only executable code counts.
+    // Strip comments FIRST. The doc comment in that module quotes the option
+    // names while explaining the leak, so a naive match against the raw file
+    // passes even when the real option has been deleted — this guard was
+    // written that way, verified against a reintroduced regression, and found
+    // to be useless. Only executable code counts.
     const code = readFileSync(join(SRC, ENGINE_WRAPPER), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\/\/.*$/gm, "");
 
-    // `fontFallback` MUST be an explicit null: undefined selects the CDN.
-    expect(code, "fontFallback must be explicitly null").toMatch(
-      /fontFallback:\s*null/,
+    // `fontFallback` MUST be passed. `undefined` selects the CDN font config,
+    // so omitting it is the exact bug this file exists to prevent.
+    expect(code, "fontFallback must be passed explicitly").toMatch(
+      /fontFallback[,:]/,
+    );
+    // ...and it must be our local config, not the library's.
+    expect(code, "fontFallback must come from localFallbackFontConfig").toMatch(
+      /localFallbackFontConfig\(\)/,
     );
     // `wasmUrl` MUST be the locally emitted asset, never a literal URL.
     expect(code, "wasmUrl must be the local asset").toMatch(
       /wasmUrl:\s*pdfiumWasmUrl/,
     );
+  });
+
+  it("every fallback font URL is same-origin", async () => {
+    // URLs are absolute on purpose: the config is posted into a Web Worker,
+    // which would otherwise resolve a relative path against its own blob URL.
+    // Absolute is fine; absolute *to another host* is the bug.
+    const { localFallbackFontConfig } =
+      await import("@app/services/pdfiumFallbackFonts");
+    const urls = Object.values(localFallbackFontConfig().fonts)
+      .flat()
+      .map((variant) => (variant as { url: string }).url);
+
+    expect(urls.length).toBeGreaterThan(0);
+    const offOrigin = urls.filter(
+      (url) => new URL(url, window.location.href).origin !== window.origin,
+    );
+    expect(
+      offOrigin,
+      "fallback fonts must be served from the app's own origin",
+    ).toEqual([]);
+    expect(urls.every((url) => url.includes("/fonts/"))).toBe(true);
   });
 
   it("no source file hardcodes a third-party asset host", () => {
