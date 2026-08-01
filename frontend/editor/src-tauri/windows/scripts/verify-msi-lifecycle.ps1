@@ -524,7 +524,6 @@ Invoke-MsiExec -Label 'install' -Arguments @(
     '/i', "`"$MsiPath`"",
     '/qn', '/norestart',
     'RUSTLING_SERVER_URL=https://provisioning.example.invalid',
-    'RUSTLING_UPDATE_MODE=disabled',
     '/l*v', "`"$installLog`""
 )
 

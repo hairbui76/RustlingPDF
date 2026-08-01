@@ -1887,22 +1887,6 @@ title = "Πώς να περικόψετε PDF"
 [defaultApp]
 title = "Ορισμός ως προεπιλεγμένη εφαρμογή PDF"
 
-[desktopUpdate]
-downloading = "Λήψη ενημέρωσης..."
-installing = "Εγκατάσταση ενημέρωσης..."
-installingWarning = "Η εφαρμογή θα κλείσει αυτόματα για να ολοκληρωθεί η εγκατάσταση."
-installNow = "Εγκατάσταση τώρα"
-readyToRestart = "Η ενημέρωση είναι έτοιμη"
-restartMessage = "Η ενημέρωση εγκαταστάθηκε. Επανεκκινήστε την εφαρμογή για να ολοκληρώσετε."
-restartNow = "Επανεκκίνηση τώρα"
-updateFailed = "Αποτυχία ενημέρωσης"
-updateFailedMessage = "Αποτυχία λήψης ή εγκατάστασης της ενημέρωσης."
-
-[desktopUpdate.blocked]
-docsLink = "Προβολή τεκμηρίωσης εγκατάστασης"
-message = "Το RustlingPDF δεν έχει δικαίωμα να ενημερώσει τον εαυτό του σε αυτό το μηχάνημα."
-title = "Απαιτούνται δικαιώματα διαχειριστή"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Αναγνώστης"
 tools = "Εργαλεία"
 
 [settings.general.updates]
-checkForUpdates = "Έλεγχος για ενημερώσεις"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Έλεγχος ενημερώσεων και προβολή πληροφοριών έκδοσης"
-latestVersion = "Νεότερη έκδοση"
-managedByAdmin = "Διαχειρίζεται από διαχειριστή"
-modeAuto = "Αυτόματη εγκατάσταση ενημερώσεων"
-modeDisabled = "Να μην γίνεται έλεγχος για ενημερώσεις"
-modePrompt = "Ερώτηση πριν την εγκατάσταση ενημερώσεων"
-title = "Ενημερώσεις λογισμικού"
-updateBehavior = "Συμπεριφορά ενημέρωσης"
-updateBehaviorDescription = "Επιλέξτε αν θα ερωτάστε πριν την εγκατάσταση ενημερώσεων, αν θα εγκαθίστανται αυτόματα ή αν θα παραλείπονται εντελώς οι έλεγχοι για ενημερώσεις."
-updateBehaviorLockedDescription = "Ο διαχειριστής σας έχει ρυθμίσει πώς το RustlingPDF χειρίζεται τις ενημερώσεις σε αυτό το μηχάνημα. Επικοινωνήστε μαζί του για να το αλλάξετε."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Προβολή λεπτομερειών"
 
 [settings.general.zoomLevel]
 auto = "Αυτόματο"
@@ -4752,42 +4724,6 @@ failed = "Παρουσιάστηκε σφάλμα κατά το ξεκλείδω
 
 [unlockPDFForms.results]
 title = "Αποτελέσματα ξεκλειδωμένων φορμών"
-
-[update]
-allReleases = "Όλες οι εκδόσεις"
-breaking = "Ασυμβατό"
-breakingChanges = "Ασύμβατες αλλαγές"
-breakingChangesDefault = "Αυτή η έκδοση περιέχει ασύμβατες αλλαγές."
-close = "Κλείσιμο"
-closeModal = "Κλείσιμο παραθύρου ενημέρωσης"
-current = "Τρέχουσα έκδοση"
-defaultRecommendation = "Αυτή η ενημέρωση περιλαμβάνει σημαντικές διορθώσεις και βελτιώσεις."
-downloadLatest = "Λήψη νεότερης"
-later = "Αργότερα"
-latest = "Νεότερη έκδοση"
-loadingDetailedInfo = "Φόρτωση αναλυτικών πληροφοριών..."
-migrationGuide = "Οδηγός μετεγκατάστασης"
-migrationGuides = "Οδηγοί μετεγκατάστασης"
-migrationGuidesDesc = "Ελέγξτε σημαντικές αλλαγές πριν την ενημέρωση."
-modalSubtitle = "Μια νέα έκδοση του RustlingPDF είναι έτοιμη για εγκατάσταση."
-modalTitle = "Διαθέσιμη ενημέρωση"
-notes = "Σημειώσεις"
-releaseNotes = "Σημειώσεις έκδοσης"
-showLess = "Εμφάνιση λιγότερων εκδόσεων"
-showMore = "Εμφάνιση όλων των {{count}} εκδόσεων"
-stable = "STABLE"
-updateAvailable = "Διαθέσιμη ενημέρωση"
-urgentUpdateAvailable = "Επείγουσα ενημέρωση"
-version = "Έκδοση"
-versionHistory = "Ιστορικό εκδόσεων"
-viewGuide = "Προβολή οδηγού"
-whatsNewIn = "Τι νέο υπάρχει στο"
-
-[update.priority]
-low = "Χαμηλή"
-minor = "Δευτερεύουσα"
-normal = "Κανονική"
-urgent = "Επείγον"
 
 [URLToPDF]
 tags = "λήψη-ιστοσελίδας,αποθήκευση-σελίδας,web-σε-έγγραφο,αρχειοθέτηση"

@@ -1887,22 +1887,6 @@ title = "Comment recadrer des PDF"
 [defaultApp]
 title = "Définir comme application PDF par défaut"
 
-[desktopUpdate]
-downloading = "Téléchargement de la mise à jour..."
-installing = "Installation de la mise à jour..."
-installingWarning = "L’application se fermera automatiquement pour terminer l’installation."
-installNow = "Installer maintenant"
-readyToRestart = "Mise à jour prête"
-restartMessage = "La mise à jour a été installée. Redémarrez l’application pour terminer."
-restartNow = "Redémarrer maintenant"
-updateFailed = "Échec de la mise à jour"
-updateFailedMessage = "Échec du téléchargement ou de l’installation de la mise à jour."
-
-[desktopUpdate.blocked]
-docsLink = "Voir la documentation d’installation"
-message = "RustlingPDF n’a pas l’autorisation de se mettre à jour sur cette machine."
-title = "Autorisations administrateur requises"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Lecteur"
 tools = "Outils"
 
 [settings.general.updates]
-checkForUpdates = "Rechercher des mises à jour"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Rechercher des mises à jour et voir les informations de version"
-latestVersion = "Dernière version"
-managedByAdmin = "Géré par l’administrateur"
-modeAuto = "Installer automatiquement les mises à jour"
-modeDisabled = "Ne pas rechercher des mises à jour"
-modePrompt = "Me demander avant d’installer les mises à jour"
-title = "Mises à jour logicielles"
-updateBehavior = "Comportement de mise à jour"
-updateBehaviorDescription = "Choisissez de demander avant d’installer les mises à jour, de les installer automatiquement ou d’ignorer complètement la vérification des mises à jour."
-updateBehaviorLockedDescription = "Votre administrateur a configuré la manière dont RustlingPDF gère les mises à jour sur cette machine. Contactez-le pour modifier cela."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Voir les détails"
 
 [settings.general.zoomLevel]
 auto = "Auto"
@@ -4752,42 +4724,6 @@ failed = "Une erreur est survenue lors du déverrouillage des formulaires PDF."
 
 [unlockPDFForms.results]
 title = "Résultats des formulaires déverrouillés"
-
-[update]
-allReleases = "Toutes les versions"
-breaking = "Incompatible"
-breakingChanges = "Modifications majeures"
-breakingChangesDefault = "Cette version contient des modifications majeures."
-close = "Fermer"
-closeModal = "Fermer la fenêtre de mise à jour"
-current = "Version actuelle"
-defaultRecommendation = "Cette mise à jour contient des correctifs et des améliorations importants."
-downloadLatest = "Télécharger la dernière version"
-later = "Plus tard"
-latest = "Dernière version"
-loadingDetailedInfo = "Chargement des informations détaillées…"
-migrationGuide = "Guide de migration"
-migrationGuides = "Guides de migration"
-migrationGuidesDesc = "Passez en revue les changements importants avant la mise à jour."
-modalSubtitle = "Une nouvelle version de RustlingPDF est prête à être installée."
-modalTitle = "Mise à jour disponible"
-notes = "Notes"
-releaseNotes = "Notes de version"
-showLess = "Afficher moins de versions"
-showMore = "Afficher toutes les {{count}} versions"
-stable = "STABLE"
-updateAvailable = "Mise à jour disponible"
-urgentUpdateAvailable = "Mise à jour urgente"
-version = "Version"
-versionHistory = "Historique des versions"
-viewGuide = "Voir le guide"
-whatsNewIn = "Nouveautés de"
-
-[update.priority]
-low = "Faible"
-minor = "Mineure"
-normal = "Normale"
-urgent = "Urgente"
 
 [URLToPDF]
 tags = "pdf,contenu Web,save-page,web-to-doc,archive"

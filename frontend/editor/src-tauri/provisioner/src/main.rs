@@ -18,10 +18,6 @@ struct ProvisioningConfig<'a> {
     lock_connection_mode: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     login_agreement_enabled: Option<bool>,
-    /// Optional headless-install update policy.
-    /// One of `"prompt"` (default), `"auto"`, or `"disabled"`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    update_mode: Option<&'a str>,
 }
 
 fn parse_bool(value: &str) -> bool {
@@ -29,23 +25,6 @@ fn parse_bool(value: &str) -> bool {
         value.trim().to_lowercase().as_str(),
         "1" | "true" | "yes" | "y"
     )
-}
-
-/// Normalise the `--update-mode` argument into the lowercase tokens the app
-/// understands. Empty / whitespace values are treated as "not supplied" so
-/// MSI installs that don't pass RUSTLING_UPDATE_MODE behave identically to
-/// earlier builds.
-fn parse_update_mode(value: &str) -> Result<Option<&'static str>, String> {
-    match value.trim().to_lowercase().as_str() {
-        "" => Ok(None),
-        "prompt" => Ok(Some("prompt")),
-        "auto" => Ok(Some("auto")),
-        "disabled" | "off" | "none" => Ok(Some("disabled")),
-        other => Err(format!(
-            "Invalid --update-mode value '{}': expected prompt, auto, or disabled",
-            other
-        )),
-    }
 }
 
 /// Delete the provisioning file at `output`, and nothing else.
@@ -100,7 +79,6 @@ fn main() -> Result<(), String> {
     let mut url: Option<String> = None;
     let mut lock_value: Option<String> = None;
     let mut login_agreement_value: Option<String> = None;
-    let mut update_mode_arg: Option<String> = None;
     let mut remove = false;
 
     let mut args = env::args().skip(1);
@@ -133,12 +111,6 @@ fn main() -> Result<(), String> {
                     .ok_or_else(|| "--login-agreement requires a value".to_string())?;
                 login_agreement_value = Some(value);
             }
-            "--update-mode" => {
-                let value = args
-                    .next()
-                    .ok_or_else(|| "--update-mode requires a value".to_string())?;
-                update_mode_arg = Some(value);
-            }
             _ => {
                 return Err(format!("Unknown argument: {}", arg));
             }
@@ -156,8 +128,8 @@ fn main() -> Result<(), String> {
     let url = url
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
-    // Treat an empty/whitespace value as "not supplied" (None), matching url and
-    // update-mode. The MSI always passes --login-agreement "[RUSTLING_LOGIN_AGREEMENT]",
+    // Treat an empty/whitespace value as "not supplied" (None), matching url.
+    // The MSI always passes --login-agreement "[RUSTLING_LOGIN_AGREEMENT]",
     // which expands to "" when the property is unset; that must NOT write
     // loginAgreementEnabled:false and clobber a previously-provisioned true.
     let login_agreement = login_agreement_value
@@ -166,16 +138,10 @@ fn main() -> Result<(), String> {
         .filter(|value| !value.is_empty())
         .map(parse_bool);
 
-    let update_mode = update_mode_arg
-        .as_deref()
-        .map(parse_update_mode)
-        .transpose()?
-        .flatten();
-
     // Nothing to write — avoid clobbering an existing provisioning file when the
     // MSI is invoked without any provisioning directives
-    // (RUSTLING_SERVER_URL / RUSTLING_LOGIN_AGREEMENT / RUSTLING_UPDATE_MODE).
-    if url.is_none() && login_agreement.is_none() && update_mode.is_none() {
+    // (RUSTLING_SERVER_URL / RUSTLING_LOGIN_AGREEMENT).
+    if url.is_none() && login_agreement.is_none() {
         return Ok(());
     }
 
@@ -194,7 +160,6 @@ fn main() -> Result<(), String> {
         server_url: url.as_deref(),
         lock_connection_mode: lock,
         login_agreement_enabled: login_agreement,
-        update_mode,
     };
 
     let json = serde_json::to_string_pretty(&config)

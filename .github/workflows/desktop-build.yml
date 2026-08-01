@@ -11,22 +11,24 @@ name: Desktop build (reusable)
 # pinned PDFium, qpdf, and Tesseract runtimes
 # (`task desktop:stage-sidecar`), prepares the desktop frontend, runs
 # `npx tauri build`,
-# and uploads the bundles as an artifact named desktop-<os>-<arch> — the
-# directory-name contract scripts/compose_latest_json.py consumes when the
-# release job assembles latest.json.
+# and uploads the bundles as an artifact named desktop-<os>-<arch>, which
+# release.yml downloads and attaches to the GitHub release.
 #
-# Updater signing: with sign=true (the default and what both callers pass),
-# `tauri build` signs the updater artifacts (.AppImage/.deb on linux, .msi on
+# Bundle signing: with sign=true (the default and what both callers pass),
+# `tauri build` signs the signable bundles (.AppImage/.deb on linux, .msi on
 # windows, .app.tar.gz on macos) with the minisign key from the
 # TAURI_SIGNING_PRIVATE_KEY secret — the counterpart of the committed
-# src-tauri updater.pubkey — and the collect step fails if any expected .sig
-# is missing. sign=false builds with --no-sign for keyless smoke runs.
+# minisign public key — and the collect step fails if any expected .sig is
+# missing. sign=false builds with --no-sign for keyless smoke runs. The .sig
+# files are published as release assets alongside the bundles so a manual
+# downloader can verify what they got; nothing in the app consumes them, and
+# no update manifest is produced.
 #
 # Bundle file names are renamed space→dot before upload: GitHub release
 # assets get the same rename server-side, so doing it here keeps local file
-# names identical to the release asset names that latest.json URLs point at.
-# With productName "RustlingPDF" (no space) this is a no-op safeguard — it
-# only fires again if a space ever re-enters the product name.
+# names identical to the release asset names. With productName "RustlingPDF"
+# (no space) this is a no-op safeguard — it only fires again if a space ever
+# re-enters the product name.
 #
 # The windows leg additionally runs the MSI through a real
 # install -> assert -> uninstall -> assert lifecycle check
@@ -43,7 +45,7 @@ on:
   workflow_call:
     inputs:
       sign:
-        description: "Sign updater artifacts with the TAURI_SIGNING_PRIVATE_KEY secret"
+        description: "Sign the desktop bundles with the TAURI_SIGNING_PRIVATE_KEY secret"
         type: boolean
         default: true
       platforms:
@@ -52,7 +54,7 @@ on:
         default: all
     secrets:
       TAURI_SIGNING_PRIVATE_KEY:
-        description: "Minisign private key matching src-tauri updater.pubkey (required when sign=true)"
+        description: "Minisign private key matching the committed public key (required when sign=true)"
         required: false
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
         description: "Password for the private key (empty string for a passwordless key)"
@@ -74,9 +76,8 @@ jobs:
           egress-policy: audit
 
       # The matrix legs live here (not inline in the strategy) so the
-      # platforms input can select a subset. The platform values double as
-      # tauri-plugin-updater platform keys ({os}-{arch}) — the artifact names
-      # derived from them are parsed back by scripts/compose_latest_json.py.
+      # platforms input can select a subset. The {os}-{arch} platform values
+      # name each leg's uploaded artifact (desktop-<os>-<arch>).
       - name: Compute the build matrix
         id: plan
         env:
@@ -216,14 +217,20 @@ jobs:
       - name: Prepare the desktop frontend (task desktop:prepare)
         run: task desktop:prepare
 
-      # createUpdaterArtifacts: true — the bundler signs the updater
-      # artifacts in place (.sig siblings) when the signing env is present;
-      # --no-sign (sign=false) skips signing entirely for keyless runs.
-      # CI=true on hosted runners already suppresses CLI prompting.
+      # The bundler signs the signable bundles in place (.sig siblings) when
+      # the signing env is present; --no-sign (sign=false) skips signing
+      # entirely for keyless runs. CI=true on hosted runners already
+      # suppresses CLI prompting.
+      #
+      # NOTE: emitting .sig files depends on tauri.conf.json keeping
+      # `createUpdaterArtifacts: true`. The app does not check for updates,
+      # but that bundler flag is what produces the signatures we publish for
+      # manual verification — the collect step below fails the build if they
+      # ever stop appearing.
       - name: Build Tauri bundles (${{ matrix.bundles }})
         working-directory: frontend/editor
         env:
-          UPDATER_SIGN: ${{ inputs.sign }}
+          BUNDLE_SIGN: ${{ inputs.sign }}
           BUNDLES: ${{ matrix.bundles }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -240,18 +247,19 @@ jobs:
           # WiX, hdiutil) in the log — without it a bundling failure surfaces
           # only as "failed to run <tool>" with the real error swallowed.
           args=(build --verbose --bundles "${BUNDLES}")
-          if [ "${UPDATER_SIGN}" != "true" ]; then
+          if [ "${BUNDLE_SIGN}" != "true" ]; then
             args+=(--no-sign)
           fi
           npx tauri "${args[@]}"
 
       # Flatten the bundle outputs into one directory, renaming space→dot
       # (see the header comment; a no-op for the spaceless "RustlingPDF"
-      # product name), and require a .sig sibling for every updater
-      # artifact when signing was requested.
+      # product name), and require a .sig sibling for every signable bundle
+      # when signing was requested. The signatures ship as release assets so
+      # a manual download can be verified against the public key.
       - name: Collect bundles and signatures
         env:
-          UPDATER_SIGN: ${{ inputs.sign }}
+          BUNDLE_SIGN: ${{ inputs.sign }}
         run: |
           set -euo pipefail
           bundle_root="frontend/editor/src-tauri/target/release/bundle"
@@ -278,11 +286,11 @@ jobs:
             exit 1
           fi
 
-          if [ "${UPDATER_SIGN}" = "true" ]; then
+          if [ "${BUNDLE_SIGN}" = "true" ]; then
             for f in "${stage}"/*.AppImage "${stage}"/*.deb "${stage}"/*.rpm \
                      "${stage}"/*.msi "${stage}"/*-setup.exe "${stage}"/*.app.tar.gz; do
               if [ ! -f "${f}.sig" ]; then
-                echo "::error::Missing updater signature for ${f}."
+                echo "::error::Missing signature for ${f}."
                 exit 1
               fi
             done

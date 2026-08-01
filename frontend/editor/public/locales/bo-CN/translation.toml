@@ -1879,22 +1879,6 @@ title = "སོན་འདེབས་བྱེད་སྟངས།"
 [defaultApp]
 title = "སྔོན་སྒྲིག་PDFམཉེན་ཆས་ལྟར་སྒྲིག་དགོས།"
 
-[desktopUpdate]
-downloading = "གསར་སྒྱུར་ཕབ་ལེན་བཞིན་པ..."
-installing = "གསར་སྒྱུར་འཇུག་བཞིན་པ..."
-installingWarning = "གློག་རིམ་དེ་གཞི་བཙུགས་མཇུག་སྒྲིལ་བྱེད་པར་རང་འགུལ་ངང་ཁ་རྒྱག་བྱས་རྗེས་མཇུག་སྒྲིལ་བྱེད།"
-installNow = "ད་ལྟ་འཇུག"
-readyToRestart = "གསར་སྒྱུར་གྲ་སྒྲིག"
-restartMessage = "གསར་སྒྱུར་འཇུག་ཚར་བ། མཇུག་སྒྲིལ་བྱེད་པར་གློག་རིམ་བསྐྱར་འཁོར།"
-restartNow = "ད་ལྟ་བསྐྱར་འཁོར"
-updateFailed = "གསར་སྒྱུར་ཕམ"
-updateFailedMessage = "གསར་སྒྱུར་ཕབ་ལེན་ཡང་ན་འཇུག་འགོད་ཕམ་པ།"
-
-[desktopUpdate.blocked]
-docsLink = "འཇུག་ཐབས་ཡིག་ཆ་ལྟ"
-message = "RustlingPDF ལ་འཕྲུལ་ཆས་འདིའི་སྟེང་རང་ཉིད་ལ་གསར་སྒྱུར་བྱེད་པའི་དབང་ཆ་མེད།"
-title = "དོ་དམ་པའི་དབང་ཆ་དགོས།"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4149,21 +4133,9 @@ read = "ཀློག་ཆས"
 tools = "ལག་ཆ་"
 
 [settings.general.updates]
-checkForUpdates = "གསར་བརྗེ་ལ་ཞིབ་བཤེར།"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "གསར་བརྗེའི་གནས་ཚུལ་ལ་ཞིབ་བཤེར་དང་ཐོན་རིམ་གྱི་ཆ་འཕྲིན་ལ་ལྟོས།"
-latestVersion = "ཐོན་རིམ་གསར་ཤོས།"
-managedByAdmin = "སྐྱོང་འཛིན་གྱིས་དོ་དམ"
-modeAuto = "གསར་སྒྱུར་རང་འགུལ་འཇུག"
-modeDisabled = "གསར་སྒྱུར་ཞིབ་བཤེར་མ་བྱེད"
-modePrompt = "གསར་སྒྱུར་འཇུག་སྔོན་ལ་དྲིས"
-title = "མཉེན་ཆས་གསར་བརྗེ།"
-updateBehavior = "གསར་སྒྱུར་སྤྱོད་སྟངས"
-updateBehaviorDescription = "གསར་སྒྱུར་འཇུག་སྔོན་ལ་དྲིས་པ། ཡང་ན་རང་འགུལ་འཇུག་ཡང་ན་གསར་སྒྱུར་ཞིབ་བཤེར་ཡོད་མེད་བརྗེ་བ།"
-updateBehaviorLockedDescription = "ཁྱེད་ཀྱི་འཕྲུལ་ཆས་འདི་སྟེང་གསར་སྒྱུར་གཙོ་འཁོར་གྱི་སྟངས་ལ་ RustlingPDF ཡིས་འགོ་འཛུགས་བྱས་ཡོད། བཅོས་དག་བྱེད་པར་དོ་དམ་པ་ལ་འབྲེལ་བ།"
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "ཞིབ་ཕྲའི་གནས་ཚུལ་ལ་ལྟོས།"
 
 [settings.general.zoomLevel]
 auto = "རང་འགུལ"
@@ -4722,42 +4694,6 @@ failed = "PDF ཡིག་ཆ་ཕྱེ་སྐབས་ནོར་འཁྲ
 
 [unlockPDFForms.results]
 title = "སྒོ་ཕྱེ་བའི་རྣམ་གཞག་གྲུབ་འབྲས།"
-
-[update]
-allReleases = "གསར་བརྗེ་ཚང་མ"
-breaking = "མཚམས་སྐྱེད"
-breakingChanges = "འགྱུར་ལྡོག་འགལ་བ།"
-breakingChangesDefault = "ཐོན་རིམ་འདིའི་ནང་ལ་འགྱུར་ལྡོག་གི་བསྒྱུར་བཅོས་ཡོད།"
-close = "གཏན་པ"
-closeModal = "གསར་སྒྱུར་སྒོ་ཁ་རྒྱག"
-current = "ད་ལྟའི་ཐོན་རིམ།"
-defaultRecommendation = "གསར་སྒྱུར་འདི་ནི་གལ་ཆེན་པའི་བཅོས་སྒྲིག་དང་དེ་བས་ལེགས་སྒྲིག་ཚུད་ཡོད།"
-downloadLatest = "ཕབ་ལེན་གསར་ཤོས།"
-later = "ཕྱི་མ"
-latest = "ཐོན་རིམ་གསར་ཤོས།"
-loadingDetailedInfo = "ཞིབ་ཕྲའི་གནས་ཚུལ་མངོན་ཡོད།"
-migrationGuide = "གནས་སྤོའི་ལམ་སྟོན།"
-migrationGuides = "གནས་སྤོའི་ལམ་སྟོན།"
-migrationGuidesDesc = "གསར་སྒྱུར་སྔོན་ལ་གནས་འགྱུར་གལ་ཆེའི་གཏོགས་མཐུད་ལྟ་བ།"
-modalSubtitle = "RustlingPDF ཐོན་རྟགས་གསར་པ་འཇུག་གྲ་སྒྲིག་ཡོད།"
-modalTitle = "གསར་བརྗེ།"
-notes = "མཆན"
-releaseNotes = "གློད་བཀྲོལ་དྲན་ཐོ།"
-showLess = "པར་གཞི་ཉུང་སྟོན"
-showMore = "{{count}} པར་གཞི་ཚང་མ་སྟོན"
-stable = "STABLE"
-updateAvailable = "གསར་བརྗེ།"
-urgentUpdateAvailable = "ངོ་ལོག་གསར་བརྗེ།"
-version = "པར་གཞི"
-versionHistory = "པར་གཞི་ལོ་རྒྱུས"
-viewGuide = "ལམ་སྟོན་ལ་གཟིགས།"
-whatsNewIn = "གསར་འགྱུར་གང་ཡོད"
-
-[update.priority]
-low = "དམའ་མོ"
-minor = "གལ་ཆུང"
-normal = "རྒྱུན་ལྡན"
-urgent = "ཛ་དྲག་གི"
 
 [URLToPDF]
 tags = "དྲ་རྒྱའི་པར་རིས། གསོག་འཇོག་ཤོག་ངོས། དྲ་བའི་བར། ཡིག་ཚགས་ཁང་།"

@@ -2,8 +2,7 @@
 
 Releases are tag-driven. A tag named `v<version>` runs
 `.github/workflows/release.yml`, publishes the runtime and optional AI images,
-builds signed desktop bundles, creates the updater manifest, and attaches the
-artifacts to a GitHub release.
+builds signed desktop bundles, and attaches the artifacts to a GitHub release.
 
 ## Version contract
 
@@ -40,7 +39,6 @@ task rust:check
 task frontend:check
 task engine:check
 task desktop:test
-python3 scripts/compose_latest_json_test.py
 git diff --check
 ```
 
@@ -75,10 +73,10 @@ The workflow performs these stages:
    - `ghcr.io/hairbui76/rustlingpdf:latest`;
    - `ghcr.io/hairbui76/rustlingpdf-ai-engine:vX.Y.Z`;
    - `ghcr.io/hairbui76/rustlingpdf-ai-engine:latest`.
-3. `publish-desktop` runs the reusable three-platform build matrix with updater
+3. `publish-desktop` runs the reusable three-platform build matrix with bundle
    signing enabled.
-4. `github-release` creates the GitHub release, composes `latest.json`, and
-   uploads installers, updater bundles, signatures, and the manifest.
+4. `github-release` creates the GitHub release and uploads the installers and
+   their `.sig` signature files.
 
 The release workflow is idempotent for the same tag. Re-run only from the
 newest release tag; running an older tag would move the mutable container
@@ -86,11 +84,11 @@ newest release tag; running an older tag would move the mutable container
 
 ## Desktop matrix
 
-| Platform | Runner | Bundles | Updater keys |
+| Platform | Runner | Bundles | Artifact |
 |---|---|---|---|
-| Linux x86-64 | `ubuntu-latest` | AppImage and deb | `linux-x86_64`, `linux-x86_64-deb` |
-| Windows x86-64 | `windows-latest` | WiX MSI | `windows-x86_64`, `windows-x86_64-msi` |
-| macOS arm64 | `macos-latest` | app updater archive and DMG | `darwin-aarch64` |
+| Linux x86-64 | `ubuntu-latest` | AppImage and deb | `desktop-linux-x86_64` |
+| Windows x86-64 | `windows-latest` | WiX MSI | `desktop-windows-x86_64` |
+| macOS arm64 | `macos-latest` | app archive and DMG | `desktop-darwin-aarch64` |
 
 Every leg:
 
@@ -99,8 +97,9 @@ Every leg:
 - stages qpdf, Tesseract, and English OCR data;
 - builds the core frontend;
 - runs `npx tauri build`;
-- signs updater artifacts when signing is enabled; and
-- uploads a `desktop-<os>-<arch>` artifact consumed by the manifest composer.
+- signs the bundles when signing is enabled; and
+- uploads a `desktop-<os>-<arch>` artifact that `github-release` attaches to
+  the release.
 
 The Windows leg also performs a real MSI install/assert/uninstall/assert
 lifecycle check.
@@ -110,30 +109,44 @@ Required repository secrets:
 - `TAURI_SIGNING_PRIVATE_KEY`;
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 
-The public counterpart is committed in `tauri.conf.json`. Do not replace the
-keypair casually: existing packaged applications use it to authenticate
-updates.
+The build fails if a bundle comes out unsigned.
 
-## Updater manifest
+## Signatures and updates
 
-`scripts/compose_latest_json.py` creates `latest.json` from the downloaded
-desktop artifact tree. It validates:
+Every signed bundle is published with a `.sig` file next to it, so anyone who
+downloads an installer can verify it before running it. That is all the
+signatures are for.
 
-- supported platform keys;
-- exactly one updater artifact per key;
-- matching `.sig` files;
-- minisign signature shape; and
-- release-asset-safe filenames.
+A `.sig` file with no reachable public key verifies nothing, so the minisign
+public counterpart of `TAURI_SIGNING_PRIVATE_KEY` is published here. Its key id
+is `9ADA2DC8FC4FAF0B`:
 
-Packaged applications poll:
-
-`https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`
-
-Run its isolated tests with:
-
-```bash
-python3 scripts/compose_latest_json_test.py
 ```
+untrusted comment: minisign public key: 9ADA2DC8FC4FAF0B
+RWQLr0/8yC3amuV5GDR8m9AVltIe6+Czr0uGloq+3q4aLflmHXvKF9Jd
+```
+
+Verify a download with
+`minisign -Vm <artifact> -P RWQLr0/8yC3amuV5GDR8m9AVltIe6+Czr0uGloq+3q4aLflmHXvKF9Jd`.
+
+### Why `bundle.createUpdaterArtifacts` is still `true`
+
+Despite the name, that flag is not an auto-update switch — it is the only path
+in `tauri-cli` that runs minisign over the bundles (`sign_updaters` in
+`bundle.rs`). Turning it off produces **no `.sig` files at all**, which is why
+`desktop-build.yml`'s collect step fails the build when signatures stop
+appearing. It is a build-output flag with no runtime effect: the updater
+plugin, its endpoints, its capabilities and its in-app pubkey are all gone, so
+nothing in a packaged app can poll or install anything. The
+`task desktop:build:dev:*` targets override it to `false` on purpose — a local
+dev build has no signing key.
+
+The application does not check for updates. It contacts no update server and
+publishes no update manifest, so nothing about an install — not even its
+existence — is reported anywhere. To move to a newer version, check the
+releases page yourself and download the installer:
+
+`https://github.com/hairbui76/RustlingPDF/releases`
 
 ## Bundled native tools
 

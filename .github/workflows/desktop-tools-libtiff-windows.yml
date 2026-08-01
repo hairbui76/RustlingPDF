@@ -267,8 +267,9 @@ jobs:
           VER: ${{ inputs.libtiff_version }}
         run: |
           $ErrorActionPreference = 'Stop'
-          # A dedicated, non-latest release per libtiff version, kept out of the
-          # desktop updater's "latest release" lookup.
+          # A dedicated, non-latest release per libtiff version, kept out of
+          # GitHub's "Latest release" pointer so it never displaces the newest
+          # product release.
           gh release view "$env:TAG" 2>$null
           if ($LASTEXITCODE -ne 0) {
             gh release create "$env:TAG" `

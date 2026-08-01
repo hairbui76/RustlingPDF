@@ -41,7 +41,7 @@ InstallScope="perMachine">`; WiX therefore also sets `ALLUSERS=1`).
 
 Optional properties for unattended / MDM deploys, consumed by the deferred
 `WriteProvisioningFile*` CustomActions: `RUSTLING_SERVER_URL`,
-`RUSTLING_LOCK_CONNECTION`, `RUSTLING_LOGIN_AGREEMENT`, `RUSTLING_UPDATE_MODE`.
+`RUSTLING_LOCK_CONNECTION`, `RUSTLING_LOGIN_AGREEMENT`.
 When any of them is set, `rustling-provision.exe` writes
 `%PROGRAMDATA%\RustlingPDF\rustling-provisioning.json`.
 
@@ -415,11 +415,12 @@ Implementation choice: **a deferred CustomAction calling
 `<RemoveFile>` would be simpler and MSI-native, but a RemoveFile row cannot
 carry a condition — it fires whenever its component is removed. That is fatal
 here, because `<MajorUpgrade Schedule="afterInstallInitialize"/>` makes **every
-update a full uninstall of the old product followed by an install of the new
-one**, and the tauri updater runs the new MSI with `installMode: "passive"`
-(`tauri.conf.json` → `plugins.updater.windows`) passing none of the `RUSTLING_*`
-properties. An unconditional removal would therefore delete the administrator's
-provisioning file on every app update, with nothing to write it back. The
+upgrade a full uninstall of the old product followed by an install of the new
+one**, and an administrator re-running the newer MSI normally passes none of the
+`RUSTLING_*` properties the first install carried. An unconditional removal
+would therefore delete the administrator's provisioning file on every upgrade,
+with nothing to write it back. (The app has no auto-updater, so an upgrade is
+always an operator-initiated MSI run.) The
 CustomActions carry `REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE`, the same idiom
 `main.wxs` already uses for `RemoveShortcuts` and `DeleteUpdateTask`.
 
@@ -610,7 +611,7 @@ candle's `-arch x64` — decides which view the keys land in.
 ```bat
 :: 1. install with a provisioning policy
 msiexec /i RustlingPDF_3.1.0_x64_en-US.msi /qn /l*v %TEMP%\rpdf-install.log ^
-    RUSTLING_SERVER_URL=https://example.invalid RUSTLING_UPDATE_MODE=disabled
+    RUSTLING_SERVER_URL=https://example.invalid
 
 :: 2. these must all EXIST now. The cascade root's MUIVerb must read
 ::    "RustlingPDF" -- a raw {{product_name}} token there is the v3.1.0 defect.

@@ -1887,22 +1887,6 @@ title = "Nola moztu PDFak"
 [defaultApp]
 title = "Ezarri PDF aplikazio lehenetsi gisa"
 
-[desktopUpdate]
-downloading = "Eguneratzea deskargatzen..."
-installing = "Eguneratzea instalatzen..."
-installingWarning = "Aplikazioa automatikoki itxiko da instalazioa amaitzeko."
-installNow = "Instalatu orain"
-readyToRestart = "Eguneratzea prest"
-restartMessage = "Eguneratzea instalatu da. Berrabiarazi aplikazioa amaitzeko."
-restartNow = "Berrabiarazi orain"
-updateFailed = "Eguneratzeak huts egin du"
-updateFailedMessage = "Ezin izan da eguneratzea deskargatu edo instalatu."
-
-[desktopUpdate.blocked]
-docsLink = "Ikusi instalazioaren dokumentazioa"
-message = "RustlingPDFk ez du baimenik makina honetan bere burua eguneratzeko."
-title = "Administratzaile-baimenak behar dira"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Irakurlea"
 tools = "Tresnak"
 
 [settings.general.updates]
-checkForUpdates = "Egiaztatu eguneratzeak"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Egiaztatu eguneratzeak eta ikusi bertsio-informazioa"
-latestVersion = "Azken bertsioa"
-managedByAdmin = "Administratzaileak kudeatuta"
-modeAuto = "Instalatu eguneratzeak automatikoki"
-modeDisabled = "Ez eguneratzerik bilatu"
-modePrompt = "Galdetu eguneratzeak instalatu aurretik"
-title = "Software eguneratzeak"
-updateBehavior = "Eguneratzeen portaera"
-updateBehaviorDescription = "Aukeratu eguneratzeak instalatu aurretik galdetzea, automatikoki instalatzea edo eguneratzeen egiaztapenak erabat saltatzea."
-updateBehaviorLockedDescription = "Zure administratzaileak konfiguratu du RustlingPDF nola kudeatzen duen eguneratzeak makina honetan. Jarri harekin harremanetan aldatzeko."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Xehetasunak ikusi"
 
 [settings.general.zoomLevel]
 auto = "Auto"
@@ -4752,42 +4724,6 @@ failed = "Errore bat gertatu da PDF inprimakiak desblokeatzean."
 
 [unlockPDFForms.results]
 title = "Desblokeatutako inprimakien emaitzak"
-
-[update]
-allReleases = "Argitalpen guztiak"
-breaking = "Aldaketa haustzaileak"
-breakingChanges = "Aldaketa haustzaileak"
-breakingChangesDefault = "Bertsio honek aldaketa haustzaileak ditu."
-close = "Itxi"
-closeModal = "Itxi eguneratze-modal"
-current = "Uneko bertsioa"
-defaultRecommendation = "Eguneratze honek zuzenketa eta hobekuntza garrantzitsuak dakartza."
-downloadLatest = "Azkena deskargatu"
-later = "Geroago"
-latest = "Azken bertsioa"
-loadingDetailedInfo = "Informazio zehatza kargatzen..."
-migrationGuide = "Migrazio-gida"
-migrationGuides = "Migrazio-gidak"
-migrationGuidesDesc = "Berrikusi aldaketa garrantzitsuak eguneratu aurretik."
-modalSubtitle = "RustlingPDFren bertsio berria instalatzeko prest dago."
-modalTitle = "Eguneratzea eskuragarri"
-notes = "Oharrak"
-releaseNotes = "Argitalpen-oharrak"
-showLess = "Erakutsi bertsio gutxiago"
-showMore = "Erakutsi {{count}} bertsio guztiak"
-stable = "EGONKORRA"
-updateAvailable = "Eguneratzea eskuragarri"
-urgentUpdateAvailable = "Eguneratze premiazkoa"
-version = "Bertsioa"
-versionHistory = "Bertsio-historia"
-viewGuide = "Gida ikusi"
-whatsNewIn = "Zer dago berria hemen:"
-
-[update.priority]
-low = "Baxua"
-minor = "Txikia"
-normal = "Arrunta"
-urgent = "Premiazko"
 
 [URLToPDF]
 tags = "web-harrapaketa,orria-gorde,webetik-dokumentura,artxibatu"

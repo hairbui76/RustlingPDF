@@ -1887,22 +1887,6 @@ title = "PDF 자르는 방법"
 [defaultApp]
 title = "기본 PDF 앱으로 설정"
 
-[desktopUpdate]
-downloading = "업데이트 다운로드 중..."
-installing = "업데이트 설치 중..."
-installingWarning = "설치를 완료하려면 앱이 자동으로 종료됩니다."
-installNow = "지금 설치"
-readyToRestart = "업데이트 준비됨"
-restartMessage = "업데이트가 설치되었습니다. 완료하려면 앱을 재시작하세요."
-restartNow = "지금 재시작"
-updateFailed = "업데이트 실패"
-updateFailedMessage = "업데이트를 다운로드하거나 설치하지 못했습니다."
-
-[desktopUpdate.blocked]
-docsLink = "설치 문서 보기"
-message = "RustlingPDF는 이 컴퓨터에서 자체적으로 업데이트할 권한이 없습니다."
-title = "관리자 권한 필요"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "리더"
 tools = "도구"
 
 [settings.general.updates]
-checkForUpdates = "업데이트 확인"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "업데이트 확인 및 버전 정보 보기"
-latestVersion = "최신 버전"
-managedByAdmin = "관리자가 관리함"
-modeAuto = "업데이트 자동 설치"
-modeDisabled = "업데이트 확인 안 함"
-modePrompt = "업데이트 설치 전에 확인"
-title = "소프트웨어 업데이트"
-updateBehavior = "업데이트 동작"
-updateBehaviorDescription = "업데이트 설치 전 확인 여부, 자동 설치 또는 업데이트 확인 건너뛰기를 선택하세요."
-updateBehaviorLockedDescription = "관리자가 이 컴퓨터에서 RustlingPDF의 업데이트 방식을 구성했습니다. 변경하려면 관리자에게 문의하세요."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "자세히 보기"
 
 [settings.general.zoomLevel]
 auto = "자동"
@@ -4752,42 +4724,6 @@ failed = "PDF 양식 잠금 해제 중 오류가 발생했습니다."
 
 [unlockPDFForms.results]
 title = "잠금 해제 결과"
-
-[update]
-allReleases = "모든 릴리스"
-breaking = "중대한 변경"
-breakingChanges = "호환성 파괴 변경"
-breakingChangesDefault = "이 버전에는 호환성 파괴 변경이 포함되어 있습니다."
-close = "닫기"
-closeModal = "업데이트 모달 닫기"
-current = "현재 버전"
-defaultRecommendation = "이 업데이트에는 중요한 수정 및 개선 사항이 포함되어 있습니다."
-downloadLatest = "최신 버전 다운로드"
-later = "나중에"
-latest = "최신 버전"
-loadingDetailedInfo = "상세 정보 로드 중..."
-migrationGuide = "마이그레이션 가이드"
-migrationGuides = "마이그레이션 가이드"
-migrationGuidesDesc = "업데이트 전에 중요한 변경 사항을 확인하세요."
-modalSubtitle = "RustlingPDF의 새 버전을 설치할 준비가 되었습니다."
-modalTitle = "업데이트 사용 가능"
-notes = "노트"
-releaseNotes = "릴리스 노트"
-showLess = "버전 적게 표시"
-showMore = "{{count}}개 버전 모두 표시"
-stable = "STABLE"
-updateAvailable = "업데이트 사용 가능"
-urgentUpdateAvailable = "긴급 업데이트"
-version = "버전"
-versionHistory = "버전 기록"
-viewGuide = "가이드 보기"
-whatsNewIn = "새로운 내용"
-
-[update.priority]
-low = "낮음"
-minor = "경미"
-normal = "보통"
-urgent = "긴급"
 
 [URLToPDF]
 tags = "웹-캡처,페이지-저장,웹-문서,아카이브"

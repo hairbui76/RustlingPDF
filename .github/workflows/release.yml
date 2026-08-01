@@ -3,7 +3,7 @@ name: Release
 # Release pipeline for tagged builds: verify the version discipline, publish
 # both Docker images to GHCR, build + sign the desktop bundles on the
 # three-OS matrix, and create the GitHub release with the desktop artifacts
-# and the Tauri updater manifest (latest.json) attached.
+# attached.
 #
 # Trigger contract: push a tag `v<version>` where `<version>` is exactly the
 # contents of rust/VERSION (the canonical version source, consumed by
@@ -32,14 +32,14 @@ name: Release
 #
 # Desktop bundles: publish-desktop calls the reusable desktop-build workflow
 # (linux AppImage+deb, windows MSI, macOS-arm64 app+dmg), signing the
-# updater artifacts with the TAURI_SIGNING_PRIVATE_KEY secret (counterpart
-# of the committed src-tauri updater.pubkey). github-release then downloads
-# the desktop-<os>-<arch> artifacts, composes latest.json with
-# scripts/compose_latest_json.py (the manifest tauri-plugin-updater polls at
-# .../releases/latest/download/latest.json), and uploads bundles + .sig
-# files + latest.json to the release. Asset uploads use --clobber so a
-# re-run after a transient failure completes an existing release
-# idempotently instead of erroring.
+# bundles with the TAURI_SIGNING_PRIVATE_KEY secret (counterpart of the
+# committed minisign public key). github-release then downloads the
+# desktop-<os>-<arch> artifacts and uploads the bundles together with their
+# `.sig` signature files to the release, so anyone downloading a build can
+# verify it against the public key. The app itself never phones home: it
+# does not check for updates, and this pipeline publishes no update
+# manifest. Asset uploads use --clobber so a re-run after a transient
+# failure completes an existing release idempotently instead of erroring.
 
 on:
   push:
@@ -226,33 +226,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Each matrix leg's artifact lands in its own desktop-<os>-<arch>
-      # subdirectory (merge-multiple stays false) — that directory-name
-      # contract is how the composer knows which updater platform key each
-      # bundle belongs to (the macOS .app.tar.gz name carries no arch).
+      # subdirectory (merge-multiple stays false) so bundles from different
+      # platforms cannot collide on identical file names before upload.
       - name: Download desktop bundle artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: desktop-*
           path: desktop-artifacts
-
-      # latest.json is what packaged desktop apps poll
-      # (.../releases/latest/download/latest.json). The composer validates
-      # the artifact tree (signature presence and minisign shape, no spaces
-      # in names, exactly one updater bundle per key) and fails the release
-      # rather than publishing a manifest the updater cannot verify.
-      - name: Compose the updater manifest (latest.json)
-        env:
-          VERSION: ${{ needs.verify-version.outputs.version }}
-          TAG: ${{ needs.verify-version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          python3 scripts/compose_latest_json.py \
-            --artifacts-dir desktop-artifacts \
-            --version "${VERSION}" \
-            --notes "RustlingPDF ${TAG} — full notes: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
-            --base-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${TAG}" \
-            --output "${RUNNER_TEMP}/latest.json"
-          python3 -m json.tool "${RUNNER_TEMP}/latest.json"
 
       # `gh release create` with the built-in GITHUB_TOKEN instead of a
       # third-party release action: one less supply-chain pin, and the gh CLI
@@ -289,7 +269,9 @@ jobs:
 
           ## Desktop apps
 
-          Installers built and signed by this release run, attached below: Linux (\`.AppImage\`, \`.deb\`), Windows (\`.msi\`), macOS Apple silicon (\`.dmg\`). The \`.sig\` files and \`latest.json\` drive the desktop app's built-in updater.
+          Installers built and signed by this release run, attached below: Linux (\`.AppImage\`, \`.deb\`), Windows (\`.msi\`), macOS Apple silicon (\`.dmg\`). Each signed bundle has a \`.sig\` file next to it so you can verify your download against the project's minisign public key.
+
+          The app does not check for updates and sends no data anywhere. To get a newer version, come back to this releases page and download it yourself.
           EOF
 
             gh release create "${TAG}" \
@@ -301,7 +283,7 @@ jobs:
 
           # Bundle + .sig names contain no spaces (the build workflow
           # renames space→dot exactly as GitHub asset upload would), so the
-          # composed latest.json URLs match the uploaded asset names.
+          # uploaded asset names match the local file names people verify
+          # against.
           gh release upload "${TAG}" --clobber \
-            desktop-artifacts/*/* \
-            "${RUNNER_TEMP}/latest.json"
+            desktop-artifacts/*/*

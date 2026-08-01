@@ -1887,22 +1887,6 @@ title = "چگونه PDF را برش دهیم"
 [defaultApp]
 title = "تنظیم به‌عنوان برنامه پیش‌فرض PDF"
 
-[desktopUpdate]
-downloading = "در حال دانلود به‌روزرسانی..."
-installing = "در حال نصب به‌روزرسانی..."
-installingWarning = "اپ برای تکمیل نصب به‌طور خودکار بسته خواهد شد."
-installNow = "هم‌اکنون نصب کن"
-readyToRestart = "به‌روزرسانی آماده است"
-restartMessage = "به‌روزرسانی نصب شد. برای اتمام، اپ را مجدداً راه‌اندازی کنید."
-restartNow = "اکنون راه‌اندازی مجدد"
-updateFailed = "به‌روزرسانی ناموفق بود"
-updateFailedMessage = "دانلود یا نصب به‌روزرسانی ناموفق بود."
-
-[desktopUpdate.blocked]
-docsLink = "مشاهدهٔ مستندات نصب"
-message = "RustlingPDF مجوز به‌روزرسانی خود را روی این دستگاه ندارد."
-title = "نیاز به مجوزهای مدیر"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "نمایشگر"
 tools = "ابزارها"
 
 [settings.general.updates]
-checkForUpdates = "بررسی به‌روزرسانی"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "بررسی به‌روزرسانی و مشاهده اطلاعات نسخه"
-latestVersion = "آخرین نسخه"
-managedByAdmin = "مدیریت‌شده توسط مدیر"
-modeAuto = "نصب خودکار به‌روزرسانی‌ها"
-modeDisabled = "بررسی به‌روزرسانی‌ها انجام نشود"
-modePrompt = "پیش از نصب به‌روزرسانی‌ها از من بپرس"
-title = "به‌روزرسانی نرم‌افزار"
-updateBehavior = "نحوهٔ به‌روزرسانی"
-updateBehaviorDescription = "انتخاب کنید که پیش از نصب به‌روزرسانی‌ها از شما پرسیده شود، به‌صورت خودکار نصب شوند، یا کلاً بررسی به‌روزرسانی انجام نشود."
-updateBehaviorLockedDescription = "مدیر شما نحوهٔ مدیریت به‌روزرسانی‌ها توسط RustlingPDF را روی این دستگاه پیکربندی کرده است. برای تغییر با او تماس بگیرید."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "مشاهده جزئیات"
 
 [settings.general.zoomLevel]
 auto = "خودکار"
@@ -4752,42 +4724,6 @@ failed = "هنگام باز کردن قفل فرم‌های PDF خطایی رخ 
 
 [unlockPDFForms.results]
 title = "نتایج فرم‌های بازشده"
-
-[update]
-allReleases = "همهٔ نسخه‌ها"
-breaking = "تغییرات مخرب"
-breakingChanges = "تغییرات ناسازگار"
-breakingChangesDefault = "این نسخه شامل تغییرات ناسازگار است."
-close = "بستن"
-closeModal = "بستن پنجرهٔ به‌روزرسانی"
-current = "نسخه فعلی"
-defaultRecommendation = "این به‌روزرسانی شامل اصلاحات و بهبودهای مهم است."
-downloadLatest = "دانلود آخرین نسخه"
-later = "بعداً"
-latest = "آخرین نسخه"
-loadingDetailedInfo = "در حال بارگذاری اطلاعات کامل..."
-migrationGuide = "راهنمای مهاجرت"
-migrationGuides = "راهنمای مهاجرت"
-migrationGuidesDesc = "پیش از به‌روزرسانی، تغییرات مهم را مرور کنید."
-modalSubtitle = "نسخهٔ جدید RustlingPDF برای نصب آماده است."
-modalTitle = "به‌روزرسانی موجود است"
-notes = "یادداشت‌ها"
-releaseNotes = "یادداشت‌های انتشار"
-showLess = "نمایش نسخه‌های کمتر"
-showMore = "نمایش همهٔ {{count}} نسخه"
-stable = "پایدار"
-updateAvailable = "به‌روزرسانی موجود است"
-urgentUpdateAvailable = "به‌روزرسانی فوری"
-version = "نسخه"
-versionHistory = "تاریخچهٔ نسخه‌ها"
-viewGuide = "مشاهده راهنما"
-whatsNewIn = "موارد جدید در"
-
-[update.priority]
-low = "کم"
-minor = "جزئی"
-normal = "عادی"
-urgent = "فوری"
 
 [URLToPDF]
 tags = "ذخیره صفحه وب،تبدیل وب به سند،آرشیو"

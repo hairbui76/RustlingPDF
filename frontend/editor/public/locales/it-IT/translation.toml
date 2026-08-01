@@ -1885,22 +1885,6 @@ title = "Come ritagliare i PDF"
 [defaultApp]
 title = "Imposta come app PDF predefinita"
 
-[desktopUpdate]
-downloading = "Download dell'aggiornamento..."
-installing = "Installazione dell'aggiornamento..."
-installingWarning = "L'app si chiuderà automaticamente per completare l'installazione."
-installNow = "Installa ora"
-readyToRestart = "Aggiornamento pronto"
-restartMessage = "L'aggiornamento è stato installato. Riavvia l'app per completare."
-restartNow = "Riavvia ora"
-updateFailed = "Aggiornamento non riuscito"
-updateFailedMessage = "Impossibile scaricare o installare l'aggiornamento."
-
-[desktopUpdate.blocked]
-docsLink = "Vedi documentazione di installazione"
-message = "RustlingPDF non ha l'autorizzazione per aggiornarsi su questa macchina."
-title = "Permessi di amministratore richiesti"
-
 [devAirgapped]
 tags = "isolato dalla rete,offline,senza internet,disconnesso,sicuro,isolamento di rete,autonomo"
 
@@ -4162,21 +4146,9 @@ read = "Lettore"
 tools = "Strumenti"
 
 [settings.general.updates]
-checkForUpdates = "Controlla aggiornamenti"
 currentBackendVersion = "Versione attuale del Backend"
 currentFrontendVersion = "Versione attuale del Frontend"
-description = "Controlla aggiornamenti e visualizza informazioni sulla versione"
-latestVersion = "Ultima versione"
-managedByAdmin = "Gestito dall'amministratore"
-modeAuto = "Installa aggiornamenti automaticamente"
-modeDisabled = "Non cercare aggiornamenti"
-modePrompt = "Chiedimi prima di installare gli aggiornamenti"
-title = "Aggiornamenti software"
-updateBehavior = "Comportamento aggiornamenti"
-updateBehaviorDescription = "Scegli se chiedere prima di installare gli aggiornamenti, installarli automaticamente o saltare completamente i controlli degli aggiornamenti."
-updateBehaviorLockedDescription = "Il tuo amministratore ha configurato come RustlingPDF gestisce gli aggiornamenti su questa macchina. Contattalo per modificarlo."
 versionMismatch = "Attenzione: è stata rilevata una discrepanza tra la versione del client e la versione di AppConfig. L'utilizzo di versioni diverse può causare problemi di compatibilità, errori e rischi per la sicurezza. Assicurarsi che server e client utilizzino la stessa versione."
-viewDetails = "Vedi dettagli"
 
 [settings.general.zoomLevel]
 auto = "Auto"
@@ -4750,42 +4722,6 @@ failed = "Si è verificato un errore durante lo sblocco dei moduli PDF."
 
 [unlockPDFForms.results]
 title = "Risultati moduli sbloccati"
-
-[update]
-allReleases = "Tutti i rilasci"
-breaking = "Breaking"
-breakingChanges = "Modifiche incompatibili"
-breakingChangesDefault = "Questa versione contiene modifiche incompatibili."
-close = "Chiudi"
-closeModal = "Chiudi finestra aggiornamento"
-current = "Versione attuale"
-defaultRecommendation = "Questo aggiornamento contiene correzioni e miglioramenti importanti."
-downloadLatest = "Scarica l'ultima"
-later = "Più tardi"
-latest = "Ultima versione"
-loadingDetailedInfo = "Caricamento informazioni dettagliate..."
-migrationGuide = "Guida di migrazione"
-migrationGuides = "Guide di migrazione"
-migrationGuidesDesc = "Esamina le modifiche importanti prima di aggiornare."
-modalSubtitle = "Una nuova versione di RustlingPDF è pronta per l'installazione."
-modalTitle = "Aggiornamento disponibile"
-notes = "Note"
-releaseNotes = "Note di rilascio"
-showLess = "Mostra meno versioni"
-showMore = "Mostra tutte le {{count}} versioni"
-stable = "STABLE"
-updateAvailable = "Aggiornamento disponibile"
-urgentUpdateAvailable = "Aggiornamento urgente"
-version = "Versione"
-versionHistory = "Cronologia versioni"
-viewGuide = "Vedi guida"
-whatsNewIn = "Novità in"
-
-[update.priority]
-low = "Bassa"
-minor = "Minore"
-normal = "Normale"
-urgent = "Urgente"
 
 [URLToPDF]
 tags = "acquisizione web,salvataggio pagina,web-to-doc,archivio"

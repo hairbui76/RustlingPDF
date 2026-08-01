@@ -5,13 +5,6 @@
     <Property Id="RUSTLING_LOCK_CONNECTION" Secure="yes" />
     <!-- RUSTLING_LOGIN_AGREEMENT — "1"/"true" enables the login agreement popup on this install. -->
     <Property Id="RUSTLING_LOGIN_AGREEMENT" Secure="yes" />
-    <!--
-      RUSTLING_UPDATE_MODE — headless auto-update policy for MDM/Intune deploys.
-      Accepts "prompt" (default, user-interactive), "auto" (silent download+install on
-      startup), or "disabled" (never check). Leaving it unset preserves whatever was
-      configured on the previous install (or defaults to "prompt" on a fresh install).
-    -->
-    <Property Id="RUSTLING_UPDATE_MODE" Secure="yes" />
 
     <DirectoryRef Id="TARGETDIR">
       <Directory Id="AppDataFolder" />
@@ -397,13 +390,13 @@
     <CustomAction
       Id="SetWriteProvisioningFilePerUser"
       Property="WriteProvisioningFilePerUser"
-      Value="--output &quot;[AppDataFolder]RustlingPDF\rustling-provisioning.json&quot; --url &quot;[RUSTLING_SERVER_URL]&quot; --lock &quot;[RUSTLING_LOCK_CONNECTION]&quot; --login-agreement &quot;[RUSTLING_LOGIN_AGREEMENT]&quot; --update-mode &quot;[RUSTLING_UPDATE_MODE]&quot;"
+      Value="--output &quot;[AppDataFolder]RustlingPDF\rustling-provisioning.json&quot; --url &quot;[RUSTLING_SERVER_URL]&quot; --lock &quot;[RUSTLING_LOCK_CONNECTION]&quot; --login-agreement &quot;[RUSTLING_LOGIN_AGREEMENT]&quot;"
     />
 
     <CustomAction
       Id="SetWriteProvisioningFileAllUsers"
       Property="WriteProvisioningFileAllUsers"
-      Value="--output &quot;[CommonAppDataFolder]RustlingPDF\rustling-provisioning.json&quot; --url &quot;[RUSTLING_SERVER_URL]&quot; --lock &quot;[RUSTLING_LOCK_CONNECTION]&quot; --login-agreement &quot;[RUSTLING_LOGIN_AGREEMENT]&quot; --update-mode &quot;[RUSTLING_UPDATE_MODE]&quot;"
+      Value="--output &quot;[CommonAppDataFolder]RustlingPDF\rustling-provisioning.json&quot; --url &quot;[RUSTLING_SERVER_URL]&quot; --lock &quot;[RUSTLING_LOCK_CONNECTION]&quot; --login-agreement &quot;[RUSTLING_LOGIN_AGREEMENT]&quot;"
     />
 
     <!--
@@ -457,9 +450,9 @@
     />
 
     <!--
-      Run the provisioner when ANY of RUSTLING_SERVER_URL, RUSTLING_LOGIN_AGREEMENT, or
-      RUSTLING_UPDATE_MODE is set. The provisioner is a no-op if all values end up empty,
-      so passing none is safe.
+      Run the provisioner when EITHER RUSTLING_SERVER_URL or RUSTLING_LOGIN_AGREEMENT
+      is set. The provisioner is a no-op if all values end up empty, so passing none is
+      safe.
 
       The removal actions are scheduled after RemoveShortcuts (3200) and so run
       well before RemoveFiles (3500) deletes rustling-provision.exe out of
@@ -468,18 +461,17 @@
       Their condition is REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE, matching the
       idiom main.wxs already uses for RemoveShortcuts and DeleteUpdateTask.
       NOT UPGRADINGPRODUCTCODE is load-bearing, not decoration: MajorUpgrade is
-      scheduled afterInstallInitialize, so every update — including the tauri
-      updater's own `installMode: "passive"` msiexec run, which passes none of
-      the RUSTLING_* properties — fully uninstalls the old product before
-      installing the new one. Without the guard, an unattended app update would
-      delete the administrator's provisioning file and nothing would put it
-      back.
+      scheduled afterInstallInitialize, so every update — including an
+      unattended msiexec reinstall, which passes none of the RUSTLING_*
+      properties — fully uninstalls the old product before installing the new
+      one. Without the guard, an unattended app update would delete the
+      administrator's provisioning file and nothing would put it back.
     -->
     <InstallExecuteSequence>
-      <Custom Action="SetWriteProvisioningFilePerUser" After="InstallFiles">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR RUSTLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
-      <Custom Action="WriteProvisioningFilePerUser" After="SetWriteProvisioningFilePerUser">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR RUSTLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
-      <Custom Action="SetWriteProvisioningFileAllUsers" After="InstallFiles">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR RUSTLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
-      <Custom Action="WriteProvisioningFileAllUsers" After="SetWriteProvisioningFileAllUsers">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot; OR RUSTLING_UPDATE_MODE &lt;&gt; &quot;&quot;) AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
+      <Custom Action="SetWriteProvisioningFilePerUser" After="InstallFiles">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot;) AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
+      <Custom Action="WriteProvisioningFilePerUser" After="SetWriteProvisioningFilePerUser">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot;) AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
+      <Custom Action="SetWriteProvisioningFileAllUsers" After="InstallFiles">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot;) AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
+      <Custom Action="WriteProvisioningFileAllUsers" After="SetWriteProvisioningFileAllUsers">(RUSTLING_SERVER_URL &lt;&gt; &quot;&quot; OR RUSTLING_LOGIN_AGREEMENT &lt;&gt; &quot;&quot;) AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>
       <Custom Action="SetRemoveProvisioningFilePerUser" After="RemoveShortcuts">REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
       <Custom Action="RemoveProvisioningFilePerUser" After="SetRemoveProvisioningFilePerUser">REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND (NOT ALLUSERS OR ALLUSERS=0)</Custom>
       <Custom Action="SetRemoveProvisioningFileAllUsers" After="RemoveShortcuts">REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND (ALLUSERS=1 OR ALLUSERS=2)</Custom>

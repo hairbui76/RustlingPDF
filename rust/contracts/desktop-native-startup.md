@@ -88,15 +88,16 @@ Provenance, import closures, checksums, and redistribution decisions live in
 
 ## Updates
 
-Packaged apps poll:
+**The packaged app does not check for updates.** There is no updater plugin, no
+update endpoint, no update manifest, and no in-app update UI. A packaged app
+makes no outbound request of its own, so running it discloses nothing — not the
+machine's IP, not the installed version, not the fact that RustlingPDF is
+installed at all. Moving to a newer version is a manual download from the
+releases page.
 
-`https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json`
-
-The committed updater public key has minisign id `9ADA2DC8FC4FAF0B`. Its private
-counterpart is stored outside the repository and provided to release CI through
-`TAURI_SIGNING_PRIVATE_KEY`. Installed applications accept only artifacts
-signed by the configured key.
-
-The Linux signed-update path has executable proof for valid, wrong-key, and
-tampered artifacts. Windows and macOS update proofs run on their native release
-runners.
+Release bundles are still minisign-signed and each is published with its `.sig`
+alongside, so a download fetched by hand can be verified. The signing key has
+minisign id `9ADA2DC8FC4FAF0B`; the public half is published in `RELEASING.md`
+and its private counterpart is stored outside the repository and provided to
+release CI through `TAURI_SIGNING_PRIVATE_KEY`. Signatures serve verification
+only — nothing in the application consumes them at runtime.

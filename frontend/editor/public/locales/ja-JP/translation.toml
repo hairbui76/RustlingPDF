@@ -1887,22 +1887,6 @@ title = "PDF を切り抜く方法"
 [defaultApp]
 title = "既定のPDFアプリに設定"
 
-[desktopUpdate]
-downloading = "更新をダウンロード中..."
-installing = "更新をインストール中..."
-installingWarning = "インストールを完了するため、アプリは自動的に終了します。"
-installNow = "今すぐインストール"
-readyToRestart = "更新の準備完了"
-restartMessage = "更新がインストールされました。アプリを再起動して完了してください。"
-restartNow = "今すぐ再起動"
-updateFailed = "更新に失敗"
-updateFailedMessage = "更新のダウンロードまたはインストールに失敗しました。"
-
-[desktopUpdate.blocked]
-docsLink = "インストール手順を見る"
-message = "RustlingPDF がこのマシンで自己更新する権限がありません。"
-title = "管理者権限が必要です"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "リーダー"
 tools = "ツール"
 
 [settings.general.updates]
-checkForUpdates = "更新を確認"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "更新の確認とバージョン情報の表示"
-latestVersion = "最新バージョン"
-managedByAdmin = "管理者により管理されています"
-modeAuto = "自動的に更新をインストール"
-modeDisabled = "更新を確認しない"
-modePrompt = "インストール前に確認する"
-title = "ソフトウェア更新"
-updateBehavior = "更新動作"
-updateBehaviorDescription = "更新のインストール前に確認するか、自動的にインストールするか、または更新チェックを完全にスキップするかを選択します。"
-updateBehaviorLockedDescription = "管理者がこのマシンでの RustlingPDF の更新方法を設定しています。変更するには管理者に連絡してください。"
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "詳細を表示"
 
 [settings.general.zoomLevel]
 auto = "自動"
@@ -4752,42 +4724,6 @@ failed = "PDF フォームのロック解除中にエラーが発生しました
 
 [unlockPDFForms.results]
 title = "フォームのロック解除結果"
-
-[update]
-allReleases = "すべてのリリース"
-breaking = "重大変更"
-breakingChanges = "互換性のない変更"
-breakingChangesDefault = "このバージョンには互換性のない変更が含まれます。"
-close = "閉じる"
-closeModal = "更新モーダルを閉じる"
-current = "現在のバージョン"
-defaultRecommendation = "この更新には重要な修正と改善が含まれています。"
-downloadLatest = "最新をダウンロード"
-later = "後で"
-latest = "最新バージョン"
-loadingDetailedInfo = "詳細情報を読み込み中..."
-migrationGuide = "移行ガイド"
-migrationGuides = "移行ガイド"
-migrationGuidesDesc = "更新前に重要な変更を確認してください。"
-modalSubtitle = "A new version of RustlingPDF is ready to install."
-modalTitle = "更新があります"
-notes = "リリースノート"
-releaseNotes = "リリースノート"
-showLess = "表示を減らす"
-showMore = "すべての {{count}} バージョンを表示"
-stable = "安定版"
-updateAvailable = "更新があります"
-urgentUpdateAvailable = "緊急の更新"
-version = "バージョン"
-versionHistory = "バージョン履歴"
-viewGuide = "ガイドを見る"
-whatsNewIn = "の新機能"
-
-[update.priority]
-low = "低"
-minor = "軽微"
-normal = "通常"
-urgent = "緊急"
 
 [URLToPDF]
 tags = "ウェブキャプチャ,ページ保存,Web→ドキュメント,アーカイブ"

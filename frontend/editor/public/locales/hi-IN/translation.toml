@@ -1887,22 +1887,6 @@ title = "PDF कैसे क्रॉप करें"
 [defaultApp]
 title = "डिफ़ॉल्ट PDF ऐप बनाएं"
 
-[desktopUpdate]
-downloading = "अपडेट डाउनलोड हो रहा है..."
-installing = "अपडेट इंस्टॉल हो रहा है..."
-installingWarning = "इंस्टॉलेशन पूरा करने के लिए ऐप अपने आप बंद हो जाएगा।"
-installNow = "अभी इंस्टॉल करें"
-readyToRestart = "अपडेट तैयार"
-restartMessage = "अपडेट इंस्टॉल हो गया है। समाप्त करने के लिए ऐप पुनः प्रारंभ करें।"
-restartNow = "अभी पुनः प्रारंभ करें"
-updateFailed = "अपडेट विफल"
-updateFailedMessage = "अपडेट डाउनलोड या इंस्टॉल करने में विफल।"
-
-[desktopUpdate.blocked]
-docsLink = "इंस्टॉलेशन दस्तावेज़ देखें"
-message = "RustlingPDF को इस मशीन पर स्वयं को अपडेट करने की अनुमति नहीं है।"
-title = "प्रशासक अनुमतियाँ आवश्यक"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "रीडर"
 tools = "उपकरण"
 
 [settings.general.updates]
-checkForUpdates = "अपडेट्स जाँचें"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "अपडेट्स जाँचें और वर्ज़न जानकारी देखें"
-latestVersion = "नवीनतम संस्करण"
-managedByAdmin = "प्रशासक द्वारा प्रबंधित"
-modeAuto = "अपडेट स्वतः इंस्टॉल करें"
-modeDisabled = "अपडेट के लिए जाँच न करें"
-modePrompt = "अपडेट इंस्टॉल करने से पहले मुझसे पूछें"
-title = "सॉफ़्टवेयर अपडेट्स"
-updateBehavior = "अपडेट व्यवहार"
-updateBehaviorDescription = "चुनें कि अपडेट इंस्टॉल करने से पहले संकेत दें, उन्हें स्वतः इंस्टॉल करें, या पूरी तरह से अपडेट जाँच छोड़ें।"
-updateBehaviorLockedDescription = "आपके प्रशासक ने इस मशीन पर RustlingPDF के अपडेट हैंडल करने का तरीका कॉन्फ़िगर किया है। बदलने के लिए उनसे संपर्क करें।"
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "विवरण देखें"
 
 [settings.general.zoomLevel]
 auto = "स्वतः"
@@ -4752,42 +4724,6 @@ failed = "PDF फॉर्म अनलॉक करते समय एक त�
 
 [unlockPDFForms.results]
 title = "अनलॉक किए गए फॉर्म के परिणाम"
-
-[update]
-allReleases = "सभी रिलीज़"
-breaking = "ब्रेकिंग"
-breakingChanges = "असंगत परिवर्तन"
-breakingChangesDefault = "इस संस्करण में असंगत परिवर्तन शामिल हैं।"
-close = "बंद करें"
-closeModal = "अपडेट मोडल बंद करें"
-current = "वर्तमान संस्करण"
-defaultRecommendation = "इस अपडेट में महत्वपूर्ण सुधार और फिक्स शामिल हैं।"
-downloadLatest = "नवीनतम डाउनलोड करें"
-later = "बाद में"
-latest = "नवीनतम संस्करण"
-loadingDetailedInfo = "विस्तृत जानकारी लोड हो रही है..."
-migrationGuide = "माइग्रेशन गाइड"
-migrationGuides = "माइग्रेशन गाइड्स"
-migrationGuidesDesc = "अपडेट करने से पहले महत्वपूर्ण बदलावों की समीक्षा करें।"
-modalSubtitle = "RustlingPDF का नया संस्करण इंस्टॉल के लिए तैयार है।"
-modalTitle = "अपडेट उपलब्ध"
-notes = "नोट्स"
-releaseNotes = "रिलीज़ नोट्स"
-showLess = "कम संस्करण दिखाएं"
-showMore = "सभी {{count}} संस्करण दिखाएं"
-stable = "STABLE"
-updateAvailable = "अपडेट उपलब्ध"
-urgentUpdateAvailable = "तत्काल अपडेट"
-version = "संस्करण"
-versionHistory = "संस्करण इतिहास"
-viewGuide = "गाइड देखें"
-whatsNewIn = "में नया क्या है"
-
-[update.priority]
-low = "कम"
-minor = "लघु"
-normal = "सामान्य"
-urgent = "तत्काल"
 
 [URLToPDF]
 tags = "वेब-कैप्चर,पेज-सहेजें,वेब-से-दस्तावेज़,संग्रह"

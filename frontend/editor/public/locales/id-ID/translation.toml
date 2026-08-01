@@ -1887,22 +1887,6 @@ title = "Cara Memangkas PDF"
 [defaultApp]
 title = "Jadikan Aplikasi PDF Default"
 
-[desktopUpdate]
-downloading = "Mengunduh pembaruan..."
-installing = "Memasang pembaruan..."
-installingWarning = "Aplikasi akan menutup otomatis untuk menyelesaikan pemasangan."
-installNow = "Pasang sekarang"
-readyToRestart = "Pembaruan siap"
-restartMessage = "Pembaruan telah dipasang. Mulai ulang aplikasi untuk menyelesaikan."
-restartNow = "Mulai ulang sekarang"
-updateFailed = "Pembaruan gagal"
-updateFailedMessage = "Gagal mengunduh atau memasang pembaruan."
-
-[desktopUpdate.blocked]
-docsLink = "Lihat dokumentasi instalasi"
-message = "RustlingPDF tidak memiliki izin untuk memperbarui dirinya di mesin ini."
-title = "Izin administrator diperlukan"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Pembaca"
 tools = "Alat"
 
 [settings.general.updates]
-checkForUpdates = "Periksa Pembaruan"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Periksa pembaruan dan lihat informasi versi"
-latestVersion = "Versi Terbaru"
-managedByAdmin = "Dikelola oleh administrator"
-modeAuto = "Instal pembaruan secara otomatis"
-modeDisabled = "Jangan periksa pembaruan"
-modePrompt = "Tanya saya sebelum memasang pembaruan"
-title = "Pembaruan Software"
-updateBehavior = "Perilaku pembaruan"
-updateBehaviorDescription = "Pilih apakah akan meminta konfirmasi sebelum memasang pembaruan, memasangnya secara otomatis, atau melewati pemeriksaan pembaruan sepenuhnya."
-updateBehaviorLockedDescription = "Administrator Anda telah mengonfigurasi bagaimana RustlingPDF menangani pembaruan di mesin ini. Hubungi mereka untuk mengubahnya."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Lihat Detail"
 
 [settings.general.zoomLevel]
 auto = "Otomatis"
@@ -4752,42 +4724,6 @@ failed = "Terjadi kesalahan saat membuka kunci formulir PDF."
 
 [unlockPDFForms.results]
 title = "Hasil Formulir yang Dibuka"
-
-[update]
-allReleases = "Semua Rilis"
-breaking = "Perubahan besar"
-breakingChanges = "Perubahan Signifikan"
-breakingChangesDefault = "Versi ini berisi perubahan yang memutus kompatibilitas."
-close = "Tutup"
-closeModal = "Tutup modal pembaruan"
-current = "Versi Saat Ini"
-defaultRecommendation = "Pembaruan ini berisi perbaikan dan peningkatan penting."
-downloadLatest = "Unduh Terbaru"
-later = "Nanti"
-latest = "Versi Terbaru"
-loadingDetailedInfo = "Memuat informasi detail..."
-migrationGuide = "Panduan Migrasi"
-migrationGuides = "Panduan Migrasi"
-migrationGuidesDesc = "Tinjau perubahan penting sebelum memperbarui."
-modalSubtitle = "Versi baru RustlingPDF siap dipasang."
-modalTitle = "Pembaruan Tersedia"
-notes = "Catatan"
-releaseNotes = "Catatan Rilis"
-showLess = "Tampilkan lebih sedikit versi"
-showMore = "Tampilkan semua {{count}} versi"
-stable = "STABLE"
-updateAvailable = "Pembaruan Tersedia"
-urgentUpdateAvailable = "Pembaruan Mendesak"
-version = "Versi"
-versionHistory = "Riwayat Versi"
-viewGuide = "Lihat Panduan"
-whatsNewIn = "Apa yang baru di"
-
-[update.priority]
-low = "Rendah"
-minor = "Minor"
-normal = "Normal"
-urgent = "Mendesak"
 
 [URLToPDF]
 tags = "tangkap web, simpan halaman, web-ke-dok, arsip"

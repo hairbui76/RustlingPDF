@@ -1887,22 +1887,6 @@ title = "Sådan beskærer du PDF'er"
 [defaultApp]
 title = "Sæt som standard PDF-app"
 
-[desktopUpdate]
-downloading = "Downloader opdatering..."
-installing = "Installerer opdatering..."
-installingWarning = "Appen lukkes automatisk for at fuldføre installationen."
-installNow = "Installer nu"
-readyToRestart = "Opdatering klar"
-restartMessage = "Opdateringen er installeret. Genstart appen for at afslutte."
-restartNow = "Genstart nu"
-updateFailed = "Opdatering mislykkedes"
-updateFailedMessage = "Kunne ikke downloade eller installere opdateringen."
-
-[desktopUpdate.blocked]
-docsLink = "Se installationsdokumentation"
-message = "RustlingPDF har ikke tilladelse til at opdatere sig selv på denne maskine."
-title = "Administratorrettigheder påkrævet"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Læser"
 tools = "Værktøjer"
 
 [settings.general.updates]
-checkForUpdates = "Søg efter opdateringer"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Søg efter opdateringer og se versionsinfo"
-latestVersion = "Seneste version"
-managedByAdmin = "Administreret af administrator"
-modeAuto = "Installer opdateringer automatisk"
-modeDisabled = "Søg ikke efter opdateringer"
-modePrompt = "Spørg mig, før opdateringer installeres"
-title = "Softwareopdateringer"
-updateBehavior = "Opdateringsadfærd"
-updateBehaviorDescription = "Vælg om du vil spørges før installation af opdateringer, installere dem automatisk eller helt springe søgning efter opdateringer over."
-updateBehaviorLockedDescription = "Din administrator har konfigureret, hvordan RustlingPDF håndterer opdateringer på denne maskine. Kontakt dem for at ændre dette."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Vis detaljer"
 
 [settings.general.zoomLevel]
 auto = "Automatisk"
@@ -4752,42 +4724,6 @@ failed = "Der opstod en fejl under oplåsning af PDF-formularer."
 
 [unlockPDFForms.results]
 title = "Resultater for oplåste formularer"
-
-[update]
-allReleases = "Alle udgivelser"
-breaking = "Breaking"
-breakingChanges = "Inkompatible ændringer"
-breakingChangesDefault = "Denne version indeholder inkompatible ændringer."
-close = "Luk"
-closeModal = "Luk opdateringsvindue"
-current = "Nuværende version"
-defaultRecommendation = "Denne opdatering indeholder vigtige rettelser og forbedringer."
-downloadLatest = "Download seneste"
-later = "Senere"
-latest = "Seneste version"
-loadingDetailedInfo = "Indlæser detaljerede oplysninger..."
-migrationGuide = "Migrationsvejledning"
-migrationGuides = "Migrationsvejledninger"
-migrationGuidesDesc = "Gennemgå vigtige ændringer før opdatering."
-modalSubtitle = "En ny version af RustlingPDF er klar til installation."
-modalTitle = "Opdatering tilgængelig"
-notes = "Noter"
-releaseNotes = "Udgivelsesnoter"
-showLess = "Vis færre versioner"
-showMore = "Vis alle {{count}} versioner"
-stable = "STABLE"
-updateAvailable = "Opdatering tilgængelig"
-urgentUpdateAvailable = "Hastende opdatering"
-version = "Version"
-versionHistory = "Versionshistorik"
-viewGuide = "Vis vejledning"
-whatsNewIn = "Nyheder i"
-
-[update.priority]
-low = "Lav"
-minor = "Mindre"
-normal = "Normal"
-urgent = "Hastende"
 
 [URLToPDF]
 tags = "web-fangst,gem-side,web-til-dok,arkivér"

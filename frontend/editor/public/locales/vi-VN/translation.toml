@@ -1891,22 +1891,6 @@ title = "Cách cắt PDF"
 [defaultApp]
 title = "Đặt làm ứng dụng PDF mặc định"
 
-[desktopUpdate]
-downloading = "Đang tải bản cập nhật..."
-installing = "Đang cài đặt bản cập nhật..."
-installingWarning = "Ứng dụng sẽ tự đóng để hoàn tất cài đặt."
-installNow = "Cài đặt ngay"
-readyToRestart = "Cập nhật đã sẵn sàng"
-restartMessage = "Bản cập nhật đã được cài đặt. Khởi động lại ứng dụng để hoàn tất."
-restartNow = "Khởi động lại ngay"
-updateFailed = "Cập nhật thất bại"
-updateFailedMessage = "Không thể tải xuống hoặc cài đặt bản cập nhật."
-
-[desktopUpdate.blocked]
-docsLink = "Xem tài liệu cài đặt"
-message = "RustlingPDF không có quyền tự cập nhật trên máy này."
-title = "Cần quyền quản trị viên"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4168,21 +4152,9 @@ read = "Trình đọc"
 tools = "Công cụ"
 
 [settings.general.updates]
-checkForUpdates = "Kiểm tra cập nhật"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Kiểm tra cập nhật và xem thông tin phiên bản"
-latestVersion = "Phiên bản mới nhất"
-managedByAdmin = "Được quản trị viên quản lý"
-modeAuto = "Tự động cài đặt bản cập nhật"
-modeDisabled = "Không kiểm tra cập nhật"
-modePrompt = "Hỏi trước khi cài đặt cập nhật"
-title = "Cập nhật phần mềm"
-updateBehavior = "Hành vi cập nhật"
-updateBehaviorDescription = "Chọn xem có hỏi trước khi cài đặt, tự động cài đặt, hoặc bỏ qua kiểm tra cập nhật."
-updateBehaviorLockedDescription = "Quản trị viên đã cấu hình cách RustlingPDF xử lý cập nhật trên máy này. Liên hệ họ để thay đổi."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Xem chi tiết"
 
 [settings.general.zoomLevel]
 auto = "Tự động"
@@ -4756,42 +4728,6 @@ failed = "Đã xảy ra lỗi khi mở khóa biểu mẫu PDF."
 
 [unlockPDFForms.results]
 title = "Kết quả mở khóa biểu mẫu"
-
-[update]
-allReleases = "Tất cả bản phát hành"
-breaking = "Thay đổi phá vỡ"
-breakingChanges = "Thay đổi phá vỡ"
-breakingChangesDefault = "Phiên bản này có thay đổi phá vỡ."
-close = "Đóng"
-closeModal = "Đóng cửa sổ cập nhật"
-current = "Phiên bản hiện tại"
-defaultRecommendation = "Bản cập nhật này chứa các bản sửa lỗi và cải tiến quan trọng."
-downloadLatest = "Tải bản mới nhất"
-later = "Để sau"
-latest = "Phiên bản mới nhất"
-loadingDetailedInfo = "Đang tải thông tin chi tiết..."
-migrationGuide = "Hướng dẫn chuyển đổi"
-migrationGuides = "Hướng dẫn chuyển đổi"
-migrationGuidesDesc = "Xem lại những thay đổi quan trọng trước khi cập nhật."
-modalSubtitle = "Một phiên bản mới của RustlingPDF đã sẵn sàng để cài đặt."
-modalTitle = "Có bản cập nhật"
-notes = "Ghi chú"
-releaseNotes = "Ghi chú phát hành"
-showLess = "Hiển thị ít phiên bản hơn"
-showMore = "Hiển thị tất cả {{count}} phiên bản"
-stable = "ỔN ĐỊNH"
-updateAvailable = "Có bản cập nhật"
-urgentUpdateAvailable = "Cập nhật khẩn cấp"
-version = "Phiên bản"
-versionHistory = "Lịch sử phiên bản"
-viewGuide = "Xem hướng dẫn"
-whatsNewIn = "Có gì mới trong"
-
-[update.priority]
-low = "Thấp"
-minor = "Nhỏ"
-normal = "Thường"
-urgent = "Khẩn cấp"
 
 [URLToPDF]
 tags = "chụp web,lưu trang,web sang tài liệu,lưu trữ"

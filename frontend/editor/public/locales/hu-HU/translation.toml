@@ -1887,22 +1887,6 @@ title = "Hogyan vágjon PDF-et"
 [defaultApp]
 title = "Beállítás alapértelmezett PDF-alkalmazásként"
 
-[desktopUpdate]
-downloading = "Frissítés letöltése..."
-installing = "Frissítés telepítése..."
-installingWarning = "Az alkalmazás automatikusan bezárul a telepítés befejezéséhez."
-installNow = "Telepítés most"
-readyToRestart = "Frissítés kész"
-restartMessage = "A frissítés telepítve. Indítsa újra az alkalmazást a befejezéshez."
-restartNow = "Újraindítás most"
-updateFailed = "A frissítés sikertelen"
-updateFailedMessage = "A frissítés letöltése vagy telepítése nem sikerült."
-
-[desktopUpdate.blocked]
-docsLink = "Telepítési dokumentáció megtekintése"
-message = "A RustlingPDF-nek nincs jogosultsága saját magát frissíteni ezen a gépen."
-title = "Rendszergazdai jogosultság szükséges"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Olvasó"
 tools = "Eszközök"
 
 [settings.general.updates]
-checkForUpdates = "Frissítések keresése"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Frissítések keresése és verzióinformációk megtekintése"
-latestVersion = "Legújabb verzió"
-managedByAdmin = "Rendszergazda kezeli"
-modeAuto = "Frissítések automatikus telepítése"
-modeDisabled = "Ne ellenőrizze a frissítéseket"
-modePrompt = "Kérdezzen meg telepítés előtt"
-title = "Szoftverfrissítések"
-updateBehavior = "Frissítési viselkedés"
-updateBehaviorDescription = "Válassza ki, hogy telepítés előtt rákérdezzen, automatikusan telepítsen, vagy teljesen kihagyja a frissítésellenőrzést."
-updateBehaviorLockedDescription = "Az adminisztrátor beállította, hogyan kezeli a RustlingPDF a frissítéseket ezen a gépen. Változtatáshoz lépjen kapcsolatba vele."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Részletek megtekintése"
 
 [settings.general.zoomLevel]
 auto = "Automatikus"
@@ -4752,42 +4724,6 @@ failed = "Hiba történt a PDF-űrlapok feloldása közben."
 
 [unlockPDFForms.results]
 title = "Feloldott űrlapok eredménye"
-
-[update]
-allReleases = "Összes kiadás"
-breaking = "Kompatibilitást törő"
-breakingChanges = "Inkompatibilis változások"
-breakingChangesDefault = "Ez a verzió inkompatibilis változásokat tartalmaz."
-close = "Bezárás"
-closeModal = "Frissítési ablak bezárása"
-current = "Jelenlegi verzió"
-defaultRecommendation = "Ez a frissítés fontos javításokat és fejlesztéseket tartalmaz."
-downloadLatest = "Legújabb letöltése"
-later = "Később"
-latest = "Legújabb verzió"
-loadingDetailedInfo = "Részletes információk betöltése..."
-migrationGuide = "Átállási útmutató"
-migrationGuides = "Átállási útmutatók"
-migrationGuidesDesc = "Frissítés előtt tekintse át a fontos változásokat."
-modalSubtitle = "A RustlingPDF új verziója készen áll a telepítésre."
-modalTitle = "Frissítés elérhető"
-notes = "Megjegyzések"
-releaseNotes = "Kiadási megjegyzések"
-showLess = "Kevesebb verzió megjelenítése"
-showMore = "Összes {{count}} verzió megjelenítése"
-stable = "STABLE"
-updateAvailable = "Frissítés elérhető"
-urgentUpdateAvailable = "Sürgős frissítés"
-version = "Verzió"
-versionHistory = "Verziótörténet"
-viewGuide = "Útmutató megnyitása"
-whatsNewIn = "Újdonságok ebben"
-
-[update.priority]
-low = "Alacsony"
-minor = "Kisebb"
-normal = "Normál"
-urgent = "Sürgős"
 
 [URLToPDF]
 tags = "webmentés,oldal mentése,web-dokumentum,archiválás"

@@ -1887,22 +1887,6 @@ title = "كيفية قص ملفات PDF"
 [defaultApp]
 title = "تعيين كتطبيق PDF الافتراضي"
 
-[desktopUpdate]
-downloading = "جارٍ تنزيل التحديث..."
-installing = "جارٍ تثبيت التحديث..."
-installingWarning = "سيتم إغلاق التطبيق تلقائياً لإكمال التثبيت."
-installNow = "ثبّت الآن"
-readyToRestart = "التحديث جاهز"
-restartMessage = "تم تثبيت التحديث. أعد تشغيل التطبيق للإنهاء."
-restartNow = "أعد التشغيل الآن"
-updateFailed = "فشل التحديث"
-updateFailedMessage = "فشل تنزيل أو تثبيت التحديث."
-
-[desktopUpdate.blocked]
-docsLink = "عرض وثائق التثبيت"
-message = "لا يملك RustlingPDF الإذن لتحديث نفسه على هذه الآلة."
-title = "يلزم صلاحيات المسؤول"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "القارئ"
 tools = "الأدوات"
 
 [settings.general.updates]
-checkForUpdates = "التحقق من التحديثات"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "التحقق من التحديثات وعرض معلومات الإصدار"
-latestVersion = "أحدث إصدار"
-managedByAdmin = "تدار بواسطة المسؤول"
-modeAuto = "تثبيت التحديثات تلقائياً"
-modeDisabled = "عدم التحقق من التحديثات"
-modePrompt = "اسألني قبل تثبيت التحديثات"
-title = "تحديثات البرنامج"
-updateBehavior = "سلوك التحديث"
-updateBehaviorDescription = "اختر ما إذا كنت ستُطالَب قبل تثبيت التحديثات، أو تثبيتها تلقائياً، أو تخطي فحوصات التحديث كلياً."
-updateBehaviorLockedDescription = "قام المسؤول بتكوين كيفية تعامل RustlingPDF مع التحديثات على هذه الآلة. اتصل به لتغييره."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "عرض التفاصيل"
 
 [settings.general.zoomLevel]
 auto = "تلقائي"
@@ -4752,42 +4724,6 @@ failed = "حدث خطأ أثناء إلغاء قفل نماذج PDF."
 
 [unlockPDFForms.results]
 title = "نتائج قفل النماذج"
-
-[update]
-allReleases = "كل الإصدارات"
-breaking = "تغييرات كاسرة"
-breakingChanges = "تغييرات كاسرة للتوافق"
-breakingChangesDefault = "يحتوي هذا الإصدار على تغييرات كاسرة للتوافق."
-close = "إغلاق"
-closeModal = "إغلاق نافذة التحديث"
-current = "الإصدار الحالي"
-defaultRecommendation = "يتضمن هذا التحديث إصلاحات وتحسينات مهمة."
-downloadLatest = "تنزيل الأحدث"
-later = "لاحقاً"
-latest = "أحدث إصدار"
-loadingDetailedInfo = "جارٍ تحميل معلومات تفصيلية..."
-migrationGuide = "دليل الترحيل"
-migrationGuides = "أدلة الترحيل"
-migrationGuidesDesc = "راجع التغييرات المهمة قبل التحديث."
-modalSubtitle = "إصدار جديد من RustlingPDF جاهز للتثبيت."
-modalTitle = "يتوفر تحديث"
-notes = "ملاحظات"
-releaseNotes = "ملاحظات الإصدار"
-showLess = "عرض إصدارات أقل"
-showMore = "عرض كل {{count}} إصدار"
-stable = "مستقر"
-updateAvailable = "يتوفر تحديث"
-urgentUpdateAvailable = "تحديث عاجل"
-version = "الإصدار"
-versionHistory = "سجل الإصدارات"
-viewGuide = "عرض الدليل"
-whatsNewIn = "ما الجديد في"
-
-[update.priority]
-low = "منخفض"
-minor = "ثانوي"
-normal = "عادي"
-urgent = "عاجل"
 
 [URLToPDF]
 tags = "التقاط الويب,حفظ الصفحة,تحويل الويب إلى مستند,أرشفة"

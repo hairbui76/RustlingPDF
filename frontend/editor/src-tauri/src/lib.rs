@@ -6,14 +6,12 @@ mod utils;
 
 use commands::connection::apply_provisioning_if_present;
 use commands::{
-    add_opened_file, can_install_updates, check_for_update, cleanup_backend, clear_opened_files,
-    complete_setup, download_and_install_update, forward_files_to_window,
+    add_opened_file, cleanup_backend, clear_opened_files, complete_setup, forward_files_to_window,
     forward_files_to_window_with_intent, get_app_version, get_backend_port, get_desktop_os,
-    get_opened_files, get_update_mode, is_default_pdf_handler, is_first_launch,
-    open_files_in_new_window, open_in_new_window, pop_opened_batches, pop_opened_files,
-    pop_window_file_ids, print_pdf_file_native, proxy_local_pdf_request, reset_setup_completion,
-    restart_app, set_as_default_pdf_handler, set_update_mode, start_backend, target_window_label,
-    MAIN_WINDOW_LABEL,
+    get_opened_files, is_default_pdf_handler, is_first_launch, open_files_in_new_window,
+    open_in_new_window, pop_opened_batches, pop_opened_files, pop_window_file_ids,
+    print_pdf_file_native, proxy_local_pdf_request, reset_setup_completion,
+    set_as_default_pdf_handler, start_backend, target_window_label, MAIN_WINDOW_LABEL,
 };
 use launch_intent::{debounce_intent_batch, parse_launch_args, INTENT_AGGREGATOR};
 use utils::{add_log, get_tauri_logs};
@@ -55,7 +53,6 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // Runs in the existing instance when a second launch is attempted
@@ -170,13 +167,7 @@ pub fn run() {
             proxy_local_pdf_request,
             get_desktop_os,
             print_pdf_file_native,
-            can_install_updates,
-            check_for_update,
-            download_and_install_update,
             get_app_version,
-            get_update_mode,
-            set_update_mode,
-            restart_app,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

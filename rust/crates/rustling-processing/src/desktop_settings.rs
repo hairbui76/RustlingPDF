@@ -387,7 +387,7 @@ mod tests {
         // customization.
         fs::write(
             &settings_path,
-            "metrics:\n  enabled: true\nsystem:\n  showUpdate: true\n",
+            "metrics:\n  enabled: true\nsystem:\n  googlevisibility: false\n",
         )?;
 
         merge_template_into_existing(&settings_path)?;

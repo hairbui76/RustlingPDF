@@ -1887,22 +1887,6 @@ title = "如何裁剪 PDF"
 [defaultApp]
 title = "设为默认 PDF 应用"
 
-[desktopUpdate]
-downloading = "正在下载更新…"
-installing = "正在安装更新…"
-installingWarning = "应用将自动关闭以完成安装。"
-installNow = "立即安装"
-readyToRestart = "更新就绪"
-restartMessage = "更新已安装。重启应用以完成。"
-restartNow = "立即重启"
-updateFailed = "更新失败"
-updateFailedMessage = "下载或安装更新失败。"
-
-[desktopUpdate.blocked]
-docsLink = "查看安装文档"
-message = "RustlingPDF 无权在此设备上自行更新。"
-title = "需要管理员权限"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "阅读器"
 tools = "工具"
 
 [settings.general.updates]
-checkForUpdates = "检查更新"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "检查更新并查看版本信息"
-latestVersion = "最新版本"
-managedByAdmin = "由管理员管理"
-modeAuto = "自动安装更新"
-modeDisabled = "不检查更新"
-modePrompt = "安装更新前询问我"
-title = "软件更新"
-updateBehavior = "更新行为"
-updateBehaviorDescription = "选择在安装更新前是否提示、自动安装，或完全跳过更新检查。"
-updateBehaviorLockedDescription = "您的管理员已配置此计算机上 RustlingPDF 的更新处理方式。请联系他们进行更改。"
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "查看详情"
 
 [settings.general.zoomLevel]
 auto = "自动"
@@ -4752,42 +4724,6 @@ failed = "解锁 PDF 表单时发生错误。"
 
 [unlockPDFForms.results]
 title = "表单解锁结果"
-
-[update]
-allReleases = "所有版本"
-breaking = "重大变更"
-breakingChanges = "重大变更"
-breakingChangesDefault = "此版本包含重大变更。"
-close = "关闭"
-closeModal = "关闭更新窗口"
-current = "当前版本"
-defaultRecommendation = "此更新包含重要的修复和改进。"
-downloadLatest = "下载最新"
-later = "稍后"
-latest = "最新版本"
-loadingDetailedInfo = "正在加载详细信息..."
-migrationGuide = "迁移指南"
-migrationGuides = "迁移指南"
-migrationGuidesDesc = "在更新前查看重要变更。"
-modalSubtitle = "新版 RustlingPDF 已准备好安装。"
-modalTitle = "有可用更新"
-notes = "说明"
-releaseNotes = "发行说明"
-showLess = "显示更少版本"
-showMore = "显示全部 {{count}} 个版本"
-stable = "稳定"
-updateAvailable = "有可用更新"
-urgentUpdateAvailable = "紧急更新"
-version = "版本"
-versionHistory = "版本历史"
-viewGuide = "查看指南"
-whatsNewIn = "新增内容"
-
-[update.priority]
-low = "低"
-minor = "次要"
-normal = "正常"
-urgent = "紧急"
 
 [URLToPDF]
 tags = "网页捕获、保存网页、网页转文档、归档"

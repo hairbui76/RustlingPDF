@@ -195,8 +195,17 @@ RustlingPDF has one server mode: stateless and account-free.
 
 - No analytics, telemetry, or tracking pixel is shipped, in the web app or the
   service. There is no vendor SDK, no opt-in prompt, no consent banner, and no
-  setting that enables one — the code does not exist. The web app talks to your
-  RustlingPDF backend and to nothing else.
+  setting that enables one — the code does not exist.
+- **The app makes no outbound request of its own.** It does not check for
+  updates, does not fetch icons or fonts from a CDN, and contacts no third-party
+  host at any point. The web app talks to your RustlingPDF backend and to
+  nothing else. Nothing about you — not your IP, not your version, not the fact
+  that you run RustlingPDF — is disclosed to anyone by the software running.
+- **Checking for new versions is your job, not the app's.** There is no
+  auto-updater and no update prompt. When you want to know whether a newer
+  version exists, look at the
+  [releases page](https://github.com/hairbui76/RustlingPDF/releases). Desktop
+  builds are signed, so you can verify a download you fetched yourself.
 - No authentication, users, teams, database, audit log, or durable document
   store exists in the application.
 - Requests use bounded temporary workspace and result storage that expires.

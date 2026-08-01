@@ -1887,22 +1887,6 @@ title = "PDF'ler Nasıl Kırpılır"
 [defaultApp]
 title = "Varsayılan PDF Uygulaması Olarak Ayarla"
 
-[desktopUpdate]
-downloading = "Güncelleme indiriliyor..."
-installing = "Güncelleme yükleniyor..."
-installingWarning = "Kurulumu tamamlamak için uygulama otomatik olarak kapanacaktır."
-installNow = "Şimdi Yükle"
-readyToRestart = "Güncelleme Hazır"
-restartMessage = "Güncelleme yüklendi. Bitirmek için uygulamayı yeniden başlatın."
-restartNow = "Şimdi Yeniden Başlat"
-updateFailed = "Güncelleme Başarısız"
-updateFailedMessage = "Güncelleme indirilemedi veya yüklenemedi."
-
-[desktopUpdate.blocked]
-docsLink = "Kurulum belgelerini görüntüle"
-message = "RustlingPDF bu makinede kendini güncelleme iznine sahip değil."
-title = "Yönetici izinleri gerekli"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Okuyucu"
 tools = "Araçlar"
 
 [settings.general.updates]
-checkForUpdates = "Güncellemeleri Kontrol Et"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Güncellemeleri kontrol edin ve sürüm bilgilerini görüntüleyin"
-latestVersion = "En Son Sürüm"
-managedByAdmin = "Yönetici tarafından yönetiliyor"
-modeAuto = "Güncellemeleri otomatik yükle"
-modeDisabled = "Güncellemeleri denetleme"
-modePrompt = "Güncellemeleri yüklemeden önce sor"
-title = "Yazılım Güncellemeleri"
-updateBehavior = "Güncelleme davranışı"
-updateBehaviorDescription = "Güncellemeleri yüklemeden önce sorulmasını, otomatik yüklenmesini veya güncelleme denetimlerinin tamamen atlanmasını seçin."
-updateBehaviorLockedDescription = "Yöneticiniz bu makinede RustlingPDF'in güncellemeleri nasıl ele alacağını yapılandırdı. Değiştirmek için onlarla iletişime geçin."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Ayrıntıları Görüntüle"
 
 [settings.general.zoomLevel]
 auto = "Otomatik"
@@ -4752,42 +4724,6 @@ failed = "PDF formları kilidi açılırken bir hata oluştu."
 
 [unlockPDFForms.results]
 title = "Kilit Açılmış Formlar Sonuçları"
-
-[update]
-allReleases = "Tüm Sürümler"
-breaking = "Uyumsuz"
-breakingChanges = "Kırıcı Değişiklikler"
-breakingChangesDefault = "Bu sürüm kırıcı değişiklikler içeriyor."
-close = "Kapat"
-closeModal = "Güncelleme penceresini kapat"
-current = "Geçerli Sürüm"
-defaultRecommendation = "Bu güncelleme önemli düzeltmeler ve iyileştirmeler içerir."
-downloadLatest = "En Sonu İndir"
-later = "Daha sonra"
-latest = "En Son Sürüm"
-loadingDetailedInfo = "Ayrıntılı bilgiler yükleniyor..."
-migrationGuide = "Geçiş Kılavuzu"
-migrationGuides = "Geçiş Kılavuzları"
-migrationGuidesDesc = "Güncellemeden önce önemli değişiklikleri gözden geçirin."
-modalSubtitle = "RustlingPDF'in yeni bir sürümü yüklenmeye hazır."
-modalTitle = "Güncelleme Mevcut"
-notes = "Notlar"
-releaseNotes = "Sürüm Notları"
-showLess = "Daha az sürüm göster"
-showMore = "Tüm {{count}} sürümü göster"
-stable = "KARARLI"
-updateAvailable = "Güncelleme Mevcut"
-urgentUpdateAvailable = "Acil Güncelleme"
-version = "Sürüm"
-versionHistory = "Sürüm Geçmişi"
-viewGuide = "Kılavuzu Görüntüle"
-whatsNewIn = "Yeni neler var"
-
-[update.priority]
-low = "Düşük"
-minor = "Küçük"
-normal = "Normal"
-urgent = "Acil"
 
 [URLToPDF]
 tags = "web-yakala,sayfa-kaydet,webten-dökümana,arşivle"

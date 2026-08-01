@@ -1887,22 +1887,6 @@ title = "Как обрезать PDF"
 [defaultApp]
 title = "Сделать приложением PDF по умолчанию"
 
-[desktopUpdate]
-downloading = "Загрузка обновления..."
-installing = "Установка обновления..."
-installingWarning = "Приложение закроется автоматически для завершения установки."
-installNow = "Установить сейчас"
-readyToRestart = "Обновление готово"
-restartMessage = "Обновление установлено. Перезапустите приложение для завершения."
-restartNow = "Перезапустить сейчас"
-updateFailed = "Сбой обновления"
-updateFailedMessage = "Не удалось загрузить или установить обновление."
-
-[desktopUpdate.blocked]
-docsLink = "См. документацию по установке"
-message = "RustlingPDF не имеет разрешения обновлять себя на этом компьютере."
-title = "Требуются права администратора"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Просмотр"
 tools = "Инструменты"
 
 [settings.general.updates]
-checkForUpdates = "Проверить обновления"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Проверка обновлений и сведения о версии"
-latestVersion = "Последняя версия"
-managedByAdmin = "Управляется администратором"
-modeAuto = "Устанавливать обновления автоматически"
-modeDisabled = "Не проверять обновления"
-modePrompt = "Спрашивать перед установкой обновлений"
-title = "Обновления ПО"
-updateBehavior = "Поведение обновлений"
-updateBehaviorDescription = "Выберите, нужно ли спрашивать перед установкой обновлений, устанавливать их автоматически или совсем не проверять обновления."
-updateBehaviorLockedDescription = "Администратор настроил, как RustlingPDF обрабатывает обновления на этом компьютере. Свяжитесь с ним, чтобы изменить это."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Подробнее"
 
 [settings.general.zoomLevel]
 auto = "Авто"
@@ -4752,42 +4724,6 @@ failed = "Произошла ошибка при разблокировке PDF-
 
 [unlockPDFForms.results]
 title = "Результаты разблокировки форм"
-
-[update]
-allReleases = "Все релизы"
-breaking = "Несовместимые"
-breakingChanges = "Ломающие изменения"
-breakingChangesDefault = "Эта версия содержит ломающие изменения."
-close = "Закрыть"
-closeModal = "Закрыть окно обновления"
-current = "Текущая версия"
-defaultRecommendation = "Это обновление содержит важные исправления и улучшения."
-downloadLatest = "Скачать последнюю"
-later = "Позже"
-latest = "Последняя версия"
-loadingDetailedInfo = "Загрузка подробной информации..."
-migrationGuide = "Руководство по миграции"
-migrationGuides = "Руководства по миграции"
-migrationGuidesDesc = "Изучите важные изменения перед обновлением."
-modalSubtitle = "Новая версия RustlingPDF готова к установке."
-modalTitle = "Доступно обновление"
-notes = "Примечания"
-releaseNotes = "Заметки о выпуске"
-showLess = "Показать меньше версий"
-showMore = "Показать все {{count}} версий"
-stable = "STABLE"
-updateAvailable = "Доступно обновление"
-urgentUpdateAvailable = "Срочное обновление"
-version = "Версия"
-versionHistory = "История версий"
-viewGuide = "Открыть руководство"
-whatsNewIn = "Что нового в"
-
-[update.priority]
-low = "Низкий"
-minor = "Незначительный"
-normal = "Обычный"
-urgent = "Срочно"
 
 [URLToPDF]
 tags = "веб-захват,сохранение страницы,веб в док,архивация"

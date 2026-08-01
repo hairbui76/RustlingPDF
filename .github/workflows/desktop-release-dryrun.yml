@@ -4,9 +4,9 @@ name: Desktop release dry-run
 # signs, exercising the same TAURI_SIGNING_PRIVATE_KEY path as a real
 # release) the desktop bundles via the reusable desktop-build workflow and
 # uploads them as workflow artifacts only — no tag required, no GitHub
-# release created, no images published, no latest.json composed. This is how
-# the windows/macos legs get proven on real runners before a release tag is
-# cut (there is no local environment for either platform).
+# release created, no images published. This is how the windows/macos legs
+# get proven on real runners before a release tag is cut (there is no local
+# environment for either platform).
 #
 # The platforms input selects the full three-leg matrix or a cheap
 # linux-only smoke leg.

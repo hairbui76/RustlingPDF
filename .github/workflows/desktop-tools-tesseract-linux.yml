@@ -215,8 +215,8 @@ jobs:
         run: |
           set -euo pipefail
           # A dedicated, non-latest release per Tesseract version. `--latest=false`
-          # keeps it out of the desktop updater's "latest release" lookup, which
-          # resolves app releases only.
+          # keeps it out of GitHub's "Latest release" pointer, so a tool build
+          # never displaces the newest product release people download.
           if ! gh release view "${TAG}" >/dev/null 2>&1; then
             gh release create "${TAG}" \
               --title "Desktop tools: Tesseract ${{ steps.manifest.outputs.version }} (linux-x86_64, musl)" \

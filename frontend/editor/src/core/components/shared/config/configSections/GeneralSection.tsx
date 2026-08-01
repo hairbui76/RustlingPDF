@@ -7,10 +7,7 @@ import {
   Tooltip,
   NumberInput,
   Select,
-  Group,
-  Badge,
 } from "@mantine/core";
-import { Button } from "@app/ui/Button";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
 import { useTranslation } from "react-i18next";
 import { usePreferences } from "@app/contexts/PreferencesContext";
@@ -24,57 +21,16 @@ import {
   type ViewerZoomSetting,
 } from "@app/services/preferencesService";
 import { Z_INDEX_OVER_CONFIG_MODAL } from "@app/styles/zIndex";
-import LocalIcon from "@app/components/shared/LocalIcon";
-import { updateService, UpdateSummary } from "@app/services/updateService";
-import UpdateModal from "@app/components/shared/UpdateModal";
-import type {
-  DesktopInstallState,
-  DesktopInstallProgress,
-  DesktopInstallActions,
-  DesktopInstallCanInstall,
-} from "@app/components/shared/UpdateModal";
 import { useFrontendVersionInfo } from "@app/hooks/useFrontendVersionInfo";
 
 const DEFAULT_AUTO_UNZIP_FILE_LIMIT = 4;
 
-/**
- * Desktop-only: user-facing update policy control, rendered inside the
- * Software Updates section alongside the version info. Passed from the
- * desktop GeneralSection override so this core component doesn't have to
- * import any Tauri APIs directly.
- */
-export interface DesktopUpdateModeControl {
-  /** Current mode. */
-  mode: "prompt" | "auto" | "disabled";
-  /** `true` when the mode was written by a provisioning file — disables the control. */
-  locked: boolean;
-  /** Called when the user picks a new mode. Async: surface errors via toast. */
-  onChange: (mode: "prompt" | "auto" | "disabled") => Promise<void> | void;
-}
-
 interface GeneralSectionProps {
   hideTitle?: boolean;
-  hideUpdateSection?: boolean;
-  /** Desktop-only: Tauri updater install state, passed from the desktop override. */
-  desktopInstall?: {
-    state: DesktopInstallState;
-    progress: DesktopInstallProgress | null;
-    errorMessage: string | null;
-    tauriInstallReady: boolean;
-    /** Result of the `can_install_updates` probe, used to show an inline
-     *  warning when msiexec would need UAC elevation this user doesn't have. */
-    canInstall?: DesktopInstallCanInstall | null;
-    actions: DesktopInstallActions;
-  };
-  /** Desktop-only: update-mode toggle (prompt/auto/disabled). */
-  desktopUpdateMode?: DesktopUpdateModeControl;
 }
 
 const GeneralSection: React.FC<GeneralSectionProps> = ({
   hideTitle = false,
-  hideUpdateSection = false,
-  desktopInstall,
-  desktopUpdateMode,
 }) => {
   const { t } = useTranslation();
   const { preferences, updatePreference } = usePreferences();
@@ -83,11 +39,6 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
   const [fileLimitInput, setFileLimitInput] = useState<number | string>(
     preferences.autoUnzipFileLimit,
   );
-  const [updateSummary, setUpdateSummary] = useState<UpdateSummary | null>(
-    null,
-  );
-  const [updateModalOpened, setUpdateModalOpened] = useState(false);
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const { appVersion, mismatchVersion } = useFrontendVersionInfo(
     config?.appVersion,
   );
@@ -97,56 +48,6 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
   useEffect(() => {
     setFileLimitInput(preferences.autoUnzipFileLimit);
   }, [preferences.autoUnzipFileLimit]);
-
-  // The version to use for update checks — on desktop use the Tauri app version,
-  // falling back to the backend version
-  const currentVersion = appVersion ?? config?.appVersion ?? null;
-
-  // Check for updates on mount — skipped when the update UI is hidden (legacy web build
-  // build, managed-disabled desktop) so no external update call ever fires.
-  useEffect(() => {
-    if (hideUpdateSection) return;
-    if (currentVersion) {
-      checkForUpdate();
-    }
-  }, [currentVersion, config?.machineType, hideUpdateSection]);
-
-  const checkForUpdate = async () => {
-    if (!currentVersion) return;
-
-    setCheckingUpdate(true);
-
-    const machineInfo = {
-      machineType: config?.machineType ?? "unknown",
-    };
-
-    const summary = await updateService.getUpdateSummary(
-      currentVersion,
-      machineInfo,
-    );
-
-    if (
-      summary?.latest_version &&
-      updateService.compareVersions(summary.latest_version, currentVersion) > 0
-    ) {
-      setUpdateSummary(summary);
-    } else {
-      setUpdateSummary(null);
-    }
-
-    setCheckingUpdate(false);
-  };
-
-  // Build desktop install props for the UpdateModal (only when provided by desktop override)
-  const desktopInstallProps = desktopInstall?.tauriInstallReady
-    ? {
-        state: desktopInstall.state,
-        progress: desktopInstall.progress,
-        errorMessage: desktopInstall.errorMessage,
-        canInstall: desktopInstall.canInstall,
-        actions: desktopInstall.actions,
-      }
-    : undefined;
 
   return (
     <Stack gap="lg">
@@ -164,206 +65,55 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
         </div>
       )}
 
-      {/* Update Check Section — show when backend version is known OR in desktop mode (Tauri version is always available) */}
-      {!hideUpdateSection && (config?.appVersion || !!desktopInstall) && (
+      {/* Version info. Purely local: the app never contacts a remote service
+          to look for a newer release — see README "Privacy model". */}
+      {(config?.appVersion || appVersion !== undefined) && (
         <Paper withBorder p="md" radius="md">
           <Stack gap="md">
             <div>
-              <Group justify="space-between" align="center">
-                <div>
-                  <Text fw={600} size="sm">
-                    {t("settings.general.updates.title", "Software Updates")}
-                  </Text>
-                  <Text size="xs" c="dimmed" mt={4}>
-                    {t(
-                      "settings.general.updates.description",
-                      "Check for updates and view version information",
-                    )}
-                  </Text>
-                </div>
-                {updateSummary && (
-                  <Badge
-                    color={
-                      updateSummary.max_priority === "urgent" ? "red" : "blue"
-                    }
-                    variant="filled"
-                  >
-                    {updateSummary.max_priority === "urgent"
-                      ? t("update.urgentUpdateAvailable", "Urgent Update")
-                      : t("update.updateAvailable", "Update Available")}
-                  </Badge>
+              <Text fw={600} size="sm">
+                {t("settings.general.version.title", "Version")}
+              </Text>
+              <Text size="xs" c="dimmed" mt={4}>
+                {t(
+                  "settings.general.version.description",
+                  "RustlingPDF does not check for updates. Visit the releases page when you want to see whether a newer version exists.",
                 )}
-              </Group>
+              </Text>
             </div>
             {appVersion !== undefined && (
-              <Group justify="space-between" align="center">
-                <div>
-                  <Text size="sm" c="dimmed">
-                    {t(
-                      "settings.general.updates.currentFrontendVersion",
-                      "Current Frontend Version",
-                    )}
-                    :{" "}
-                    <Text component="span" fw={500}>
-                      {frontendVersionLabel}
-                    </Text>
-                  </Text>
-                  {mismatchVersion && (
-                    <Text size="sm" c="red" mt={4}>
-                      {t(
-                        "settings.general.updates.versionMismatch",
-                        "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version.",
-                      )}
-                    </Text>
-                  )}
-                </div>
-              </Group>
-            )}
-            <Group justify="space-between" align="center">
               <div>
-                {config?.appVersion && (
-                  <Text size="sm" c="dimmed">
-                    {t(
-                      "settings.general.updates.currentBackendVersion",
-                      "Current Backend Version",
-                    )}
-                    :{" "}
-                    <Text component="span" fw={500}>
-                      {config.appVersion}
-                    </Text>
+                <Text size="sm" c="dimmed">
+                  {t(
+                    "settings.general.updates.currentFrontendVersion",
+                    "Current Frontend Version",
+                  )}
+                  :{" "}
+                  <Text component="span" fw={500}>
+                    {frontendVersionLabel}
                   </Text>
-                )}
-                {updateSummary && (
-                  <Text size="sm" c="dimmed" mt={4}>
+                </Text>
+                {mismatchVersion && (
+                  <Text size="sm" c="red" mt={4}>
                     {t(
-                      "settings.general.updates.latestVersion",
-                      "Latest Version",
+                      "settings.general.updates.versionMismatch",
+                      "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version.",
                     )}
-                    :{" "}
-                    <Text component="span" fw={500} c="blue">
-                      {updateSummary.latest_version}
-                    </Text>
                   </Text>
                 )}
               </div>
-              <Group gap="sm">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={checkForUpdate}
-                  loading={checkingUpdate}
-                  disabled={!currentVersion}
-                  leftSection={
-                    <LocalIcon
-                      icon="refresh-rounded"
-                      width="1rem"
-                      height="1rem"
-                    />
-                  }
-                >
-                  {t(
-                    "settings.general.updates.checkForUpdates",
-                    "Check for Updates",
-                  )}
-                </Button>
-                {updateSummary && (
-                  <Button
-                    size="sm"
-                    accent={
-                      updateSummary.max_priority === "urgent"
-                        ? "danger"
-                        : "default"
-                    }
-                    onClick={() => setUpdateModalOpened(true)}
-                    leftSection={
-                      <LocalIcon
-                        icon="system-update-alt-rounded"
-                        width="1rem"
-                        height="1rem"
-                      />
-                    }
-                  >
-                    {t("settings.general.updates.viewDetails", "View Details")}
-                  </Button>
+            )}
+            {config?.appVersion && (
+              <Text size="sm" c="dimmed">
+                {t(
+                  "settings.general.updates.currentBackendVersion",
+                  "Current Backend Version",
                 )}
-              </Group>
-            </Group>
-
-            {/* Desktop-only: update behaviour selector (prompt / auto / disabled).
-                Rendered disabled with a "Managed by administrator" hint when the
-                mode was pinned by a provisioning file. */}
-            {desktopUpdateMode && (
-              <Stack gap="xs">
-                <Group gap="xs" align="center">
-                  <Text fw={600} size="sm">
-                    {t(
-                      "settings.general.updates.updateBehavior",
-                      "Update behavior",
-                    )}
-                  </Text>
-                  {desktopUpdateMode.locked && (
-                    // `color="gray" variant="light"` rendered as near-invisible
-                    // light-on-dark in dark mode. `blue light` has enough
-                    // contrast in both themes to read clearly without being
-                    // shouty.
-                    <Badge color="blue" variant="light" size="sm" radius="sm">
-                      {t(
-                        "settings.general.updates.managedByAdmin",
-                        "Managed by administrator",
-                      )}
-                    </Badge>
-                  )}
-                </Group>
-                <Text size="xs" c="dimmed">
-                  {desktopUpdateMode.locked
-                    ? t(
-                        "settings.general.updates.updateBehaviorLockedDescription",
-                        "Your administrator has configured how RustlingPDF handles updates on this machine. Contact them to change this.",
-                      )
-                    : t(
-                        "settings.general.updates.updateBehaviorDescription",
-                        "Choose whether to prompt before installing updates, install them automatically, or skip update checks entirely.",
-                      )}
+                :{" "}
+                <Text component="span" fw={500}>
+                  {config.appVersion}
                 </Text>
-                <Select
-                  disabled={desktopUpdateMode.locked}
-                  value={desktopUpdateMode.mode}
-                  onChange={(value) => {
-                    if (!value) return;
-                    void desktopUpdateMode.onChange(
-                      value as "prompt" | "auto" | "disabled",
-                    );
-                  }}
-                  data={[
-                    {
-                      value: "prompt",
-                      label: t(
-                        "settings.general.updates.modePrompt",
-                        "Ask me before installing updates",
-                      ),
-                    },
-                    {
-                      value: "auto",
-                      label: t(
-                        "settings.general.updates.modeAuto",
-                        "Install updates automatically",
-                      ),
-                    },
-                    {
-                      value: "disabled",
-                      label: t(
-                        "settings.general.updates.modeDisabled",
-                        "Don't check for updates",
-                      ),
-                    },
-                  ]}
-                  maw={360}
-                  comboboxProps={{
-                    withinPortal: true,
-                    zIndex: Z_INDEX_OVER_CONFIG_MODAL,
-                  }}
-                />
-              </Stack>
+              </Text>
             )}
           </Stack>
         </Paper>
@@ -728,26 +478,6 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
           </Tooltip>
         </Stack>
       </Paper>
-
-      {/* Update Modal */}
-      {updateSummary && (config?.appVersion || !!desktopInstall) && (
-        <UpdateModal
-          opened={updateModalOpened}
-          onClose={() => setUpdateModalOpened(false)}
-          onRemindLater={() => {
-            localStorage.setItem(
-              "rustlingpdf-updater:snoozedUntil",
-              String(Date.now() + 24 * 60 * 60 * 1000),
-            );
-          }}
-          currentVersion={appVersion ?? config?.appVersion ?? ""}
-          updateSummary={updateSummary}
-          machineInfo={{
-            machineType: config?.machineType ?? "unknown",
-          }}
-          desktopInstall={desktopInstallProps}
-        />
-      )}
     </Stack>
   );
 };

@@ -1887,22 +1887,6 @@ title = "Kako obrezati PDF-je"
 [defaultApp]
 title = "Nastavi kot privzeto aplikacijo za PDF"
 
-[desktopUpdate]
-downloading = "Prenašanje posodobitve..."
-installing = "Nameščanje posodobitve..."
-installingWarning = "Aplikacija se bo samodejno zaprla za dokončanje namestitve."
-installNow = "Namesti zdaj"
-readyToRestart = "Posodobitev pripravljena"
-restartMessage = "Posodobitev je nameščena. Znova zaženite aplikacijo za dokončanje."
-restartNow = "Znova zaženi zdaj"
-updateFailed = "Posodobitev ni uspela"
-updateFailedMessage = "Posodobitve ni uspelo prenesti ali namestiti."
-
-[desktopUpdate.blocked]
-docsLink = "Ogled dokumentacije za namestitev"
-message = "RustlingPDF nima dovoljenja, da se na tem računalniku posodobi."
-title = "Zahtevana skrbniška dovoljenja"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Bralnik"
 tools = "Orodja"
 
 [settings.general.updates]
-checkForUpdates = "Preveri posodobitve"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Preverite posodobitve in glejte informacije o različici"
-latestVersion = "Najnovejša različica"
-managedByAdmin = "Upravlja skrbnik"
-modeAuto = "Samodejno nameščaj posodobitve"
-modeDisabled = "Ne preverjaj posodobitev"
-modePrompt = "Pred namestitvijo posodobitev vprašaj"
-title = "Posodobitve programske opreme"
-updateBehavior = "Obnašanje posodobitev"
-updateBehaviorDescription = "Izberite, ali naj vas sistem pred namestitvijo posodobitev vpraša, jih samodejno namesti ali povsem preskoči preverjanje posodobitev."
-updateBehaviorLockedDescription = "Vaš skrbnik je nastavil, kako RustlingPDF upravlja posodobitve na tem računalniku. Za spremembo ga kontaktirajte."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Poglej podrobnosti"
 
 [settings.general.zoomLevel]
 auto = "Samodejno"
@@ -4752,42 +4724,6 @@ failed = "Pri odklepanju obrazcev PDF je prišlo do napake."
 
 [unlockPDFForms.results]
 title = "Rezultati odklepanja obrazcev"
-
-[update]
-allReleases = "Vse izdaje"
-breaking = "Prelomne"
-breakingChanges = "Prelomne spremembe"
-breakingChangesDefault = "Ta različica vsebuje prelomne spremembe."
-close = "Zapri"
-closeModal = "Zapri okno posodobitev"
-current = "Trenutna različica"
-defaultRecommendation = "Ta posodobitev vsebuje pomembne popravke in izboljšave."
-downloadLatest = "Prenesi najnovejše"
-later = "Kasneje"
-latest = "Najnovejša različica"
-loadingDetailedInfo = "Nalaganje podrobnih informacij..."
-migrationGuide = "Vodič za migracijo"
-migrationGuides = "Vodiči za migracijo"
-migrationGuidesDesc = "Pred posodobitvijo preglejte pomembne spremembe."
-modalSubtitle = "Nova različica RustlingPDF je pripravljena za namestitev."
-modalTitle = "Na voljo je posodobitev"
-notes = "Opombe"
-releaseNotes = "Opombe ob izdaji"
-showLess = "Pokaži manj različic"
-showMore = "Pokaži vseh {{count}} različic"
-stable = "STABILNO"
-updateAvailable = "Na voljo je posodobitev"
-urgentUpdateAvailable = "Nujna posodobitev"
-version = "Različica"
-versionHistory = "Zgodovina različic"
-viewGuide = "Poglej vodič"
-whatsNewIn = "Novosti v"
-
-[update.priority]
-low = "Nizka"
-minor = "Manjše"
-normal = "Običajno"
-urgent = "Nujno"
 
 [URLToPDF]
 tags = "zajem-spleta,shrani-stran,splet-v-dokument,arhiv"

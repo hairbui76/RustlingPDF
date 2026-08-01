@@ -1887,22 +1887,6 @@ title = "PDFകൾ എങ്ങനെ ക്രോപ്പ് ചെയ്യ�
 [defaultApp]
 title = "സ്വതേയുള്ള PDF ആപ്പായി സജ്ജമാക്കുക"
 
-[desktopUpdate]
-downloading = "അപ്ഡേറ്റ് ഡൗൺലോഡ് ചെയ്യുന്നു..."
-installing = "അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യുന്നു..."
-installingWarning = "ഇൻസ്റ്റാളേഷൻ പൂർത്തിയാക്കാൻ ആപ്പ് സ്വയമേവ അടയ്ക്കും."
-installNow = "ഇപ്പോൾ ഇൻസ്റ്റാൾ ചെയ്യുക"
-readyToRestart = "അപ്ഡേറ്റ് തയ്യാറായി"
-restartMessage = "അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്തു. പൂർത്തിയാക്കാൻ ആപ്പ് റീസ്റ്റാർട്ട് ചെയ്യുക."
-restartNow = "ഇപ്പോൾ റീസ്റ്റാർട്ട് ചെയ്യുക"
-updateFailed = "അപ്ഡേറ്റ് പരാജയപ്പെട്ടു"
-updateFailedMessage = "അപ്ഡേറ്റ് ഡൗൺലോഡ് ചെയ്യുകയോ ഇൻസ്റ്റാൾ ചെയ്യുകയോ പരാജയപ്പെട്ടു."
-
-[desktopUpdate.blocked]
-docsLink = "ഇൻസ്റ്റാളേഷൻ ഡോക്യുമെന്റേഷൻ കാണുക"
-message = "ഈ മെഷീനിൽ RustlingPDF നെ സ്വയം അപ്ഡേറ്റ് ചെയ്യാൻ അനുമതി ഇല്ല."
-title = "അഡ്മിനിസ്‌ട്രേറ്റർ അനുമതി ആവശ്യമാണ്"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "റീഡർ"
 tools = "ടൂളുകൾ"
 
 [settings.general.updates]
-checkForUpdates = "അപ്‌ഡേറ്റുകൾ പരിശോധിക്കുക"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "അപ്‌ഡേറ്റുകൾ പരിശോധിക്കുകയും പതിപ്പിന്റെ വിവരങ്ങൾ കാണുകയും ചെയ്യുക"
-latestVersion = "പുതിയ പതിപ്പ്"
-managedByAdmin = "അഡ്മിനിസ്‌ട്രേറ്റർ കൈകാര്യം ചെയ്യുന്നു"
-modeAuto = "അപ്ഡേറ്റുകൾ സ്വയമേവ ഇൻസ്റ്റാൾ ചെയ്യുക"
-modeDisabled = "അപ്ഡേറ്റുകൾക്കായി പരിശോധിക്കരുത്"
-modePrompt = "അപ്ഡേറ്റുകൾ ഇൻസ്റ്റാൾ ചെയ്യുന്നതിന് മുമ്പ് ചോദിക്കുക"
-title = "സോഫ്റ്റ്‌വെയർ അപ്‌ഡേറ്റുകൾ"
-updateBehavior = "അപ്ഡേറ്റ് പെരുമാറ്റം"
-updateBehaviorDescription = "അപ്ഡേറ്റുകൾ ഇൻസ്റ്റാൾ ചെയ്യുന്നതിന് മുൻപ് ചോദിക്കണോ, സ്വയം ഇൻസ്റ്റാൾ ചെയ്യണോ, അല്ലെങ്കിൽ അപ്ഡേറ്റ് പരിശോധന പൂർണ്ണമായി ഒഴിവാക്കണോ എന്ന് തിരഞ്ഞെടുക്കുക."
-updateBehaviorLockedDescription = "ഈ മെഷീനിൽ RustlingPDF അപ്ഡേറ്റുകൾ എങ്ങനെ കൈകാര്യം ചെയ്യണമെന്ന് നിങ്ങളുടെ അഡ്മിൻ ക്രമീകരിച്ചിരിക്കുന്നു. മാറ്റാൻ അവരെ ബന്ധപ്പെടുക."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "വിശദാംശങ്ങൾ കാണുക"
 
 [settings.general.zoomLevel]
 auto = "ഓട്ടോ"
@@ -4752,42 +4724,6 @@ failed = "PDF ഫോമുകൾ അൺലോക്ക് ചെയ്യുന�
 
 [unlockPDFForms.results]
 title = "അൺലോക്ക് ചെയ്ത ഫോമുകളുടെ ഫലം"
-
-[update]
-allReleases = "എല്ലാ റിലീസുകളും"
-breaking = "ബ്രേക്കിംഗ്"
-breakingChanges = "ബ്രേക്കിംഗ് മാറ്റങ്ങൾ"
-breakingChangesDefault = "ഈ പതിപ്പിൽ Breaking Changes ഉണ്ട്."
-close = "അടയ്ക്കുക"
-closeModal = "അപ്‌ഡേറ്റ് മോഡൽ അടയ്ക്കുക"
-current = "ഇപ്പോഴത്തെ പതിപ്പ്"
-defaultRecommendation = "ഈ അപ്ഡേറ്റിൽ പ്രധാനപ്പെട്ട പരിഹാരങ്ങളും മെച്ചപ്പെടുത്തലുകളും ഉൾപ്പെടുന്നു."
-downloadLatest = "പുതിയത് ഡൗൺലോഡ് ചെയ്യുക"
-later = "പിന്നീട്"
-latest = "പുതിയ പതിപ്പ്"
-loadingDetailedInfo = "വിശദമായ വിവരങ്ങൾ ലോഡുചെയ്യുന്നു..."
-migrationGuide = "മൈഗ്രേഷൻ ഗൈഡ്"
-migrationGuides = "മൈഗ്രേഷൻ ഗൈഡുകൾ"
-migrationGuidesDesc = "അപ്‌ഡേറ്റ് ചെയ്യുന്നതിനുമുമ്പ് പ്രധാന മാറ്റങ്ങൾ പരിശോധിക്കുക."
-modalSubtitle = "RustlingPDF-യുടെ ഒരു പുതിയ വേർഷൻ ഇൻസ്റ്റാൾ ചെയ്യാൻ തയ്യാറാണ്."
-modalTitle = "അപ്‌ഡേറ്റ് ലഭ്യമാണ്"
-notes = "കുറിപ്പുകൾ"
-releaseNotes = "റിലീസ് നോട്ടുകൾ"
-showLess = "കുറച്ച് വേർഷനുകൾ കാണിക്കുക"
-showMore = "എല്ലാ {{count}} വേർഷനുകളും കാണിക്കുക"
-stable = "STABLE"
-updateAvailable = "അപ്‌ഡേറ്റ് ലഭ്യമാണ്"
-urgentUpdateAvailable = "ത്വരിത അപ്‌ഡേറ്റ്"
-version = "പതിപ്പ്"
-versionHistory = "വേർഷൻ ചരിത്രം"
-viewGuide = "ഗൈഡ് കാണുക"
-whatsNewIn = "ഇതിലെ പുതുമകൾ"
-
-[update.priority]
-low = "താഴ്ന്നത്"
-minor = "ചെറുത്"
-normal = "സാധാരണം"
-urgent = "ത്വരിതം"
 
 [URLToPDF]
 tags = "വെബ്-ക്യാപ്ചർ,പേജ്-സംരക്ഷിക്കുക,വെബ്-ടു-ഡോക്,ആർക്കൈവ്"

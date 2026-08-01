@@ -8,8 +8,13 @@ the optional AI engine:
 - `POST /api/v1/ai/tools/document-translation`
 
 The processing service accepts the PDF, extracts bounded page text locally, and
-sends only that text plus the requested operation settings to the separately
-configured AI engine. PDF bytes are never sent to the model provider. Each
+sends that text, the requested operation settings, and **the file name** to the
+separately configured AI engine, which puts all of them in the prompt it sends
+to the provider. PDF bytes are never sent to the model provider. Note that a
+file name can itself be personal data — `Invoice - Jane Doe - 2026.pdf` — and
+these routes do not currently tell the user it travels; sending it is
+inaccurate to describe as "settings only", and removing or gating it is a
+tracked follow-up. Each
 operation is a single request: neither service stores the PDF, extracted text,
 prompt, or result after the response completes. The source PDF is never
 modified.

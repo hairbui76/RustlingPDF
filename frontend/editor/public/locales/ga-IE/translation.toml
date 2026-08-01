@@ -1887,22 +1887,6 @@ title = "Conas PDFanna a Bhearradh"
 [defaultApp]
 title = "Socraigh mar Aip PDF Réamhshocraithe"
 
-[desktopUpdate]
-downloading = "Nuashonrú á íoslódáil..."
-installing = "Nuashonrú á shuiteáil..."
-installingWarning = "Dúnfaidh an aip go huathoibríoch chun an tsuiteáil a chríochnú."
-installNow = "Suiteáil Anois"
-readyToRestart = "Nuashonrú Réidh"
-restartMessage = "Tá an nuashonrú suiteáilte. Atosaigh an aip chun críochnú."
-restartNow = "Atosaigh Anois"
-updateFailed = "Theip ar an Nuashonrú"
-updateFailedMessage = "Theip ar íoslódáil nó ar shuiteáil an nuashonraithe."
-
-[desktopUpdate.blocked]
-docsLink = "Féach ar dhoiciméadú suiteála"
-message = "Níl cead ag RustlingPDF é féin a nuashonrú ar an meaisín seo."
-title = "Teastaíonn ceadanna riarthóra"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Léitheoir"
 tools = "Uirlisí"
 
 [settings.general.updates]
-checkForUpdates = "Seiceáil le haghaidh Nuashonruithe"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Seiceáil le haghaidh nuashonruithe agus féach faisnéis leagain"
-latestVersion = "Leagan is Déanaí"
-managedByAdmin = "Á bhainistiú ag riarthóir"
-modeAuto = "Suiteáil nuashonruithe go huathoibríoch"
-modeDisabled = "Ná seiceáil le haghaidh nuashonruithe"
-modePrompt = "Fiafraigh díom sula suiteálfar nuashonruithe"
-title = "Nuashonruithe Bogearraí"
-updateBehavior = "Iompar nuashonruithe"
-updateBehaviorDescription = "Roghnaigh an dtabharfar leid roimh shuiteáil nuashonruithe, an suiteálfar go huathoibríoch iad, nó an scipeálfar seiceálacha nuashonraithe go hiomlán."
-updateBehaviorLockedDescription = "Tá do riarthóir tar éis a chumrú conas a láimhseálann RustlingPDF nuashonruithe ar an meaisín seo. Déan teagmháil leo chun é seo a athrú."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Féach Sonraí"
 
 [settings.general.zoomLevel]
 auto = "Uathoibríoch"
@@ -4752,42 +4724,6 @@ failed = "Tharla earráid agus foirmeacha PDF á ndíghlasáil."
 
 [unlockPDFForms.results]
 title = "Torthaí Díghlasála Foirmeacha"
-
-[update]
-allReleases = "Gach Eisiúint"
-breaking = "Briseadh comhoiriúnachta"
-breakingChanges = "Athruithe Bristeacha"
-breakingChangesDefault = "Tá athruithe bristeacha sa leagan seo."
-close = "Dún"
-closeModal = "Dún an modail nuashonraithe"
-current = "Leagan Reatha"
-defaultRecommendation = "Tá socruithe tábhachtacha agus feabhsuithe sa nuashonrú seo."
-downloadLatest = "Íoslódáil an ceann is déanaí"
-later = "Níos déanaí"
-latest = "Leagan is Déanaí"
-loadingDetailedInfo = "Ag lódáil eolas mionsonraithe..."
-migrationGuide = "Treoir Imirce"
-migrationGuides = "Treoracha Imirce"
-migrationGuidesDesc = "Athbhreithnigh na hathruithe tábhachtacha sula nuashonraítear."
-modalSubtitle = "Tá leagan nua de RustlingPDF réidh le suiteáil."
-modalTitle = "Nuashonrú ar Fáil"
-notes = "Nótaí"
-releaseNotes = "Nótaí Eisiúna"
-showLess = "Taispeáin níos lú leaganacha"
-showMore = "Taispeáin gach ceann de na {{count}} leaganacha"
-stable = "STABLE"
-updateAvailable = "Nuashonrú ar Fáil"
-urgentUpdateAvailable = "Nuashonrú Práinneach"
-version = "Leagan"
-versionHistory = "Stair Leaganacha"
-viewGuide = "Féach Treoir"
-whatsNewIn = "Cad atá nua i"
-
-[update.priority]
-low = "Íseal"
-minor = "Mion"
-normal = "Gnáth"
-urgent = "Práinneach"
 
 [URLToPDF]
 tags = "gréasán a ghabháil, a shábháil-leathanach, gréasán-go-doc, cartlann"

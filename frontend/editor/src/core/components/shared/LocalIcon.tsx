@@ -1,21 +1,27 @@
 import React from "react";
-import { addCollection, Icon } from "@iconify/react";
+// `@iconify/react/offline` deliberately, NOT `@iconify/react`. The default
+// entrypoint silently fetches any icon missing from the bundled set from
+// api.iconify.design, which would leak the user's IP, User-Agent and the icon
+// name with no consent and no off switch. The offline build contains no API
+// client at all, so a missing icon renders nothing and is caught in review
+// instead of phoning home. `scripts/generate-icons.js` bundles every icon the
+// codebase references, which is what makes this safe.
+import { addCollection, Icon } from "@iconify/react/offline";
 import iconSet from "../../../assets/material-symbols-icons.json"; // eslint-disable-line no-restricted-imports -- Outside app paths
 
 // Load icons synchronously at import time - guaranteed to be ready on first render
-let iconsLoaded = false;
-
 try {
   if (iconSet) {
     addCollection(iconSet);
-    iconsLoaded = true;
     const localIconCount = Object.keys(iconSet.icons || {}).length;
     console.info(
       `✅ Local icons loaded: ${localIconCount} icons (${Math.round(JSON.stringify(iconSet).length / 1024)}KB)`,
     );
   }
 } catch {
-  console.info("ℹ️  Local icons not available - using CDN fallback");
+  console.error(
+    "Local icon set failed to load — icons will not render. Re-run `task frontend:prepare`.",
+  );
 }
 
 interface LocalIconProps {
@@ -42,16 +48,6 @@ export const LocalIcon: React.FC<LocalIconProps> = ({
     ? icon
     : `material-symbols:${icon}`;
 
-  // Development logging (only in dev mode)
-  if (process.env.NODE_ENV === "development") {
-    const logKey = `icon-${iconName}`;
-    if (!sessionStorage.getItem(logKey)) {
-      const source = iconsLoaded ? "local" : "CDN";
-      console.debug(`🎯 Icon: ${iconName} (${source})`);
-      sessionStorage.setItem(logKey, "logged");
-    }
-  }
-
   const iconStyle: React.CSSProperties = { ...style };
 
   // Use width if provided, otherwise fall back to height
@@ -64,7 +60,7 @@ export const LocalIcon: React.FC<LocalIconProps> = ({
     iconStyle.fontSize = `${size}px`;
   }
 
-  // Always render the icon - Iconify will use local if available, CDN if not
+  // Renders from the bundled collection only; there is no network fallback.
   return <Icon icon={iconName} style={iconStyle} {...props} />;
 };
 

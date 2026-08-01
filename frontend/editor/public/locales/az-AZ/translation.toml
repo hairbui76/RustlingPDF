@@ -1887,22 +1887,6 @@ title = "PDF-ləri necə kəsmək olar"
 [defaultApp]
 title = "Standart PDF tətbiqi kimi təyin et"
 
-[desktopUpdate]
-downloading = "Yeniləmə endirilir..."
-installing = "Yeniləmə quraşdırılır..."
-installingWarning = "Quraşdırmanı tamamlamaq üçün tətbiq avtomatik bağlanacaq."
-installNow = "İndi quraşdır"
-readyToRestart = "Yeniləmə hazırdır"
-restartMessage = "Yeniləmə quraşdırılıb. Tamamlamaq üçün tətbiqi yenidən başladın."
-restartNow = "İndi yenidən başlat"
-updateFailed = "Yeniləmə uğursuz oldu"
-updateFailedMessage = "Yeniləməni endirmək və ya quraşdırmaq alınmadı."
-
-[desktopUpdate.blocked]
-docsLink = "Quraşdırma sənədlərinə bax"
-message = "RustlingPDF bu kompüterdə özünü yeniləmək üçün icazəyə malik deyil."
-title = "Administrator icazələri tələb olunur"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Oxuyucu"
 tools = "Alətlər"
 
 [settings.general.updates]
-checkForUpdates = "Yeniləmələri yoxla"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Yeniləmələri yoxlayın və versiya məlumatlarını görün"
-latestVersion = "Ən son versiya"
-managedByAdmin = "Administrator tərəfindən idarə olunur"
-modeAuto = "Yeniləmələri avtomatik quraşdır"
-modeDisabled = "Yeniləmələri yoxlama"
-modePrompt = "Yeniləmədən əvvəl məndən soruş"
-title = "Proqram yeniləmələri"
-updateBehavior = "Yeniləmə davranışı"
-updateBehaviorDescription = "Yeniləmələri quraşdırmadan əvvəl xəbərdarlıq etmək, onları avtomatik quraşdırmaq və ya ümumiyyətlə yoxlamamaq seçimlərini edin."
-updateBehaviorLockedDescription = "Administratorunuz bu kompüterdə RustlingPDF-in yeniləmələri necə idarə etdiyini qurub. Dəyişdirmək üçün onunla əlaqə saxlayın."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Ətraflı bax"
 
 [settings.general.zoomLevel]
 auto = "Avtomatik"
@@ -4752,42 +4724,6 @@ failed = "PDF formalarının kilidini açarkən xəta baş verdi."
 
 [unlockPDFForms.results]
 title = "Açılmış formalar nəticələri"
-
-[update]
-allReleases = "Bütün buraxılışlar"
-breaking = "Uyğunluğu pozan"
-breakingChanges = "Uyğunluğu pozan dəyişikliklər"
-breakingChangesDefault = "Bu versiya uyğunluğu pozan dəyişikliklər ehtiva edir."
-close = "Bağla"
-closeModal = "Yeniləmə pəncərəsini bağla"
-current = "Cari versiya"
-defaultRecommendation = "Bu yeniləmə vacib düzəlişlər və təkmilləşdirmələr ehtiva edir."
-downloadLatest = "Ən sonunu yüklə"
-later = "Sonra"
-latest = "Ən son versiya"
-loadingDetailedInfo = "Ətraflı məlumat yüklənir..."
-migrationGuide = "Miqrasiya bələdçisi"
-migrationGuides = "Miqrasiya bələdçiləri"
-migrationGuidesDesc = "Yeniləməzdən əvvəl vacib dəyişiklikləri nəzərdən keçirin."
-modalSubtitle = "RustlingPDF-in yeni versiyası quraşdırmağa hazırdır."
-modalTitle = "Yeniləmə mövcuddur"
-notes = "Qeydlər"
-releaseNotes = "Buraxılış qeydləri"
-showLess = "Daha az versiya göstər"
-showMore = "Bütün {{count}} versiyanı göstər"
-stable = "STABLE"
-updateAvailable = "Yeniləmə mövcuddur"
-urgentUpdateAvailable = "Təcili yeniləmə"
-version = "Versiya"
-versionHistory = "Versiya tarixi"
-viewGuide = "Bələdçiyə bax"
-whatsNewIn = "Nə yenidir"
-
-[update.priority]
-low = "Aşağı"
-minor = "Kiçik"
-normal = "Normal"
-urgent = "Təcili"
 
 [URLToPDF]
 tags = "veb,səhifəni-saxla,webdən-sənədə,arxiv"

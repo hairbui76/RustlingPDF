@@ -2,7 +2,7 @@ import type { MouseEvent } from "react";
 
 /**
  * Click handler for external `<a target="_blank">` links rendered by shared
- * components (e.g. UpdateModal release notes / migration guides).
+ * components (e.g. the footer's legal and repository links).
  *
  * In a normal browser a `target="_blank"` anchor already opens the URL in a new
  * tab, so this default does nothing and lets the native navigation proceed.

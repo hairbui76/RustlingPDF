@@ -1887,22 +1887,6 @@ title = "PDF's bijsnijden"
 [defaultApp]
 title = "Instellen als standaard PDF-app"
 
-[desktopUpdate]
-downloading = "Update downloaden..."
-installing = "Update installeren..."
-installingWarning = "De app wordt automatisch gesloten om de installatie te voltooien."
-installNow = "Nu installeren"
-readyToRestart = "Update gereed"
-restartMessage = "De update is geïnstalleerd. Herstart de app om te voltooien."
-restartNow = "Nu herstarten"
-updateFailed = "Update mislukt"
-updateFailedMessage = "Het downloaden of installeren van de update is mislukt."
-
-[desktopUpdate.blocked]
-docsLink = "Installatiedocumentatie bekijken"
-message = "RustlingPDF heeft geen toestemming om zichzelf op deze machine te updaten."
-title = "Beheerdersrechten vereist"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Lezer"
 tools = "Tools"
 
 [settings.general.updates]
-checkForUpdates = "Op updates controleren"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Controleer op updates en bekijk versie-informatie"
-latestVersion = "Laatste versie"
-managedByAdmin = "Beheerd door beheerder"
-modeAuto = "Updates automatisch installeren"
-modeDisabled = "Niet op updates controleren"
-modePrompt = "Mij vragen voordat updates worden geïnstalleerd"
-title = "Software-updates"
-updateBehavior = "Updategedrag"
-updateBehaviorDescription = "Kies of u een prompt wilt voordat updates worden geïnstalleerd, ze automatisch wilt installeren of updatecontroles volledig wilt overslaan."
-updateBehaviorLockedDescription = "Uw beheerder heeft geconfigureerd hoe RustlingPDF updates op deze machine afhandelt. Neem contact met hen op om dit te wijzigen."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Details bekijken"
 
 [settings.general.zoomLevel]
 auto = "Automatisch"
@@ -4752,42 +4724,6 @@ failed = "Er is een fout opgetreden bij het ontgrendelen van PDF-formulieren."
 
 [unlockPDFForms.results]
 title = "Resultaten ontgrendelde formulieren"
-
-[update]
-allReleases = "Alle releases"
-breaking = "Breaking"
-breakingChanges = "Incompatibele wijzigingen"
-breakingChangesDefault = "Deze versie bevat incompatibele wijzigingen."
-close = "Sluiten"
-closeModal = "Updatevenster sluiten"
-current = "Huidige versie"
-defaultRecommendation = "Deze update bevat belangrijke fixes en verbeteringen."
-downloadLatest = "Nieuwste downloaden"
-later = "Later"
-latest = "Laatste versie"
-loadingDetailedInfo = "Gedetailleerde informatie laden..."
-migrationGuide = "Migratiehandleiding"
-migrationGuides = "Migratiehandleidingen"
-migrationGuidesDesc = "Bekijk belangrijke wijzigingen voordat u updatet."
-modalSubtitle = "Een nieuwe versie van RustlingPDF is klaar om te installeren."
-modalTitle = "Update beschikbaar"
-notes = "Notities"
-releaseNotes = "Release-opmerkingen"
-showLess = "Minder versies weergeven"
-showMore = "Alle {{count}} versies weergeven"
-stable = "STABLE"
-updateAvailable = "Update beschikbaar"
-urgentUpdateAvailable = "Dringende update"
-version = "Versie"
-versionHistory = "Versiegeschiedenis"
-viewGuide = "Handleiding bekijken"
-whatsNewIn = "Wat is nieuw in"
-
-[update.priority]
-low = "Laag"
-minor = "Licht"
-normal = "Normaal"
-urgent = "Dringend"
 
 [URLToPDF]
 tags = "web-capture,pagina opslaan,web-naar-doc,archief"

@@ -1887,22 +1887,6 @@ title = "Cum să decupați PDF-uri"
 [defaultApp]
 title = "Setează ca aplicație PDF implicită"
 
-[desktopUpdate]
-downloading = "Se descarcă actualizarea..."
-installing = "Se instalează actualizarea..."
-installingWarning = "Aplicația se va închide automat pentru a finaliza instalarea."
-installNow = "Instalați acum"
-readyToRestart = "Actualizare pregătită"
-restartMessage = "Actualizarea a fost instalată. Reporniți aplicația pentru a finaliza."
-restartNow = "Reporniți acum"
-updateFailed = "Actualizare eșuată"
-updateFailedMessage = "Nu s-a putut descărca sau instala actualizarea."
-
-[desktopUpdate.blocked]
-docsLink = "Vizualizați documentația de instalare"
-message = "RustlingPDF nu are permisiunea de a se actualiza singur pe această mașină."
-title = "Sunt necesare permisiuni de administrator"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Cititor"
 tools = "Instrumente"
 
 [settings.general.updates]
-checkForUpdates = "Caută actualizări"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Caută actualizări și vezi informații despre versiune"
-latestVersion = "Ultima versiune"
-managedByAdmin = "Gestionat de administrator"
-modeAuto = "Instalați actualizările automat"
-modeDisabled = "Nu verificați actualizările"
-modePrompt = "Întrebați-mă înainte de a instala actualizările"
-title = "Actualizări software"
-updateBehavior = "Comportament actualizare"
-updateBehaviorDescription = "Alegeți dacă să fiți întrebat înainte de instalarea actualizărilor, să le instalați automat sau să omiteți complet verificările de actualizare."
-updateBehaviorLockedDescription = "Administratorul a configurat modul în care RustlingPDF gestionează actualizările pe această mașină. Contactați-l pentru modificări."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Vezi detalii"
 
 [settings.general.zoomLevel]
 auto = "Auto"
@@ -4752,42 +4724,6 @@ failed = "A apărut o eroare la deblocarea formularelor PDF."
 
 [unlockPDFForms.results]
 title = "Rezultatele deblocării formularelor"
-
-[update]
-allReleases = "Toate versiunile"
-breaking = "Schimbări majore"
-breakingChanges = "Modificări incompatibile"
-breakingChangesDefault = "Această versiune conține modificări incompatibile."
-close = "Închide"
-closeModal = "Închideți fereastra de actualizare"
-current = "Versiune curentă"
-defaultRecommendation = "Această actualizare conține remedieri și îmbunătățiri importante."
-downloadLatest = "Descarcă cea mai recentă"
-later = "Mai târziu"
-latest = "Ultima versiune"
-loadingDetailedInfo = "Se încarcă informațiile detaliate..."
-migrationGuide = "Ghid de migrare"
-migrationGuides = "Ghiduri de migrare"
-migrationGuidesDesc = "Revizuiți schimbările importante înainte de actualizare."
-modalSubtitle = "O nouă versiune a RustlingPDF este gata de instalare."
-modalTitle = "Actualizare disponibilă"
-notes = "Note"
-releaseNotes = "Note de versiune"
-showLess = "Afișați mai puține versiuni"
-showMore = "Afișați toate cele {{count}} versiuni"
-stable = "STABIL"
-updateAvailable = "Actualizare disponibilă"
-urgentUpdateAvailable = "Actualizare urgentă"
-version = "Versiune"
-versionHistory = "Istoricul versiunilor"
-viewGuide = "Vezi ghidul"
-whatsNewIn = "Noutăți în"
-
-[update.priority]
-low = "Scăzută"
-minor = "Minoră"
-normal = "Normală"
-urgent = "Urgentă"
 
 [URLToPDF]
 tags = "captură-web,salvează-pagina,web-în-document,arhivează"

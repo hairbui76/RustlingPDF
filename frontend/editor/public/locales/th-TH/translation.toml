@@ -1887,22 +1887,6 @@ title = "วิธีครอบตัด PDF"
 [defaultApp]
 title = "ตั้งเป็นแอป PDF เริ่มต้น"
 
-[desktopUpdate]
-downloading = "กำลังดาวน์โหลดอัปเดต..."
-installing = "กำลังติดตั้งอัปเดต..."
-installingWarning = "แอปจะปิดโดยอัตโนมัติเพื่อทำการติดตั้งให้เสร็จสมบูรณ์."
-installNow = "ติดตั้งเดี๋ยวนี้"
-readyToRestart = "อัปเดตพร้อมแล้ว"
-restartMessage = "ติดตั้งการอัปเดตแล้ว รีสตาร์ทแอปเพื่อเสร็จสิ้น."
-restartNow = "รีสตาร์ทตอนนี้"
-updateFailed = "อัปเดตล้มเหลว"
-updateFailedMessage = "ไม่สามารถดาวน์โหลดหรือติดตั้งการอัปเดตได้."
-
-[desktopUpdate.blocked]
-docsLink = "ดูเอกสารการติดตั้ง"
-message = "RustlingPDF ไม่มีสิทธิ์ในการอัปเดตตัวเองบนเครื่องนี้."
-title = "ต้องมีสิทธิ์ผู้ดูแลระบบ"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "ตัวอ่าน"
 tools = "เครื่องมือ"
 
 [settings.general.updates]
-checkForUpdates = "ตรวจสอบอัปเดต"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "ตรวจสอบอัปเดตและดูข้อมูลเวอร์ชัน"
-latestVersion = "เวอร์ชันล่าสุด"
-managedByAdmin = "จัดการโดยผู้ดูแลระบบ"
-modeAuto = "ติดตั้งอัปเดตอัตโนมัติ"
-modeDisabled = "ไม่ตรวจสอบอัปเดต"
-modePrompt = "ถามฉันก่อนติดตั้งอัปเดต"
-title = "อัปเดตซอฟต์แวร์"
-updateBehavior = "พฤติกรรมการอัปเดต"
-updateBehaviorDescription = "เลือกว่าจะให้ถามก่อนติดตั้งอัปเดต ติดตั้งอัตโนมัติ หรือข้ามการตรวจสอบอัปเดตทั้งหมด."
-updateBehaviorLockedDescription = "ผู้ดูแลระบบของคุณได้กำหนดค่าไว้ว่า RustlingPDF จัดการการอัปเดตบนเครื่องนี้อย่างไร โปรดติดต่อพวกเขาหากต้องการเปลี่ยนแปลง."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "ดูรายละเอียด"
 
 [settings.general.zoomLevel]
 auto = "อัตโนมัติ"
@@ -4752,42 +4724,6 @@ failed = "เกิดข้อผิดพลาดระหว่างกา�
 
 [unlockPDFForms.results]
 title = "ผลการปลดล็อกฟอร์ม"
-
-[update]
-allReleases = "รุ่นทั้งหมด"
-breaking = "Breaking"
-breakingChanges = "การเปลี่ยนแปลงที่มีผลกระทบ"
-breakingChangesDefault = "เวอร์ชันนี้มีการเปลี่ยนแปลงที่มีผลกระทบ"
-close = "ปิด"
-closeModal = "ปิดหน้าต่างอัปเดต"
-current = "เวอร์ชันปัจจุบัน"
-defaultRecommendation = "การอัปเดตนี้มีการแก้ไขและปรับปรุงที่สำคัญ."
-downloadLatest = "ดาวน์โหลดล่าสุด"
-later = "ภายหลัง"
-latest = "เวอร์ชันล่าสุด"
-loadingDetailedInfo = "กำลังโหลดข้อมูลรายละเอียด..."
-migrationGuide = "คู่มือการย้าย"
-migrationGuides = "คู่มือการย้าย"
-migrationGuidesDesc = "ตรวจสอบการเปลี่ยนแปลงสำคัญก่อนอัปเดต."
-modalSubtitle = "มีเวอร์ชันใหม่ของ RustlingPDF พร้อมติดตั้งแล้ว."
-modalTitle = "มีอัปเดต"
-notes = "บันทึก"
-releaseNotes = "บันทึกรุ่น"
-showLess = "แสดงเวอร์ชันน้อยลง"
-showMore = "แสดงทั้งหมด {{count}} เวอร์ชัน"
-stable = "STABLE"
-updateAvailable = "มีอัปเดต"
-urgentUpdateAvailable = "อัปเดตเร่งด่วน"
-version = "เวอร์ชัน"
-versionHistory = "ประวัติเวอร์ชัน"
-viewGuide = "ดูคู่มือ"
-whatsNewIn = "มีอะไรใหม่ใน"
-
-[update.priority]
-low = "ต่ำ"
-minor = "เล็กน้อย"
-normal = "ปกติ"
-urgent = "เร่งด่วน"
 
 [URLToPDF]
 tags = "จับเว็บ, บันทึกหน้า, เว็บเป็นเอกสาร, จัดเก็บ"

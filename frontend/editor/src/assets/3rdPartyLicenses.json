@@ -253,20 +253,6 @@
       "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
     },
     {
-      "moduleName": "@stripe/react-stripe-js",
-      "moduleUrl": "https://github.com/stripe/react-stripe-js",
-      "moduleVersion": "4.0.2",
-      "moduleLicense": "MIT",
-      "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
-    },
-    {
-      "moduleName": "@stripe/stripe-js",
-      "moduleUrl": "https://github.com/stripe/stripe-js",
-      "moduleVersion": "7.9.0",
-      "moduleLicense": "MIT",
-      "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
-    },
-    {
       "moduleName": "@tailwindcss/postcss",
       "moduleUrl": "https://github.com/tailwindlabs/tailwindcss",
       "moduleVersion": "4.3.3",
@@ -327,13 +313,6 @@
       "moduleUrl": "https://github.com/tauri-apps/plugins-workspace",
       "moduleVersion": "2.3.5",
       "moduleLicense": "MIT OR Apache-2.0",
-      "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
-    },
-    {
-      "moduleName": "@userback/widget",
-      "moduleUrl": "https://github.com/userback/widget-js",
-      "moduleVersion": "0.3.12",
-      "moduleLicense": "MIT",
       "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
     },
     {
@@ -398,13 +377,6 @@
       "moduleVersion": "5.5.207",
       "moduleLicense": "Apache-2.0",
       "moduleLicenseUrl": "https://www.apache.org/licenses/LICENSE-2.0"
-    },
-    {
-      "moduleName": "peerjs",
-      "moduleUrl": "https://github.com/peers/peerjs",
-      "moduleVersion": "1.5.5",
-      "moduleLicense": "MIT",
-      "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
     },
     {
       "moduleName": "pixelmatch",
@@ -503,13 +475,6 @@
       "moduleVersion": "4.3.3",
       "moduleLicense": "MIT",
       "moduleLicenseUrl": "https://opensource.org/licenses/MIT"
-    },
-    {
-      "moduleName": "web-vitals",
-      "moduleUrl": "https://github.com/GoogleChrome/web-vitals",
-      "moduleVersion": "5.3.0",
-      "moduleLicense": "Apache-2.0",
-      "moduleLicenseUrl": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     {
       "moduleName": "qpdf",

@@ -7,7 +7,6 @@ export interface AppConfig {
   languages?: string[];
   defaultLocale?: string;
   logoStyle?: "modern" | "classic";
-  shouldShowUpdate?: boolean;
   enableAlphaFunctionality?: boolean;
   enableDesktopInstallSlide?: boolean;
   termsAndConditions?: string;

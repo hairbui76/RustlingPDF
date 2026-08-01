@@ -1887,22 +1887,6 @@ title = "Как да изрязвате PDF-и"
 [defaultApp]
 title = "Задай като приложение по подразбиране за PDF"
 
-[desktopUpdate]
-downloading = "Изтегляне на актуализация..."
-installing = "Инсталиране на актуализация..."
-installingWarning = "Приложението ще се затвори автоматично, за да завърши инсталацията."
-installNow = "Инсталирайте сега"
-readyToRestart = "Актуализацията е готова"
-restartMessage = "Актуализацията е инсталирана. Рестартирайте приложението, за да завършите."
-restartNow = "Рестартирайте сега"
-updateFailed = "Актуализацията не бе успешна"
-updateFailedMessage = "Неуспешно изтегляне или инсталиране на актуализацията."
-
-[desktopUpdate.blocked]
-docsLink = "Вижте документацията за инсталиране"
-message = "RustlingPDF няма разрешение да се актуализира сам на тази машина."
-title = "Необходими са администраторски права"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Четец"
 tools = "Инструменти"
 
 [settings.general.updates]
-checkForUpdates = "Провери за актуализации"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Проверете за актуализации и вижте информация за версията"
-latestVersion = "Последна версия"
-managedByAdmin = "Управлява се от администратор"
-modeAuto = "Инсталирай актуализациите автоматично"
-modeDisabled = "Не проверявай за актуализации"
-modePrompt = "Питай ме преди инсталиране на актуализации"
-title = "Актуализации на софтуера"
-updateBehavior = "Поведение при актуализации"
-updateBehaviorDescription = "Изберете дали да бъдете питани преди инсталиране на актуализации, да се инсталират автоматично, или изцяло да се пропускат проверките за актуализации."
-updateBehaviorLockedDescription = "Вашият администратор е конфигурирал как RustlingPDF обработва актуализациите на тази машина. Свържете се с него, за да промените това."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Виж подробности"
 
 [settings.general.zoomLevel]
 auto = "Автоматично"
@@ -4752,42 +4724,6 @@ failed = "Възникна грешка при отключването на PDF
 
 [unlockPDFForms.results]
 title = "Резултати от отключени формуляри"
-
-[update]
-allReleases = "Всички издания"
-breaking = "Несъвместими промени"
-breakingChanges = "Несъвместими промени"
-breakingChangesDefault = "Тази версия съдържа несъвместими промени."
-close = "Затвори"
-closeModal = "Затвори прозореца за актуализация"
-current = "Текуща версия"
-defaultRecommendation = "Тази актуализация съдържа важни поправки и подобрения."
-downloadLatest = "Изтегли последната"
-later = "По-късно"
-latest = "Последна версия"
-loadingDetailedInfo = "Зареждане на подробна информация..."
-migrationGuide = "Ръководство за миграция"
-migrationGuides = "Ръководства за миграция"
-migrationGuidesDesc = "Прегледайте важните промени преди актуализиране."
-modalSubtitle = "Нова версия на RustlingPDF е готова за инсталиране."
-modalTitle = "Налична е актуализация"
-notes = "Бележки"
-releaseNotes = "Бележки към изданието"
-showLess = "Покажи по-малко версии"
-showMore = "Покажи всички {{count}} версии"
-stable = "STABLE"
-updateAvailable = "Налична е актуализация"
-urgentUpdateAvailable = "Спешна актуализация"
-version = "Версия"
-versionHistory = "История на версиите"
-viewGuide = "Виж ръководството"
-whatsNewIn = "Какво ново в"
-
-[update.priority]
-low = "Нисък"
-minor = "Незначителен"
-normal = "Нормален"
-urgent = "Спешно"
 
 [URLToPDF]
 tags = "уеб-заснемане,запазване на страница,уеб към документ,архив"

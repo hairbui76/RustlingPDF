@@ -1887,22 +1887,6 @@ title = "Kako iseći PDF-ove"
 [defaultApp]
 title = "Postavi kao podrazumevanu PDF aplikaciju"
 
-[desktopUpdate]
-downloading = "Preuzimanje ažuriranja..."
-installing = "Instaliranje ažuriranja..."
-installingWarning = "Aplikacija će se automatski zatvoriti da bi završila instalaciju."
-installNow = "Instaliraj sada"
-readyToRestart = "Ažuriranje spremno"
-restartMessage = "Ažuriranje je instalirano. Ponovo pokrenite aplikaciju da biste završili."
-restartNow = "Ponovo pokreni sada"
-updateFailed = "Ažuriranje nije uspelo"
-updateFailedMessage = "Nije uspelo preuzimanje ili instalacija ažuriranja."
-
-[desktopUpdate.blocked]
-docsLink = "Prikaži dokumentaciju za instalaciju"
-message = "RustlingPDF nema dozvolu da se sam ažurira na ovoj mašini."
-title = "Potrebne su administratorske dozvole"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Čitač"
 tools = "Alati"
 
 [settings.general.updates]
-checkForUpdates = "Proveri ažuriranja"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Proverite ažuriranja i pogledajte informacije o verziji"
-latestVersion = "Najnovija verzija"
-managedByAdmin = "Upravlja administrator"
-modeAuto = "Automatski instaliraj ažuriranja"
-modeDisabled = "Ne proveravaj ažuriranja"
-modePrompt = "Pitaj pre instaliranja ažuriranja"
-title = "Ažuriranja softvera"
-updateBehavior = "Ponašanje pri ažuriranju"
-updateBehaviorDescription = "Izaberite da li želite upit pre instaliranja ažuriranja, automatsku instalaciju ili potpuno preskakanje provera ažuriranja."
-updateBehaviorLockedDescription = "Vaš administrator je podesio kako RustlingPDF rukuje ažuriranjima na ovoj mašini. Kontaktirajte ih da to promene."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Prikaži detalje"
 
 [settings.general.zoomLevel]
 auto = "Auto"
@@ -4752,42 +4724,6 @@ failed = "Došlo je do greške pri otključavanju PDF formulara."
 
 [unlockPDFForms.results]
 title = "Rezultati otključavanja formulara"
-
-[update]
-allReleases = "Sva izdanja"
-breaking = "Nekompatibilne promene"
-breakingChanges = "Nekompatibilne promene"
-breakingChangesDefault = "Ova verzija sadrži nekompatibilne promene."
-close = "Zatvori"
-closeModal = "Zatvori prozor ažuriranja"
-current = "Trenutna verzija"
-defaultRecommendation = "Ovo ažuriranje sadrži važne ispravke i poboljšanja."
-downloadLatest = "Preuzmi najnovije"
-later = "Kasnije"
-latest = "Najnovija verzija"
-loadingDetailedInfo = "Učitavanje detaljnih informacija..."
-migrationGuide = "Vodič za migraciju"
-migrationGuides = "Vodiči za migraciju"
-migrationGuidesDesc = "Pregledajte važne promene pre ažuriranja."
-modalSubtitle = "Nova verzija RustlingPDF je spremna za instalaciju."
-modalTitle = "Dostupno ažuriranje"
-notes = "Napomene"
-releaseNotes = "Beleške izdanja"
-showLess = "Prikaži manje verzija"
-showMore = "Prikaži svih {{count}} verzija"
-stable = "STABLE"
-updateAvailable = "Dostupno ažuriranje"
-urgentUpdateAvailable = "Hitno ažuriranje"
-version = "Verzija"
-versionHistory = "Istorija verzija"
-viewGuide = "Prikaži vodič"
-whatsNewIn = "Šta je novo u"
-
-[update.priority]
-low = "Nizak"
-minor = "Manje"
-normal = "Normalno"
-urgent = "Hitno"
 
 [URLToPDF]
 tags = "uhvati-web,sačuvaj-stranicu,web-u-doc,arhiva"

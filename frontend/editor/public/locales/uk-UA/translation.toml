@@ -1887,22 +1887,6 @@ title = "Як обрізати PDF"
 [defaultApp]
 title = "Зробити типовим PDF-додатком"
 
-[desktopUpdate]
-downloading = "Завантаження оновлення..."
-installing = "Встановлення оновлення..."
-installingWarning = "Програма автоматично закриється, щоб завершити встановлення."
-installNow = "Встановити зараз"
-readyToRestart = "Оновлення готове"
-restartMessage = "Оновлення встановлено. Перезапустіть програму, щоб завершити."
-restartNow = "Перезапустити зараз"
-updateFailed = "Не вдалося оновити"
-updateFailedMessage = "Не вдалося завантажити або встановити оновлення."
-
-[desktopUpdate.blocked]
-docsLink = "Переглянути документацію з встановлення"
-message = "RustlingPDF не має дозволу оновлювати себе на цьому комп’ютері."
-title = "Потрібні права адміністратора"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Переглядач"
 tools = "Інструменти"
 
 [settings.general.updates]
-checkForUpdates = "Перевірити оновлення"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Перевіряйте оновлення та переглядайте інформацію про версію"
-latestVersion = "Остання версія"
-managedByAdmin = "Керується адміністратором"
-modeAuto = "Встановлювати оновлення автоматично"
-modeDisabled = "Не перевіряти оновлення"
-modePrompt = "Питати перед встановленням оновлень"
-title = "Оновлення ПЗ"
-updateBehavior = "Режим оновлення"
-updateBehaviorDescription = "Виберіть, чи запитувати перед встановленням оновлень, встановлювати їх автоматично або повністю пропустити перевірки оновлень."
-updateBehaviorLockedDescription = "Ваш адміністратор налаштував, як RustlingPDF обробляє оновлення на цьому комп’ютері. Зв’яжіться з ним, щоб змінити це."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Переглянути деталі"
 
 [settings.general.zoomLevel]
 auto = "Авто"
@@ -4752,42 +4724,6 @@ failed = "Під час розблокування форм PDF сталася �
 
 [unlockPDFForms.results]
 title = "Результати розблокування форм"
-
-[update]
-allReleases = "Усі релізи"
-breaking = "Критичні зміни"
-breakingChanges = "Несумісні зміни"
-breakingChangesDefault = "Ця версія містить несумісні зміни."
-close = "Закрити"
-closeModal = "Закрити модальне вікно оновлення"
-current = "Поточна версія"
-defaultRecommendation = "Це оновлення містить важливі виправлення та покращення."
-downloadLatest = "Завантажити останню"
-later = "Пізніше"
-latest = "Остання версія"
-loadingDetailedInfo = "Завантаження докладної інформації..."
-migrationGuide = "Посібник з міграції"
-migrationGuides = "Посібники з міграції"
-migrationGuidesDesc = "Перегляньте важливі зміни перед оновленням."
-modalSubtitle = "Нова версія RustlingPDF готова до встановлення."
-modalTitle = "Доступне оновлення"
-notes = "Примітки"
-releaseNotes = "Примітки до випуску"
-showLess = "Показати менше версій"
-showMore = "Показати всі {{count}} версії"
-stable = "STABLE"
-updateAvailable = "Доступне оновлення"
-urgentUpdateAvailable = "Термінове оновлення"
-version = "Версія"
-versionHistory = "Історія версій"
-viewGuide = "Переглянути посібник"
-whatsNewIn = "Що нового у версії"
-
-[update.priority]
-low = "Низький"
-minor = "Незначний"
-normal = "Звичайний"
-urgent = "Терміновий"
 
 [URLToPDF]
 tags = "веб-захоплення,збереження сторінки,веб-документ,архів"

@@ -1887,22 +1887,6 @@ title = "Ako orezať PDF"
 [defaultApp]
 title = "Nastaviť ako predvolenú aplikáciu PDF"
 
-[desktopUpdate]
-downloading = "Preberanie aktualizácie..."
-installing = "Inštalácia aktualizácie..."
-installingWarning = "Aplikácia sa automaticky zavrie na dokončenie inštalácie."
-installNow = "Nainštalovať teraz"
-readyToRestart = "Aktualizácia pripravená"
-restartMessage = "Aktualizácia bola nainštalovaná. Reštartujte aplikáciu na dokončenie."
-restartNow = "Reštartovať teraz"
-updateFailed = "Aktualizácia zlyhala"
-updateFailedMessage = "Zlyhalo preberanie alebo inštalácia aktualizácie."
-
-[desktopUpdate.blocked]
-docsLink = "Zobraziť dokumentáciu k inštalácii"
-message = "RustlingPDF nemá povolenie aktualizovať sa na tomto počítači."
-title = "Vyžadujú sa oprávnenia správcu"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Čítačka"
 tools = "Nástroje"
 
 [settings.general.updates]
-checkForUpdates = "Skontrolovať aktualizácie"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Skontrolujte aktualizácie a zobrazte informácie o verzii"
-latestVersion = "Najnovšia verzia"
-managedByAdmin = "Spravuje správca"
-modeAuto = "Inštalovať aktualizácie automaticky"
-modeDisabled = "Nekontrolovať aktualizácie"
-modePrompt = "Spýtať sa pred inštaláciou aktualizácií"
-title = "Aktualizácie softvéru"
-updateBehavior = "Spôsob aktualizácií"
-updateBehaviorDescription = "Vyberte, či sa má pýtať pred inštaláciou aktualizácií, inštalovať ich automaticky alebo úplne preskočiť kontroly aktualizácií."
-updateBehaviorLockedDescription = "Váš správca nastavil, ako RustlingPDF narába s aktualizáciami na tomto počítači. Kontaktujte ho na zmenu."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Zobraziť podrobnosti"
 
 [settings.general.zoomLevel]
 auto = "Automaticky"
@@ -4752,42 +4724,6 @@ failed = "Pri odomykaní PDF formulárov došlo k chybe."
 
 [unlockPDFForms.results]
 title = "Výsledky odomknutia formulárov"
-
-[update]
-allReleases = "Všetky vydania"
-breaking = "Nezlučiteľné"
-breakingChanges = "Nezlučiteľné zmeny"
-breakingChangesDefault = "Táto verzia obsahuje nezlučiteľné zmeny."
-close = "Zavrieť"
-closeModal = "Zavrieť okno aktualizácie"
-current = "Aktuálna verzia"
-defaultRecommendation = "Táto aktualizácia obsahuje dôležité opravy a vylepšenia."
-downloadLatest = "Stiahnuť najnovšie"
-later = "Neskôr"
-latest = "Najnovšia verzia"
-loadingDetailedInfo = "Načítavajú sa podrobné informácie..."
-migrationGuide = "Migračná príručka"
-migrationGuides = "Migračné príručky"
-migrationGuidesDesc = "Pred aktualizáciou si preštudujte dôležité zmeny."
-modalSubtitle = "Nová verzia RustlingPDF je pripravená na inštaláciu."
-modalTitle = "Dostupná aktualizácia"
-notes = "Poznámky"
-releaseNotes = "Poznámky k vydaniu"
-showLess = "Zobraziť menej verzií"
-showMore = "Zobraziť všetky verzie ({{count}})"
-stable = "STABLE"
-updateAvailable = "Dostupná aktualizácia"
-urgentUpdateAvailable = "Urgentná aktualizácia"
-version = "Verzia"
-versionHistory = "História verzií"
-viewGuide = "Zobraziť príručku"
-whatsNewIn = "Čo je nové v"
-
-[update.priority]
-low = "Nízka"
-minor = "Menšia"
-normal = "Bežná"
-urgent = "Urgentná"
 
 [URLToPDF]
 tags = "webová snímka, uložiť stránku, web do dokumentu, archív"

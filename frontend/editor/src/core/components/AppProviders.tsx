@@ -28,7 +28,6 @@ import ErrorBoundary from "@app/components/shared/ErrorBoundary";
 import { useAppInitialization } from "@app/hooks/useAppInitialization";
 import { useLogoAssets } from "@app/hooks/useLogoAssets";
 import AppConfigLoader from "@app/components/shared/AppConfigLoader";
-import { UpdateStartupPopup } from "@app/components/shared/UpdateStartupPopup";
 import { RedactionProvider } from "@app/contexts/RedactionContext";
 import { FormFillProvider } from "@app/tools/formFill/FormFillContext";
 import { FormDesignerProvider } from "@app/tools/formFill/FormDesignerContext";
@@ -115,9 +114,6 @@ export function AppProviders({
             >
               <AppConfigLoader />
               <ServerDefaultsSync />
-              {/* Auto-popup on startup when a newer RustlingPDF release is available.
-                  No-ops inside Tauri — the desktop popup handles that flow. */}
-              <UpdateStartupPopup />
               <FileContextProvider
                 enableUrlSync={true}
                 enablePersistence={true}

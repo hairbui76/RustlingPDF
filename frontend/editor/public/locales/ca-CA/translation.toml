@@ -1887,22 +1887,6 @@ title = "Com retallar PDFs"
 [defaultApp]
 title = "Estableix com a aplicació PDF per defecte"
 
-[desktopUpdate]
-downloading = "Descarregant l'actualització..."
-installing = "Instal·lant l'actualització..."
-installingWarning = "L'aplicació es tancarà automàticament per completar la instal·lació."
-installNow = "Instal·la ara"
-readyToRestart = "Actualització llesta"
-restartMessage = "S'ha instal·lat l'actualització. Reinicia l'aplicació per acabar."
-restartNow = "Reinicia ara"
-updateFailed = "Ha fallat l'actualització"
-updateFailedMessage = "No s'ha pogut descarregar o instal·lar l'actualització."
-
-[desktopUpdate.blocked]
-docsLink = "Consulta la documentació d'instal·lació"
-message = "RustlingPDF no té permís per actualitzar-se en aquesta màquina."
-title = "Permisos d'administrador necessaris"
-
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4164,21 +4148,9 @@ read = "Lector"
 tools = "Eines"
 
 [settings.general.updates]
-checkForUpdates = "Comprova actualitzacions"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
-description = "Comprova actualitzacions i informació de la versió"
-latestVersion = "Última versió"
-managedByAdmin = "Gestionat per l'administrador"
-modeAuto = "Instal·la les actualitzacions automàticament"
-modeDisabled = "No comprovis si hi ha actualitzacions"
-modePrompt = "Pregunta abans d'instal·lar actualitzacions"
-title = "Actualitzacions de programari"
-updateBehavior = "Comportament d'actualització"
-updateBehaviorDescription = "Tria si vols que es pregunti abans d'instal·lar actualitzacions, instal·lar-les automàticament o ometre completament les comprovacions d'actualitzacions."
-updateBehaviorLockedDescription = "El teu administrador ha configurat com RustlingPDF gestiona les actualitzacions en aquesta màquina. Contacta-hi per canviar-ho."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
-viewDetails = "Veure detalls"
 
 [settings.general.zoomLevel]
 auto = "Automàtic"
@@ -4752,42 +4724,6 @@ failed = "S'ha produït un error en desbloquejar els formularis PDF."
 
 [unlockPDFForms.results]
 title = "Resultats de formularis desbloquejats"
-
-[update]
-allReleases = "Totes les versions"
-breaking = "Canvis incompatibles"
-breakingChanges = "Canvis incompatibles"
-breakingChangesDefault = "Aquesta versió conté canvis incompatibles."
-close = "Tanca"
-closeModal = "Tanca la finestra d'actualització"
-current = "Versió actual"
-defaultRecommendation = "Aquesta actualització conté correccions i millores importants."
-downloadLatest = "Baixa l'última"
-later = "Més tard"
-latest = "Última versió"
-loadingDetailedInfo = "Carregant informació detallada..."
-migrationGuide = "Guia de migració"
-migrationGuides = "Guies de migració"
-migrationGuidesDesc = "Revisa els canvis importants abans d'actualitzar."
-modalSubtitle = "Una nova versió de RustlingPDF està llesta per instal·lar-se."
-modalTitle = "Actualització disponible"
-notes = "Notes"
-releaseNotes = "Notes de llançament"
-showLess = "Mostra menys versions"
-showMore = "Mostra totes les {{count}} versions"
-stable = "ESTABLE"
-updateAvailable = "Actualització disponible"
-urgentUpdateAvailable = "Actualització urgent"
-version = "Versió"
-versionHistory = "Historial de versions"
-viewGuide = "Veure guia"
-whatsNewIn = "Novetats a"
-
-[update.priority]
-low = "Baixa"
-minor = "Menor"
-normal = "Normal"
-urgent = "Urgent"
 
 [URLToPDF]
 tags = "captura web,desa pàgina,web a document,arxiu"

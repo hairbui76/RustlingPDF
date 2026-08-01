@@ -916,11 +916,6 @@ impl RuntimeConfig {
         );
         insert(
             config,
-            "shouldShowUpdate",
-            self.boolean(&["system", "showUpdate"], "SYSTEM_SHOWUPDATE", true),
-        );
-        insert(
-            config,
             "enableAlphaFunctionality",
             self.boolean(
                 &["system", "enableAlphaFunctionality"],
@@ -2076,26 +2071,33 @@ mod tests {
         Ok(())
     }
 
-    /// The opt-in analytics were removed, and with them the
-    /// `system.enableAnalytics` / `enablePosthog` / `enableScarf` settings keys.
-    /// An existing install's `settings.yml` still carries them, so this pins
-    /// the two halves of that promise: the keys are IGNORED (never surfaced on
-    /// the public app config, which is what the SPA reads) and never REFUSED
-    /// (the file still loads cleanly and every neighbouring key still resolves).
+    /// Settings keys for features this build no longer has: the opt-in
+    /// analytics (`enableAnalytics` / `enablePosthog` / `enableScarf`) and the
+    /// update check (`showUpdate`). An existing install's `settings.yml` still
+    /// carries them, so this pins the two halves of that promise: the keys are
+    /// IGNORED (never surfaced on the public app config, which is what the SPA
+    /// reads) and never REFUSED (the file still loads cleanly and every
+    /// neighbouring key still resolves).
     #[test]
-    fn removed_analytics_settings_keys_are_ignored_not_refused()
+    fn removed_feature_settings_keys_are_ignored_not_refused()
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let settings = directory.path().join("settings.yml");
         fs::write(
             &settings,
-            "system:\n  enableAnalytics: true\n  enablePosthog: true\n  enableScarf: true\n  defaultLocale: en-GB\n",
+            "system:\n  enableAnalytics: true\n  enablePosthog: true\n  enableScarf: true\n  showUpdate: true\n  defaultLocale: en-GB\n",
         )?;
         let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
         assert_eq!(config.load_error, None);
 
         let app_config = config.app_config(None, None);
-        for key in ["enableAnalytics", "enablePosthog", "enableScarf"] {
+        for key in [
+            "enableAnalytics",
+            "enablePosthog",
+            "enableScarf",
+            "shouldShowUpdate",
+            "showUpdate",
+        ] {
             assert!(
                 app_config.get(key).is_none(),
                 "{key} must not reappear on the public app config",
@@ -2129,11 +2131,11 @@ mod tests {
 
     #[test]
     fn merge_replaces_scalars_and_recurses_into_objects() {
-        let mut base = json!({ "system": { "defaultLocale": "en-US", "showUpdate": true } });
+        let mut base = json!({ "system": { "defaultLocale": "en-US", "logoStyle": "classic" } });
         merge_json(&mut base, json!({ "system": { "defaultLocale": "vi-VN" } }));
         assert_eq!(
             base,
-            json!({ "system": { "defaultLocale": "vi-VN", "showUpdate": true } })
+            json!({ "system": { "defaultLocale": "vi-VN", "logoStyle": "classic" } })
         );
         assert_eq!(split_strings("one, two,,three"), ["one", "two", "three"]);
     }
