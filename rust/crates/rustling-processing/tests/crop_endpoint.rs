@@ -373,6 +373,88 @@ async fn auto_crop_maps_pixels_through_rotation_and_page_boxes()
     Ok(())
 }
 
+/// Detection must sample **every** pixel once its answer decides what is deleted.
+///
+/// The scan skips every second pixel on pages over 2,000 px, which is the Java
+/// original's behaviour and is harmless while the rectangle only decides framing:
+/// the cost of a miss is a fraction of a point of margin. Once removal consumes the
+/// rectangle, the same miss is permanent deletion.
+///
+/// This page is 1000x1200 pt — 2084x2500 px at 150 DPI, so the sparse scan applies
+/// — and carries a 0.2 pt rule at `x = 40`. The rule renders 833 dark pixels, all
+/// of them in bitmap column 83; the sparse scan visits 82 and 84. Before the fix
+/// the returned file no longer contained the operator that draws it, under `200`.
+///
+/// Large format is exactly where this bites: a page over roughly 960 pt in one
+/// dimension carrying isolated sub-half-point elements is a technical drawing or a
+/// prepress sheet, and hairlines, crop marks and registration marks are what those
+/// carry. It fires on the default flag value, since the SPA never sets it.
+#[tokio::test]
+async fn auto_crop_removal_samples_every_pixel_so_a_hairline_is_not_deleted()
+-> Result<(), Box<dyn std::error::Error>> {
+    // The anchor block is far from the rule, so the detected rectangle has to
+    // actually reach the rule rather than happening to contain it.
+    let source = pdf_with_a_hairline_on_a_large_page()?;
+    for remove in ["true", "false"] {
+        let response = post_crop(
+            "hairline.pdf",
+            &source,
+            &[("autoCrop", "true"), ("removeDataOutsideCrop", remove)],
+        )
+        .await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            continue;
+        }
+        let bytes = to_bytes(
+            require_status(response, StatusCode::OK).await?.into_body(),
+            usize::MAX,
+        )
+        .await?;
+        assert!(
+            document_contains(&bytes, b"40 300 0.2 400 re")?,
+            "removeDataOutsideCrop={remove}: the 0.2 pt rule is gone from the returned file. \
+             If PDFium has started regenerating this page the operator text may simply have \
+             changed — check the media box assertion below before assuming data loss."
+        );
+        if remove == "false" {
+            // Clip-only keeps the Java sampling, so its rectangle may legitimately
+            // miss the rule; only the ink assertion applies to it.
+            continue;
+        }
+        let document = Document::load_mem(&bytes)?;
+        let page_id = document
+            .get_pages()
+            .into_values()
+            .next()
+            .ok_or("missing page")?;
+        let page_box = page_box(&document, page_id)?;
+        // The rectangle must span from the rule to the anchor block, which is only
+        // true if the scan saw the rule at all.
+        assert_approximately(page_box[0], 40.0, 2.0);
+        assert_approximately(page_box[2], 560.0, 2.0);
+    }
+    Ok(())
+}
+
+/// A 1000x1200 pt page — large enough for the sparse scan — with an anchor block
+/// and, far from it, a 0.2 pt rule that renders into a single odd pixel column.
+fn pdf_with_a_hairline_on_a_large_page() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"0 0 0 rg 500 500 60 40 re f\n0 0 0 rg 40 300 0.2 400 re f\n".to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 1000.into(), 1200.into()],
+        "Resources" => dictionary! {},
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
 /// One page carrying an explicit `/MediaBox`, optional `/CropBox` and `/Rotate` —
 /// written either on the page or on the `/Pages` node it inherits from — with a
 /// visible text run and a far-away invisible one.

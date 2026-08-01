@@ -14,11 +14,18 @@ Current contract for cropping PDF pages.
   removal promise, not an optimisation)
 - Automatic mode ignores manual coordinates, but not `removeDataOutsideCrop` (see
   [Automatic mode](#automatic-mode)). It renders each page at 150 DPI with the
-  pinned PDFium runtime, considers RGB values of at least 250 white, samples every
-  second pixel above 2,000 pixels in either dimension, and maps detected bounds
-  back to PDF coordinates using the Java formulas, producing one rectangle per
-  page. A configured but broken PDFium runtime is a server error; an unconfigured
+  pinned PDFium runtime, considers RGB values of at least 250 white, and maps the
+  detected pixel box back to PDF coordinates through PDFium's own display matrix
+  (see [Page geometry](#page-geometry)), producing one rectangle per page. A
+  configured but broken PDFium runtime is a server error; an unconfigured
   development fallback reports `501 Not Implemented`.
+- **Sampling density depends on the flag.** With `removeDataOutsideCrop=false` the
+  scan skips every second pixel on pages over 2,000 px in either dimension, as in
+  Java. With `true` it samples every pixel, because a skipped pixel then means
+  deleted ink rather than a slightly tight frame — see
+  [What detection cannot see](#what-detection-cannot-see). On a large page carrying
+  a hairline the two settings can therefore return **different rectangles**, the
+  removal one being the larger and more accurate.
 
 ## Out-of-crop content removal
 
@@ -345,6 +352,10 @@ rotation except `0`. See [Page geometry](#page-geometry).
 
 ### Fidelity cost of asking for removal
 
+Everything in this section happens while **rewriting** a page. Loss that happens
+before that, by measuring the wrong rectangle in the first place, is a separate
+mechanism and lives in [What detection cannot see](#what-detection-cannot-see).
+
 Removal regenerates the content stream of **each page something was removed
 from**, and `FPDFPage_GenerateContent` does not round-trip every construct.
 Measured on the pinned runtime: on such a page **a pattern fill comes back as a
@@ -449,6 +460,51 @@ detection, not just before removal. Detection renders every page through the sam
 PDFium that expands the form graph, so a check placed after it would never run.
 A clip-only automatic crop does not pay for the check, and is unaffected.
 
+### What detection cannot see
+
+Automatic removal deletes what falls outside a rectangle **measured by rendering**.
+That makes every limit of the measurement a deletion path, and it is a different
+mechanism from the fidelity losses below: those happen while rewriting a page, this
+one happens before the page is ever touched, by deciding the wrong rectangle.
+
+The rule for the whole area: *anything detection under-reports is destroyed, not
+merely mis-framed.* Two instances of it have already been shipped and fixed — the
+coordinate mapping in [Page geometry](#page-geometry), and pixel sampling.
+
+**Sampling.** The scan skipped every second pixel on pages over 2,000 px. Measured:
+a 1000x1200 pt page (2084x2500 px at 150 DPI) with a 0.2 pt rule at `x = 40` — the
+rule renders 833 dark pixels, every one of them in bitmap column 83, and the scan
+visited 82 and 84. The operator drawing it was absent from the output under `200`.
+On A3 the same effect swallowed a 0.25 pt rule and a 0.3 x 0.3 pt dot. Removal now
+samples every pixel, and the detected box is grown by one sampling step on all four
+sides rather than on two. Re-measured afterwards: rules from 0.5 pt down to 0.02 pt
+all survive, because PDFium renders a sub-pixel fill into a whole pixel, so once
+nothing is skipped, thinness alone is no longer a way to be missed.
+
+**The white threshold — the remaining one, and it is deliberate.** A pixel counts
+as ink only if some channel is below 250. Measured on the same page shape: a fill
+at 96% white (RGB 245) is detected and kept; at 98% white (RGB 250) and lighter it
+is outside the rectangle and therefore deleted. That boundary is a 5/255 difference
+against paper — invisible on screen and in print — so it belongs to the
+"renders as nothing" class this endpoint deletes on purpose, along with `3 Tr` text
+and fully transparent images. It is recorded here because it is the same shape as
+the two defects above, and because a caller storing a near-white watermark should
+know it will not survive `removeDataOutsideCrop=true`.
+
+Checked and **not** deletion paths, so that the list is exhaustive rather than
+merely the ones that were found:
+
+- Annotation and form-field appearances are rendered by default, so they widen the
+  rectangle rather than being missed. (They are dropped from the output by the
+  rebuild in both modes, which is separate and long-standing.)
+- A page with no ink at all yields the whole page, so nothing is removed.
+- An unreadable pixel offset counts as ink, which can only widen the rectangle.
+- Content outside the page's own `/CropBox` is never rendered and never detected,
+  in both modes alike — it is out of crop by the document's own definition.
+- Optional content whose default configuration is off renders as nothing, which is
+  the documented class above rather than a new one.
+- A render failure is an error, never a silently empty rectangle.
+
 ### Page geometry
 
 Automatic detection is a **rendering** measurement feeding two consumers that do
@@ -537,6 +593,13 @@ still be extractable from the returned file, the invisible out-of-crop run to be
 gone when removal was asked for, and the returned media box to be a *tight*
 rectangle sitting on the ink. Reverting the mapping to a scale factor, or dropping
 only the media box shift, each fails it.
+
+`auto_crop_removal_samples_every_pixel_so_a_hairline_is_not_deleted` pins the
+sampling density against the shape that defeats it: a 0.2 pt rule on a page large
+enough for the sparse scan, landing in a single odd pixel column. It requires the
+operator to still be in the returned file and the media box to actually span from
+the rule to the anchor block, so a rectangle that merely contains the ink by luck
+does not pass. Putting removal back on sparse sampling fails it.
 
 Automatic mode is pinned on both directions of the flag.
 `auto_crop_honours_remove_data_outside_crop` crops a page whose only out-of-crop

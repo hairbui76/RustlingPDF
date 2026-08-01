@@ -3521,9 +3521,57 @@ pub fn try_remove_content_outside_crop(
     Ok(PdfiumCropContentAttempt::Removed)
 }
 
+/// How densely the rendered page is sampled when looking for ink.
+///
+/// The Java original skipped every second pixel on pages over 2,000 px, and that
+/// is fine while the detected rectangle only decides where the page is *framed*:
+/// missing a column costs a fraction of a point of margin. It stops being fine the
+/// moment the rectangle also decides what is **deleted**, because ink that lands
+/// only on a skipped row or column is not merely left out of frame — it is removed
+/// from the file.
+///
+/// Reproduced: a 1000x1200 pt page (2084x2500 px at 150 DPI, so sparse sampling
+/// applies) carrying a 0.2 pt rule at `x = 40`. The rule renders 833 pixels dark in
+/// bitmap column 83, and the sparse scan visits 82 and 84. Under
+/// `removeDataOutsideCrop=true` the operator that draws it was gone from the
+/// output. On A3 the threshold measured this way is about 0.5 pt: a 0.25 pt rule
+/// and a 0.3 pt dot were both missed and deleted.
+///
+/// The affected shape — a page over roughly 960 pt in one dimension, carrying
+/// isolated sub-half-point elements — is precisely large-format and prepress work,
+/// where hairlines, crop marks and registration marks are the norm.
+///
+/// So the density is chosen by what the caller intends to do with the answer, not
+/// by the page size alone.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum AutoCropSampling {
+    /// Every pixel, whatever the page size. Required whenever the rectangle will
+    /// be used to delete: the scan is linear and runs once per page, which is
+    /// nothing beside regenerating that page's content — and beside deleting a
+    /// caller's crop marks.
+    EveryPixel,
+    /// Every second pixel on pages over 2,000 px, as the Java original did. Only
+    /// safe when nothing is deleted, where the cost of a miss is a slightly tight
+    /// frame.
+    SparseOnLargePages,
+}
+
+impl AutoCropSampling {
+    /// The pixel stride for a bitmap of this size.
+    fn step(self, width: usize, height: usize) -> usize {
+        match self {
+            Self::SparseOnLargePages if width > 2000 || height > 2000 => 2,
+            // A small page needs no stride either way, so the two modes agree here
+            // — which is why most documents never noticed the difference.
+            Self::EveryPixel | Self::SparseOnLargePages => 1,
+        }
+    }
+}
+
 pub fn try_detect_auto_crop_bounds(
     input_path: &Path,
     filename: &str,
+    sampling: AutoCropSampling,
 ) -> Result<PdfiumAutoCropAttempt, PdfiumAutoCropError> {
     let runtime = shared_pdfium_runtime();
     let pdfium = match &runtime.instance {
@@ -3564,16 +3612,35 @@ pub fn try_detect_auto_crop_bounds(
         if width == 0 || height == 0 {
             return Err(PdfiumAutoCropError::InvalidBitmap { page_number });
         }
-        let [left, top, right, bottom] =
-            detect_content_bounds(&bitmap.as_rgba_bytes(), width, height);
+        let step = sampling.step(width, height);
+        let pixel_box = detect_content_bounds(&bitmap.as_rgba_bytes(), width, height, step);
         detected.push(pixel_box_to_page_bounds(
             &page,
             &render_config,
-            [left, top, right, bottom],
+            PixelBox {
+                bounds: pixel_box,
+                width,
+                height,
+                step,
+            },
             page_number,
         )?);
     }
     Ok(PdfiumAutoCropAttempt::Detected(detected))
+}
+
+/// A detected pixel box together with the bitmap and stride it came from.
+///
+/// The stride travels with the box because the margin the box needs depends on it:
+/// a box found by sampling every second pixel is uncertain by a pixel in every
+/// direction, and a caller holding only the four numbers cannot know that.
+#[derive(Debug, Clone, Copy)]
+struct PixelBox {
+    /// Inclusive `[left, top, right, bottom]`, y down.
+    bounds: [usize; 4],
+    width: usize,
+    height: usize,
+    step: usize,
 }
 
 /// Converts an inclusive bitmap pixel box into PDF page coordinates.
@@ -3599,9 +3666,19 @@ pub fn try_detect_auto_crop_bounds(
 /// extremes keeps it correct for the quarter turns that swap the axes, instead of
 /// assuming which mapped corner is which.
 ///
-/// The right and bottom edges are pushed out by one pixel because
-/// [`detect_content_bounds`] reports the *last inked pixel*, not the edge past it;
-/// without that the box is one pixel short on each of those sides.
+/// The box is grown by one sampling step on **all four** sides, then clamped to
+/// the bitmap. Two separate reasons, and the second is why it is all four rather
+/// than the two it used to be:
+///
+/// - `detect_content_bounds` reports the *last inked pixel*, so the far edge of
+///   that pixel is one further out. That accounts for the right and bottom only.
+/// - With a stride of `n`, the true edge can be up to `n - 1` pixels beyond the
+///   last **sampled** one, in every direction. Growing only right and bottom left
+///   the left and top edges with no margin at all, so ink there was cut — or, once
+///   removal consumed the box, deleted.
+///
+/// A margin can only make the rectangle larger, which for removal means keeping
+/// more than asked; the opposite error deletes.
 ///
 /// The result is in the PDF **content** coordinate system — the same system
 /// `FPDFPageObj_GetBounds` reports page-object bounds in, so out-of-crop removal
@@ -3610,7 +3687,7 @@ pub fn try_detect_auto_crop_bounds(
 fn pixel_box_to_page_bounds(
     page: &PdfPage<'_>,
     render_config: &PdfRenderConfig,
-    [left, top, right, bottom]: [usize; 4],
+    pixel_box: PixelBox,
     page_number: usize,
 ) -> Result<DetectedCropBounds, PdfiumAutoCropError> {
     let corner = |x: usize, y: usize| -> Result<(f32, f32), PdfiumAutoCropError> {
@@ -3625,8 +3702,16 @@ fn pixel_box_to_page_bounds(
             })?;
         Ok((x.value, y.value))
     };
-    let right = right.saturating_add(1);
-    let bottom = bottom.saturating_add(1);
+    let PixelBox {
+        bounds: [left, top, right, bottom],
+        width,
+        height,
+        step,
+    } = pixel_box;
+    let left = left.saturating_sub(step);
+    let top = top.saturating_sub(step);
+    let right = right.saturating_add(1).saturating_add(step).min(width);
+    let bottom = bottom.saturating_add(1).saturating_add(step).min(height);
     let corners = [
         corner(left, top)?,
         corner(right, top)?,
@@ -3650,16 +3735,20 @@ fn pixel_box_to_page_bounds(
 }
 
 /// The inclusive `[left, top, right, bottom]` pixel box of everything non-white,
-/// in **bitmap** coordinates with y increasing downwards.
+/// in **bitmap** coordinates with y increasing downwards, sampling every `step`th
+/// pixel.
 ///
-/// It deliberately stops at the bitmap. Turning pixels into PDF coordinates needs
-/// the display matrix `PDFium` rendered with — rotation and the crop box origin
-/// included — and that belongs in [`pixel_box_to_page_bounds`], not in a function
-/// that has only seen the samples. An earlier version returned a half-converted,
-/// bottom-up box, which is what let the caller finish the conversion with a bare
-/// scale factor and lose both.
-fn detect_content_bounds(rgba: &[u8], width: usize, height: usize) -> [usize; 4] {
-    let step = if width > 2000 || height > 2000 { 2 } else { 1 };
+/// It deliberately stops at the bitmap, and it no longer decides `step` for itself.
+/// Turning pixels into PDF coordinates needs the display matrix `PDFium` rendered
+/// with — rotation and the crop box origin included — and that belongs in
+/// [`pixel_box_to_page_bounds`], not in a function that has only seen the samples.
+/// An earlier version returned a half-converted, bottom-up box, which is what let
+/// the caller finish the conversion with a bare scale factor and lose both. The
+/// stride moved out for the same reason in reverse: whether skipping pixels is
+/// acceptable depends on what the answer will be used for, which only the caller
+/// knows — see [`AutoCropSampling`].
+fn detect_content_bounds(rgba: &[u8], width: usize, height: usize, step: usize) -> [usize; 4] {
+    let step = step.max(1);
     let is_white = |x: usize, y: usize| {
         let offset = (y * width + x) * 4;
         rgba.get(offset..offset + 3)
@@ -3796,7 +3885,8 @@ mod tests {
     use pdfium_render::prelude::Pdfium;
 
     use super::{
-        add_page_to_auto_split_groups, detect_content_bounds, edge_page_indices, is_blank_rgba,
+        AutoCropSampling, add_page_to_auto_split_groups, detect_content_bounds, edge_page_indices,
+        is_blank_rgba,
     };
     use crate::pdfium_runtime::pdfium_library_path;
 
@@ -3841,7 +3931,47 @@ mod tests {
                 pixels[offset..offset + 3].fill(10);
             }
         }
-        assert_eq!(detect_content_bounds(&pixels, width, height), [1, 1, 3, 2]);
+        assert_eq!(
+            detect_content_bounds(&pixels, width, height, 1),
+            [1, 1, 3, 2]
+        );
+    }
+
+    /// A stride of two cannot see ink that lives only on odd rows and columns —
+    /// which is the whole reason the stride is now the caller's choice.
+    ///
+    /// The fixture is a one-pixel mark at `(3, 3)`, both coordinates odd: sampling
+    /// every second pixel reports the "nothing here" box (the whole bitmap), while
+    /// sampling every pixel finds it. On a real page that difference is a hairline
+    /// rule, and under `removeDataOutsideCrop=true` the sparse answer deletes it.
+    #[test]
+    fn a_sparse_scan_cannot_see_ink_that_lands_only_on_skipped_pixels() {
+        let (width, height) = (8, 8);
+        let mut pixels = vec![255; width * height * 4];
+        let offset = (3 * width + 3) * 4;
+        pixels[offset..offset + 3].fill(10);
+
+        assert_eq!(
+            detect_content_bounds(&pixels, width, height, 1),
+            [3, 3, 3, 3]
+        );
+        assert_eq!(
+            detect_content_bounds(&pixels, width, height, 2),
+            [0, 0, width - 1, height - 1],
+            "a stride of two must miss it — if this ever finds the mark, the sampling \
+             changed and `AutoCropSampling` needs revisiting"
+        );
+    }
+
+    /// The stride is decided by intent first and page size second.
+    #[test]
+    fn sampling_density_follows_what_the_rectangle_will_be_used_for() {
+        // Large enough for the Java original to have skipped pixels.
+        assert_eq!(AutoCropSampling::SparseOnLargePages.step(2084, 2500), 2);
+        assert_eq!(AutoCropSampling::SparseOnLargePages.step(600, 800), 1);
+        // Removal never skips, whatever the page size.
+        assert_eq!(AutoCropSampling::EveryPixel.step(2084, 2500), 1);
+        assert_eq!(AutoCropSampling::EveryPixel.step(20000, 20000), 1);
     }
 
     #[test]

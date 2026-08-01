@@ -10,9 +10,9 @@ use thiserror::Error;
 use crate::{
     pdf_page_geometry::{PageForm, inherited_value, page_form, replace_page_tree},
     pdfium_backend::{
-        CropRectangles, DetectedCropBounds, PdfiumAutoCropAttempt, PdfiumAutoCropError,
-        PdfiumCropContentAttempt, PdfiumCropContentError, try_detect_auto_crop_bounds,
-        try_remove_content_outside_crop,
+        AutoCropSampling, CropRectangles, DetectedCropBounds, PdfiumAutoCropAttempt,
+        PdfiumAutoCropError, PdfiumCropContentAttempt, PdfiumCropContentError,
+        try_detect_auto_crop_bounds, try_remove_content_outside_crop,
     },
 };
 
@@ -147,7 +147,17 @@ fn crop_pdf_to_file_inner(
         if options.remove_data_outside_crop {
             form_expansion_within_bounds(&load_document(input_path, filename)?)?;
         }
-        let bounds = match try_detect_auto_crop_bounds(input_path, filename)? {
+        // A rectangle that will be used to *delete* has to be measured from every
+        // pixel. Skipping every second one is a framing approximation; once removal
+        // consumes the answer it silently destroys anything thin enough to land
+        // only on a skipped row or column — measured, a 0.2 pt rule on a large
+        // page. See [`AutoCropSampling`].
+        let sampling = if options.remove_data_outside_crop {
+            AutoCropSampling::EveryPixel
+        } else {
+            AutoCropSampling::SparseOnLargePages
+        };
+        let bounds = match try_detect_auto_crop_bounds(input_path, filename, sampling)? {
             PdfiumAutoCropAttempt::Detected(bounds) => bounds,
             PdfiumAutoCropAttempt::Unavailable {
                 explicitly_configured,
