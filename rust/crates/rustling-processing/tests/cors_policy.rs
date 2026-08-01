@@ -11,14 +11,23 @@ use axum::{
     http::{Request, StatusCode, header},
     response::Response,
 };
-use rustling_processing::{app, cors::apply_desktop_cors};
+use rustling_processing::{
+    app,
+    cors::{allowed_origins, apply_desktop_cors},
+};
 use tower::ServiceExt;
 
 const MAX_UPLOAD_BYTES: usize = 32 * 1024 * 1024;
 
 /// The exact route and headers the shipped desktop build failed on.
 const PREFLIGHT_URI: &str = "/api/v1/convert/file/pdf";
-const TAURI_ORIGIN: &str = "http://tauri.localhost";
+
+/// The origin this platform's webview actually presents. Hardcoding
+/// `http://tauri.localhost` would pass only on Windows: the allow-list is
+/// gated per platform, because Tauri picks the origin at compile time.
+fn tauri_origin() -> &'static str {
+    allowed_origins()[0]
+}
 
 fn preflight(origin: &str) -> Result<Request<Body>, Box<dyn std::error::Error>> {
     Ok(Request::builder()
@@ -44,7 +53,7 @@ fn header_text(response: &Response, name: header::HeaderName) -> Option<String> 
 async fn desktop_router_answers_the_preflight_that_broke_the_shipped_app()
 -> Result<(), Box<dyn std::error::Error>> {
     let router: Router = apply_desktop_cors(app(MAX_UPLOAD_BYTES), true);
-    let response = router.oneshot(preflight(TAURI_ORIGIN)?).await?;
+    let response = router.oneshot(preflight(tauri_origin())?).await?;
 
     assert!(
         response.status().is_success(),
@@ -53,7 +62,7 @@ async fn desktop_router_answers_the_preflight_that_broke_the_shipped_app()
     );
     assert_eq!(
         header_text(&response, header::ACCESS_CONTROL_ALLOW_ORIGIN).as_deref(),
-        Some(TAURI_ORIGIN)
+        Some(tauri_origin())
     );
     let allowed = header_text(&response, header::ACCESS_CONTROL_ALLOW_HEADERS)
         .unwrap_or_default()
@@ -95,7 +104,7 @@ async fn desktop_router_exposes_the_headers_the_spa_reads() -> Result<(), Box<dy
         .oneshot(
             Request::builder()
                 .uri("/api/v1/info/status")
-                .header(header::ORIGIN, TAURI_ORIGIN)
+                .header(header::ORIGIN, tauri_origin())
                 .body(Body::empty())?,
         )
         .await?;
@@ -103,7 +112,7 @@ async fn desktop_router_exposes_the_headers_the_spa_reads() -> Result<(), Box<dy
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         header_text(&response, header::ACCESS_CONTROL_ALLOW_ORIGIN).as_deref(),
-        Some(TAURI_ORIGIN)
+        Some(tauri_origin())
     );
     let exposed = header_text(&response, header::ACCESS_CONTROL_EXPOSE_HEADERS)
         .unwrap_or_default()
@@ -134,7 +143,7 @@ async fn desktop_router_exposes_the_headers_the_spa_reads() -> Result<(), Box<dy
 #[tokio::test]
 async fn server_router_emits_no_cors_headers() -> Result<(), Box<dyn std::error::Error>> {
     let response = app(MAX_UPLOAD_BYTES)
-        .oneshot(preflight(TAURI_ORIGIN)?)
+        .oneshot(preflight(tauri_origin())?)
         .await?;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 
@@ -142,7 +151,7 @@ async fn server_router_emits_no_cors_headers() -> Result<(), Box<dyn std::error:
         .oneshot(
             Request::builder()
                 .uri("/api/v1/info/status")
-                .header(header::ORIGIN, TAURI_ORIGIN)
+                .header(header::ORIGIN, tauri_origin())
                 .body(Body::empty())?,
         )
         .await?;

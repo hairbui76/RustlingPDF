@@ -31,18 +31,32 @@ deployments serve the SPA same-origin from the same binary
 
 ## Allowed origins
 
-An exact list of three, with no wildcard, no subdomain matching, and no
-predicate:
+An exact byte-for-byte list, with no wildcard, no subdomain matching, and no
+suffix matching. The list is **gated to the platform the binary is built for**,
+because Tauri picks the webview origin at compile time and the sidecar is built
+per platform (`stage-sidecar.sh` stages the host triple from `rustc -vV`, and
+the desktop release workflow runs a per-OS matrix):
 
-| Origin | Platforms |
+| Build target | Allowed origins |
 | --- | --- |
-| `tauri://localhost` | macOS, Linux, iOS |
-| `http://tauri.localhost` | Windows, Android |
-| `https://tauri.localhost` | Windows, Android, HTTPS-scheme webviews |
+| Linux, macOS, iOS | `tauri://localhost` |
+| Windows, Android | `http://tauri.localhost`, `https://tauri.localhost` |
 
-These are the only origins a Tauri v2 webview presents; one binary is built for
-every platform, so all three are listed. `Origin: null` is **not** allowed —
-sandboxed iframes and `data:` documents present it.
+The `tauri.localhost` forms are not a stylistic variant. They are `wry`'s
+workaround for WebView2 and Android being unable to navigate a non-standard
+scheme at all, where `tauri://…` is rewritten to `http(s)://tauri.localhost/…`.
+WebKitGTK and WKWebView handle the real `tauri://` scheme natively and never
+present them.
+
+A Linux or macOS build must therefore **not** carry the Windows origins.
+`.localhost` resolves to loopback in Chrome and Firefox, so
+`http://tauri.localhost` is really `127.0.0.1:80`; any local process already
+serving script-capable HTML on port 80 (a `docker -p 80:80`, an nginx dev
+stack, a reflected XSS in a local app) would otherwise be an allowed origin
+able to read this service's responses.
+
+`Origin: null` is **not** allowed — sandboxed iframes and `data:` documents
+present it, and an opaque origin cannot be authenticated.
 
 ## Why the policy must stay narrow
 
@@ -58,6 +72,12 @@ function must not trade that away. Do not widen this policy.
 Credentials are not allowed. Nothing in the service reads a cookie or an
 `Authorization` header, and the SPA does not set `withCredentials`, so the
 browser's stricter credentialed-CORS rules never apply.
+
+`Access-Control-Allow-Private-Network` is answered for Chromium's Private
+Network Access preflight, but only for an origin that is already on the
+allow-list. A rejected origin, and a request carrying no `Origin` at all, get
+no private-network header — the service does not advertise its reachability to
+callers this policy just refused.
 
 ## Allowed request headers
 
@@ -83,6 +103,13 @@ entry fails silently — the header arrives on the wire and the browser hides it
   band for the same reason (`pdf-comment-agent.md`).
 - `retry-after` — sent with the job queue's `503` so a client can back off
   (`job-management.md`).
+
+`x-job-id` is deliberately not exposed, but the reason is narrow. The service
+sets it only on `/api/v1/pdf-text-editor/metadata`, where it is header-only and
+absent from the JSON body; that is safe today only because the SPA never calls
+that endpoint, using `pdf-text-editor?async=true` instead, which returns
+`jobId` in the body. Wiring the metadata endpoint into the UI requires adding
+`x-job-id` here, or it will work same-origin and fail on desktop only.
 
 ## Methods and preflight
 

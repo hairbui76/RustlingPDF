@@ -26,11 +26,12 @@
 //!
 //! Consequently:
 //!
-//! - only the three origins a Tauri v2 webview can actually present are
-//!   allowed, as an exact list — no wildcard, no subdomain matching, no
-//!   predicate;
+//! - only the origins a Tauri v2 webview can present **on the platform this
+//!   binary is built for** are allowed, as an exact byte-for-byte list — no
+//!   wildcard, no subdomain matching, no suffix matching (see
+//!   [`allowed_origins`], which is why the list is platform-gated);
 //! - `Origin: null` is *not* allowed: sandboxed iframes and `data:` documents
-//!   present it, so it is attacker-reachable;
+//!   present it, and an opaque origin cannot be authenticated;
 //! - credentials are not allowed (nothing in the service reads a cookie or an
 //!   `Authorization` header), which also keeps the browser's stricter
 //!   credentialed-CORS rules out of play; and
@@ -54,7 +55,7 @@ use axum::{
     Router,
     http::{HeaderName, HeaderValue, Method, header},
 };
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowPrivateNetwork, CorsLayer};
 
 /// How long a browser may cache a preflight result.
 ///
@@ -62,22 +63,45 @@ use tower_http::cors::CorsLayer;
 /// caching, the desktop would pay two round trips per operation.
 const PREFLIGHT_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(600);
 
-/// The exact origins a Tauri v2 webview presents.
+/// The exact origins a Tauri v2 webview presents **on the platform this binary
+/// is built for**.
 ///
-/// Verified against the pinned `tauri` crate (2.10.3) rather than assumed:
-/// `Manager::tauri_protocol_url` returns `http(s)://tauri.localhost` on Windows
-/// and Android — the `wry` workaround origins — and `tauri://localhost`
-/// everywhere else (macOS, Linux, iOS). The `https` variant appears when the
-/// window is configured to use the HTTPS scheme. All three are listed because
-/// one binary is built for every platform; each entry is an exact origin match.
-const ALLOWED_ORIGINS: [&str; 3] = [
-    // macOS, Linux, iOS.
-    "tauri://localhost",
-    // Windows, Android.
-    "http://tauri.localhost",
-    // Windows, Android, when the webview is configured for the HTTPS scheme.
-    "https://tauri.localhost",
-];
+/// Verified against the pinned `tauri` crate (2.11.5, per
+/// `src-tauri/Cargo.lock`) rather than assumed. `Manager::tauri_protocol_url`
+/// picks the origin at compile time with exactly this condition:
+///
+/// ```text
+/// if cfg!(windows) || cfg!(target_os = "android") { "{scheme}://tauri.localhost" }
+/// else                                            { "tauri://localhost" }
+/// ```
+///
+/// The `tauri.localhost` forms are not a stylistic variant: they are `wry`'s
+/// workaround for `WebView2` and Android being unable to navigate a non-standard
+/// scheme at all (see `wry::custom_protocol_workaround`), where `tauri://…` is
+/// rewritten to `http(s)://tauri.localhost/…`. `WebKitGTK` and `WKWebView`
+/// handle the real `tauri://` scheme natively and never present the workaround
+/// origins.
+///
+/// So this list is gated the same way. The sidecar is built per platform —
+/// `stage-sidecar.sh` stages the host triple from `rustc -vV`, and the desktop
+/// release workflow runs a per-OS matrix — so a Linux or macOS build must not
+/// carry the Windows origins. That matters: `.localhost` resolves to loopback
+/// in Chrome and Firefox, so `http://tauri.localhost` is really `127.0.0.1:80`.
+/// Any local process already serving script-capable HTML on port 80 (a
+/// `docker -p 80:80`, an nginx dev stack, a reflected XSS in a local app) would
+/// otherwise be an allowed origin able to read this service's responses.
+///
+/// `https` appears alongside `http` because the window can be configured for
+/// the HTTPS scheme; both are the same Windows-only workaround host.
+#[must_use]
+pub fn allowed_origins() -> &'static [&'static str] {
+    if cfg!(windows) || cfg!(target_os = "android") {
+        &["http://tauri.localhost", "https://tauri.localhost"]
+    } else {
+        // macOS, Linux, iOS.
+        &["tauri://localhost"]
+    }
+}
 
 /// Request headers the SPA actually sends that are not CORS-safelisted.
 ///
@@ -108,6 +132,20 @@ fn allowed_request_headers() -> [HeaderName; 3] {
 /// Everything the SPA or a future UI needs has to be named here, and a missing
 /// entry fails *silently* — the header arrives on the wire and the browser
 /// hides it.
+///
+/// # Before adding an endpoint, note `x-job-id`
+///
+/// `x-job-id` is deliberately absent, but for a narrower reason than it looks.
+/// The service sets it in exactly one place — the
+/// `/api/v1/pdf-text-editor/metadata` response — and there it is
+/// **header-only**: the JSON body does not repeat it. Leaving it unexposed is
+/// safe *only* because the SPA never calls that endpoint; the flow it does
+/// use, `pdf-text-editor?async=true`, returns `jobId` inside the JSON body,
+/// which needs no exposing at all.
+///
+/// So if that metadata endpoint is ever wired into the UI, `x-job-id` has to be
+/// added here. Otherwise it works same-origin in a browser and fails **only on
+/// desktop**, silently — header on the wire, invisible to script.
 fn exposed_response_headers() -> [HeaderName; 7] {
     [
         // Read today by `toolResponseProcessor.ts`, `fileResponseUtils.ts` and
@@ -139,6 +177,15 @@ fn allowed_methods() -> [Method; 4] {
     [Method::GET, Method::HEAD, Method::POST, Method::DELETE]
 }
 
+/// Byte-exact membership test against [`allowed_origins`], mirroring what
+/// `AllowOrigin::List` does internally so the private-network predicate can
+/// never be laxer than the origin allow-list itself.
+fn is_allowed_origin(origin: &HeaderValue) -> bool {
+    allowed_origins()
+        .iter()
+        .any(|allowed| origin.as_bytes() == allowed.as_bytes())
+}
+
 /// Builds the desktop CORS layer, or `None` outside desktop mode.
 ///
 /// `tauri_mode` is taken as a parameter rather than read here so both branches
@@ -149,7 +196,7 @@ pub fn desktop_cors_layer(tauri_mode: bool) -> Option<CorsLayer> {
     if !tauri_mode {
         return None;
     }
-    let origins: Vec<HeaderValue> = ALLOWED_ORIGINS
+    let origins: Vec<HeaderValue> = allowed_origins()
         .iter()
         // Every entry is a compile-time constant of visible ASCII, so this
         // cannot fail; `filter_map` keeps the builder infallible rather than
@@ -158,7 +205,7 @@ pub fn desktop_cors_layer(tauri_mode: bool) -> Option<CorsLayer> {
         .collect();
     debug_assert_eq!(
         origins.len(),
-        ALLOWED_ORIGINS.len(),
+        allowed_origins().len(),
         "every allowed origin must be a valid header value"
     );
     Some(
@@ -172,13 +219,19 @@ pub fn desktop_cors_layer(tauri_mode: bool) -> Option<CorsLayer> {
             // wildcard forms and widen what a hostile page could do.
             .allow_credentials(false)
             // Chromium's Private Network Access check applies to a document
-            // reaching a more-private address space, which is exactly the
-            // desktop shape (WebView2 document → `127.0.0.1` sidecar). The
-            // header is emitted only when the browser actually asks for it
-            // (`Access-Control-Request-Private-Network: true`), and it is
-            // inert without an `Access-Control-Allow-Origin`, so it grants
-            // nothing beyond the three origins listed above.
-            .allow_private_network(true)
+            // reaching a more-private address space, which is the desktop shape
+            // (WebView2 document → `127.0.0.1` sidecar).
+            //
+            // Scoped by predicate, not `true`: tower-http's `Yes` branch
+            // returns the header for *any* requester that asks, including one
+            // whose origin was rejected and one sending no `Origin` at all.
+            // That stays spec-inert — a PNA preflight still needs a matching
+            // `Access-Control-Allow-Origin` — but it advertises the service to
+            // callers this policy just refused, so the predicate re-checks the
+            // allow-list and keeps the wire honest.
+            .allow_private_network(AllowPrivateNetwork::predicate(|origin, _parts| {
+                is_allowed_origin(origin)
+            }))
             .max_age(PREFLIGHT_MAX_AGE),
     )
 }
@@ -199,7 +252,7 @@ pub fn apply_desktop_cors(router: Router, tauri_mode: bool) -> Router {
 
 #[cfg(test)]
 mod tests {
-    use super::{ALLOWED_ORIGINS, apply_desktop_cors};
+    use super::{allowed_origins, apply_desktop_cors};
     use axum::{
         Router,
         body::Body,
@@ -261,7 +314,7 @@ mod tests {
     /// origin must succeed and echo back the origin plus `x-browser-id`.
     #[tokio::test]
     async fn allows_preflight_from_every_tauri_origin() -> TestResult {
-        for origin in ALLOWED_ORIGINS {
+        for &origin in allowed_origins() {
             let response = test_router(true).oneshot(preflight(origin)?).await?;
             assert!(
                 response.status().is_success(),
@@ -328,14 +381,14 @@ mod tests {
         let request = Request::builder()
             .method("POST")
             .uri("/api/v1/convert/file/pdf")
-            .header(header::ORIGIN, "http://tauri.localhost")
+            .header(header::ORIGIN, allowed_origins()[0])
             .body(Body::empty())?;
         let response = test_router(true).oneshot(request).await?;
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
             header_value(&response, header::ACCESS_CONTROL_ALLOW_ORIGIN).as_deref(),
-            Some("http://tauri.localhost")
+            Some(allowed_origins()[0])
         );
         let exposed = header_value(&response, header::ACCESS_CONTROL_EXPOSE_HEADERS)
             .unwrap_or_default()
@@ -370,7 +423,7 @@ mod tests {
     #[tokio::test]
     async fn emits_no_cors_headers_outside_desktop_mode() -> TestResult {
         let response = test_router(false)
-            .oneshot(preflight("http://tauri.localhost")?)
+            .oneshot(preflight(allowed_origins()[0])?)
             .await?;
         assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
         for name in [
@@ -389,7 +442,7 @@ mod tests {
         let request = Request::builder()
             .method("POST")
             .uri("/api/v1/convert/file/pdf")
-            .header(header::ORIGIN, "http://tauri.localhost")
+            .header(header::ORIGIN, allowed_origins()[0])
             .body(Body::empty())?;
         let response = test_router(false).oneshot(request).await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -404,8 +457,88 @@ mod tests {
     /// builder never silently drops one.
     #[test]
     fn every_allowed_origin_is_a_valid_header_value() {
-        for origin in ALLOWED_ORIGINS {
+        for &origin in allowed_origins() {
             assert!(HeaderValue::from_str(origin).is_ok(), "{origin}");
         }
+    }
+
+    /// The platform gate. Tauri picks the webview origin at compile time, and
+    /// the sidecar is built per platform, so a build must allow only the
+    /// origins its *own* webview can present. On Linux and macOS the Windows
+    /// `tauri.localhost` workaround origins must be refused: `.localhost`
+    /// resolves to loopback, so allowing them would make any local process
+    /// serving HTML on port 80 an allowed origin.
+    #[tokio::test]
+    async fn allow_list_is_scoped_to_this_platforms_webview() -> TestResult {
+        let (expected, foreign): (&[&str], &[&str]) =
+            if cfg!(windows) || cfg!(target_os = "android") {
+                (
+                    &["http://tauri.localhost", "https://tauri.localhost"],
+                    &["tauri://localhost"],
+                )
+            } else {
+                (
+                    &["tauri://localhost"],
+                    &["http://tauri.localhost", "https://tauri.localhost"],
+                )
+            };
+        assert_eq!(allowed_origins(), expected);
+
+        for &origin in foreign {
+            let response = test_router(true).oneshot(preflight(origin)?).await?;
+            assert_eq!(
+                header_value(&response, header::ACCESS_CONTROL_ALLOW_ORIGIN),
+                None,
+                "{origin} belongs to another platform and must be refused"
+            );
+        }
+        Ok(())
+    }
+
+    /// `access-control-allow-private-network` must track the origin allow-list.
+    /// `tower-http`'s unconditional `Yes` branch answers any requester that
+    /// asks — including one whose origin was just rejected, and one sending no
+    /// `Origin` at all — so the policy uses an origin-scoped predicate instead.
+    #[tokio::test]
+    async fn private_network_header_tracks_the_origin_allow_list() -> TestResult {
+        let allow_private_network = HeaderName::from_static("access-control-allow-private-network");
+
+        let allowed = allowed_origins()[0];
+        let response = test_router(true)
+            .oneshot(private_network_preflight(Some(allowed))?)
+            .await?;
+        assert_eq!(
+            header_value(&response, allow_private_network.clone()).as_deref(),
+            Some("true"),
+            "an allowed origin that asks must be granted private-network access"
+        );
+
+        for origin in [Some("https://evil.example"), None] {
+            let response = test_router(true)
+                .oneshot(private_network_preflight(origin)?)
+                .await?;
+            assert_eq!(
+                header_value(&response, allow_private_network.clone()),
+                None,
+                "{origin:?} must not be told the private network is reachable"
+            );
+        }
+        Ok(())
+    }
+
+    /// A preflight that also asks Chromium's Private Network Access question,
+    /// optionally without an `Origin` at all.
+    fn private_network_preflight(
+        origin: Option<&str>,
+    ) -> Result<Request<Body>, Box<dyn std::error::Error>> {
+        let mut builder = Request::builder()
+            .method("OPTIONS")
+            .uri("/api/v1/convert/file/pdf")
+            .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+            .header("access-control-request-private-network", "true");
+        if let Some(origin) = origin {
+            builder = builder.header(header::ORIGIN, origin);
+        }
+        Ok(builder.body(Body::empty())?)
     }
 }
