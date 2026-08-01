@@ -63,13 +63,16 @@ for the full list, including the "assist only" tools (qpdf, Poppler
 `pdftohtml`) that improve specific endpoints when present but never gate them
 off.
 
-veraPDF is **not** assist-only: it gates `security/verify-pdf`. Without it the
-endpoint could still report that a file declares no PDF/A profile, but returned
-`501` for every file that declares one — which is the only case a conformance
-check is run for. It is now gated so the tool reports itself unavailable instead
-of failing on the real work; `get-info-on-pdf` still reports `IsPDF/ACompliant`
-and the declared level from the same metadata. No shipped profile includes
-veraPDF, so this is off unless an operator installs it.
+veraPDF is a special case worth knowing before you rely on `security/verify-pdf`.
+It is an **input-conditional** dependency: a file that declares no validation
+profile completes natively and reports `not-pdfa`, so the endpoint stays listed
+as available. A file that *does* declare PDF/A, PDF/UA or WTPDF needs veraPDF to
+validate it, and without veraPDF that request is refused with `501` rather than
+answered. No shipped profile includes veraPDF — not a bare install, not the
+desktop bundle, and the Docker image excludes it — so unless an operator installs
+it, the conformance check that most people come to this tool for will refuse.
+`endpoints-availability` cannot express "available for some inputs", which is
+why the endpoint reads as enabled; see `rust/contracts/verify-pdf.md`.
 
 `convert/url/pdf` (URL → PDF) has one more gate on top of WeasyPrint: it is
 **disabled by default even when WeasyPrint is installed**, as an SSRF guard.

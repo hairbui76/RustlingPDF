@@ -44,4 +44,16 @@ returned.
   Top-level document dates are normalized to the Java-compatible local date
   format.
 - Full standards conformance details remain dependent on the optional veraPDF
-  runtime described by `verify-pdf.md`.
+  runtime described by `verify-pdf.md`, and the dependence is stronger than it
+  looks. The report calls `verify_pdf(...).ok()`, and that call fails as a whole
+  the moment a document declares *any* validation profile it cannot check, so
+  without veraPDF the entire compliance block is skipped rather than partially
+  filled. The practical effect: `IsPDF/ACompliant`, `IsPDF/UACompliant` and
+  `PDF/AConformanceLevel` are absent or `false` for a declaring document on
+  every configuration that does not ship veraPDF — which is all of them. A
+  document that declares nothing still gets the `not-pdfa` key, so the presence
+  of that key and the absence of any per-standard key are what distinguish
+  "declares nothing" from "declares something we could not check".
+- `IsPDF/ACompliant` means *declared and validated as conformant*, not merely
+  *declares PDF/A*: the scan runs behind a `compliant` filter. There is no field
+  that reports the declaration alone.

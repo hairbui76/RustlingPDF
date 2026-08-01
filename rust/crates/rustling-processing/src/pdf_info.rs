@@ -195,23 +195,29 @@ fn compliancy(
     let mut is_pdfb = false;
     let mut pdfa_level = None;
     if let Some(results) = verification {
+        // `standard` carries the profile *id* — `1a`, `2b`, `4f`, `ua1`, `wt1r`
+        // — never a spelling like `pdfa`, so the substring tests this used to
+        // run could not match and `IsPDF/ACompliant` was hardcoded `false` in
+        // practice, whatever the document declared. `declared_pdfa` is set from
+        // the same detection that built the id, so it answers exactly.
         for result in results.iter().filter(|result| result.compliant) {
             let standard = result.standard.to_ascii_lowercase();
-            if standard.contains("pdf_a") || standard.contains("pdfa") {
+            if result.declared_pdfa {
                 is_pdfa = true;
                 if let Some(profile) = result.validation_profile.as_deref() {
                     is_pdfb = ["1b", "2b", "3b"]
                         .into_iter()
                         .any(|level| profile.contains(level));
-                    pdfa_level = Some(profile.replace("pdfa-", ""));
+                    pdfa_level = Some(profile.to_owned());
                 }
             }
-            if standard.contains("pdf_ua") || standard.contains("pdfua") {
+            if standard.starts_with("ua") {
                 is_pdfua = true;
             }
-            if standard.contains("pdf_e") || standard.contains("pdfe") {
-                is_pdfe = true;
-            }
+            // Nothing detects PDF/E: `detect_profiles` reads the PDF/A, PDF/UA
+            // and WTPDF XMP namespaces only, so this stays false until a PDF/E
+            // profile is actually recognised. Reported for shape compatibility.
+            is_pdfe = false;
         }
     }
     let mut output = Map::new();
