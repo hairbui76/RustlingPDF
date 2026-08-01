@@ -100,6 +100,217 @@ async fn auto_crop_detects_rendered_content_when_pdfium_is_available()
     Ok(())
 }
 
+/// `autoCrop=true` must answer `removeDataOutsideCrop` rather than ignore it.
+///
+/// It used to ignore it: the automatic branch called the rebuild with removal
+/// hardcoded off, so a caller who asked for the data to be deleted got `200` and a
+/// file that still contained every mark — no header, no warning, and any text
+/// extractor recovered it. Cropping a page to hide a signature, a salary line or a
+/// patient name left the ink in the PDF.
+///
+/// The fixture is the shape that makes this dangerous rather than theoretical:
+/// content that renders as nothing. Automatic detection measures **rendered
+/// pixels**, so an invisible (`3 Tr`) text run — what an OCR layer is made of —
+/// contributes none and falls outside the detected rectangle while staying fully
+/// extractable. There is no rectangle a caller could have passed to catch it,
+/// because the rectangle is the one the endpoint chose.
+#[tokio::test]
+async fn auto_crop_honours_remove_data_outside_crop() -> Result<(), Box<dyn std::error::Error>> {
+    let source = pdf_with_hidden_text_outside_the_rendered_content()?;
+
+    // Control: asking for no removal must still preserve it, so the flag is load
+    // bearing in automatic mode rather than decorative in a second way.
+    let clipped = post_crop(
+        "auto-privacy.pdf",
+        &source,
+        &[("autoCrop", "true"), ("removeDataOutsideCrop", "false")],
+    )
+    .await?;
+    if clipped.status() != StatusCode::NOT_IMPLEMENTED {
+        let clipped = to_bytes(
+            require_status(clipped, StatusCode::OK).await?.into_body(),
+            usize::MAX,
+        )
+        .await?;
+        assert!(
+            document_contains(&clipped, b"AUTOOUTSIDECROP")?,
+            "clip-only automatic mode must keep the original marks in the file"
+        );
+    }
+
+    let removed = post_crop(
+        "auto-privacy.pdf",
+        &source,
+        &[("autoCrop", "true"), ("removeDataOutsideCrop", "true")],
+    )
+    .await?;
+    if removed.status() == StatusCode::NOT_IMPLEMENTED {
+        let body = to_bytes(removed.into_body(), usize::MAX).await?;
+        assert!(String::from_utf8_lossy(&body).contains("PDFium"));
+        if rustling_processing::environment::var_os("RUSTLING_PDFIUM_LIBRARY_PATH").is_some() {
+            return Err(std::io::Error::other(
+                "configured PDFium runtime did not execute automatic out-of-crop removal",
+            )
+            .into());
+        }
+        // Refusing is the other honest answer. What must never happen is the `200`
+        // this test exists to forbid.
+        return Ok(());
+    }
+    let removed = to_bytes(
+        require_status(removed, StatusCode::OK).await?.into_body(),
+        usize::MAX,
+    )
+    .await?;
+    assert!(
+        !document_contains(&removed, b"AUTOOUTSIDECROP")?,
+        "automatic crop returned 200 with the data removeDataOutsideCrop=true asked it to delete"
+    );
+    assert!(
+        document_contains(&removed, b"AUTOINSIDECROP")?,
+        "automatic removal deleted text inside the rectangle it detected"
+    );
+    let document = Document::load_mem(&removed)?;
+    let page_id = document
+        .get_pages()
+        .into_values()
+        .next()
+        .ok_or("missing page")?;
+    // The rectangle is still the detected one, so removal did not quietly fall
+    // back to a manual box or to the whole page.
+    let bounds = page_box(&document, page_id)?;
+    assert_approximately(bounds[0], 50.0, 2.0);
+    assert_approximately(bounds[1], 60.0, 2.0);
+    assert_approximately(bounds[2] - bounds[0], 100.0, 2.0);
+    assert_approximately(bounds[3] - bounds[1], 120.0, 2.0);
+    Ok(())
+}
+
+/// Automatic detection produces one rectangle **per page**, and removal has to
+/// measure each page against its own.
+///
+/// This is the whole structural difference between the two branches, and the
+/// direction that gets it wrong is not symmetric. Reusing page one's rectangle
+/// everywhere deletes ink the caller can still see — the failure that once cost a
+/// real document 77% of a page — while it simultaneously spares the secret on the
+/// page whose content sits where page one's content sat. The fixture crosses the
+/// two over so a single shared rectangle fails both assertions at once.
+#[tokio::test]
+async fn auto_crop_measures_each_page_against_its_own_rectangle()
+-> Result<(), Box<dyn std::error::Error>> {
+    let response = post_crop(
+        "auto-pages.pdf",
+        &pdf_with_crossed_over_page_content()?,
+        &[("autoCrop", "true"), ("removeDataOutsideCrop", "true")],
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_IMPLEMENTED {
+        return Ok(());
+    }
+    let bytes = to_bytes(
+        require_status(response, StatusCode::OK).await?.into_body(),
+        usize::MAX,
+    )
+    .await?;
+    for visible in [b"PAGEONEINK".as_slice(), b"PAGETWOINK".as_slice()] {
+        assert!(
+            document_contains(&bytes, visible)?,
+            "{} was deleted, so a page was measured against another page's rectangle",
+            String::from_utf8_lossy(visible)
+        );
+    }
+    for secret in [b"PAGEONESECRET".as_slice(), b"PAGETWOSECRET".as_slice()] {
+        assert!(
+            !document_contains(&bytes, secret)?,
+            "{} survived, so a page was measured against another page's rectangle",
+            String::from_utf8_lossy(secret)
+        );
+    }
+    let document = Document::load_mem(&bytes)?;
+    let boxes = document
+        .get_pages()
+        .into_values()
+        .map(|page_id| page_box(&document, page_id))
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(boxes.len(), 2);
+    assert_approximately(boxes[0][0], 20.0, 3.0);
+    assert_approximately(boxes[0][1], 20.0, 3.0);
+    assert_approximately(boxes[1][0], 100.0, 3.0);
+    assert_approximately(boxes[1][1], 250.0, 3.0);
+    Ok(())
+}
+
+/// A page whose rendered ink is a rectangle in the middle, with an invisible
+/// (`3 Tr`) text run far outside it — extractable, but contributing no pixel for
+/// automatic detection to find.
+fn pdf_with_hidden_text_outside_the_rendered_content() -> Result<Vec<u8>, Box<dyn std::error::Error>>
+{
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"0 0 0 rg 50 60 100 120 re f\n\
+          BT 1 1 1 rg /F1 8 Tf 60 100 Td (AUTOINSIDECROP) Tj ET\n\
+          BT 3 Tr /F1 12 Tf 20 250 Td (AUTOOUTSIDECROP) Tj ET"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+        "Contents" => content_id,
+    });
+    finish_single_page(document, root_pages_id, page_id)
+}
+
+/// Two pages whose visible ink and hidden text swap corners, so one shared
+/// rectangle cannot satisfy both.
+fn pdf_with_crossed_over_page_content() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let mut pages = Vec::new();
+    for (visible, secret) in [
+        ("20 20 Td (PAGEONEINK)", "100 250 Td (PAGEONESECRET)"),
+        // Page two's secret sits exactly where page one's ink is, so reusing page
+        // one's rectangle would spare it while deleting page two's visible run.
+        ("100 250 Td (PAGETWOINK)", "20 20 Td (PAGETWOSECRET)"),
+    ] {
+        let content_id = document.add_object(Stream::new(
+            dictionary! {},
+            format!("BT /F1 12 Tf {visible} Tj ET\nBT 3 Tr /F1 12 Tf {secret} Tj ET").into_bytes(),
+        ));
+        let page_id = document.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => root_pages_id,
+            "MediaBox" => vec![0.into(), 0.into(), 300.into(), 300.into()],
+            "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+            "Contents" => content_id,
+        });
+        pages.push(Object::Reference(page_id));
+    }
+    document.objects.insert(
+        root_pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => pages,
+            "Count" => 2,
+        }),
+    );
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => root_pages_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
 /// `removeDataOutsideCrop=true` is a privacy promise: text outside the crop
 /// rectangle must be absent from the returned bytes, not merely clipped. With
 /// `false` the same text must still be there, so the flag is demonstrably load
@@ -742,6 +953,12 @@ async fn a_form_declared_in_a_scope_it_shares_is_not_refused_as_a_cycle()
 /// (`PDFium` follows it and never returns); an acyclic graph that expands past a
 /// million invocations is the other shape. Both are `422`, and the message points
 /// the caller at `removeDataOutsideCrop=false`.
+///
+/// Automatic mode is covered too, and the *order* is what it covers. Automatic
+/// detection renders every page through the same `PDFium` that expands the graph,
+/// so a check placed after detection would never run: the process is gone by then.
+/// Refusing before `PDFium` is asked for anything is the only position that works,
+/// and this test would hang rather than fail if that ever moved.
 #[tokio::test]
 async fn the_form_expansion_bound_still_refuses_genuine_blowups()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -755,26 +972,26 @@ async fn the_form_expansion_bound_still_refuses_genuine_blowups()
             pdf_with_a_doubling_form_dag(20)?,
         ),
     ] {
-        let response = post_crop(
-            "blowup.pdf",
-            &source,
-            &[("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
-        )
-        .await?;
-        if response.status() == StatusCode::NOT_IMPLEMENTED {
-            return Ok(());
+        for mode in [
+            vec![("x", "0"), ("y", "0"), ("width", "200"), ("height", "300")],
+            vec![("autoCrop", "true")],
+        ] {
+            let response = post_crop("blowup.pdf", &source, &mode).await?;
+            if response.status() == StatusCode::NOT_IMPLEMENTED {
+                continue;
+            }
+            assert_eq!(
+                response.status(),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "{label} in {mode:?}"
+            );
+            let body = to_bytes(response.into_body(), usize::MAX).await?;
+            assert!(
+                String::from_utf8_lossy(&body).contains("removeDataOutsideCrop=false"),
+                "{label} in {mode:?}: {}",
+                String::from_utf8_lossy(&body)
+            );
         }
-        assert_eq!(
-            response.status(),
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "{label}"
-        );
-        let body = to_bytes(response.into_body(), usize::MAX).await?;
-        assert!(
-            String::from_utf8_lossy(&body).contains("removeDataOutsideCrop=false"),
-            "{label}: {}",
-            String::from_utf8_lossy(&body)
-        );
     }
     Ok(())
 }
@@ -1754,6 +1971,30 @@ async fn every_fixture_comes_back_without_a_dangling_resource_name()
                      does not resolve against its own scope: {report:?}"
                 );
             }
+        }
+        // Automatic mode too, now that it honours `removeDataOutsideCrop` and
+        // therefore prunes resource declarations. Its rectangles are chosen by
+        // rendering rather than supplied, so they are not reachable from the list
+        // above; a pruning defect that only shows at a detected rectangle would
+        // otherwise be invisible to this property.
+        for remove in ["true", "false"] {
+            let response = post_crop(
+                "fixture.pdf",
+                &source,
+                &[("autoCrop", "true"), ("removeDataOutsideCrop", remove)],
+            )
+            .await?;
+            if response.status() == StatusCode::NOT_IMPLEMENTED {
+                continue;
+            }
+            let response = require_status(response, StatusCode::OK).await?;
+            let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+            let report = audit_resource_names(&bytes)?;
+            assert!(
+                report.is_clean(),
+                "{label} auto-cropped with removeDataOutsideCrop={remove} does not resolve \
+                 against its own scope: {report:?}"
+            );
         }
     }
     Ok(())

@@ -12,12 +12,13 @@ Current contract for cropping PDF pages.
 - `removeDataOutsideCrop`: boolean, default `true` (see
   [Out-of-crop content removal](#out-of-crop-content-removal) — it is a data
   removal promise, not an optimisation)
-- Automatic mode ignores manual coordinates. It renders each page at 150 DPI
-  with the pinned PDFium runtime, considers RGB values of at least 250 white,
-  samples every second pixel above 2,000 pixels in either dimension, and maps
-  detected bounds back to PDF coordinates using the Java formulas. A configured
-  but broken PDFium runtime is a server error; an unconfigured development
-  fallback reports `501 Not Implemented` for this rendering-only branch.
+- Automatic mode ignores manual coordinates, but not `removeDataOutsideCrop` (see
+  [Automatic mode](#automatic-mode)). It renders each page at 150 DPI with the
+  pinned PDFium runtime, considers RGB values of at least 250 white, samples every
+  second pixel above 2,000 pixels in either dimension, and maps detected bounds
+  back to PDF coordinates using the Java formulas, producing one rectangle per
+  page. A configured but broken PDFium runtime is a server error; an unconfigured
+  development fallback reports `501 Not Implemented`.
 
 ## Out-of-crop content removal
 
@@ -343,6 +344,28 @@ flat colour, and an `sh` shading mark is dropped entirely** — including for ma
 *inside* the crop rectangle, since regeneration rewrites the whole page. Those
 resources are then unreferenced, so their bytes are removed with them.
 
+**Text is not exempt.** On some documents regeneration also drops glyphs from
+subset fonts, and the marks it drops are inside the crop rectangle. Measured over
+41 real documents and 677 pages on this machine, comparing each removal output
+against its own `removeDataOutsideCrop=false` control page by page at 72 DPI:
+36 documents are pixel-identical, and five differ. Two of the five are sub-pixel
+re-layout with every glyph still legible; one is a single-pixel column at the page
+edge. The other two lose visible text — a Skia/Google-Docs page whose Identity-H
+subset fonts came back with roughly an eighth of its glyphs blank, and a
+Calibre-produced page that lost its section headings while the body text survived.
+
+This is a property of PDFium's content generator, not of the resource pruning:
+disabling the pruning entirely reproduces every one of the five differences
+byte for byte, and so does the manual branch given the same rectangle. It has been
+there for as long as removal has, and it is the same on both branches — automatic
+mode adds none of it. It is recorded here because it was not, and because it is a
+larger cost than the pattern and shading losses above: a caller who crops to
+*keep* something can lose it.
+
+If that is unacceptable for a document, `removeDataOutsideCrop=false` regenerates
+nothing and is exact — at the price of keeping the out-of-crop data, which is the
+whole trade.
+
 A page with nothing outside the crop rectangle is never regenerated and keeps its
 marks and resources verbatim, so this cost applies only where a removal actually
 happened.
@@ -380,20 +403,56 @@ default.
 
 ### Automatic mode
 
-`autoCrop=true` ignores `removeDataOutsideCrop` and always takes the clip-only path,
-as it did before Ghostscript was removed — the flag has only ever been wired to the
-manual-coordinate branch. Automatic mode therefore hides out-of-crop content rather
-than deleting it. Callers who need removal must pass explicit coordinates.
+`autoCrop=true` answers `removeDataOutsideCrop` exactly as manual coordinates do.
+Everything above — what is removed, what limits the promise, when removal is
+refused, the fidelity cost — applies unchanged; the two modes run the same removal
+pass and differ only in where the rectangle comes from.
+
+The rectangle is **per page**. Automatic detection measures each page's own
+rendered content, so page two's marks are judged against page two's box. Applying
+one page's rectangle to the whole document would delete marks the caller can still
+see, which is why the removal pass takes a list rather than a single rectangle and
+refuses outright if that list does not cover every page PDFium opens.
+
+This is a fix, not the original behaviour. Automatic mode used to ignore the flag
+and always take the clip-only path, so a caller who asked for the data to be
+deleted received `200` and a file that still contained every mark — no header, no
+warning, and a text extractor recovered all of it. That failed the rule the rest of
+this document is built on: a request to delete data is answered with the data gone
+or with an error, never with a `200` that misdescribes the file.
+
+Automatic mode makes one class of leak reachable that manual coordinates cannot:
+content that **renders as nothing**. Detection measures rendered pixels, so an
+invisible (`3 Tr`) text run, a fully transparent image, or anything else the
+renderer draws no pixel for falls outside the detected rectangle by construction,
+and no rectangle the caller could have supplied would have covered it — the
+rectangle is the one the endpoint chose. Pinned by
+`auto_crop_honours_remove_data_outside_crop`, whose fixture carries both shapes and
+whose control run at `removeDataOutsideCrop=false` proves they are still there when
+removal is not asked for.
+
+Because removal now runs in automatic mode, the `422` refusal below applies to it
+too, and the check runs **before PDFium is asked for anything at all** — before
+detection, not just before removal. Detection renders every page through the same
+PDFium that expands the form graph, so a check placed after it would never run.
+A clip-only automatic crop does not pay for the check, and is unaffected.
 
 ### Requirements
 
 Content removal runs on the pinned PDFium runtime — the same runtime automatic
 detection already requires. A development environment without a configured PDFium
-library returns `501 Not Implemented` for `removeDataOutsideCrop=true`; a configured
-but broken runtime, or a removal failure, returns a server error. The endpoint never
-silently falls back to the clip-only path, because that would answer a request to
-delete data with a file that still contains it. Packaged environments install the
-pinned native revision, so this is a development-only boundary.
+library returns `501 Not Implemented` for `removeDataOutsideCrop=true` in **both**
+modes; a configured but broken runtime, or a removal failure, returns a server
+error. The endpoint never silently falls back to the clip-only path, because that
+would answer a request to delete data with a file that still contains it. Packaged
+environments install the pinned native revision, so this is a development-only
+boundary.
+
+Both modes reach the same `501` for the same reason, by different routes: the
+manual branch when the removal pass reports no runtime, the automatic branch when
+detection does, since automatic detection needs the runtime removal needs. Pinned
+by `crop_refuses_removal_it_cannot_honour`, which asserts the status directly
+rather than depending on a machine that happens to have no PDFium.
 
 Ghostscript is no longer involved in any form:
 `RUSTLING_PROCESSING_GHOSTSCRIPT_COMMAND` is still accepted as an environment
@@ -423,6 +482,30 @@ is `false`; a tiling pattern painting text, a tiling pattern painting an image, 
 a shading with a Type 0 sampled function all lose their payloads when only an
 out-of-crop mark referenced them; and a Type 3 font text run outside the crop is
 removed without crashing the process.
+
+Automatic mode is pinned on both directions of the flag.
+`auto_crop_honours_remove_data_outside_crop` crops a page whose only out-of-crop
+content renders as nothing — an invisible `3 Tr` text run and a fully transparent
+image — and requires both to be absent from the returned bytes at
+`removeDataOutsideCrop=true` and present at `false`, while the in-crop text and
+image survive and the media box is still the detected one. It fails on the previous
+behaviour with the message "automatic crop returned 200 with the data
+removeDataOutsideCrop=true asked it to delete".
+`auto_crop_measures_each_page_against_its_own_rectangle` crosses two pages over, so
+that reusing one page's rectangle for the document deletes the other page's visible
+text *and* spares its secret; either mistake fails it. Both are additionally
+verified outside the suite by extracting text with `pdftotext` and images with
+`pdfimages` from the returned file, since a test that only searches the response
+bytes is a weaker instrument than the tools an attacker would reach for.
+
+`every_fixture_comes_back_without_a_dangling_resource_name` and
+`rebuilt_pages_carry_no_annotations` run automatic mode as well as manual, because
+the rectangles automatic detection chooses are not reachable from any list of
+coordinates and a pruning defect that only appears at one of them would otherwise
+be invisible. `the_form_expansion_bound_still_refuses_genuine_blowups` covers
+automatic mode for the same reason it covers manual, and its automatic case pins
+the ordering: the check has to run before detection, or the process is gone before
+it runs — that case hangs rather than fails if the check ever moves.
 
 Four fixtures cover values written as **indirect references**, because a PDF may
 always write one and the walk had four places that assumed otherwise:

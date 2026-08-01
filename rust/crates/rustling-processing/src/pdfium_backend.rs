@@ -381,6 +381,70 @@ pub struct DetectedCropBounds {
     pub height: f32,
 }
 
+/// The rectangles an out-of-crop removal pass measures each page against.
+///
+/// The two shapes are not interchangeable and neither can stand in for the other.
+/// Manual coordinates are one rectangle applied to every page, and the caller has
+/// no way to know how many pages `PDFium` will find before it opens the document,
+/// so pre-expanding them into a per-page vector would couple the request to a page
+/// count nobody has yet counted. Automatic detection measures each page's own
+/// rendered content, so its rectangles differ per page and applying page one's to
+/// the whole document would delete ink the caller can still see.
+#[derive(Debug, Clone, Copy)]
+pub enum CropRectangles<'a> {
+    /// One rectangle for every page, as manual coordinates are defined.
+    Uniform(DetectedCropBounds),
+    /// One rectangle per page, in page order, as automatic detection produces.
+    PerPage(&'a [DetectedCropBounds]),
+}
+
+impl CropRectangles<'_> {
+    /// The rectangle for one page, or `None` when a per-page list is shorter than
+    /// the document `PDFium` opened.
+    ///
+    /// Returning `None` rather than reusing a neighbouring page's rectangle is
+    /// deliberate: a wrong rectangle deletes marks the caller can still see, so a
+    /// list that does not cover the document has to stop the removal instead of
+    /// guessing its way through it.
+    fn for_page(self, page_index: usize) -> Option<DetectedCropBounds> {
+        match self {
+            Self::Uniform(bounds) => Some(bounds),
+            Self::PerPage(bounds) => bounds.get(page_index).copied(),
+        }
+    }
+
+    /// Rejects a per-page list that does not cover every page, before anything is
+    /// mutated.
+    ///
+    /// Checked up front so a short list refuses the whole removal rather than
+    /// pruning the pages it happens to reach and abandoning the rest half done.
+    fn covers(self, page_count: usize) -> Result<(), PdfiumCropContentError> {
+        match self {
+            Self::Uniform(_) => Ok(()),
+            Self::PerPage(bounds) if bounds.len() == page_count => Ok(()),
+            Self::PerPage(bounds) => Err(PdfiumCropContentError::MissingPageBounds {
+                page_number: bounds.len().saturating_add(1),
+            }),
+        }
+    }
+
+    /// One page's rectangle as `(left, bottom, right, top)`.
+    fn edges_for_page(
+        self,
+        page_number: usize,
+    ) -> Result<(f32, f32, f32, f32), PdfiumCropContentError> {
+        let bounds = self
+            .for_page(page_number.saturating_sub(1))
+            .ok_or(PdfiumCropContentError::MissingPageBounds { page_number })?;
+        Ok((
+            bounds.x,
+            bounds.y,
+            bounds.x + bounds.width,
+            bounds.y + bounds.height,
+        ))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DetectedTextBounds {
     pub x: f32,
@@ -746,6 +810,8 @@ pub enum PdfiumCropContentError {
     Trash(#[source] PdfiumError),
     #[error("could not write the cropped PDF: {0}")]
     Save(#[source] PdfiumError),
+    #[error("no crop rectangle was detected for page {page_number}")]
+    MissingPageBounds { page_number: usize },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -3317,8 +3383,12 @@ pub fn try_remove_pdf_pages_to_file(
     Ok(PdfiumRemoveAttempt::Removed)
 }
 
-/// Physically discards every page object that lies entirely outside `bounds`,
-/// writing the pruned document to `output_path`.
+/// Physically discards every page object that lies entirely outside that page's
+/// rectangle, writing the pruned document to `output_path`.
+///
+/// The rectangle is per page, not per document: automatic detection measures each
+/// page's own rendered content, so page two's marks must be judged against page
+/// two's box. See [`CropRectangles`].
 ///
 /// This is the pure-`PDFium` replacement for the Ghostscript
 /// `pdfwrite -dUseCropBox` pass the crop endpoint used for
@@ -3331,7 +3401,7 @@ pub fn try_remove_pdf_pages_to_file(
 pub fn try_remove_content_outside_crop(
     input_path: &Path,
     filename: &str,
-    bounds: DetectedCropBounds,
+    rectangles: CropRectangles<'_>,
     output_path: &Path,
 ) -> Result<PdfiumCropContentAttempt, PdfiumCropContentError> {
     let runtime = shared_pdfium_runtime();
@@ -3353,12 +3423,8 @@ pub fn try_remove_content_outside_crop(
             filename: filename.to_owned(),
             source,
         })?;
-    let left = bounds.x;
-    let bottom = bounds.y;
-    let right = bounds.x + bounds.width;
-    let top = bounds.y + bounds.height;
-
     let page_count = document.pages().len();
+    rectangles.covers(usize::try_from(page_count).unwrap_or(usize::MAX))?;
     // Detached page objects must be handed back to PDFium rather than dropped:
     // `pdfium-render` marks a removed object unowned, and its `Drop` then calls
     // `FPDFPageObj_Destroy` on a handle this PDFium build refuses to free that way
@@ -3381,6 +3447,7 @@ pub fn try_remove_content_outside_crop(
 
     for page_index in 0..page_count {
         let page_number = usize::try_from(page_index).unwrap_or(usize::MAX) + 1;
+        let (left, bottom, right, top) = rectangles.edges_for_page(page_number)?;
         let mut page =
             document
                 .pages()

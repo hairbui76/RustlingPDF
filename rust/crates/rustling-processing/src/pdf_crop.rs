@@ -10,8 +10,9 @@ use thiserror::Error;
 use crate::{
     pdf_page_geometry::{PageForm, page_form, replace_page_tree},
     pdfium_backend::{
-        DetectedCropBounds, PdfiumAutoCropAttempt, PdfiumAutoCropError, PdfiumCropContentAttempt,
-        PdfiumCropContentError, try_detect_auto_crop_bounds, try_remove_content_outside_crop,
+        CropRectangles, DetectedCropBounds, PdfiumAutoCropAttempt, PdfiumAutoCropError,
+        PdfiumCropContentAttempt, PdfiumCropContentError, try_detect_auto_crop_bounds,
+        try_remove_content_outside_crop,
     },
 };
 
@@ -100,6 +101,13 @@ const CROP_STACK_BYTES: usize = 32 * 1024 * 1024;
 /// before the pages are rebuilt; without it the pages are only clipped, so the
 /// original marks stay in the file.
 ///
+/// The flag governs **both** modes. It used to be read only on the manual branch,
+/// so an automatic crop answered a request to delete data with a `200` and a file
+/// that still contained it — no header, no warning, and text extraction recovered
+/// every mark the caller believed gone. Automatic detection produces one rectangle
+/// per page rather than one per document, which is the only thing the two branches
+/// differ by; it is not a reason to answer the flag differently.
+///
 /// # Errors
 ///
 /// Returns [`CropError`] when request coordinates are missing, the PDF cannot be
@@ -132,6 +140,13 @@ fn crop_pdf_to_file_inner(
     output_path: &Path,
 ) -> Result<(), CropError> {
     if options.auto_crop {
+        // The refusal check runs before PDFium is asked for anything at all — both
+        // detection and removal expand the form graph inside it, and once either
+        // has started there is nothing left to refuse with. Only removal is
+        // refusable, so a clip-only automatic crop is not made to pay for it.
+        if options.remove_data_outside_crop {
+            form_expansion_within_bounds(&load_document(input_path, filename)?)?;
+        }
         let bounds = match try_detect_auto_crop_bounds(input_path, filename)? {
             PdfiumAutoCropAttempt::Detected(bounds) => bounds,
             PdfiumAutoCropAttempt::Unavailable {
@@ -144,7 +159,19 @@ fn crop_pdf_to_file_inner(
                 });
             }
         };
-        return rebuild_cropped_pdf(input_path, filename, &bounds, output_path, false);
+        if !options.remove_data_outside_crop {
+            return rebuild_cropped_pdf(input_path, filename, &bounds, output_path, false);
+        }
+        // Each page is measured against its own detected rectangle. Automatic
+        // detection is per page by construction, so applying one page's box to the
+        // whole document would delete marks the caller can still see.
+        let pruned = remove_out_of_crop_content(
+            input_path,
+            filename,
+            CropRectangles::PerPage(&bounds),
+            output_path,
+        )?;
+        return rebuild_cropped_pdf(pruned.path(), filename, &bounds, output_path, true);
     }
 
     let bounds = explicit_bounds(options)?;
@@ -152,20 +179,12 @@ fn crop_pdf_to_file_inner(
         // Before PDFium, not after: the expansion happens inside it, and by the
         // time it has started there is nothing left to refuse with.
         form_expansion_within_bounds(&load_document(input_path, filename)?)?;
-        let pruned = NamedTempFile::new_in(output_path.parent().unwrap_or_else(|| Path::new(".")))
-            .map_err(CropError::CropContentInput)?;
-        match try_remove_content_outside_crop(input_path, filename, bounds, pruned.path())? {
-            PdfiumCropContentAttempt::Removed => {}
-            PdfiumCropContentAttempt::Unavailable {
-                explicitly_configured,
-                details,
-            } => {
-                return Err(CropError::CropContentRuntime {
-                    explicitly_configured,
-                    details,
-                });
-            }
-        }
+        let pruned = remove_out_of_crop_content(
+            input_path,
+            filename,
+            CropRectangles::Uniform(bounds),
+            output_path,
+        )?;
         let page_count = page_count(pruned.path(), filename)?;
         return rebuild_cropped_pdf(
             pruned.path(),
@@ -183,6 +202,35 @@ fn crop_pdf_to_file_inner(
         output_path,
         false,
     )
+}
+
+/// Runs the `PDFium` removal pass, returning the pruned document staged beside the
+/// output.
+///
+/// Shared by both branches on purpose. `removeDataOutsideCrop` is a promise to
+/// delete, and the only honest answers to a request this port cannot honour are
+/// the document with the data gone or an error saying why — never a `200` carrying
+/// the data back. Giving the two branches one implementation is what stops them
+/// drifting into two policies, which is exactly how the automatic branch came to
+/// ignore the flag.
+fn remove_out_of_crop_content(
+    input_path: &Path,
+    filename: &str,
+    rectangles: CropRectangles<'_>,
+    output_path: &Path,
+) -> Result<NamedTempFile, CropError> {
+    let pruned = NamedTempFile::new_in(output_path.parent().unwrap_or_else(|| Path::new(".")))
+        .map_err(CropError::CropContentInput)?;
+    match try_remove_content_outside_crop(input_path, filename, rectangles, pruned.path())? {
+        PdfiumCropContentAttempt::Removed => Ok(pruned),
+        PdfiumCropContentAttempt::Unavailable {
+            explicitly_configured,
+            details,
+        } => Err(CropError::CropContentRuntime {
+            explicitly_configured,
+            details,
+        }),
+    }
 }
 
 fn explicit_bounds(options: CropOptions) -> Result<DetectedCropBounds, CropError> {

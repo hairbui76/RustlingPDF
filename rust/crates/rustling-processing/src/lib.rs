@@ -13469,6 +13469,51 @@ mod tests {
         );
     }
 
+    /// A crop that cannot honour `removeDataOutsideCrop` must refuse, and both
+    /// branches must refuse the same way.
+    ///
+    /// This is the policy the automatic branch used to sidestep: it ignored the flag
+    /// and returned `200` with the data still in the file. There are only two honest
+    /// answers to a request to delete data — the document with it gone, or an error
+    /// saying why not — and a missing `PDFium` runtime is the reason both branches
+    /// report as `501`. The manual branch reaches it through `CropContentRuntime`
+    /// and the automatic branch through `PdfiumRuntime`, since automatic detection
+    /// needs the same runtime removal does; the status must not depend on which.
+    #[test]
+    fn crop_refuses_removal_it_cannot_honour() {
+        use axum::http::StatusCode;
+
+        use super::map_crop_error;
+        use crate::pdf_crop::CropError;
+
+        for error in [
+            CropError::CropContentRuntime {
+                explicitly_configured: false,
+                details: "no runtime".to_owned(),
+            },
+            CropError::PdfiumRuntime {
+                explicitly_configured: false,
+                details: "no runtime".to_owned(),
+            },
+        ] {
+            let refusal = map_crop_error(&error);
+            assert_eq!(refusal.status, StatusCode::NOT_IMPLEMENTED);
+            // The reason has to be in the body: a caller who asked for deletion
+            // needs to know deletion is what did not happen.
+            assert!(refusal.message.contains("PDFium"), "{}", refusal.message);
+        }
+        // A runtime that was configured and still failed is the server's fault, not
+        // the caller's, and must not masquerade as an unimplemented feature.
+        assert_eq!(
+            map_crop_error(&CropError::CropContentRuntime {
+                explicitly_configured: true,
+                details: "broken".to_owned(),
+            })
+            .status,
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
+
     /// An incomplete Markdown reconstruction must be an explicit error, never a 200 with
     /// the tail of the document missing.
     #[test]
