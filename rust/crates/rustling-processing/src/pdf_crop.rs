@@ -157,22 +157,15 @@ fn crop_pdf_to_file_inner(
         } else {
             AutoCropSampling::SparseOnLargePages
         };
-        let bounds = match try_detect_auto_crop_bounds(input_path, filename, sampling)? {
-            PdfiumAutoCropAttempt::Detected(bounds) => bounds,
-            PdfiumAutoCropAttempt::Unavailable {
-                explicitly_configured,
-                details,
-            } => {
-                return Err(CropError::PdfiumRuntime {
-                    explicitly_configured,
-                    details,
-                });
-            }
-        };
+        let bounds = detect_bounds(input_path, filename, sampling)?;
         if !options.remove_data_outside_crop {
             let rebuild_bounds = page_space_bounds(&load_document(input_path, filename)?, &bounds)?;
             return rebuild_cropped_pdf(input_path, filename, &rebuild_bounds, output_path, false);
         }
+        // Optional content the default configuration hides is still content the
+        // reader can switch on, so the rectangle that decides deletion has to cover
+        // it. See [`bounds_including_optional_content`].
+        let bounds = bounds_including_optional_content(input_path, filename, output_path, bounds)?;
         // Each page is measured against its own detected rectangle. Automatic
         // detection is per page by construction, so applying one page's box to the
         // whole document would delete marks the caller can still see.
@@ -214,6 +207,162 @@ fn crop_pdf_to_file_inner(
         output_path,
         false,
     )
+}
+
+/// Renders `input_path` and reports one detected rectangle per page.
+fn detect_bounds(
+    input_path: &Path,
+    filename: &str,
+    sampling: AutoCropSampling,
+) -> Result<Vec<DetectedCropBounds>, CropError> {
+    match try_detect_auto_crop_bounds(input_path, filename, sampling)? {
+        PdfiumAutoCropAttempt::Detected(bounds) => Ok(bounds),
+        PdfiumAutoCropAttempt::Unavailable {
+            explicitly_configured,
+            details,
+        } => Err(CropError::PdfiumRuntime {
+            explicitly_configured,
+            details,
+        }),
+    }
+}
+
+/// Widens each rectangle to also cover what the document's **optional content**
+/// would show if the reader switched it on.
+///
+/// Detection measures a rendering, and `PDFium` renders the default optional-content
+/// configuration — so a layer marked off in `/OCProperties /D /OFF` contributes no
+/// pixel. Framing a page as though that layer did not exist is a defensible
+/// approximation. Deleting it is not, and that is what the rectangle now decides.
+///
+/// The distinction that matters is between *invisible* and *not currently
+/// displayed*. `3 Tr` text and a fully transparent image render as nothing in every
+/// viewer under every action a reader can take, which is what makes deleting them
+/// the honest answer to a request to remove hidden data. An optional-content group
+/// is different in kind: every viewer has a layers panel with a checkbox, and
+/// ticking it is meant to reveal the content. Deleting it produced the exact
+/// failure this endpoint exists to avoid, one level up — the output still
+/// advertised a layer named `Confidential Layer` in `/OCProperties`, the reader
+/// enabled it, and nothing appeared. A file that lies about what it contains,
+/// lying about a layer instead of about ink.
+///
+/// It compounded, too: because the layer was invisible to detection, the crop box
+/// itself was computed from the always-on layer alone. A drawing whose dimensions,
+/// annotations or alternate-language text live on their own layers was cropped to
+/// one layer and then stripped of the rest.
+///
+/// So the measurement is taken twice — the document as it renders by default, and a
+/// throwaway copy with every group forced on — and the two rectangles are
+/// **unioned** per page.
+///
+/// The union is not belt and braces; the second pass alone would be a new deletion
+/// path. An `/OCMD` may carry `/P /AllOff` or `/AnyOff`, which makes content
+/// visible precisely *because* a group is off. Forcing every group on hides it, so
+/// an all-on measurement on its own would compute a rectangle that excludes content
+/// the reader sees without touching anything, and delete it. Taking the larger of
+/// the two rectangles is monotone: whatever any configuration can display is inside
+/// it. Erring larger keeps more than asked; erring smaller destroys.
+///
+/// Documents without optional content pay nothing — the second render is skipped
+/// entirely rather than run on an identical copy.
+///
+/// # Errors
+///
+/// Returns [`CropError`] when the copy cannot be written or measured. It does not
+/// fall back to the narrower rectangle: not knowing what a layer covers is not a
+/// reason to delete it.
+fn bounds_including_optional_content(
+    input_path: &Path,
+    filename: &str,
+    output_path: &Path,
+    default_bounds: Vec<DetectedCropBounds>,
+) -> Result<Vec<DetectedCropBounds>, CropError> {
+    let mut document = load_document(input_path, filename)?;
+    if !force_optional_content_on(&mut document) {
+        return Ok(default_bounds);
+    }
+    let staged = NamedTempFile::new_in(output_path.parent().unwrap_or_else(|| Path::new(".")))
+        .map_err(CropError::CropContentInput)?;
+    document.save(staged.path()).map_err(CropError::WritePdf)?;
+    let widened = detect_bounds(staged.path(), filename, AutoCropSampling::EveryPixel)?;
+    if widened.len() != default_bounds.len() {
+        return Err(CropError::PageCountMismatch);
+    }
+    Ok(default_bounds
+        .into_iter()
+        .zip(widened)
+        .map(|(left, right)| union_bounds(left, right))
+        .collect())
+}
+
+/// The smallest rectangle containing both.
+fn union_bounds(left: DetectedCropBounds, right: DetectedCropBounds) -> DetectedCropBounds {
+    let x = left.x.min(right.x);
+    let y = left.y.min(right.y);
+    let max_x = (left.x + left.width).max(right.x + right.width);
+    let max_y = (left.y + left.height).max(right.y + right.height);
+    DetectedCropBounds {
+        x,
+        y,
+        width: max_x - x,
+        height: max_y - y,
+    }
+}
+
+/// Rewrites the default optional-content configuration so every group is on,
+/// reporting whether the document had any optional content to force.
+///
+/// The whole `/D` dictionary is replaced rather than edited, which also drops `/AS`
+/// — the usage application dictionaries that can switch a group off again for the
+/// `View` event, and would otherwise undo this. That is safe because the document
+/// this runs on is a throwaway copy used only to measure; nothing here reaches the
+/// caller's output, which keeps its own `/OCProperties` untouched.
+fn force_optional_content_on(document: &mut Document) -> bool {
+    let Ok(properties) = document
+        .catalog()
+        .and_then(|catalog| catalog.get(b"OCProperties"))
+    else {
+        return false;
+    };
+    let properties = properties.clone();
+    let groups = document
+        .dereference(&properties)
+        .ok()
+        .and_then(|(_, object)| object.as_dict().ok())
+        .and_then(|dictionary| dictionary.get(b"OCGs").ok().cloned())
+        .and_then(|groups| {
+            document
+                .dereference(&groups)
+                .ok()
+                .and_then(|(_, object)| object.as_array().ok().cloned())
+        })
+        .unwrap_or_default();
+    if groups.is_empty() {
+        // `/OCProperties` with no groups cannot hide anything, so the second
+        // measurement would be a render of an identical document.
+        return false;
+    }
+    let configuration = Object::Dictionary(dictionary! {
+        "BaseState" => Object::Name(b"ON".to_vec()),
+        "ON" => groups,
+        "OFF" => Vec::<Object>::new(),
+    });
+    let target = match properties {
+        Object::Reference(object_id) => document
+            .objects
+            .get_mut(&object_id)
+            .and_then(|object| object.as_dict_mut().ok()),
+        _ => document
+            .catalog_mut()
+            .ok()
+            .and_then(|catalog| catalog.get_mut(b"OCProperties").ok())
+            .and_then(|properties| properties.as_dict_mut().ok()),
+    };
+    let Some(target) = target else {
+        return false;
+    };
+    target.set("D", configuration);
+    true
 }
 
 /// Moves detected rectangles from PDF **content** coordinates into the space the

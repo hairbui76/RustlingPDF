@@ -436,6 +436,154 @@ async fn auto_crop_removal_samples_every_pixel_so_a_hairline_is_not_deleted()
     Ok(())
 }
 
+/// Optional content that is off by default must survive removal, because a reader
+/// can switch it back on.
+///
+/// This is the classification that was got wrong once: an optional-content group
+/// was filed alongside `3 Tr` text and transparent images as "renders as nothing",
+/// and deleted. Those render as nothing in every viewer under every action a reader
+/// can take, which is what makes deleting them honest. A layer is *optional*, not
+/// invisible — every viewer has a panel with a checkbox.
+///
+/// Deleting it reproduced this endpoint's own cardinal failure one level up: the
+/// output still advertised `Confidential Layer` in `/OCProperties`, the reader
+/// ticked it, and nothing appeared. A file that lies about what it contains, lying
+/// about a layer rather than about ink. It compounded, because a layer invisible to
+/// detection also shrinks the crop box — a drawing whose dimensions or
+/// alternate-language text live on their own layers was cropped to its always-on
+/// layer and then stripped of the rest.
+///
+/// The third case is why the fix unions two measurements instead of simply forcing
+/// every group on. An `/OCMD` with `/P /AllOff` is visible precisely *because* its
+/// group is off, so an all-on measurement hides it — verified: with the union
+/// removed, `alloff policy` loses its content and its box collapses to the anchor
+/// block. Forcing all groups on, alone, would have been a new deletion path.
+#[tokio::test]
+async fn auto_crop_removal_covers_optional_content_a_reader_can_switch_on()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, default_on, policy, expect_wide) in [
+        // Off by default: the layer is hidden when rendered, and must still survive.
+        ("off by default", false, None, true),
+        // On by default: nothing special, and a guard that the widening did not
+        // break the ordinary case.
+        ("on by default", true, None, true),
+        // Visible *because* the group is off. An all-on-only measurement hides it.
+        ("alloff policy", false, Some("AllOff"), true),
+    ] {
+        let source = pdf_with_optional_content_layer(default_on, policy)?;
+        for remove in ["true", "false"] {
+            let response = post_crop(
+                "layers.pdf",
+                &source,
+                &[("autoCrop", "true"), ("removeDataOutsideCrop", remove)],
+            )
+            .await?;
+            if response.status() == StatusCode::NOT_IMPLEMENTED {
+                continue;
+            }
+            let bytes = to_bytes(
+                require_status(response, StatusCode::OK).await?.into_body(),
+                usize::MAX,
+            )
+            .await?;
+            assert!(
+                document_contains(&bytes, b"LAYERINK")?,
+                "{label} (removeDataOutsideCrop={remove}): the layer's content is gone, but \
+                 /OCProperties still advertises the layer — the file now lies about what it holds"
+            );
+            if remove == "false" || !expect_wide {
+                continue;
+            }
+            let document = Document::load_mem(&bytes)?;
+            let page_id = document
+                .get_pages()
+                .into_values()
+                .next()
+                .ok_or("missing page")?;
+            let page_box = page_box(&document, page_id)?;
+            // The layer sits at y 220..260 and the always-on block at y 40..70, so
+            // a box that stops short of ~260 was measured from one layer only.
+            assert!(
+                page_box[3] > 250.0 && page_box[0] < 25.0,
+                "{label}: {page_box:?} covers the always-on content only, so the crop was \
+                 framed as though the layer did not exist"
+            );
+        }
+    }
+    Ok(())
+}
+
+/// A page with ordinary always-on ink plus an optional-content group carrying
+/// `LAYERINK`, marked visible or hidden by default, optionally reached through an
+/// `/OCMD` visibility policy rather than the group directly.
+fn pdf_with_optional_content_layer(
+    default_on: bool,
+    policy: Option<&str>,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let group_id = document.add_object(dictionary! {
+        "Type" => "OCG",
+        "Name" => Object::string_literal("Confidential Layer"),
+    });
+    let membership_id = policy.map(|policy| {
+        document.add_object(dictionary! {
+            "Type" => "OCMD",
+            "OCGs" => vec![Object::Reference(group_id)],
+            "P" => Object::Name(policy.as_bytes().to_vec()),
+        })
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        b"0 0 0 rg 80 40 40 30 re f\n\
+          /OC /MC0 BDC\n\
+          0 0 0 rg 20 220 100 40 re f\n\
+          BT /F1 12 Tf 22 225 Td (LAYERINK) Tj ET\n\
+          EMC\n"
+            .to_vec(),
+    ));
+    let page_id = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 300.into()],
+        "Resources" => dictionary! {
+            "Font" => dictionary! { "F1" => font_id },
+            "Properties" => dictionary! {
+                "MC0" => membership_id.unwrap_or(group_id),
+            },
+        },
+        "Contents" => content_id,
+    });
+    document.objects.insert(
+        root_pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![Object::Reference(page_id)],
+            "Count" => 1,
+        }),
+    );
+    let (on, off) = if default_on {
+        (vec![Object::Reference(group_id)], Vec::new())
+    } else {
+        (Vec::new(), vec![Object::Reference(group_id)])
+    };
+    let catalog_id = document.add_object(dictionary! {
+        "Type" => "Catalog",
+        "Pages" => root_pages_id,
+        "OCProperties" => dictionary! {
+            "OCGs" => vec![Object::Reference(group_id)],
+            "D" => dictionary! { "ON" => on, "OFF" => off },
+        },
+    });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
+}
+
 /// A 1000x1200 pt page — large enough for the sparse scan — with an anchor block
 /// and, far from it, a 0.2 pt rule that renders into a single odd pixel column.
 fn pdf_with_a_hairline_on_a_large_page() -> Result<Vec<u8>, Box<dyn std::error::Error>> {

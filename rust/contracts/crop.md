@@ -468,8 +468,11 @@ mechanism from the fidelity losses below: those happen while rewriting a page, t
 one happens before the page is ever touched, by deciding the wrong rectangle.
 
 The rule for the whole area: *anything detection under-reports is destroyed, not
-merely mis-framed.* Two instances of it have already been shipped and fixed — the
-coordinate mapping in [Page geometry](#page-geometry), and pixel sampling.
+merely mis-framed.* Three instances of it have been found and fixed — the
+coordinate mapping in [Page geometry](#page-geometry), pixel sampling, and optional
+content — and a fourth is deliberate and documented below. Anyone changing a
+threshold, a stride, a render flag or a configuration here is changing what gets
+deleted, not how a page is framed.
 
 **Sampling.** The scan skipped every second pixel on pages over 2,000 px. Measured:
 a 1000x1200 pt page (2084x2500 px at 150 DPI) with a 0.2 pt rule at `x = 40` — the
@@ -491,6 +494,33 @@ and fully transparent images. It is recorded here because it is the same shape a
 the two defects above, and because a caller storing a near-white watermark should
 know it will not survive `removeDataOutsideCrop=true`.
 
+**Optional content — measured as what the reader *can* display, not what is
+displayed now.** PDFium renders the default optional-content configuration, so a
+layer switched off in `/OCProperties /D /OFF` contributes no pixel. Deleting it was
+this endpoint's own cardinal failure one level up: the output still advertised a
+layer named `Confidential Layer`, the reader ticked it in the layers panel, and
+nothing appeared — a file lying about what it contains, lying about a layer rather
+than about ink. It compounded, because a layer invisible to detection also shrinks
+the crop box, so a drawing whose dimensions or alternate-language text live on
+their own layers was cropped to its always-on layer and *then* stripped of the rest.
+
+This was, briefly, filed under "renders as nothing" above. That was wrong, and the
+distinction is worth stating because it is the line the whole class turns on:
+`3 Tr` text and a transparent image render as nothing in every viewer under every
+action a reader can take, which is what makes deleting them the honest answer.
+Optional content is *not currently displayed*, which is a different thing — there
+is a checkbox.
+
+Removal therefore measures **twice**: the document as it renders by default, and a
+throwaway copy with every group forced on, taking the union per page. The union is
+load-bearing, not caution: an `/OCMD` with `/P /AllOff` is visible precisely
+*because* its group is off, so an all-on measurement alone hides it — verified, a
+fixture of that shape loses its content and collapses to the anchor block when the
+union is removed. Forcing every group on, by itself, would have been a fifth defect
+of this same class. The union is monotone: whatever any configuration can display
+is inside the rectangle. Documents with no optional content skip the second render
+entirely.
+
 Checked and **not** deletion paths, so that the list is exhaustive rather than
 merely the ones that were found:
 
@@ -501,9 +531,22 @@ merely the ones that were found:
 - An unreadable pixel offset counts as ink, which can only widen the rectangle.
 - Content outside the page's own `/CropBox` is never rendered and never detected,
   in both modes alike — it is out of crop by the document's own definition.
-- Optional content whose default configuration is off renders as nothing, which is
-  the documented class above rather than a new one.
 - A render failure is an error, never a silently empty rectangle.
+
+### What full sampling costs
+
+Counter-intuitively, the **blank** page is the expensive one. The scan stops at the
+first ink it meets from each of the four sides, so a page with content near its
+edges exits almost immediately, while a page with none scans every pixel four times
+over. Measured on a debug build, sampling every pixel costs 2.0–3.5x the sparse
+scan; the growth is linear in pixel count and bounded by the page size, with the
+worst case a blank A0. It is paid only on the removal path, where it sits beside
+regenerating a page's content — much the larger cost — and only on pages over
+2,000 px, since smaller pages never skipped anything.
+
+The two settings therefore diverge by at most **0.48 pt, one device pixel at
+150 DPI**, on pages large enough to be sampled sparsely, and not at all on smaller
+ones.
 
 ### Page geometry
 
@@ -593,6 +636,13 @@ still be extractable from the returned file, the invisible out-of-crop run to be
 gone when removal was asked for, and the returned media box to be a *tight*
 rectangle sitting on the ink. Reverting the mapping to a scale factor, or dropping
 only the media box shift, each fails it.
+
+`auto_crop_removal_covers_optional_content_a_reader_can_switch_on` crops three
+layer shapes — off by default, on by default, and visible only *because* its group
+is off (`/OCMD /P /AllOff`) — and requires the layer's content to survive at both
+flag values, plus the media box to reach the layer rather than stopping at the
+always-on block. Removing the widening fails it on the first shape; keeping the
+widening but dropping the union fails it on the third.
 
 `auto_crop_removal_samples_every_pixel_so_a_hairline_is_not_deleted` pins the
 sampling density against the shape that defeats it: a 0.2 pt rule on a page large
