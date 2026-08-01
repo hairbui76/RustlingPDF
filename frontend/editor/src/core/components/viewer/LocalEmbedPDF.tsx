@@ -8,7 +8,6 @@ import React, {
 import { createPluginRegistration } from "@embedpdf/core";
 import type { PluginRegistry } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
-import { usePdfiumEngine } from "@embedpdf/engines/react";
 
 // Import the essential plugins
 import {
@@ -97,7 +96,7 @@ import { RedactionAPIBridge } from "@app/components/viewer/RedactionAPIBridge";
 import { DocumentPermissionsAPIBridge } from "@app/components/viewer/DocumentPermissionsAPIBridge";
 import { DocumentReadyWrapper } from "@app/components/viewer/DocumentReadyWrapper";
 import { ActiveDocumentProvider } from "@app/components/viewer/ActiveDocumentContext";
-import { pdfiumWasmUrl } from "@app/services/wasmPrecompiler";
+import { useLocalPdfiumEngine } from "@app/services/pdfiumEngine";
 import { FormFieldOverlay } from "@app/tools/formFill/FormFieldOverlay";
 import { ButtonAppearanceOverlay } from "@app/tools/formFill/ButtonAppearanceOverlay";
 import SignatureFieldOverlay from "@app/components/viewer/SignatureFieldOverlay";
@@ -362,10 +361,9 @@ export function LocalEmbedPDF({
     ];
   }, [pdfUrl, enableAnnotations, exportFileName]);
 
-  // Initialize the engine with the React hook - use local WASM for offline support
-  const { engine, isLoading, error } = usePdfiumEngine({
-    wasmUrl: pdfiumWasmUrl,
-  });
+  // Local WASM and no font-fallback CDN — see `useLocalPdfiumEngine`, which is
+  // the only sanctioned way to build this engine.
+  const { engine, isLoading, error } = useLocalPdfiumEngine();
 
   // Early return if no file or URL provided
   if (!file && !url) {

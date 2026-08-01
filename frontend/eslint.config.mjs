@@ -129,6 +129,35 @@ export default defineConfig(
       ],
     },
   },
+  // `@embedpdf/engines` defaults BOTH `wasmUrl` and `fontFallback` to
+  // cdn.jsdelivr.net, and both defaults are reached by simply omitting the
+  // option — `fontFallback: undefined` selects the CDN font config, only an
+  // explicit `null` disables it. Two of these have already shipped and leaked.
+  // `@app/services/pdfiumEngine` pins every remote-defaulting option in one
+  // place; nothing else may construct an engine.
+  {
+    files: ["editor/src/**/*.{js,mjs,jsx,ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...baseRestrictedImportPatterns,
+            {
+              regex: "^@tauri-apps/",
+              message:
+                "Tauri APIs are desktop-only. Review frontend/editor/DeveloperGuide.md for structure advice.",
+            },
+            {
+              regex: "^@embedpdf/engines",
+              message:
+                "Import useLocalPdfiumEngine from @app/services/pdfiumEngine instead. @embedpdf/engines defaults wasmUrl AND fontFallback to a public CDN, so constructing the engine directly risks a silent third-party request on document open.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // app code must use shared DS Button/SegmentedControl/Chip.
   {
     files: ["editor/src/**/*.{js,mjs,jsx,ts,tsx}"],
