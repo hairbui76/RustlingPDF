@@ -3548,48 +3548,116 @@ pub fn try_detect_auto_crop_bounds(
     let mut detected =
         Vec::with_capacity(usize::try_from(document.pages().len()).unwrap_or_default());
     for (page_index, page) in document.pages().iter().enumerate() {
-        let page_width = page.width().value;
-        let page_height = page.height().value;
+        let page_number = page_index + 1;
         let bitmap = page.render_with_config(&render_config).map_err(|source| {
             PdfiumAutoCropError::Render {
-                page_number: page_index + 1,
+                page_number,
                 source,
             }
         })?;
-        let bitmap_width =
-            u16::try_from(bitmap.width()).map_err(|_| PdfiumAutoCropError::InvalidBitmap {
-                page_number: page_index + 1,
-            })?;
-        let bitmap_height =
-            u16::try_from(bitmap.height()).map_err(|_| PdfiumAutoCropError::InvalidBitmap {
-                page_number: page_index + 1,
-            })?;
-        if bitmap_width == 0 || bitmap_height == 0 {
-            return Err(PdfiumAutoCropError::InvalidBitmap {
-                page_number: page_index + 1,
-            });
+        let (Ok(width), Ok(height)) = (
+            usize::try_from(bitmap.width()),
+            usize::try_from(bitmap.height()),
+        ) else {
+            return Err(PdfiumAutoCropError::InvalidBitmap { page_number });
+        };
+        if width == 0 || height == 0 {
+            return Err(PdfiumAutoCropError::InvalidBitmap { page_number });
         }
-        let width = usize::from(bitmap_width);
-        let height = usize::from(bitmap_height);
-        let bounds = detect_content_bounds(&bitmap.as_rgba_bytes(), width, height);
-        let [left, bottom, right, top] = bounds.map(|value| {
-            u16::try_from(value).map_err(|_| PdfiumAutoCropError::InvalidBitmap {
-                page_number: page_index + 1,
-            })
-        });
-        let (left, bottom, right, top) = (left?, bottom?, right?, top?);
-        let scale_x = page_width / f32::from(bitmap_width);
-        let scale_y = page_height / f32::from(bitmap_height);
-        detected.push(DetectedCropBounds {
-            x: f32::from(left) * scale_x,
-            y: f32::from(bottom) * scale_y,
-            width: f32::from(right.saturating_sub(left)) * scale_x,
-            height: f32::from(top.saturating_sub(bottom)) * scale_y,
-        });
+        let [left, top, right, bottom] =
+            detect_content_bounds(&bitmap.as_rgba_bytes(), width, height);
+        detected.push(pixel_box_to_page_bounds(
+            &page,
+            &render_config,
+            [left, top, right, bottom],
+            page_number,
+        )?);
     }
     Ok(PdfiumAutoCropAttempt::Detected(detected))
 }
 
+/// Converts an inclusive bitmap pixel box into PDF page coordinates.
+///
+/// Every corner goes through `PDFium`'s own `FPDF_DeviceToPage`
+/// (`PdfPage::pixels_to_points`) rather than through a bare
+/// `page.width() / bitmap.width()` scale. The scale version was wrong in two ways
+/// that a scale can never express, and both returned a **blank page** under `200`:
+///
+/// - **`/Rotate`.** `page.width()` reports the *rotated* size and the bitmap is
+///   rendered rotated, but page objects and the crop rebuild both live in the
+///   unrotated content system. On a `/Rotate 90` page whose only ink was a square
+///   at `(20,20)`, the scale mapping placed the rectangle at `y ≈ 140` — ~120
+///   points away, so every real mark was "outside" it.
+/// - **`/CropBox`.** `PDFium` renders the crop box, so pixel `(0,0)` is the crop
+///   box's corner, not the page's origin. The scale mapping never added that
+///   origin back: a `/CropBox [50 50 550 750]` page reported its content exactly
+///   50 points low and 50 points left.
+///
+/// `FPDF_DeviceToPage` inverts the same display matrix `PDFium` rendered with, so
+/// rotation, the crop box origin, and the scale are all handled by the one
+/// component that knows what it drew. Mapping **all four** corners and taking the
+/// extremes keeps it correct for the quarter turns that swap the axes, instead of
+/// assuming which mapped corner is which.
+///
+/// The right and bottom edges are pushed out by one pixel because
+/// [`detect_content_bounds`] reports the *last inked pixel*, not the edge past it;
+/// without that the box is one pixel short on each of those sides.
+///
+/// The result is in the PDF **content** coordinate system — the same system
+/// `FPDFPageObj_GetBounds` reports page-object bounds in, so out-of-crop removal
+/// can compare the two directly. The crop rebuild works relative to the media box
+/// origin instead, and `pdf_crop` shifts it there.
+fn pixel_box_to_page_bounds(
+    page: &PdfPage<'_>,
+    render_config: &PdfRenderConfig,
+    [left, top, right, bottom]: [usize; 4],
+    page_number: usize,
+) -> Result<DetectedCropBounds, PdfiumAutoCropError> {
+    let corner = |x: usize, y: usize| -> Result<(f32, f32), PdfiumAutoCropError> {
+        let (Ok(x), Ok(y)) = (i32::try_from(x), i32::try_from(y)) else {
+            return Err(PdfiumAutoCropError::InvalidBitmap { page_number });
+        };
+        let (x, y) = page
+            .pixels_to_points(x, y, render_config)
+            .map_err(|source| PdfiumAutoCropError::Render {
+                page_number,
+                source,
+            })?;
+        Ok((x.value, y.value))
+    };
+    let right = right.saturating_add(1);
+    let bottom = bottom.saturating_add(1);
+    let corners = [
+        corner(left, top)?,
+        corner(right, top)?,
+        corner(left, bottom)?,
+        corner(right, bottom)?,
+    ];
+    let (mut min_x, mut min_y) = corners[0];
+    let (mut max_x, mut max_y) = corners[0];
+    for (x, y) in corners {
+        min_x = min_x.min(x);
+        min_y = min_y.min(y);
+        max_x = max_x.max(x);
+        max_y = max_y.max(y);
+    }
+    Ok(DetectedCropBounds {
+        x: min_x,
+        y: min_y,
+        width: max_x - min_x,
+        height: max_y - min_y,
+    })
+}
+
+/// The inclusive `[left, top, right, bottom]` pixel box of everything non-white,
+/// in **bitmap** coordinates with y increasing downwards.
+///
+/// It deliberately stops at the bitmap. Turning pixels into PDF coordinates needs
+/// the display matrix `PDFium` rendered with — rotation and the crop box origin
+/// included — and that belongs in [`pixel_box_to_page_bounds`], not in a function
+/// that has only seen the samples. An earlier version returned a half-converted,
+/// bottom-up box, which is what let the caller finish the conversion with a bare
+/// scale factor and lose both.
 fn detect_content_bounds(rgba: &[u8], width: usize, height: usize) -> [usize; 4] {
     let step = if width > 2000 || height > 2000 { 2 } else { 1 };
     let is_white = |x: usize, y: usize| {
@@ -3634,7 +3702,7 @@ fn detect_content_bounds(rgba: &[u8], width: usize, height: usize) -> [usize; 4]
             }
         }
     }
-    [left, height - bottom - 1, right, height - top - 1]
+    [left, top, right, bottom]
 }
 
 fn rotation_degrees(rotation: PdfPageRenderRotation) -> i32 {
@@ -3756,9 +3824,16 @@ mod tests {
     }
 
     #[test]
-    fn detects_non_white_pixel_bounds_in_pdf_coordinates() {
+    /// The box is reported in **bitmap** coordinates, top-down and inclusive.
+    ///
+    /// The fixture is deliberately asymmetric vertically: a 5-row bitmap inked on
+    /// rows 1 and 2 gives `[1, 1, 3, 2]` top-down and `[1, 2, 3, 3]` under the
+    /// bottom-up form this used to return, so the two cannot both pass. The
+    /// earlier fixture had the ink vertically centred, where both forms agree —
+    /// it could not have caught the conversion moving out of this function.
+    fn detects_non_white_pixel_bounds_in_bitmap_coordinates() {
         let width = 5;
-        let height = 4;
+        let height = 5;
         let mut pixels = vec![255; width * height * 4];
         for y in 1..=2 {
             for x in 1..=3 {

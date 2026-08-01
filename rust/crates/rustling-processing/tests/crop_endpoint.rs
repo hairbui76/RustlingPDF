@@ -8,7 +8,7 @@ use axum::{
     http::{Request, StatusCode, header},
     response::Response,
 };
-use lopdf::{Document, Object, Stream, dictionary};
+use lopdf::{Dictionary, Document, Object, Stream, dictionary};
 use rustling_processing::app;
 use tower::ServiceExt;
 
@@ -238,6 +238,209 @@ async fn auto_crop_measures_each_page_against_its_own_rectangle()
     assert_approximately(boxes[1][0], 100.0, 3.0);
     assert_approximately(boxes[1][1], 250.0, 3.0);
     Ok(())
+}
+
+/// Automatic detection must land in the coordinate system its consumers use, on
+/// every page-box shape — not only on the `/MediaBox [0 0 w h]`, unrotated page
+/// that happens to make three different systems coincide.
+///
+/// This is the test whose absence made automatic removal a data-loss bug. The
+/// mapping used to be a bare `page.width() / bitmap.width()` scale, which cannot
+/// express either of the two transforms a page can carry:
+///
+/// - `/Rotate` — `page.width()` is the *rotated* size and the bitmap is rendered
+///   rotated, while page objects and the rebuild are both unrotated.
+/// - `/CropBox` — `PDFium` renders the crop box, so pixel `(0,0)` is its corner, and
+///   the scale never added that origin back.
+///
+/// A third shape sits on the other side of the pipeline: a `/MediaBox` with a
+/// non-zero origin. The rebuild shifts content by the media box corner, removal
+/// does not, and the old code fed one rectangle to both — so `media_origin` was a
+/// case where the *clip* was right and the *removal* deleted everything anyway.
+///
+/// Measured on these fixtures before the fix: **12 of 15 came back with not one
+/// dark pixel at 150 DPI**, under `200`, with the marks physically deleted. So the
+/// assertion here is deliberately about the ink and not about the geometry alone:
+/// the visible run must still be extractable from the returned file, the invisible
+/// one must not, and the media box must be a tight rectangle sitting on the ink
+/// rather than a plausible-looking rectangle somewhere else.
+///
+/// Both flag values run. Clip-only was equally mis-cropped — it just returned a
+/// blank page with the data intact instead of deleting it — so fixing only the
+/// removal path would have left a `200` that is still wrong.
+#[tokio::test]
+async fn auto_crop_maps_pixels_through_rotation_and_page_boxes()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, media, crop, rotate, inherited) in [
+        ("upright", [0, 0, 200, 300], None, 0, false),
+        ("rotate 90", [0, 0, 200, 300], None, 90, false),
+        ("rotate 180", [0, 0, 200, 300], None, 180, false),
+        ("rotate 270", [0, 0, 200, 300], None, 270, false),
+        ("rotate 90 inherited", [0, 0, 200, 300], None, 90, true),
+        ("rotate 270 inherited", [0, 0, 200, 300], None, 270, true),
+        (
+            "crop box",
+            [0, 0, 200, 300],
+            Some([15, 15, 185, 285]),
+            0,
+            false,
+        ),
+        (
+            "crop box and rotate 90",
+            [0, 0, 200, 300],
+            Some([15, 15, 185, 285]),
+            90,
+            false,
+        ),
+        (
+            "crop box inherited",
+            [0, 0, 200, 300],
+            Some([15, 15, 185, 285]),
+            0,
+            true,
+        ),
+        ("media box origin", [50, 50, 250, 350], None, 0, false),
+        (
+            "media box origin and rotate 90",
+            [50, 50, 250, 350],
+            None,
+            90,
+            false,
+        ),
+        (
+            "media box origin and crop box",
+            [50, 50, 250, 350],
+            Some([65, 65, 235, 335]),
+            0,
+            false,
+        ),
+    ] {
+        // The ink sits well inside every box above, and the secret far from it but
+        // still inside them, so no case is decided by content falling off a page.
+        let ink = (media[0] + 40, media[1] + 40);
+        let secret = (media[0] + 40, media[1] + 230);
+        let source = pdf_with_page_boxes(media, crop, rotate, inherited, ink, secret)?;
+        for remove in ["true", "false"] {
+            let response = post_crop(
+                "boxes.pdf",
+                &source,
+                &[("autoCrop", "true"), ("removeDataOutsideCrop", remove)],
+            )
+            .await?;
+            if response.status() == StatusCode::NOT_IMPLEMENTED {
+                continue;
+            }
+            let bytes = to_bytes(
+                require_status(response, StatusCode::OK).await?.into_body(),
+                usize::MAX,
+            )
+            .await?;
+            assert!(
+                document_contains(&bytes, b"KEEPBOX")?,
+                "{label} (removeDataOutsideCrop={remove}): the visible run was deleted — the \
+                 detected rectangle did not land on the ink"
+            );
+            if remove == "true" {
+                assert!(
+                    !document_contains(&bytes, b"DROPBOX")?,
+                    "{label}: the out-of-crop run survived removal"
+                );
+            }
+            let document = Document::load_mem(&bytes)?;
+            let page_id = document
+                .get_pages()
+                .into_values()
+                .next()
+                .ok_or("missing page")?;
+            let page_box = page_box(&document, page_id)?;
+            // The rebuild works relative to the media box corner, so that is the
+            // origin the detected rectangle has to be expressed in.
+            let (expected_x, expected_y) = (
+                f32::from(i16::try_from(ink.0 - media[0])?),
+                f32::from(i16::try_from(ink.1 - media[1])?),
+            );
+            assert_approximately(page_box[0], expected_x, 4.0);
+            assert_approximately(page_box[1], expected_y, 4.0);
+            // A tight box on one short text run, not the whole page: a rectangle
+            // that merely happens to contain the ink would pass the assertions
+            // above while still being the wrong rectangle.
+            assert!(
+                page_box[2] - page_box[0] < 80.0 && page_box[3] - page_box[1] < 40.0,
+                "{label} (removeDataOutsideCrop={remove}): {page_box:?} is not a tight crop"
+            );
+        }
+    }
+    Ok(())
+}
+
+/// One page carrying an explicit `/MediaBox`, optional `/CropBox` and `/Rotate` —
+/// written either on the page or on the `/Pages` node it inherits from — with a
+/// visible text run and a far-away invisible one.
+fn pdf_with_page_boxes(
+    media: [i32; 4],
+    crop: Option<[i32; 4]>,
+    rotate: i32,
+    inherited: bool,
+    ink: (i32, i32),
+    secret: (i32, i32),
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut document = Document::with_version("1.7");
+    let root_pages_id = document.new_object_id();
+    let font_id = document.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let content_id = document.add_object(Stream::new(
+        dictionary! {},
+        format!(
+            "BT /F1 12 Tf {} {} Td (KEEPBOX) Tj ET\nBT 3 Tr /F1 12 Tf {} {} Td (DROPBOX) Tj ET",
+            ink.0, ink.1, secret.0, secret.1
+        )
+        .into_bytes(),
+    ));
+    let boxes = |dictionary: &mut Dictionary| {
+        dictionary.set(
+            "MediaBox",
+            media.into_iter().map(Object::from).collect::<Vec<_>>(),
+        );
+        if let Some(crop) = crop {
+            dictionary.set(
+                "CropBox",
+                crop.into_iter().map(Object::from).collect::<Vec<_>>(),
+            );
+        }
+        if rotate != 0 {
+            dictionary.set("Rotate", i64::from(rotate));
+        }
+    };
+    let mut page = dictionary! {
+        "Type" => "Page",
+        "Parent" => root_pages_id,
+        "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+        "Contents" => content_id,
+    };
+    let mut pages = dictionary! {
+        "Type" => "Pages",
+        "Count" => 1,
+    };
+    // Inheritance is not decoration: these four attributes may legally live on any
+    // ancestor (ISO 32000-1 7.7.3.4), and a mapping that reads them off the page
+    // dictionary alone silently falls back to defaults for documents that do.
+    if inherited {
+        boxes(&mut pages);
+    } else {
+        boxes(&mut page);
+    }
+    let page_id = document.add_object(page);
+    pages.set("Kids", vec![Object::Reference(page_id)]);
+    document
+        .objects
+        .insert(root_pages_id, Object::Dictionary(pages));
+    let catalog_id =
+        document.add_object(dictionary! { "Type" => "Catalog", "Pages" => root_pages_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes)?;
+    Ok(bytes)
 }
 
 /// A page whose rendered ink is a rectangle in the middle, with an invisible

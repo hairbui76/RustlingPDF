@@ -331,9 +331,17 @@ keeps declarations rather than refusing the request, as
 
 Verified end to end against plain text, images, Form and nested-Form text, inline
 images, invisible (`3 Tr`) text, optional-content (OCG) marks, `/Contents` arrays,
-Type 3 font text, subset fonts, annotations with appearance streams, rotated pages,
-multi-page documents, patterns and forms sharing a resource name, and nested forms
-relying on inherited resources.
+Type 3 font text, subset fonts, annotations with appearance streams, multi-page
+documents, patterns and forms sharing a resource name, and nested forms relying on
+inherited resources.
+
+Page **geometry** — `/Rotate`, `/CropBox`, a `/MediaBox` with a non-zero origin,
+and each of those written on an ancestor `/Pages` node instead of the page — is
+covered separately by `auto_crop_maps_pixels_through_rotation_and_page_boxes`, and
+only became true when that test was written. This list previously claimed "rotated
+pages" with nothing behind it: no test in `crop_endpoint.rs` and no code in
+`pdf_crop.rs` mentioned rotation, and automatic crop was in fact broken on every
+rotation except `0`. See [Page geometry](#page-geometry).
 
 ### Fidelity cost of asking for removal
 
@@ -345,22 +353,26 @@ flat colour, and an `sh` shading mark is dropped entirely** — including for ma
 resources are then unreferenced, so their bytes are removed with them.
 
 **Text is not exempt.** On some documents regeneration also drops glyphs from
-subset fonts, and the marks it drops are inside the crop rectangle. Measured over
-41 real documents and 677 pages on this machine, comparing each removal output
-against its own `removeDataOutsideCrop=false` control page by page at 72 DPI:
-36 documents are pixel-identical, and five differ. Two of the five are sub-pixel
-re-layout with every glyph still legible; one is a single-pixel column at the page
-edge. The other two lose visible text — a Skia/Google-Docs page whose Identity-H
-subset fonts came back with roughly an eighth of its glyphs blank, and a
-Calibre-produced page that lost its section headings while the body text survived.
+subset fonts, and the marks it drops are inside the crop rectangle.
 
-This is a property of PDFium's content generator, not of the resource pruning:
-disabling the pruning entirely reproduces every one of the five differences
-byte for byte, and so does the manual branch given the same rectangle. It has been
-there for as long as removal has, and it is the same on both branches — automatic
-mode adds none of it. It is recorded here because it was not, and because it is a
-larger cost than the pattern and shading losses above: a caller who crops to
-*keep* something can lose it.
+Measured on this machine over **124 documents and 493 pages** — 41 real documents
+plus, for each, a `+90`-rotated copy and a copy with the crop box inset 20 points,
+so that rotation and `/CropBox` are represented rather than assumed absent — with
+each removal output compared against its own `removeDataOutsideCrop=false` control
+page by page at 72 DPI: **99 of 124 lose no in-crop ink at all**, and **no page at
+any setting came back blank**. Of the rest, most only *gain* dark pixels, which is
+the pattern-to-flat-colour effect above (a page of pale statistic cards comes back
+with black ones, every glyph intact). Four document families genuinely lose visible
+text: a Skia/Google-Docs page whose Identity-H subset fonts come back with ~6% of
+the page's ink blank, a Word document at ~3%, and two others near ~1.8%, one of
+which loses its section headings while the body survives.
+
+This is a property of PDFium's content generator, not of the resource pruning or of
+which branch asked. Disabling the pruning entirely reproduces the loss to three
+decimal places on every document checked, and the manual branch reproduces it given
+the same rectangle. It has been there for as long as removal has. It is recorded
+here because it was not, and because it is a larger cost than the pattern and
+shading losses above: a caller who crops to *keep* something can lose it.
 
 If that is unacceptable for a document, `removeDataOutsideCrop=false` regenerates
 nothing and is exact — at the price of keeping the out-of-crop data, which is the
@@ -437,6 +449,40 @@ detection, not just before removal. Detection renders every page through the sam
 PDFium that expands the form graph, so a check placed after it would never run.
 A clip-only automatic crop does not pay for the check, and is unaffected.
 
+### Page geometry
+
+Automatic detection is a **rendering** measurement feeding two consumers that do
+not share its coordinate system, and getting that wrong is not a cosmetic bug once
+removal is wired to it. Three systems are in play:
+
+| | System |
+|---|---|
+| The rendered bitmap | pixels, y down, origin at the **crop box** corner, **rotated** by `/Rotate` |
+| Out-of-crop removal (`FPDFPageObj_GetBounds`) | PDF content space, unrotated |
+| The rebuilt page (`page_form`, `add_cropped_page`) | content space shifted so the **media box** corner is the origin |
+
+Detection converts pixels to content space through PDFium's own
+`FPDF_DeviceToPage`, which inverts the very display matrix it rendered with, so
+rotation, the crop box origin and the scale are all handled by the component that
+knows what it drew. All four corners are mapped and the extremes taken, because a
+quarter turn swaps which corner is which. Removal then uses those rectangles
+unchanged, and the rebuild subtracts each page's media box origin — read with
+`lopdf`, the same library `page_form` reads it with, so the two agree.
+
+This replaced a bare `page.width() / bitmap.width()` scale, which cannot express
+any of it. The scale silently assumed `/Rotate 0`, `/CropBox == /MediaBox` and a
+media box at the origin; on the fixtures above, **12 of 15 geometry shapes came
+back with not one dark pixel at 150 DPI** — a blank page under `200`. Clip-only was
+mis-cropped the same way and merely kept the data; with removal wired to the same
+rectangle the marks were physically deleted. One shape, a non-zero media box
+origin, was worse still: the clip was correct and the removal deleted everything
+anyway, because the single rectangle was right for one consumer and wrong for the
+other.
+
+Rotation itself is still **not preserved** in the output, in either mode: the
+rebuild has never carried `/Rotate` over, so a rotated page comes back cropped to
+the right region but drawn upright. That is unchanged and separate from the mapping.
+
 ### Requirements
 
 Content removal runs on the pinned PDFium runtime — the same runtime automatic
@@ -482,6 +528,15 @@ is `false`; a tiling pattern painting text, a tiling pattern painting an image, 
 a shading with a Type 0 sampled function all lose their payloads when only an
 out-of-crop mark referenced them; and a Type 3 font text run outside the crop is
 removed without crashing the process.
+
+`auto_crop_maps_pixels_through_rotation_and_page_boxes` crops twelve page-geometry
+shapes — all four rotations, `/CropBox` with and without rotation, a `/MediaBox`
+with a non-zero origin with and without rotation, both together, and the inherited
+form of each — at both flag values. For every one it requires the visible run to
+still be extractable from the returned file, the invisible out-of-crop run to be
+gone when removal was asked for, and the returned media box to be a *tight*
+rectangle sitting on the ink. Reverting the mapping to a scale factor, or dropping
+only the media box shift, each fails it.
 
 Automatic mode is pinned on both directions of the flag.
 `auto_crop_honours_remove_data_outside_crop` crops a page whose only out-of-crop

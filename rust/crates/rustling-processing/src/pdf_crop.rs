@@ -8,7 +8,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::{
-    pdf_page_geometry::{PageForm, page_form, replace_page_tree},
+    pdf_page_geometry::{PageForm, inherited_value, page_form, replace_page_tree},
     pdfium_backend::{
         CropRectangles, DetectedCropBounds, PdfiumAutoCropAttempt, PdfiumAutoCropError,
         PdfiumCropContentAttempt, PdfiumCropContentError, try_detect_auto_crop_bounds,
@@ -160,7 +160,8 @@ fn crop_pdf_to_file_inner(
             }
         };
         if !options.remove_data_outside_crop {
-            return rebuild_cropped_pdf(input_path, filename, &bounds, output_path, false);
+            let rebuild_bounds = page_space_bounds(&load_document(input_path, filename)?, &bounds)?;
+            return rebuild_cropped_pdf(input_path, filename, &rebuild_bounds, output_path, false);
         }
         // Each page is measured against its own detected rectangle. Automatic
         // detection is per page by construction, so applying one page's box to the
@@ -171,7 +172,8 @@ fn crop_pdf_to_file_inner(
             CropRectangles::PerPage(&bounds),
             output_path,
         )?;
-        return rebuild_cropped_pdf(pruned.path(), filename, &bounds, output_path, true);
+        let rebuild_bounds = page_space_bounds(&load_document(pruned.path(), filename)?, &bounds)?;
+        return rebuild_cropped_pdf(pruned.path(), filename, &rebuild_bounds, output_path, true);
     }
 
     let bounds = explicit_bounds(options)?;
@@ -202,6 +204,61 @@ fn crop_pdf_to_file_inner(
         output_path,
         false,
     )
+}
+
+/// Moves detected rectangles from PDF **content** coordinates into the space the
+/// rebuilt pages use.
+///
+/// The two consumers of a crop rectangle do not share a coordinate system, and
+/// pretending they do is what produced blank pages:
+///
+/// - Removal compares against `FPDFPageObj_GetBounds`, which is content space.
+///   [`try_detect_auto_crop_bounds`] reports content space for exactly that
+///   reason, so removal takes the detected rectangles unchanged.
+/// - The rebuild does not. [`page_form`] gives the page form a
+///   `Matrix [1 0 0 1 -x0 -y0]` taken from the media box, so the rebuilt page's
+///   origin is the media box's lower-left corner, and [`add_cropped_page`] writes
+///   both the new media box and the clip path in that shifted space.
+///
+/// They coincide only when the media box starts at `(0, 0)` — which is most
+/// documents, and therefore exactly the kind of assumption that survives until a
+/// prepress file arrives with `/MediaBox [50 50 ...]` and comes back blank.
+///
+/// The origin is read with `lopdf`, not `PDFium`, on purpose: it has to agree with
+/// [`page_form`], which is the code that will consume the result. The removal side
+/// is `PDFium` on both ends for the same reason. Mixing the two views is the one
+/// mistake this whole area keeps paying for.
+///
+/// # Errors
+///
+/// Returns [`CropError::PageCountMismatch`] when the document does not have one
+/// page per rectangle, or [`CropError::Pdf`] when a page has no readable media box
+/// — the same box [`page_form`] is about to require anyway.
+fn page_space_bounds(
+    document: &Document,
+    bounds: &[DetectedCropBounds],
+) -> Result<Vec<DetectedCropBounds>, CropError> {
+    let page_ids = document.get_pages().into_values().collect::<Vec<_>>();
+    if page_ids.len() != bounds.len() {
+        return Err(CropError::PageCountMismatch);
+    }
+    page_ids
+        .into_iter()
+        .zip(bounds)
+        .map(|(page_id, bounds)| {
+            let media_box = inherited_value(document, page_id, b"MediaBox")?;
+            let (_, media_box) = document.dereference(&media_box)?;
+            let media_box = media_box.as_array()?;
+            let origin_x = media_box[0].as_float()?;
+            let origin_y = media_box[1].as_float()?;
+            Ok(DetectedCropBounds {
+                x: bounds.x - origin_x,
+                y: bounds.y - origin_y,
+                width: bounds.width,
+                height: bounds.height,
+            })
+        })
+        .collect()
 }
 
 /// Runs the `PDFium` removal pass, returning the pruned document staged beside the
