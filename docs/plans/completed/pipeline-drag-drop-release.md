@@ -4,7 +4,12 @@ Date: 2026-07-31
 
 ## Status
 
-Completed
+Completed — but **superseded on 2026-08-01**: every product release from v2.14.2
+through v3.1.3, along with both container packages, was deleted by maintainer
+decision, and versioning restarted at 0.0.1. The record below is kept as written
+because it is an accurate account of what happened at the time; the present-tense
+claims about v3.1.3 being published and being the latest release are no longer
+true of the repository today.
 
 ## Outcome
 
