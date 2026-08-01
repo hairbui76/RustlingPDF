@@ -25,7 +25,7 @@ content supplied with its request.
 | POST | `/api/v1/pdf/edit` | Produce a validated PDF edit plan |
 | POST | `/api/v1/agents/draft` | Draft a saved-agent workflow |
 | POST | `/api/v1/agents/revise` | Revise a saved-agent workflow |
-| POST | `/api/v1/agents/next-action` | Resolve the next workflow action |
+| POST | `/api/v1/agents/next-action` | **Not implemented.** Always answers `cannot_continue` with a reason naming the step, whatever the request contains. It is registered so a caller receives that refusal rather than a 404, and it is deliberately absent from `/api/v1/agents/capabilities` so nothing discovers it as a working planner. A multi-step saved-agent workflow therefore cannot advance past its first step. |
 | POST | `/api/v1/orchestrator` | Stream orchestration progress and result frames |
 | POST | `/api/v1/config` | Apply bounded model and limit configuration |
 

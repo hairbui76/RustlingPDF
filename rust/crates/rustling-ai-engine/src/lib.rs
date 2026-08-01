@@ -915,17 +915,13 @@ async fn capabilities() -> Response {
             required_scope: "mcp.tools.read",
             route: PDF_COMMENT_GENERATE_PATH,
         },
-        AgentCapability {
-            id: "agent-next-action",
-            description: "Decide the next execution step for an in-progress saved-agent workflow.",
-            input_schema: agent_execution_capability_schema(
-                &operation_endpoints,
-                &processing_endpoints,
-            ),
-            mode: "sync",
-            required_scope: "mcp.tools.read",
-            route: AGENT_NEXT_ACTION_PATH,
-        },
+        // `agent-next-action` is deliberately not advertised. `ExecutionPlanningAgent::next_action`
+        // ignores its request and returns a fixed `cannot_continue` outcome, so listing it here —
+        // with a full input schema and `mode: "sync"` — told clients a planner existed and left
+        // every multi-step saved-agent workflow stalling on its first step with a reason string
+        // reading "not implemented yet". The route stays registered so an existing caller still
+        // gets that honest refusal instead of a 404; it returns to this manifest when it can
+        // actually plan.
     ];
     capabilities.extend(document_understanding_capabilities());
     Json(CapabilityManifest {
@@ -1151,37 +1147,6 @@ fn document_translation_capability_schema() -> Value {
             "sourceLanguage": {"type": ["string", "null"], "maxLength": 100, "default": null}
         },
         "required": ["fileName", "pages", "targetLanguage"]
-    })
-}
-
-fn agent_execution_capability_schema(
-    operation_endpoints: &[String],
-    processing_endpoints: &[String],
-) -> Value {
-    json!({
-        "title":"AgentExecutionRequest","type":"object","additionalProperties":false,
-        "properties":{
-            "agentSpec":agent_spec_schema(operation_endpoints, processing_endpoints),
-            "currentStepIndex":{"type":"integer"},
-            "executionContext":{
-                "type":"object","additionalProperties":false,
-                "properties":{
-                    "triggerType":{"type":["string","null"],"default":null},
-                    "inputFiles":{"type":"array","items":{"type":"string"},"default":[]},
-                    "metadata":{"type":"object","default":{}}
-                }
-            },
-            "previousStepResults":{"type":"array","default":[],"items":{
-                "type":"object","additionalProperties":false,
-                "properties":{
-                    "stepIndex":{"type":"integer"},"tool":{"oneOf":[{"type":"string","enum":operation_endpoints},{"type":"null"}],"default":null},
-                    "success":{"type":"boolean"},"outputSummary":{"type":["string","null"],"default":null},
-                    "outputData":{"type":"object","default":{}}
-                },
-                "required":["stepIndex","success"]
-            }}
-        },
-        "required":["agentSpec","currentStepIndex","executionContext"]
     })
 }
 
@@ -2185,7 +2150,7 @@ mod tests {
         let body = to_bytes(response.into_body(), 65_536).await?;
         let body = serde_json::from_slice::<serde_json::Value>(&body)?;
         assert_eq!(body["version"], 1);
-        assert_eq!(body["capabilities"].as_array().map(Vec::len), Some(10));
+        assert_eq!(body["capabilities"].as_array().map(Vec::len), Some(9));
         let ids = body["capabilities"]
             .as_array()
             .ok_or("capabilities must be an array")?
@@ -2201,7 +2166,6 @@ mod tests {
                 "math-audit-examine",
                 "math-audit-deliberate",
                 "pdf-comment-generate",
-                "agent-next-action",
                 "document-summary",
                 "document-extraction",
                 "document-translation"

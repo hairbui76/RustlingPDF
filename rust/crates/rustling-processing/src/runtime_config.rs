@@ -167,6 +167,16 @@ const ENDPOINT_GROUPS: &[(&str, &str)] = &[
     ("Calibre", "pdf-to-epub ebook-to-pdf"),
     ("FFmpeg", "pdf-to-video"),
     ("unrar", "cbr-to-pdf"),
+    // veraPDF is the only engine that can actually validate a declared PDF/A
+    // profile. Without it `verify-pdf` still answers for a file that declares
+    // no profile — it reports `not-pdfa` from the XMP alone — but returns 501
+    // for exactly the files someone runs a conformance checker on. Advertising
+    // it as available made the tool look usable and then fail on the real case,
+    // and no shipped profile has veraPDF: not a bare install, not the desktop
+    // bundle, and the Docker image excludes it explicitly. Gating it says
+    // "install veraPDF" instead. Nothing is lost by doing so: `get-info-on-pdf`
+    // reports `IsPDF/ACompliant` and the level from the same declaration.
+    ("veraPDF", "verify-pdf"),
 ];
 
 const FUNCTIONAL_GROUPS: &[&str] = &[
@@ -1993,8 +2003,12 @@ mod tests {
         assert_eq!(availability["pdf-to-video"].reason, Some("DEPENDENCY"));
         assert!(!availability["cbr-to-pdf"].enabled);
         assert_eq!(availability["cbr-to-pdf"].reason, Some("DEPENDENCY"));
-        assert!(availability["verify-pdf"].enabled);
-        assert_eq!(availability["verify-pdf"].reason, None);
+        // veraPDF gates `verify-pdf`: without it the endpoint answers only for
+        // files that declare no PDF/A profile and returns 501 for the ones a
+        // conformance check is actually run on, so reporting it as available
+        // was a promise the service could not keep.
+        assert!(!availability["verify-pdf"].enabled);
+        assert_eq!(availability["verify-pdf"].reason, Some("DEPENDENCY"));
         Ok(())
     }
 

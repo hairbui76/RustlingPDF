@@ -60,8 +60,16 @@ Every tool's binary can be pinned explicitly with a
 `RUSTLING_PROCESSING_<TOOL>_COMMAND` environment variable; see
 [`rust/RUNNING_WITH_RUST.md`](../../rust/RUNNING_WITH_RUST.md#optional-external-tools)
 for the full list, including the "assist only" tools (qpdf, Poppler
-`pdftohtml`, veraPDF) that improve specific endpoints when present but never
-gate them off.
+`pdftohtml`) that improve specific endpoints when present but never gate them
+off.
+
+veraPDF is **not** assist-only: it gates `security/verify-pdf`. Without it the
+endpoint could still report that a file declares no PDF/A profile, but returned
+`501` for every file that declares one — which is the only case a conformance
+check is run for. It is now gated so the tool reports itself unavailable instead
+of failing on the real work; `get-info-on-pdf` still reports `IsPDF/ACompliant`
+and the declared level from the same metadata. No shipped profile includes
+veraPDF, so this is off unless an operator installs it.
 
 `convert/url/pdf` (URL → PDF) has one more gate on top of WeasyPrint: it is
 **disabled by default even when WeasyPrint is installed**, as an SSRF guard.
