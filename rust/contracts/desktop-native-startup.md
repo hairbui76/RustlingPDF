@@ -35,6 +35,11 @@ The sidecar receives `RUSTLING_BASE_PATH` and `RUSTLING_PDF_TAURI_MODE`. When
 the environment does not already define `RUSTLING_PDFIUM_LIBRARY_PATH`, the
 launcher points it at the bundled PDFium directory.
 
+Because the desktop UI is served from the webview's own protocol and calls the
+sidecar at an absolute loopback URL, its requests are cross-origin.
+`RUSTLING_PDF_TAURI_MODE` is what enables the narrow origin allow-list that
+makes them work; see `desktop-cors.md`.
+
 For bundled tools, explicit operator values take precedence. Otherwise the
 launcher sets:
 

@@ -893,7 +893,7 @@ fn desktop_gate_satisfied(is_desktop: bool, peer_is_loopback: bool) -> bool {
 }
 
 fn is_desktop() -> bool {
-    env_bool("RUSTLING_PDF_TAURI_MODE")
+    crate::environment::tauri_mode_active()
         || crate::environment::var("RUSTLING_MACHINE_TYPE")
             .is_ok_and(|machine_type| machine_type.starts_with("Client-"))
 }
@@ -1040,10 +1040,6 @@ fn detect_libraries(
 
 fn same_file(left: &Path, right: &Path) -> bool {
     fs::canonicalize(left).ok() == fs::canonicalize(right).ok()
-}
-
-fn env_bool(name: &str) -> bool {
-    crate::environment::var(name).is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"))
 }
 
 fn certificate_info_from_der(

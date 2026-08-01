@@ -31,7 +31,6 @@ use chrono::Utc;
 // `main.rs`), so the shared editor is reached through the library crate.
 use rustling_processing::settings_yaml;
 
-const TAURI_MODE_VARIABLE: &str = "RUSTLING_PDF_TAURI_MODE";
 const BASE_PATH_VARIABLE: &str = "RUSTLING_BASE_PATH";
 const SETTINGS_TEMPLATE: &str = include_str!("../resources/settings.yml.template");
 /// Files shorter than this threshold are treated as truncated.
@@ -43,13 +42,9 @@ const MIN_SETTINGS_FILE_LINES: usize = 31;
 /// `settings.yml` (template creation, upgrade merge, truncation backup, and
 /// install-identity persistence): that file lives in the desktop user's own
 /// app-data directory. The server deployment is stateless and never writes.
-pub(crate) fn tauri_mode_active() -> bool {
-    tauri_mode_enabled(
-        rustling_processing::environment::var(TAURI_MODE_VARIABLE)
-            .ok()
-            .as_deref(),
-    )
-}
+/// Re-exported from the library so the binary, the desktop CORS policy, the
+/// SPA, and hardware signing all share one definition of desktop mode.
+pub(crate) use rustling_processing::environment::tauri_mode_active;
 
 pub(crate) fn initialize_from_environment() -> Result<(), io::Error> {
     if !tauri_mode_active() {
@@ -59,10 +54,6 @@ pub(crate) fn initialize_from_environment() -> Result<(), io::Error> {
         .filter(|value| !value.is_empty())
         .map_or_else(|| PathBuf::from("."), PathBuf::from);
     initialize_missing_files(&base_path)
-}
-
-fn tauri_mode_enabled(value: Option<&str>) -> bool {
-    value.is_some_and(|value| value.trim().eq_ignore_ascii_case("true"))
 }
 
 fn initialize_missing_files(base_path: &Path) -> Result<(), io::Error> {
@@ -240,20 +231,11 @@ fn overwrite_atomically(path: &Path, contents: &[u8]) -> Result<(), io::Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        SETTINGS_TEMPLATE, initialize_missing_files, merge_template_into_existing,
-        tauri_mode_enabled,
-    };
+    // The Tauri-mode switch itself is covered by
+    // `rustling_processing::environment`, which now owns the single definition
+    // this module re-exports.
+    use super::{SETTINGS_TEMPLATE, initialize_missing_files, merge_template_into_existing};
     use std::fs;
-
-    #[test]
-    fn recognizes_only_the_explicit_true_tauri_switch() {
-        assert!(tauri_mode_enabled(Some("true")));
-        assert!(tauri_mode_enabled(Some(" TRUE ")));
-        for value in [None, Some(""), Some("false"), Some("1")] {
-            assert!(!tauri_mode_enabled(value));
-        }
-    }
 
     #[test]
     fn creates_the_packaged_template_and_empty_override_once()

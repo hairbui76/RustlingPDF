@@ -116,8 +116,7 @@ impl SpaServing {
     pub(crate) fn from_runtime_config(config: &RuntimeConfig) -> Option<Self> {
         let dist_root = config.frontend_dist_dir()?;
         let external_static = config.custom_static_dir();
-        let tauri_mode = crate::environment::var("RUSTLING_PDF_TAURI_MODE")
-            .is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"));
+        let tauri_mode = crate::environment::tauri_mode_active();
         Some(Self::new(dist_root, &external_static, tauri_mode))
     }
 

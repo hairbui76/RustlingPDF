@@ -6,6 +6,7 @@ mod ai_proxy;
 mod ai_workflow;
 mod classification;
 pub mod comic_book;
+pub mod cors;
 pub mod ebook_to_pdf;
 pub mod eml_to_pdf;
 pub mod environment;
@@ -1508,17 +1509,17 @@ impl ProcessingRuntime {
         // and test entry point funnels the fully-merged router through here.
         // The SPA fallback is attached first so unmatched requests reach it
         // while API routes always win, and the transport limits still cover it.
-        apply_transport_limits(
+        finish_router(apply_transport_limits(
             spa::attach_fallback(self.router, self.spa),
             TransportLimits::production(),
-        )
+        ))
     }
 
     pub fn router(&self) -> Router {
-        apply_transport_limits(
+        finish_router(apply_transport_limits(
             spa::attach_fallback(self.router.clone(), self.spa.clone()),
             TransportLimits::production(),
-        )
+        ))
     }
 
     /// Reports whether an operation URI is enabled in this exact runtime.
@@ -1649,6 +1650,18 @@ fn apply_transport_limits(router: Router, limits: TransportLimits) -> Router {
             rate_limit_state,
             enforce_rate_limits,
         ))
+}
+
+/// Outermost assembly step, applied after the transport guardrails so it wraps
+/// every route, both fallbacks, and the guardrails' own rejections.
+///
+/// Currently just the desktop-only cross-origin policy: off (and header-for-
+/// header identical to the pre-CORS service) unless
+/// [`environment::tauri_mode_active`] reports the Tauri sidecar. See
+/// [`cors`] for why that policy is an exact three-origin allow-list rather
+/// than anything more convenient.
+fn finish_router(router: Router) -> Router {
+    cors::apply_desktop_cors(router, environment::tauri_mode_active())
 }
 
 pub fn app(max_upload_bytes: usize) -> Router {
