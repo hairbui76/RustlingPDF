@@ -9,6 +9,7 @@ import { defineConfig, loadEnv } from "vite";
 import type { Connect, PluginOption } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import { SHIPPED_LATIN_FONT_FILES } from "./src/core/constants/fallbackFonts";
 
 const gzipPromise = promisify(gzip);
 const brotliPromise = promisify(brotliCompress);
@@ -352,7 +353,13 @@ export default defineConfig(async ({ mode, command }) => {
             //
             // Latin covers Cyrillic, Greek and Vietnamese as well. CJK
             // (fonts-jp/kr/sc/tc) is deliberately NOT shipped: it is ~141 MB.
-            src: "../node_modules/@embedpdf/fonts-latin/fonts/*",
+            // Named faces, not a glob: the package carries all 18 static
+            // weights (4.55 MB in the installer) and only four are shipped.
+            // The list is shared with pdfiumFallbackFonts.ts so the files on
+            // disk and the config handed to PDFium cannot drift apart.
+            src: SHIPPED_LATIN_FONT_FILES.map(
+              (file) => `../node_modules/@embedpdf/fonts-latin/fonts/${file}`,
+            ),
             dest: "fonts/latin",
           },
           {
@@ -386,8 +393,21 @@ export default defineConfig(async ({ mode, command }) => {
       // installer for a tag nobody reads. The <meta> tags themselves stay, so
       // the web build and the prerender are untouched.
       //
+      // vendor/jscanify is OpenCV.js plus the scanner wrapper — 8.6 MB raw,
+      // 2.25 MB of installer. It is loaded by exactly one route,
+      // /mobile-scanner, which is opened *on a phone* from the QR code the
+      // upload modal shows. A desktop install cannot serve that page to a
+      // phone: the QR falls back to the app's own origin, which is
+      // tauri://localhost (http://tauri.localhost on Windows) and does not
+      // resolve off the machine, and the bundled sidecar is never given
+      // RUSTLING_FRONTEND_DIST so it serves no static files at all. The route
+      // is therefore unreachable in the desktop build and its 8.6 MB of
+      // computer vision is dead weight. Web and Docker builds keep it.
+      //
       // MUST stay last: it runs in closeBundle, after prerenderOgPlugin.
-      ...(isDesktopBuild ? [pruneDesktopOnlyOutputPlugin(["og_images"])] : []),
+      ...(isDesktopBuild
+        ? [pruneDesktopOnlyOutputPlugin(["og_images", "vendor/jscanify"])]
+        : []),
     ],
     server: {
       host: true,

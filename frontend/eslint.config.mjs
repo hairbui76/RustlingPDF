@@ -262,5 +262,20 @@ export default defineConfig(
         ...globals.node,
       },
     },
+    rules: {
+      // The `@app/*` alias is created by vite-tsconfig-paths for application
+      // code. These files are the build tooling itself — vite.config.ts is
+      // loaded by Vite before any of that exists — so a relative path is the
+      // only thing that resolves here, not a stylistic shortcut. The `src/`
+      // half of the restriction still applies.
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: baseRestrictedImportPatterns.filter(
+            (pattern) => pattern.regex !== "^\\.",
+          ),
+        },
+      ],
+    },
   },
 );

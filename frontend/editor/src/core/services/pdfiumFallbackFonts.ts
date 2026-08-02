@@ -3,6 +3,7 @@ import { fonts as latinFonts } from "@embedpdf/fonts-latin";
 import { fonts as arabicFonts } from "@embedpdf/fonts-arabic";
 import { fonts as hebrewFonts } from "@embedpdf/fonts-hebrew";
 import { BASE_PATH } from "@app/constants/app";
+import { isShippedLatinFont } from "@app/constants/fallbackFonts";
 
 /**
  * Same-origin fallback fonts for PDFs that reference a font without embedding
@@ -17,6 +18,8 @@ import { BASE_PATH } from "@app/constants/app";
  *
  * The variant lists come from the font packages' own metadata rather than being
  * retyped here, so this config cannot drift from the files that get copied.
+ * Latin is narrowed to the four faces in `constants/fallbackFonts.ts`, which is
+ * also what `vite.config.ts` copies — one list, read by both.
  *
  * Coverage is deliberately partial:
  *
@@ -63,7 +66,15 @@ function variants(fonts: readonly FontMeta[], directory: string) {
  */
 export function localFallbackFontConfig() {
   // Latin ships Cyrillic, Greek and Vietnamese glyphs in the same faces.
-  const latin = variants(latinFonts, "latin");
+  //
+  // Filtered to the faces the build actually copies. Advertising the other
+  // fourteen would make PDFium request a file that is not there — a 404 per
+  // glyph run instead of a substituted stroke — so this filter and
+  // vite.config.ts read the same list.
+  const latin = variants(
+    latinFonts.filter((font) => isShippedLatinFont(font.file)),
+    "latin",
+  );
   return {
     fonts: {
       [FontCharset.CYRILLIC]: latin,
