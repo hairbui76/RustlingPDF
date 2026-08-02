@@ -45,7 +45,7 @@ umya-spreadsheet = { git = "https://github.com/developer0hye/umya-spreadsheet.gi
 #
 #                              raw        xz      build
 #   cargo defaults          101.3 MB   24.3 MB   7m21s
-#   lto = "fat"             72.5 MB   21.1 MB   9m45s
+#   lto = "thin"            72.5 MB   21.1 MB   9m45s
 #   lto = "fat"              68.2 MB   20.9 MB  16m25s
 #
 # Read the xz column, not the raw one. Most of what LTO and `strip` remove is
@@ -62,7 +62,7 @@ umya-spreadsheet = { git = "https://github.com/developer0hye/umya-spreadsheet.gi
 # but the HTTP layer isolates a panicking request handler by unwinding just that
 # task; turning it into a process abort trades installer bytes for taking the
 # whole service down on one malformed document.
-lto = "thin"
+lto = "fat"
 codegen-units = 1
 strip = "symbols"
 panic = "unwind"
