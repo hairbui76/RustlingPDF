@@ -35,7 +35,10 @@ import {
   buildInputTracking,
   buildOutputPairs,
 } from "@app/hooks/tools/shared/toolOperationHelpers";
-import { planLocalFilePathCarry } from "@app/hooks/tools/shared/localFilePathCarry";
+import {
+  indexUniqueNames,
+  planLocalFilePathCarry,
+} from "@app/hooks/tools/shared/localFilePathCarry";
 import {
   ToolType,
   defineSingleFileTool,
@@ -328,12 +331,18 @@ export const useToolOperation = <TParams>(
               // exactly one input, so none may claim an input's file.
               outputSourceIds = processedFiles.map(() => null);
             } else {
-              // Try to map outputs back to inputs by filename (before extension)
-              const inputBaseNames = new Map<string, FileId>();
-              for (const f of validFiles) {
-                const base = getFilenameWithoutExtension(f.name || "");
-                inputBaseNames.set(base, f.fileId);
-              }
+              // Try to map outputs back to inputs by filename (before
+              // extension). An ambiguous base name maps to null rather than to
+              // whichever input was seen last: two inputs can now legitimately
+              // share a base name (they are distinguished by path, not
+              // metadata), and picking one arbitrarily would let an output
+              // claim — and later overwrite — the wrong document.
+              const inputBaseNames = indexUniqueNames(
+                validFiles.map((f) => ({
+                  name: getFilenameWithoutExtension(f.name || ""),
+                  id: f.fileId,
+                })),
+              );
               const mappedSuccess: FileId[] = [];
               // Per-output provenance from the same name match. Unmatched
               // outputs stay null rather than borrowing a neighbour's source.

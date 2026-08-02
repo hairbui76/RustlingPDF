@@ -47,6 +47,14 @@
       "identifier": "fs:allow-remove",
       "allow": [{ "path": "**" }]
     },
+    {
+      "identifier": "fs:allow-rename",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "**" }]
+    },
     "dialog:default",
     "dialog:allow-message",
     "dialog:allow-open",

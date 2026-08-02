@@ -23,6 +23,26 @@ import type { FileId } from "@app/types/file";
  *    N overwrites of one file, leaving the user with the last fragment in
  *    place of their document.
  */
+/**
+ * Index entries by a name, mapping any name claimed more than once to null.
+ *
+ * Used to match tool outputs back to inputs by filename. Overwriting on
+ * collision — the obvious `map.set(name, id)` in a loop — silently picks
+ * whichever entry came last, and that choice decides which file on disk an
+ * output may overwrite. Two inputs can legitimately share a name now that they
+ * are distinguished by path rather than metadata, so ambiguity has to be
+ * representable.
+ */
+export function indexUniqueNames<T>(
+  entries: readonly { name: string; id: T }[],
+): Map<string, T | null> {
+  const index = new Map<string, T | null>();
+  for (const entry of entries) {
+    index.set(entry.name, index.has(entry.name) ? null : entry.id);
+  }
+  return index;
+}
+
 export interface CarrySource {
   id: FileId;
   localFilePath?: string;

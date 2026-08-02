@@ -71,6 +71,32 @@ export async function showSaveDialog(
 }
 
 /**
+ * Make `name` unique within `used`, suffixing before the extension.
+ *
+ * Two outputs of one run can share a name — a split whose parts are all
+ * `page.pdf`, or two tools producing `document.pdf`. Writing both into the
+ * chosen directory by name means the second silently destroys the first while
+ * `savedPaths` still reports two successful saves, so the caller marks both
+ * clean and the user is told everything was written.
+ */
+function uniqueName(name: string, used: Set<string>): string {
+  if (!used.has(name)) {
+    used.add(name);
+    return name;
+  }
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const extension = dot > 0 ? name.slice(dot) : "";
+  for (let counter = 2; ; counter++) {
+    const candidate = `${stem} (${counter})${extension}`;
+    if (!used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+  }
+}
+
+/**
  * Prompt for a folder and write several files into it.
  *
  * Desktop only; web builds report failure so callers fall back to per-file
@@ -106,11 +132,14 @@ export async function saveMultipleFilesWithPrompt(
 
   let savedCount = 0;
   const errors: string[] = [];
+  const usedNames = new Set<string>();
 
   for (let index = 0; index < files.length; index++) {
     const file = files[index];
-    const fileName =
-      file instanceof File ? file.name : `output_${index + 1}.pdf`;
+    const fileName = uniqueName(
+      file instanceof File ? file.name : `output_${index + 1}.pdf`,
+      usedNames,
+    );
     try {
       const filePath = await joinDesktopPath(folder, fileName);
       const arrayBuffer = await file.arrayBuffer();

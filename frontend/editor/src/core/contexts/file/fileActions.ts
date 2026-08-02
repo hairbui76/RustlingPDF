@@ -16,11 +16,19 @@ import { FileId, ToolOperation } from "@app/types/file";
 import { generateThumbnailWithMetadata } from "@app/utils/thumbnailUtils";
 import { FileLifecycleManager } from "@app/contexts/file/lifecycle";
 import { buildQuickKeySet } from "@app/contexts/file/fileSelectors";
+import {
+  addLocalPath,
+  buildLocalPathIndex,
+  isDuplicateFile,
+} from "@app/contexts/file/fileDeduplication";
 import { RustlingFile } from "@app/types/fileContext";
 import { fileStorage } from "@app/services/fileStorage";
 import { zipFileService } from "@app/services/zipFileService";
 import { FileAnalyzer } from "@app/services/fileAnalyzer";
-import { takeLocalFilePath } from "@app/services/localFilePathRegistry";
+import {
+  peekLocalFilePath,
+  takeLocalFilePath,
+} from "@app/services/localFilePathRegistry";
 import {
   reportBulkAddProgress,
   clearBulkAddProgress,
@@ -297,6 +305,10 @@ export async function addFiles(
 
     // Build quickKey lookup from existing files for deduplication
     const existingQuickKeys = buildQuickKeySet(stateRef.current.files.byId);
+    // Which on-disk files each quickKey already stands for — the tiebreaker
+    // when metadata alone cannot tell two documents apart. See
+    // contexts/file/fileDeduplication.ts.
+    const pathIndex = buildLocalPathIndex(stateRef.current.files.byId);
 
     const { files = [], allowDuplicates = false } = options;
 
@@ -408,8 +420,24 @@ export async function addFiles(
     for (const file of filesToProcess) {
       const quickKey = createQuickKey(file);
 
-      // Soft deduplication: Check if file already exists by metadata
-      if (!allowDuplicates && existingQuickKeys.has(quickKey)) {
+      // Soft deduplication. A path is stronger evidence than the metadata
+      // key: a file opened from disk is only a duplicate if the workspace
+      // already holds that same path. Files with no path fall back to the key
+      // exactly as before, so web behaviour is unchanged.
+      if (
+        !allowDuplicates &&
+        isDuplicateFile({
+          quickKey,
+          localFilePath: peekLocalFilePath(file),
+          existingQuickKeys,
+          pathIndex,
+        })
+      ) {
+        // Not silent: a skipped file the user explicitly chose is otherwise
+        // indistinguishable from one that failed to open.
+        console.warn(
+          `[FileActions] Skipped "${file.name}" — already in the workspace`,
+        );
         reportBulkAddProgress(++scannedCount, filesToProcess.length);
         continue;
       }
@@ -455,6 +483,9 @@ export async function addFiles(
           console.log(`[FileActions] localFilePath: ${localFilePath}`);
         }
         fileStub.localFilePath = localFilePath;
+        // Track it for the rest of this batch too, so a third copy of a file
+        // already added here is still recognised as a duplicate.
+        addLocalPath(pathIndex, quickKey, localFilePath);
       }
 
       // Store insertion position if provided

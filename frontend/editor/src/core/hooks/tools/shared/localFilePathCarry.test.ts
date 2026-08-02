@@ -1,8 +1,41 @@
 import { describe, expect, it } from "vitest";
 import type { FileId } from "@app/types/file";
-import { planLocalFilePathCarry } from "@app/hooks/tools/shared/localFilePathCarry";
+import {
+  indexUniqueNames,
+  planLocalFilePathCarry,
+} from "@app/hooks/tools/shared/localFilePathCarry";
 
 const id = (value: string) => value as FileId;
+
+describe("indexUniqueNames", () => {
+  it("indexes distinct names", () => {
+    const index = indexUniqueNames([
+      { name: "a", id: id("in1") },
+      { name: "b", id: id("in2") },
+    ]);
+    expect(index.get("a")).toBe("in1");
+    expect(index.get("b")).toBe("in2");
+  });
+
+  it("maps a repeated name to null instead of the last one seen", () => {
+    // Two inputs can share a base name now that documents are distinguished
+    // by path. Picking one would let an output overwrite the other's file.
+    const index = indexUniqueNames([
+      { name: "report", id: id("in1") },
+      { name: "report", id: id("in2") },
+    ]);
+    expect(index.get("report")).toBeNull();
+  });
+
+  it("keeps a name ambiguous once it has collided, however many follow", () => {
+    const index = indexUniqueNames([
+      { name: "x", id: id("in1") },
+      { name: "x", id: id("in2") },
+      { name: "x", id: id("in3") },
+    ]);
+    expect(index.get("x")).toBeNull();
+  });
+});
 
 /**
  * Every case here is "which file on the user's disk may this output

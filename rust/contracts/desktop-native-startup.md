@@ -156,8 +156,14 @@ the web bundle never evaluates Tauri code.
   read in one tick collide outright. Resolving a path through a colliding key
   gives one document another's path, which the next in-place save then
   overwrites. Files read from disk also carry their **real mtime**, so
-  `quickKey` continues to identify a document for deduplication rather than
-  recording when it was read.
+  `quickKey` continues to identify a document rather than recording when it
+  was read.
+- **Deduplication prefers the path.** A file opened from disk is a duplicate
+  only if the workspace already holds *that path*; a metadata match alone is
+  not enough, because `cp -p`, `rsync -a` and file-sync clients preserve
+  mtime, so a copy in another folder is indistinguishable by name, size and
+  timestamp. Files with no path (browser uploads, tool outputs) fall back to
+  the metadata key unchanged. A skip is logged rather than silent.
 - **Path ownership is exclusive.** At most one workspace stub may hold a given
   `localFilePath`. Tool outputs never inherit one implicitly; a path is carried
   forward only where exactly one output is known to descend from exactly one
@@ -187,10 +193,49 @@ the web bundle never evaluates Tauri code.
   multiple outputs), because a browser cannot write back to the files it was
   given.
 
-## Known gaps, verifiable only in a packaged bundle
+## Plugin permissions
 
-Neither of these can be exercised without a real webview; both are recorded
-here so they are checked against a bundle rather than assumed.
+Tauri authorises each plugin command by a permission identifier listed in
+`src-tauri/capabilities/default.json`. A call whose identifier is not granted
+is refused at the IPC layer — **in a packaged app only**. Nothing in the
+frontend test suite can see it, because `@tauri-apps/*` is mocked everywhere,
+so a missing grant is invisible to typecheck, lint, build and tests while
+being deterministically broken for every user.
+
+Every plugin API the desktop bridge calls, and what authorises it:
+
+| API | Command | Identifier |
+| --- | --- | --- |
+| `plugin-fs` `readFile` | `fs\|read_file` | `fs:allow-read-file` |
+| `plugin-fs` `writeFile` | `fs\|write_file` | `fs:allow-write-file` |
+| `plugin-fs` `rename` | `fs\|rename` | `fs:allow-rename` |
+| `plugin-fs` `remove` | `fs\|remove` | `fs:allow-remove` |
+| `plugin-fs` `stat` | `fs\|stat` | `fs:allow-stat` |
+| `plugin-dialog` `open` | `dialog\|open` | `dialog:allow-open` |
+| `plugin-dialog` `save` | `dialog\|save` | `dialog:allow-save` |
+| `api/path` `join` | `path\|join` | `core:default` |
+| `api/webviewWindow` `listen` | `event\|listen` | `core:default` |
+
+Rules that follow from this, all enforced by
+`core/services/desktop/desktopPermissions.test.ts`:
+
+- Every `@tauri-apps/plugin-*` API used by the bridge must be granted by an
+  **explicit** `<plugin>:allow-<command>` entry. Relying on a
+  `<plugin>:default` set is not accepted: a set's contents are not visible
+  from the frontend, so the guard cannot check it.
+- Every `fs:` grant carries the `**` scope. The app opens and saves whatever
+  the user picks in a native dialog, so a narrower scope refuses real
+  documents — and `rename` resolves **both** its source and destination
+  against the scope, so a partial scope breaks in-place save specifically.
+- `requireLiteralLeadingDot` is `false` in `tauri.conf.json`. This is
+  required, not incidental: with the platform default (`true` on unix), `**`
+  matches no path containing a dot-leading component, so any document under
+  `~/.local`, a dotted sync folder, or any hidden file would be refused. A
+  filename merely *containing* dots — including the
+  `<name>.<suffix>.rustling-tmp` staging file an in-place save creates — is
+  matched by `**` either way.
+
+## Known gap, verifiable only in a packaged bundle
 
 - **The startup reload races the opened-file queue.** The launcher seeds the
   backend URL and calls `window.location.reload()` when the sidecar reports
@@ -201,12 +246,6 @@ here so they are checked against a bundle rather than assumed.
   been observed — but nothing in the current design prevents it. A fix would
   make the reload conditional on nothing being in flight, or replace the
   reload with a live re-resolve now that `get_backend_port` exists.
-- **plugin-fs scope against dot-containing paths.** The capability scope uses
-  `**` patterns. Whether those match paths containing dots the way the app
-  assumes — and therefore whether reads and writes are permitted for such
-  paths, including the `<name>.<suffix>.rustling-tmp` staging file an in-place
-  save creates — has not been confirmed on a packaged build. A scope mismatch
-  surfaces as a permission error on save, not as silent data loss.
 
 ## Updates
 
