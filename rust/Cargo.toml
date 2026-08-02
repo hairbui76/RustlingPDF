@@ -45,7 +45,7 @@ umya-spreadsheet = { git = "https://github.com/developer0hye/umya-spreadsheet.gi
 #
 #                              raw        xz      build
 #   cargo defaults          101.3 MB   24.3 MB   7m21s
-#   lto = "thin"             72.5 MB   21.1 MB   9m45s
+#   lto = "fat"             72.5 MB   21.1 MB   9m45s
 #   lto = "fat"              68.2 MB   20.9 MB  16m25s
 #
 # Read the xz column, not the raw one. Most of what LTO and `strip` remove is
@@ -53,10 +53,10 @@ umya-spreadsheet = { git = "https://github.com/developer0hye/umya-spreadsheet.gi
 # 33 MB off the raw binary is 3.4 MB off a compressed installer, overstating
 # the benefit roughly eightfold.
 #
-# Thin is what ships. Fat buys a further 0.2 MB of installer for 6m40s more
-# build time on every leg of every release — the last 4 MB of raw size is
-# almost entirely things the compressor was already collapsing. Thin captures
-# 3.2 of the 3.4 MB for a third of the extra time.
+# Fat is what ships, chosen by the maintainer with the table above in hand.
+# It buys 0.2 MB of installer over thin for 6m40s more build time on every leg
+# of every release; thin would capture 3.2 of the 3.4 MB for a third of that
+# time. Both were built and smoke-tested — swapping is one word.
 #
 # panic stays "unwind" on purpose. Aborting would drop ~7.8 MB of unwind tables,
 # but the HTTP layer isolates a panicking request handler by unwinding just that
