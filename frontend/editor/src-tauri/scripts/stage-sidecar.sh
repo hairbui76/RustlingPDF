@@ -107,6 +107,22 @@ done <<EOF
 $(find "$tools_resources_dir" -type l 2>/dev/null)
 EOF
 
+# Do NOT strip the bundled native binaries.
+#
+# It looks like free money — `strip --strip-all` takes 0.72 MB off the
+# compressed Linux bundle — and it is not. Stripping libqpdf.so.30 leaves a
+# library that loads, links, and answers `qpdf --version` correctly, then
+# segfaults the moment it processes a document: exit 139 and a zero-byte
+# output file. Isolated by running every combination of stripped and
+# unstripped executable against stripped and unstripped library; the library
+# is the one that matters, the executable is harmless either way.
+#
+# libpdfium.so and tesseract were verified to survive stripping (a real PDF
+# operation through the backend, and byte-identical OCR output), but they are
+# worth 0.63 MB on the Linux bundle alone — Windows and macOS binaries are not
+# ELF — which does not pay for a per-file allow-list that someone must extend
+# and re-verify every time a tool is added.
+#
 # Smoke-test what was actually staged with system command discovery disabled,
 # so a host installation cannot mask an incomplete bundled runtime.
 for staged_tool in \
