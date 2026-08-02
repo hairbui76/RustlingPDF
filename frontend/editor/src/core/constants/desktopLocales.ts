@@ -25,20 +25,18 @@ export const DESKTOP_SHIPPED_LOCALES = [
   "en-GB",
   // Maintainer's locale.
   "vi-VN",
-  // Largest computing populations.
+  // The rest, chosen by the maintainer for the markets this build targets.
+  // Spanish, Brazilian Portuguese, Arabic and Indonesian were dropped on
+  // request; they are one line each to restore.
   "zh-CN",
   "zh-TW",
   "ja-JP",
   "ko-KR",
-  "es-ES",
-  "pt-BR",
   "fr-FR",
   "de-DE",
   "it-IT",
   "ru-RU",
-  "ar-AR",
   "hi-IN",
-  "id-ID",
 ] as const;
 
 export function isDesktopShippedLocale(code: string): boolean {
