@@ -51,7 +51,7 @@ export function useOpenedFile(): UseOpenedFileResult {
 
     let active = true;
 
-    const drainQueue = async () => {
+    const drainOnce = async () => {
       const batches = await popOpenedFileBatches();
       if (!active) {
         return;
@@ -66,10 +66,25 @@ export function useOpenedFile(): UseOpenedFileResult {
       setLoading(false);
     };
 
-    void drainQueue();
-    const unsubscribe = onOpenedFilesChanged(() => {
-      void drainQueue();
-    });
+    // Drains run strictly one at a time. Two overlapping pops would append in
+    // whichever order their IPC calls happened to resolve, not the order the
+    // launches arrived — and since the queue is FIFO and each pop takes it
+    // atomically, an out-of-order append means a later launch's tool intent
+    // can be overtaken by an earlier one's. Serialising makes append order the
+    // launch order.
+    let drainChain: Promise<void> = Promise.resolve();
+    const scheduleDrain = () => {
+      drainChain = drainChain.then(drainOnce).catch((error) => {
+        // One failed drain must not poison the chain for every later event.
+        console.error(
+          "[Desktop] Failed to drain the opened-file queue:",
+          error,
+        );
+      });
+    };
+
+    scheduleDrain();
+    const unsubscribe = onOpenedFilesChanged(scheduleDrain);
 
     return () => {
       active = false;

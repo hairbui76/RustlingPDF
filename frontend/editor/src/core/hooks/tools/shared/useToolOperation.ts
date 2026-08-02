@@ -35,6 +35,7 @@ import {
   buildInputTracking,
   buildOutputPairs,
 } from "@app/hooks/tools/shared/toolOperationHelpers";
+import { planLocalFilePathCarry } from "@app/hooks/tools/shared/localFilePathCarry";
 import {
   ToolType,
   defineSingleFileTool,
@@ -209,6 +210,11 @@ export const useToolOperation = <TParams>(
       try {
         let processedFiles: File[];
         let successSourceIds: FileId[] = [];
+        // Which input each output came from, one entry per output, `null`
+        // where the pairing is genuinely unknown. Only used to decide whether
+        // an output may overwrite a file on the user's disk, so "unknown" must
+        // stay unknown rather than being filled in by index.
+        let outputSourceIds: (FileId | null)[] = [];
 
         // Use original files directly (no PDF metadata injection - history stored in IndexedDB)
         const filesForAPI = extractFiles(validFiles);
@@ -236,6 +242,9 @@ export const useToolOperation = <TParams>(
             );
             processedFiles = result.outputFiles;
             successSourceIds = result.successSourceIds;
+            // Exact: each output was produced inside its own input's loop
+            // iteration, so this is recorded provenance, not inference.
+            outputSourceIds = result.outputSourceIds;
             console.debug("[useToolOperation] Multi-file results", {
               outputFiles: processedFiles.length,
               successSources: result.successSourceIds.length,
@@ -292,6 +301,15 @@ export const useToolOperation = <TParams>(
 
             // Assume all inputs succeeded together unless server provided an error earlier
             successSourceIds = validFiles.map((f) => f.fileId);
+            // One backend call produced all of these, and a ZIP response
+            // carries no ordering guarantee, so which member came from which
+            // upload is unknowable here. The single exception is 1→1, where
+            // there is only one possible answer. Anything else stays null so
+            // no output can claim — and overwrite — an input's file.
+            outputSourceIds =
+              validFiles.length === 1 && processedFiles.length === 1
+                ? [validFiles[0].fileId]
+                : processedFiles.map(() => null);
             break;
           }
 
@@ -306,6 +324,9 @@ export const useToolOperation = <TParams>(
             // (used for operations that combine N inputs into fewer outputs)
             if (consumedAllInputs) {
               successSourceIds = validFiles.map((f) => f.fileId);
+              // N inputs folded into fewer outputs: no output corresponds to
+              // exactly one input, so none may claim an input's file.
+              outputSourceIds = processedFiles.map(() => null);
             } else {
               // Try to map outputs back to inputs by filename (before extension)
               const inputBaseNames = new Map<string, FileId>();
@@ -314,12 +335,18 @@ export const useToolOperation = <TParams>(
                 inputBaseNames.set(base, f.fileId);
               }
               const mappedSuccess: FileId[] = [];
-              for (const out of processedFiles) {
+              // Per-output provenance from the same name match. Unmatched
+              // outputs stay null rather than borrowing a neighbour's source.
+              outputSourceIds = processedFiles.map((out) => {
                 const base = getFilenameWithoutExtension(out.name || "");
                 const id = inputBaseNames.get(base);
                 if (id) mappedSuccess.push(id);
-              }
-              // Fallback to naive alignment if names don't match
+                return id ?? null;
+              });
+              // Fallback to naive alignment if names don't match. This is a
+              // guess, and it is confined to which inputs count as consumed —
+              // it deliberately does not feed outputSourceIds, because a wrong
+              // guess there would overwrite the wrong file on disk.
               if (mappedSuccess.length === 0) {
                 successSourceIds = validFiles
                   .slice(0, processedFiles.length)
@@ -417,10 +444,6 @@ export const useToolOperation = <TParams>(
           if (isVersionOp) {
             // Output is a modified version of the input — link it to the input's version chain.
             // The input is removed from the workbench and replaced in-place by the output.
-            const downloadLocalPath =
-              selectors.getRustlingFileStub(validFiles[0].fileId)
-                ?.localFilePath ?? null;
-
             const newToolOperation: ToolOperation = {
               toolId: config.operationType,
               timestamp: Date.now(),
@@ -440,6 +463,25 @@ export const useToolOperation = <TParams>(
               );
             }
 
+            // Prefer the recorded source for each output. The index fallbacks
+            // behind it are a guess — `successInputStubs` drops missing stubs
+            // and so shifts left if an input disappears mid-run — but they are
+            // now only able to misattribute *version history*, never a file on
+            // disk: createChildStub no longer inherits `localFilePath`, and the
+            // path is attached explicitly below from `outputSourceIds` alone.
+            const parentStubForOutput = (index: number) => {
+              const sourceId = outputSourceIds[index];
+              const recorded = sourceId
+                ? selectors.getRustlingFileStub(sourceId)
+                : undefined;
+              return (
+                recorded ||
+                successInputStubs[index] ||
+                inputRustlingFileStubs[index] ||
+                inputRustlingFileStubs[0]
+              );
+            };
+
             const { outputRustlingFileStubs, outputRustlingFiles } =
               buildOutputPairs(
                 processedFiles,
@@ -447,15 +489,30 @@ export const useToolOperation = <TParams>(
                 processedFileMetadataArray,
                 (file, thumbnail, metadata, index) =>
                   createChildStub(
-                    successInputStubs[index] ||
-                      inputRustlingFileStubs[index] ||
-                      inputRustlingFileStubs[0],
+                    parentStubForOutput(index),
                     newToolOperation,
                     file,
                     metadata?.thumbnailUrl || thumbnail,
                     metadata,
                   ),
               );
+
+            // Decide which outputs may overwrite a file on disk, from recorded
+            // provenance only. Applied after consumeFiles so the stubs exist.
+            const pathCarry = planLocalFilePathCarry(
+              inputRustlingFileStubs,
+              outputRustlingFileStubs.map((stub, index) => ({
+                id: stub.id,
+                sourceId: outputSourceIds[index] ?? null,
+              })),
+            );
+
+            // Path for the single-artifact download. Derived from the same
+            // vetted pairing, so it is only set when exactly one output owns
+            // exactly one file — previously this was whichever input happened
+            // to be first, which for an N→N run named an arbitrary document.
+            const downloadLocalPath =
+              pathCarry.length === 1 ? pathCarry[0].localFilePath : null;
 
             // Only consume inputs that successfully produced outputs
             const toConsumeInputIds = successSourceIds.filter((id) =>
@@ -477,16 +534,12 @@ export const useToolOperation = <TParams>(
             // Notify on desktop when processing completes
             await notifyPdfProcessingComplete(outputFileIds.length);
 
-            // Carry the desktop save path forward so the output can be saved back to the same file
-            if (toConsumeInputIds.length === 1 && outputFileIds.length === 1) {
-              const inputStub = selectors.getRustlingFileStub(
-                toConsumeInputIds[0],
-              );
-              if (inputStub?.localFilePath) {
-                fileActions.updateRustlingFileStub(outputFileIds[0], {
-                  localFilePath: inputStub.localFilePath,
-                });
-              }
+            // Carry the desktop save path forward so an output can be saved
+            // back over the file it came from. planLocalFilePathCarry has
+            // already discarded every pairing that was not provably one input
+            // to one output, so no two outputs can target the same file.
+            for (const { outputId, localFilePath } of pathCarry) {
+              fileActions.updateRustlingFileStub(outputId, { localFilePath });
             }
 
             actions.setDownloadInfo(

@@ -20,6 +20,7 @@ import { RustlingFile } from "@app/types/fileContext";
 import { fileStorage } from "@app/services/fileStorage";
 import { zipFileService } from "@app/services/zipFileService";
 import { FileAnalyzer } from "@app/services/fileAnalyzer";
+import { takeLocalFilePath } from "@app/services/localFilePathRegistry";
 import {
   reportBulkAddProgress,
   clearBulkAddProgress,
@@ -186,8 +187,21 @@ export function createChildStub(
   // Determine original file ID (root of the version chain)
   const originalFileId = parentStub.originalFileId || parentStub.id;
 
-  // Copy parent metadata but exclude processedFile to prevent stale data
-  const { processedFile: _processedFile, ...parentMetadata } = parentStub;
+  // Copy parent metadata but exclude processedFile to prevent stale data.
+  //
+  // `localFilePath` is excluded too, and that exclusion is load-bearing. It
+  // names a specific file on the user's disk that this stub may overwrite in
+  // place, so inheriting it by metadata spread means the caller decides which
+  // file gets overwritten *implicitly*, via whichever stub it happened to pass
+  // as the parent. Where outputs are paired to inputs by array index that
+  // parent can be the wrong one, and a 1→N operation would hand the same path
+  // to every output. Ownership of a path is now always an explicit assignment
+  // by the caller — see the `carryLocalFilePaths` step in useToolOperation.
+  const {
+    processedFile: _processedFile,
+    localFilePath: _localFilePath,
+    ...parentMetadata
+  } = parentStub;
 
   const childStub = {
     // Copy parent metadata (excluding processedFile)
@@ -210,7 +224,10 @@ export function createChildStub(
     // Set fresh processedFile metadata (no inheritance from parent)
     processedFile: processedFileMetadata,
 
-    // Mark as dirty if parent has a localFilePath (modified file not yet saved to disk)
+    // Dirty iff the parent was a file on disk: this output is a modified
+    // version of it that has not been written back yet. The path itself is
+    // attached separately and explicitly (see above); this flag only records
+    // that unsaved work exists.
     isDirty: parentStub.localFilePath ? true : undefined,
   };
 
@@ -219,7 +236,8 @@ export function createChildStub(
       childId: newFileId,
       parentId: parentStub.id,
       parentLocalFilePath: parentStub.localFilePath,
-      childLocalFilePath: childStub.localFilePath,
+      // The child never has one at this point — it is assigned afterwards, and
+      // only where the input→output pairing was provably one to one.
       childIsDirty: childStub.isDirty,
       versionNumber: newVersionNumber,
     });
@@ -422,33 +440,21 @@ export async function addFiles(
         }
       }
 
-      // Check for pending file path mapping from Tauri file dialog (desktop only)
-      try {
-        const { pendingFilePathMappings } =
-          await import("@app/services/pendingFilePathMappings");
-        // DEBUG-gated: these fire per file, and a 300-file drop emitting 4 log
-        // lines each measurably stalls the main thread with devtools open.
+      // Attach the on-disk path this File was read from (desktop only).
+      //
+      // Looked up by the File OBJECT, never by quickKey. quickKey is
+      // `name|size|lastModified` — two distinct documents collide on it
+      // routinely, and resolving a path through a colliding key hands one
+      // file the path of another, which the next in-place save then
+      // overwrites. See services/localFilePathRegistry.ts.
+      const localFilePath = takeLocalFilePath(file);
+      if (localFilePath) {
         if (DEBUG) {
-          console.log(
-            `[FileActions] Checking for localFilePath mapping for quickKey: ${quickKey}`,
-          );
+          // DEBUG-gated: this fires per file, and a 300-file drop emitting a
+          // log line each measurably stalls the main thread with devtools open.
+          console.log(`[FileActions] localFilePath: ${localFilePath}`);
         }
-        const localFilePath = pendingFilePathMappings.get(quickKey);
-        if (localFilePath) {
-          if (DEBUG)
-            console.log(
-              `[FileActions] ✓ Found localFilePath: ${localFilePath}`,
-            );
-          fileStub.localFilePath = localFilePath;
-          pendingFilePathMappings.delete(quickKey); // Clean up after use
-        }
-      } catch (error) {
-        if (DEBUG)
-          console.log(
-            "[FileActions] Could not check for localFilePath:",
-            error,
-          );
-        // FileManagerContext may not be available in all contexts
+        fileStub.localFilePath = localFilePath;
       }
 
       // Store insertion position if provided

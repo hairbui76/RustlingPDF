@@ -1,5 +1,5 @@
 import { openFileDialog } from "@app/services/fileDialogService";
-import { pendingFilePathMappings } from "@app/services/pendingFilePathMappings";
+import { rememberLocalFilePath } from "@app/services/localFilePathRegistry";
 import { getDocumentFileDialogFilter } from "@app/utils/fileDialogUtils";
 
 interface OpenFilesFromDiskOptions {
@@ -20,8 +20,10 @@ export async function openFilesFromDisk(
   });
 
   if (filesWithPaths.length > 0) {
-    for (const { quickKey, path } of filesWithPaths) {
-      pendingFilePathMappings.set(quickKey, path);
+    for (const { file, path } of filesWithPaths) {
+      // Registered against the File object. Two files that happen to share a
+      // name, size and timestamp cannot take each other's path.
+      rememberLocalFilePath(file, path);
     }
     return filesWithPaths.map((entry) => entry.file);
   }

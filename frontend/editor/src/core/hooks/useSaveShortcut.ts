@@ -26,7 +26,33 @@ export function useSaveShortcut(): void {
       return;
     }
 
+    const reportFailures = async (failed: string[]) => {
+      if (failed.length === 0) return;
+      // The dirty dot is the only other signal, and a user who pressed Save
+      // and saw nothing happen reasonably concludes the file is on disk. It is
+      // not. Say so. Imported lazily to keep i18n and the toast tree off this
+      // hook's load path.
+      const [{ default: i18n }, { alert }] = await Promise.all([
+        import("@app/i18n"),
+        import("@app/components/toast"),
+      ]);
+      alert({
+        alertType: "error",
+        title: i18n.t("saveFailed.title", "Could not save"),
+        body: i18n.t(
+          "saveFailed.body",
+          "These files were not saved: {{files}}",
+          {
+            files: failed.join(", "),
+          },
+        ),
+        isPersistentPopup: true,
+      });
+    };
+
     const saveAll = async () => {
+      const failed: string[] = [];
+
       // Iterate ids, not two parallel arrays: `getFiles` and
       // `getRustlingFileStubs` both drop misses, so a single file present in
       // one and absent from the other would shift every later pairing and save
@@ -56,8 +82,11 @@ export function useSaveShortcut(): void {
           }
         } catch (error) {
           console.error(`[Desktop] Failed to save ${file.name}:`, error);
+          failed.push(file.name);
         }
       }
+
+      await reportFailures(failed);
     };
 
     // Key repeat, or an impatient second press while a native Save As dialog

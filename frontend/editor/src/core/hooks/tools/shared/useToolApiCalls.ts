@@ -28,9 +28,24 @@ export const useToolApiCalls = <TParams = void>() => {
       onProgress: (progress: ProcessingProgress) => void,
       onStatus: (status: string) => void,
       markFileError?: (fileId: FileId) => void,
-    ): Promise<{ outputFiles: File[]; successSourceIds: FileId[] }> => {
+    ): Promise<{
+      outputFiles: File[];
+      successSourceIds: FileId[];
+      /**
+       * Which input each output came from, one entry per `outputFiles` entry.
+       *
+       * `successSourceIds` cannot answer this: it has one entry per successful
+       * *input*, while a single input may yield several outputs, so the two
+       * lists fall out of step the moment any file fans out. Recording
+       * provenance here — where it is actually known, because each output is
+       * produced inside the loop iteration for its input — is what lets the
+       * caller decide safely whether an output may overwrite a file on disk.
+       */
+      outputSourceIds: FileId[];
+    }> => {
       const processedFiles: File[] = [];
       const successSourceIds: FileId[] = [];
+      const outputSourceIds: FileId[] = [];
       const failedFiles: string[] = [];
       const total = validFiles.length;
 
@@ -97,6 +112,11 @@ export const useToolApiCalls = <TParams = void>() => {
             continue;
           }
           processedFiles.push(...responseFiles);
+          // Record provenance for every output this input produced, so a
+          // fan-out stays visible to the caller instead of being flattened.
+          for (let out = 0; out < responseFiles.length; out++) {
+            outputSourceIds.push(file.fileId);
+          }
           // record source id as successful
           successSourceIds.push(file.fileId);
           console.debug("[processFiles] Success", {
@@ -140,7 +160,7 @@ export const useToolApiCalls = <TParams = void>() => {
         outputs: processedFiles.length,
         failed: failedFiles.length,
       });
-      return { outputFiles: processedFiles, successSourceIds };
+      return { outputFiles: processedFiles, successSourceIds, outputSourceIds };
     },
     [],
   );

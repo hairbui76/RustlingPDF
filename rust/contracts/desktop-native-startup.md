@@ -148,18 +148,65 @@ the web bundle never evaluates Tauri code.
   over by the OS (double-click, "Open with", drag onto the shortcut, an
   Explorer verb) arrive the same way; see
   `desktop-explorer-context-menu.md`.
+- **Path identity.** A `File` is bound to the path it was read from by object
+  identity, in `core/services/localFilePathRegistry.ts` — never by any key
+  derived from the file's metadata. `quickKey` (`name|size|lastModified`) is
+  not an identity: two documents of equal name and size collide on it, and a
+  `File` built without an explicit `lastModified` takes `Date.now()`, so files
+  read in one tick collide outright. Resolving a path through a colliding key
+  gives one document another's path, which the next in-place save then
+  overwrites. Files read from disk also carry their **real mtime**, so
+  `quickKey` continues to identify a document for deduplication rather than
+  recording when it was read.
+- **Path ownership is exclusive.** At most one workspace stub may hold a given
+  `localFilePath`. Tool outputs never inherit one implicitly; a path is carried
+  forward only where exactly one output is known to descend from exactly one
+  input (`hooks/tools/shared/localFilePathCarry.ts`), using provenance recorded
+  at the point each output was produced. Where provenance is unknowable — a
+  single backend call returning a ZIP whose member order carries no
+  correspondence to the uploads — no path is carried and the output is saved
+  through a dialog instead. A fan-out (1→N) likewise carries nothing, since no
+  single part replaces the original.
 - **Saving.** A file with a `localFilePath` is overwritten in place. A file
   without one gets a native Save As dialog whose type filter is derived from
   the output's own extension, so a non-PDF result is not mislabelled `.pdf`.
   Ctrl/Cmd+S saves the selection, or everything when nothing is selected;
   the shortcut is not bound on web, where Ctrl+S belongs to the browser.
+- **Writes do not truncate the target.** An in-place save writes a sibling
+  temp file and renames it over the target, so a crash or a full disk leaves
+  the original intact rather than truncated. `rename` replaces an existing
+  destination on both POSIX and Windows.
 - **Dirty state.** A successful write returns the path it wrote, and only that
   return clears `isDirty`. A cancelled dialog and a failed write both leave
-  the file marked unsaved.
-- **Tool results.** On desktop, a run that produced several outputs writes
-  each result back to its own source path. Web receives the aggregate download
-  (a ZIP for multiple outputs), because a browser cannot write back to the
-  files it was given.
+  the file marked unsaved, and a failed save is reported to the user — the
+  dirty marker alone is too easy to read as "saved".
+- **Tool results.** On desktop, outputs that own a source path are written back
+  to it. Outputs with no on-disk origin — the parts of a split, the product of
+  a merge — are saved through a single destination prompt for the whole group
+  rather than one dialog each. Web receives the aggregate download (a ZIP for
+  multiple outputs), because a browser cannot write back to the files it was
+  given.
+
+## Known gaps, verifiable only in a packaged bundle
+
+Neither of these can be exercised without a real webview; both are recorded
+here so they are checked against a bundle rather than assumed.
+
+- **The startup reload races the opened-file queue.** The launcher seeds the
+  backend URL and calls `window.location.reload()` when the sidecar reports
+  ready. The frontend's queue drain is a *destructive* pop. If a drain
+  completes and the reload lands before the popped batch has been added to the
+  workspace, those files are gone from both sides and the launch opens empty.
+  The window is small and needs an unlucky interleaving, and no such loss has
+  been observed — but nothing in the current design prevents it. A fix would
+  make the reload conditional on nothing being in flight, or replace the
+  reload with a live re-resolve now that `get_backend_port` exists.
+- **plugin-fs scope against dot-containing paths.** The capability scope uses
+  `**` patterns. Whether those match paths containing dots the way the app
+  assumes — and therefore whether reads and writes are permitted for such
+  paths, including the `<name>.<suffix>.rustling-tmp` staging file an in-place
+  save creates — has not been confirmed on a packaged build. A scope mismatch
+  surfaces as a permission error on save, not as silent data loss.
 
 ## Updates
 

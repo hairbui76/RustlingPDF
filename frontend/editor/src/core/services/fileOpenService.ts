@@ -1,6 +1,6 @@
 import {
   basename,
-  readDesktopFile,
+  readDesktopFileWithMeta,
   toArrayBuffer,
 } from "@app/services/desktop/desktopFs";
 import {
@@ -51,16 +51,25 @@ export async function popOpenedFileBatches(): Promise<OpenedFileBatch[]> {
 }
 
 /** Read one queued path into a File-ready buffer, or null if unreadable. */
-export async function readOpenedFile(
-  filePath: string,
-): Promise<{ fileName: string; arrayBuffer: ArrayBuffer } | null> {
-  const bytes = await readDesktopFile(filePath);
-  if (!bytes) {
+export async function readOpenedFile(filePath: string): Promise<{
+  fileName: string;
+  arrayBuffer: ArrayBuffer;
+  /**
+   * The file's real mtime. Passed to the `File` constructor so `quickKey`
+   * (`name|size|lastModified`) identifies the document rather than the instant
+   * we read it — otherwise two same-named, same-sized files opened together
+   * collide and one is dropped as a duplicate of the other.
+   */
+  lastModified: number;
+} | null> {
+  const read = await readDesktopFileWithMeta(filePath);
+  if (!read) {
     return null;
   }
   return {
     fileName: basename(filePath, "opened-file.pdf"),
-    arrayBuffer: toArrayBuffer(bytes),
+    arrayBuffer: toArrayBuffer(read.bytes),
+    lastModified: read.lastModified,
   };
 }
 

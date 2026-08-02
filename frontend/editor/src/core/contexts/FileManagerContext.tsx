@@ -16,8 +16,6 @@ import { zipFileService } from "@app/services/zipFileService";
 import type { FileId } from "@app/types/file";
 import type { RustlingFileStub } from "@app/types/fileContext";
 
-export { pendingFilePathMappings } from "@app/services/pendingFilePathMappings";
-
 interface FileManagerContextValue {
   activeSource: "recent" | "local" | "drive";
   selectedFileIds: FileId[];

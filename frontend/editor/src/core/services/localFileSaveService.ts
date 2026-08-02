@@ -19,6 +19,12 @@ export interface MultiFileSaveResult {
   savedCount: number;
   cancelledByUser?: boolean;
   error?: string;
+  /**
+   * Where each input file ended up, parallel to the `files` argument; null for
+   * one that failed. Callers need the actual paths to record what is now on
+   * disk — a count alone cannot tell them which file was written where.
+   */
+  savedPaths: (string | null)[];
 }
 
 /**
@@ -74,11 +80,14 @@ export async function saveMultipleFilesWithPrompt(
   files: (Blob | File)[],
   defaultDirectory?: string,
 ): Promise<MultiFileSaveResult> {
+  const savedPaths: (string | null)[] = files.map(() => null);
+
   if (!isDesktopRuntime()) {
     return {
       success: false,
       savedCount: 0,
       error: "Multi-file save not available in web mode",
+      savedPaths,
     };
   }
 
@@ -87,15 +96,21 @@ export async function saveMultipleFilesWithPrompt(
     title: `Save ${files.length} file${files.length > 1 ? "s" : ""}`,
   });
   if (!folder) {
-    return { success: false, savedCount: 0, cancelledByUser: true };
+    return {
+      success: false,
+      savedCount: 0,
+      cancelledByUser: true,
+      savedPaths,
+    };
   }
 
   let savedCount = 0;
   const errors: string[] = [];
 
-  for (const file of files) {
+  for (let index = 0; index < files.length; index++) {
+    const file = files[index];
     const fileName =
-      file instanceof File ? file.name : `output_${savedCount + 1}.pdf`;
+      file instanceof File ? file.name : `output_${index + 1}.pdf`;
     try {
       const filePath = await joinDesktopPath(folder, fileName);
       const arrayBuffer = await file.arrayBuffer();
@@ -104,6 +119,7 @@ export async function saveMultipleFilesWithPrompt(
         new Uint8Array(arrayBuffer),
       );
       if (result.success) {
+        savedPaths[index] = filePath;
         savedCount++;
       } else {
         errors.push(`${fileName}: ${result.error}`);
@@ -115,18 +131,20 @@ export async function saveMultipleFilesWithPrompt(
   }
 
   if (savedCount === files.length) {
-    return { success: true, savedCount };
+    return { success: true, savedCount, savedPaths };
   }
   if (savedCount > 0) {
     return {
       success: false,
       savedCount,
       error: `Saved ${savedCount}/${files.length} files. Errors: ${errors.join(", ")}`,
+      savedPaths,
     };
   }
   return {
     success: false,
     savedCount: 0,
+    savedPaths,
     error: `Failed to save files: ${errors.join(", ")}`,
   };
 }

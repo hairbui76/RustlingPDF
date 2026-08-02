@@ -5,6 +5,7 @@ import {
   DownloadResult,
 } from "@app/services/downloadService";
 import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
+import { saveMultipleFilesWithPrompt } from "@app/services/localFileSaveService";
 
 export interface OperationSaveContext {
   downloadUrl: string | null;
@@ -38,24 +39,63 @@ export async function saveOperationResults(
     context.outputFileIds &&
     context.outputFileIds.length > 0
   ) {
-    for (const fileId of context.outputFileIds) {
-      const file = context.getFile(fileId as FileId);
-      if (!file) continue;
-      const stub = context.getStub(fileId as FileId);
+    const outputs = context.outputFileIds
+      .map((fileId) => ({
+        fileId: fileId as FileId,
+        file: context.getFile(fileId as FileId),
+        localPath: context.getStub(fileId as FileId)?.localFilePath,
+      }))
+      .filter((entry): entry is typeof entry & { file: File } =>
+        Boolean(entry.file),
+      );
 
-      // No localFilePath (a result with no on-disk origin) falls through to a
-      // Save As dialog inside downloadFile, so nothing is silently dropped.
+    // Outputs that own a file on disk are written straight back to it. That
+    // ownership was established by planLocalFilePathCarry, which only grants a
+    // path where exactly one output descends from exactly one input — so no
+    // two entries here can target the same file.
+    const inPlace = outputs.filter((entry) => entry.localPath);
+    for (const entry of inPlace) {
       const result = await downloadFile({
-        data: file,
-        filename: file.name,
-        localPath: stub?.localFilePath,
-        fileId,
+        data: entry.file,
+        filename: entry.file.name,
+        localPath: entry.localPath,
+        fileId: entry.fileId,
       });
-
       if (result.savedPath) {
-        context.markSaved(fileId as FileId, result.savedPath);
+        context.markSaved(entry.fileId, result.savedPath);
       }
     }
+
+    // Everything else has no on-disk origin — the parts of a split, the
+    // product of a merge. Asking for a destination once and writing them all
+    // there beats a modal per file, which for a 40-page split is 40 dialogs.
+    const needsDestination = outputs.filter((entry) => !entry.localPath);
+    if (needsDestination.length === 1) {
+      const only = needsDestination[0];
+      const result = await downloadFile({
+        data: only.file,
+        filename: only.file.name,
+        fileId: only.fileId,
+      });
+      if (result.savedPath) {
+        context.markSaved(only.fileId, result.savedPath);
+      }
+    } else if (needsDestination.length > 1) {
+      const result = await saveMultipleFilesWithPrompt(
+        needsDestination.map((entry) => entry.file),
+      );
+      result.savedPaths.forEach((savedPath, index) => {
+        if (savedPath) {
+          context.markSaved(needsDestination[index].fileId, savedPath);
+        }
+      });
+      if (!result.success && !result.cancelledByUser && result.error) {
+        // Partial or total failure must not read as success: the files are
+        // still dirty and the user needs to know which ones did not land.
+        throw new Error(result.error);
+      }
+    }
+
     return null;
   }
 

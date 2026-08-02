@@ -4009,6 +4009,10 @@ text = "Rotate your PDF pages clockwise or anticlockwise in 90-degree increments
 [rotate.tooltip.header]
 title = "Rotate Settings Overview"
 
+[saveFailed]
+body = "These files were not saved: {{files}}"
+title = "Could not save"
+
 [sanitize]
 desc = "Remove potentially harmful elements from PDF files."
 sanitizationResults = "Sanitisation Results"

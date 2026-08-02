@@ -17,8 +17,8 @@ const navigateMock = vi.fn();
 const addFilesMock = vi.fn();
 // Hoisted so the vi.mock factory below (which vitest lifts to the top of the
 // file) can reference it without a temporal-dead-zone error.
-const { pathMappings } = vi.hoisted(() => ({
-  pathMappings: new Map<string, string>(),
+const { registeredPaths } = vi.hoisted(() => ({
+  registeredPaths: new Map<File, string>(),
 }));
 
 vi.mock("@app/hooks/useOpenedFile", () => ({
@@ -37,16 +37,17 @@ vi.mock("@app/services/toolIntentService", () => ({
   navigateToToolIntent: (intent: unknown) => navigateMock(intent),
 }));
 
-vi.mock("@app/services/pendingFilePathMappings", () => ({
-  pendingFilePathMappings: pathMappings,
+vi.mock("@app/services/localFilePathRegistry", () => ({
+  rememberLocalFilePath: (file: File, path: string) =>
+    registeredPaths.set(file, path),
+}));
+
+vi.mock("@app/services/backendHealthMonitor", () => ({
+  backendHealthMonitor: { subscribe: () => () => {} },
 }));
 
 vi.mock("@app/contexts/file/fileHooks", () => ({
   useFileManagement: () => ({ addFiles: addFilesMock }),
-}));
-
-vi.mock("@app/types/fileContext", () => ({
-  createQuickKey: (file: File) => file.name,
 }));
 
 import { useAppInitialization } from "@app/hooks/useAppInitialization";
@@ -75,10 +76,11 @@ async function renderInitialization() {
 describe("useAppInitialization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathMappings.clear();
+    registeredPaths.clear();
     readOpenedFileMock.mockImplementation(async (path: string) => ({
       fileName: path.split(/[\\/]/).pop() ?? "opened-file.pdf",
       arrayBuffer: new ArrayBuffer(4),
+      lastModified: 1_700_000_000_000,
     }));
     addFilesMock.mockResolvedValue([]);
     navigateMock.mockReturnValue(false);
@@ -94,11 +96,12 @@ describe("useAppInitialization", () => {
     expect(files.map((file: File) => file.name)).toEqual(["a.pdf", "b.pdf"]);
     expect(options).toEqual({ selectFiles: true });
 
-    // The on-disk path must be published BEFORE addFiles runs — that map is
-    // what attaches localFilePath, and localFilePath is what makes the file
-    // saveable in place afterwards.
-    expect(pathMappings.get("a.pdf")).toBe("/x/a.pdf");
-    expect(pathMappings.get("b.pdf")).toBe("/x/b.pdf");
+    // The on-disk path must be registered BEFORE addFiles runs — that is what
+    // attaches localFilePath, and localFilePath is what makes the file
+    // saveable in place afterwards. Registered against the File objects that
+    // were actually handed to addFiles, so nothing is resolved by metadata.
+    expect(registeredPaths.get(files[0])).toBe("/x/a.pdf");
+    expect(registeredPaths.get(files[1])).toBe("/x/b.pdf");
 
     expect(navigateMock).toHaveBeenCalledTimes(1);
     expect(navigateMock).toHaveBeenCalledWith("merge");
@@ -131,7 +134,11 @@ describe("useAppInitialization", () => {
     readOpenedFileMock.mockImplementation(async (path: string) =>
       path === "/x/gone.pdf"
         ? null
-        : { fileName: "a.pdf", arrayBuffer: new ArrayBuffer(4) },
+        : {
+            fileName: "a.pdf",
+            arrayBuffer: new ArrayBuffer(4),
+            lastModified: 1_700_000_000_000,
+          },
     );
     stubOpenedBatches([{ paths: ["/x/gone.pdf", "/x/a.pdf"], tool: null }]);
 

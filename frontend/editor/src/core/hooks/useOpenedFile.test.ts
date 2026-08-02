@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@app/tests/failOnConsole";
 import type { OpenedFileBatch } from "@app/services/fileOpenService";
 
 /**
@@ -41,6 +42,9 @@ async function flush() {
 describe("useOpenedFile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset, not just clear: `mockResolvedValueOnce` queues survive
+    // clearAllMocks, so an unconsumed one would leak into the next test.
+    popOpenedFileBatchesMock.mockReset();
     changeHandler = null;
     isDesktopRuntimeMock.mockReturnValue(true);
     popOpenedFileBatchesMock.mockResolvedValue([]);
@@ -110,6 +114,58 @@ describe("useOpenedFile", () => {
       consumed = result.current.consumeOpenedFileBatches();
     });
     expect(consumed).toEqual([]);
+  });
+
+  it("keeps launch order when a slow pop overlaps a fast one", async () => {
+    // The first pop resolves last. Appending in resolve order would put the
+    // second launch's batch first, and since batches are loaded in order, the
+    // earlier launch's tool intent would win over the later one's.
+    const first: OpenedFileBatch = { paths: ["/x/first.pdf"], tool: "merge" };
+    const second: OpenedFileBatch = {
+      paths: ["/x/second.pdf"],
+      tool: "compress",
+    };
+
+    let releaseFirst: () => void = () => {};
+    popOpenedFileBatchesMock
+      .mockImplementationOnce(
+        () =>
+          new Promise<OpenedFileBatch[]>((resolve) => {
+            releaseFirst = () => resolve([first]);
+          }),
+      )
+      .mockResolvedValueOnce([second]);
+
+    const { result } = renderHook(() => useOpenedFile());
+    // Let the mount drain actually start, so it is genuinely in flight (and
+    // `releaseFirst` is wired) before the second one is requested.
+    await act(flush);
+
+    await act(async () => {
+      // Second drain requested while the first is still in flight.
+      changeHandler?.();
+      releaseFirst();
+      await flush();
+    });
+
+    expect(result.current.openedFileBatches).toEqual([first, second]);
+  });
+
+  it("survives a failing pop and keeps draining afterwards", async () => {
+    popOpenedFileBatchesMock.mockRejectedValueOnce(new Error("ipc down"));
+    expectConsole.error("Failed to drain the opened-file queue");
+
+    const { result } = renderHook(() => useOpenedFile());
+    await act(flush);
+
+    const later: OpenedFileBatch = { paths: ["/x/later.pdf"], tool: null };
+    popOpenedFileBatchesMock.mockResolvedValueOnce([later]);
+    await act(async () => {
+      changeHandler?.();
+      await flush();
+    });
+
+    expect(result.current.openedFileBatches).toEqual([later]);
   });
 
   it("unsubscribes on unmount", async () => {

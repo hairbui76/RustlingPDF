@@ -6,9 +6,8 @@ import {
   type OpenedFileBatch,
 } from "@app/services/fileOpenService";
 import { navigateToToolIntent } from "@app/services/toolIntentService";
-import { pendingFilePathMappings } from "@app/services/pendingFilePathMappings";
+import { rememberLocalFilePath } from "@app/services/localFilePathRegistry";
 import { useFileManagement } from "@app/contexts/file/fileHooks";
-import { createQuickKey } from "@app/types/fileContext";
 import { backendHealthMonitor } from "@app/services/backendHealthMonitor";
 
 /**
@@ -56,6 +55,11 @@ export function useAppInitialization(): void {
             }
             const file = new File([fileData.arrayBuffer], fileData.fileName, {
               type: "application/pdf",
+              // The file's real mtime. Defaulting to Date.now() would make
+              // every file in this Promise.all share a timestamp, so two
+              // same-named, same-sized documents would collide on `quickKey`
+              // and one would be discarded as a duplicate of the other.
+              lastModified: fileData.lastModified,
             });
             return { file, filePath };
           }),
@@ -68,12 +72,14 @@ export function useAppInitialization(): void {
         return;
       }
 
-      // Publish the path→file mapping before adding: `addFiles` attaches
-      // `localFilePath` from this map as it builds each stub, which is the
-      // single mechanism that makes a file "from disk" (and therefore
-      // saveable in place) — the same one the native open dialog uses.
+      // Register each path against its File OBJECT before adding: `addFiles`
+      // reads the registry as it builds each stub, and that is the single
+      // mechanism that makes a file "from disk" (and therefore saveable in
+      // place) — the same one the native open dialog uses. Keyed by object
+      // identity, never by metadata, so two files cannot take each other's
+      // path and have one document overwrite another on save.
       for (const { file, filePath } of loaded) {
-        pendingFilePathMappings.set(createQuickKey(file), filePath);
+        rememberLocalFilePath(file, filePath);
       }
 
       await addFiles(

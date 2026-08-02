@@ -80,6 +80,13 @@ const UNCALLED_BY_DESIGN: Record<string, string> = {
   proxy_local_pdf_request:
     "Native PDF.js range-request proxy not restored; the viewer reads bytes through FileContext.",
   get_desktop_os: "No frontend behaviour branches on the desktop OS today.",
+  // KNOWN USER-VISIBLE GAP, not a clean omission. WorkbenchBar renders a Print
+  // button in the viewer that calls the embedpdf print plugin, i.e. the
+  // webview's own print path. The deleted layer bridged that to this command
+  // precisely because webview printing is unreliable in a Tauri window, so on
+  // desktop the button most likely does nothing and says nothing. Restoring
+  // the bridge needs a real bundle to verify — printing cannot be exercised
+  // on a headless box — so it is recorded here rather than guessed at.
   print_pdf_file_native: "Native print bridge not restored.",
   get_app_version: "Desktop version-info UI not restored.",
 };

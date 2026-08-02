@@ -29,7 +29,66 @@ export async function readDesktopFile(
   }
 }
 
-/** Write bytes to an absolute path. Returns an error message on failure. */
+/**
+ * Last-modified time of a file, in epoch milliseconds, or null when unknown.
+ *
+ * Worth the extra IPC: it is what a `File` built from disk must carry as its
+ * `lastModified`. Omitting it makes the `File` constructor default to
+ * `Date.now()`, which turns `quickKey` (`name|size|lastModified`) into "the
+ * millisecond we happened to read this", so two genuinely different documents
+ * with the same name and size — read in the same tick, as they are inside a
+ * `Promise.all` — become indistinguishable and one is dropped as a duplicate.
+ */
+export async function statDesktopFileMtime(
+  filePath: string,
+): Promise<number | null> {
+  if (!isDesktopRuntime()) {
+    return null;
+  }
+  try {
+    const { stat } = await import("@tauri-apps/plugin-fs");
+    const info = await stat(filePath);
+    return info.mtime ? info.mtime.getTime() : null;
+  } catch (error) {
+    console.debug(`[desktopFs] Could not stat ${filePath}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Read a file together with the metadata a `File` needs to describe it
+ * faithfully. Null when unreadable — see {@link readDesktopFile}.
+ */
+export async function readDesktopFileWithMeta(
+  filePath: string,
+): Promise<{ bytes: Uint8Array; lastModified: number } | null> {
+  const bytes = await readDesktopFile(filePath);
+  if (!bytes) {
+    return null;
+  }
+  const mtime = await statDesktopFileMtime(filePath);
+  return { bytes, lastModified: mtime ?? Date.now() };
+}
+
+/**
+ * Write bytes to an absolute path, without destroying what is already there
+ * until the new content is safely on disk.
+ *
+ * Writing straight to the target truncates it first, so a crash, a power
+ * loss, or a full disk part-way through leaves the user with a truncated
+ * file and no original. That risk was tolerable when in-place save barely
+ * worked; it is not now that this is the primary save path and the target is
+ * usually the user's own document.
+ *
+ * So: write a sibling temp file, then rename it over the target. `rename` is
+ * atomic within a filesystem on POSIX, and Rust's `fs::rename` — which
+ * plugin-fs calls — uses `MOVEFILE_REPLACE_EXISTING` on Windows, so it
+ * replaces an existing destination on both. Any failure before the rename
+ * leaves the original untouched; the temp file is then cleaned up.
+ *
+ * The temp name carries a random suffix so two concurrent saves to the same
+ * target cannot clobber each other's staging file.
+ */
 export async function writeDesktopFile(
   filePath: string,
   data: Uint8Array,
@@ -40,13 +99,27 @@ export async function writeDesktopFile(
       error: "Local file save is not available in this runtime",
     };
   }
+
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const tempPath = `${filePath}.${suffix}.rustling-tmp`;
+
   try {
-    const { writeFile } = await import("@tauri-apps/plugin-fs");
-    await writeFile(filePath, data);
+    const { writeFile, rename } = await import("@tauri-apps/plugin-fs");
+    await writeFile(tempPath, data);
+    await rename(tempPath, filePath);
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[desktopFs] Failed to write ${filePath}:`, message);
+    // Best-effort: a leftover temp file next to the user's document is
+    // confusing, but failing to remove it must not mask the write error.
+    try {
+      const { remove } = await import("@tauri-apps/plugin-fs");
+      await remove(tempPath);
+    } catch {
+      // Nothing was staged, or it cannot be removed. Either way, report the
+      // original failure.
+    }
     return { success: false, error: message };
   }
 }
