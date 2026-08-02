@@ -109,32 +109,50 @@
   background-color: var(--c-illustration-line-strong);
 }
 
-/* ── Action buttons ──────────────────────────────────────── */
-.landing-btn-primary {
-  background: var(--landing-hero-gradient) !important;
-  color: var(--c-text-on-primary) !important;
-  border: none !important;
-  border-radius: 0.75rem !important;
+/* ── Action buttons ──────────────────────────────────────────────────────
+   One clear hierarchy: a single solid accent button, then quiet neutrals.
+   All three share the 36px control height and the same radius so the row
+   reads as one group rather than three unrelated shapes. */
+.landing-btn-primary,
+.landing-btn-secondary {
+  height: 2.25rem !important;
+  min-height: 2.25rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.875rem !important;
   font-weight: 600 !important;
+}
+
+.landing-btn-primary {
+  /* Flat accent fill — no gradient. Colour is scarce here, so the one place
+     it appears has to be unambiguous. */
+  background: var(--c-primary) !important;
+  color: var(--c-text-on-primary) !important;
+  border: 1px solid transparent !important;
+}
+.landing-btn-primary:hover {
+  background: var(--c-primary-hover) !important;
 }
 
 .landing-btn-secondary {
-  border-radius: 0.75rem !important;
-  font-weight: 600 !important;
-  border-color: var(--landing-button-border, var(--c-border)) !important;
-  background-color: var(--landing-button-bg, var(--c-surface)) !important;
-  color: var(--c-accent-fg, var(--c-text)) !important;
+  border: 1px solid var(--landing-button-border, var(--c-border)) !important;
+  background-color: transparent !important;
+  /* Neutral, not accent: an alternate route, not a second primary action. */
+  color: var(--c-text-muted) !important;
 }
 .landing-btn-secondary:hover {
-  background-color: var(
-    --landing-button-hover-bg,
-    var(--landing-button-bg, var(--c-surface))
-  ) !important;
+  background-color: var(--c-hover) !important;
+  color: var(--c-text) !important;
 }
 
-/* Icon-only variant: accent colour instead of button text colour */
+/* Icon-only alternate: same quiet treatment, square at the shared height. */
 .landing-btn-icon {
-  color: var(--c-primary) !important;
+  width: 2.25rem !important;
+  min-width: 2.25rem !important;
+  padding: 0 !important;
+  color: var(--c-text-muted) !important;
+}
+.landing-btn-icon:hover {
+  color: var(--c-text) !important;
 }
 
 /* Dropzone accept/reject outlines. Mantine 8 no longer supports nested

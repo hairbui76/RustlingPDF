@@ -25,7 +25,8 @@ import {
   useIndexedDBRevision,
 } from "@app/contexts/IndexedDBContext";
 import { GoogleDriveIcon } from "@app/components/shared/CloudStorageIcons";
-import { LogoIcon } from "@app/components/shared/LogoIcon";
+import ThemeModeControl from "@app/components/shared/ThemeModeControl";
+import { useLogoAssets } from "@app/hooks/useLogoAssets";
 import type { RustlingFileStub } from "@app/types/fileContext";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
@@ -121,6 +122,7 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
     ref,
   ) {
     const { t } = useTranslation();
+    const logoAssets = useLogoAssets();
     const [searchActive, setSearchActive] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -601,10 +603,15 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
               >
                 {toggleIcon ?? <MenuIcon />}
               </span>
+              {/* Expanded: the full horizontal lockup (mark + wordmark).
+                  Collapsed: nothing but the toggle — the lockup is 3.53:1 and
+                  cannot fit a 3.5rem rail, and the burger is already the
+                  affordance there. */}
               {!collapsed && (
-                <LogoIcon
-                  alt={t("home.mobile.brandAlt", "RustlingPDF logo")}
-                  className="file-sidebar-brand-mark sidebar-content-fade"
+                <img
+                  src={logoAssets.horizontalLockup}
+                  alt={t("fileSidebar.brandLockupAlt", "RustlingPDF")}
+                  className="file-sidebar-brand-lockup sidebar-content-fade"
                 />
               )}
             </div>
@@ -925,6 +932,12 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
           file={versionHistoryTarget}
           onChanged={refreshStubs}
         />
+
+        {/* Theme switcher — same preference as Settings → General, surfaced
+            here so it can be found without opening Settings. */}
+        <div className="file-sidebar-theme-row" data-collapsed={collapsed}>
+          <ThemeModeControl collapsed={collapsed} />
+        </div>
 
         {/* Bottom bar: user name + settings */}
         <Tooltip

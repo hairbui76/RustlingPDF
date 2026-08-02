@@ -30,8 +30,14 @@ export function LandingActions({
 
   return (
     <>
-      <Group gap="sm" justify="center" wrap="wrap" mb="xs">
+      {/* One visual group, uniform 36px control height, a single accented
+          action. "Open from computer" is the primary — it is the shortest path
+          from an empty workbench to a document. The in-app file browser and the
+          phone-scan shortcut are alternates, so they stay quiet and neutral
+          rather than competing for the same attention. */}
+      <Group gap={8} justify="center" wrap="wrap" mb="xs">
         <Button
+          size="md"
           className="landing-btn-primary"
           leftSection={
             <LocalIcon icon={icons.uploadIconName} width="1rem" height="1rem" />
@@ -45,6 +51,7 @@ export function LandingActions({
         </Button>
 
         <Button
+          size="md"
           variant="secondary"
           className="landing-btn-secondary"
           leftSection={<LocalIcon icon="add" width="1rem" height="1rem" />}
@@ -59,7 +66,7 @@ export function LandingActions({
         {config?.enableMobileScanner && !isMobile && (
           <Tooltip label={terminology.mobileUpload} position="bottom">
             <ActionIcon
-              size="lg"
+              size="md"
               variant="secondary"
               aria-label={terminology.mobileUpload}
               className="landing-btn-secondary landing-btn-icon"
@@ -68,11 +75,7 @@ export function LandingActions({
                 onMobileUploadClick();
               }}
             >
-              <LocalIcon
-                icon="qr-code-rounded"
-                width="1.25rem"
-                height="1.25rem"
-              />
+              <LocalIcon icon="qr-code-rounded" width="1rem" height="1rem" />
             </ActionIcon>
           </Tooltip>
         )}

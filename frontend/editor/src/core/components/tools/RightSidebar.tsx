@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import { useSidebarContext } from "@app/contexts/SidebarContext";
@@ -6,8 +6,8 @@ import { useIsMobile } from "@app/hooks/useIsMobile";
 import ToolPanel from "@app/components/tools/ToolPanel";
 import ToolSearch from "@app/components/tools/toolPicker/ToolSearch";
 import { useFavoriteToolItems } from "@app/hooks/tools/useFavoriteToolItems";
-import { useToolSections } from "@app/hooks/useToolSections";
-import type { SubcategoryGroup } from "@app/hooks/useToolSections";
+import { useToolGroupSelection } from "@app/contexts/ToolGroupContext";
+import { useToolGroups } from "@app/hooks/tools/useToolGroups";
 import { ToolIcon } from "@app/components/shared/ToolIcon";
 import { ToolPanelHeader } from "@app/components/shared/ToolPanelHeader";
 import { Tooltip as AppTooltip } from "@app/components/shared/Tooltip";
@@ -42,7 +42,6 @@ export default function RightSidebar() {
     leftPanelView,
     isPanelVisible,
     searchQuery,
-    filteredTools,
     toolRegistry,
     setSearchQuery,
     selectedToolKey,
@@ -75,24 +74,17 @@ export default function RightSidebar() {
     withViewTransition(() => setLeftPanelView("hidden"));
   };
 
-  const [allToolsView, setAllToolsView] = useState(false);
-
-  const handleShowAllTools = () => {
-    withViewTransition(() => setAllToolsView(true));
-  };
-
+  // Clearing the search box drops back to the selected group's tool list.
   const handleBackToDefault = () => {
-    withViewTransition(() => {
-      setAllToolsView(false);
-      setSearchQuery("");
-    });
+    withViewTransition(() => setSearchQuery(""));
   };
 
+  const isSearching = searchQuery.trim().length > 0;
   // The header shows [back] [search] when we have somewhere to go back to —
-  // i.e. the user is in a specific tool, or already in the all-tools/search view.
+  // i.e. the user is in a specific tool, or looking at search results.
   const inToolView = leftPanelView !== "toolPicker";
   // Show X (close) button only when there's somewhere to go back to.
-  const showCloseButton = inToolView || allToolsView;
+  const showCloseButton = inToolView || isSearching;
   const showHeaderSearch = showCloseButton || leftPanelView === "toolPicker";
 
   const handleHeaderBack = () => {
@@ -113,7 +105,6 @@ export default function RightSidebar() {
     if (inToolView) {
       withViewTransition(() => {
         handleBackToTools();
-        setAllToolsView(true);
         setSearchQuery(value);
       });
       return;
@@ -135,30 +126,22 @@ export default function RightSidebar() {
   };
 
   // Collapsed rail: show favourites + recommended tools as icons.
+  // Collapsed rail: the same tools the expanded panel would list (the selected
+  // group), with pinned favourites first, so collapsing narrows the panel
+  // rather than changing what it is showing.
   const favoriteToolItems = useFavoriteToolItems(favoriteTools, toolRegistry);
-  const { sections: collapsedSections } = useToolSections(filteredTools);
-  const collapsedQuickSection = useMemo(
-    () => collapsedSections.find((s) => s.key === "quick"),
-    [collapsedSections],
-  );
-  const collapsedRecommendedItems = useMemo(() => {
-    if (!collapsedQuickSection) return [];
-    const items: Array<{ id: ToolId; tool: ToolRegistryEntry }> = [];
-    collapsedQuickSection.subcategories.forEach((sc: SubcategoryGroup) =>
-      sc.tools.forEach((entry) =>
-        items.push({ id: entry.id as ToolId, tool: entry.tool }),
-      ),
-    );
-    return items;
-  }, [collapsedQuickSection]);
+  const { selectedGroup } = useToolGroupSelection();
+  const toolGroups = useToolGroups(toolRegistry);
   const collapsedRailItems = useMemo(() => {
+    const group =
+      toolGroups.find((g) => g.id === selectedGroup) ?? toolGroups[0];
     const map = new Map<ToolId, ToolRegistryEntry>();
     favoriteToolItems.forEach(({ id, tool }) => map.set(id, tool));
-    collapsedRecommendedItems.forEach(({ id, tool }) => {
+    group?.tools.forEach(({ id, tool }) => {
       if (!map.has(id)) map.set(id, tool);
     });
     return Array.from(map, ([id, tool]) => ({ id, tool }));
-  }, [favoriteToolItems, collapsedRecommendedItems]);
+  }, [favoriteToolItems, selectedGroup, toolGroups]);
 
   return (
     <div
@@ -258,7 +241,6 @@ export default function RightSidebar() {
                       onChange={handleHeaderSearchChange}
                       toolRegistry={toolRegistry}
                       mode="filter"
-                      autoFocus={allToolsView && !inToolView}
                     />
                   </div>
                 ) : null}
@@ -292,12 +274,7 @@ export default function RightSidebar() {
               </div>
             )}
 
-            <ToolPanel
-              allToolsView={allToolsView}
-              onShowAllTools={handleShowAllTools}
-              onToolSelect={handleToolSelectWithTransition}
-              compact={false}
-            />
+            <ToolPanel onToolSelect={handleToolSelectWithTransition} />
           </>
         </div>
       )}

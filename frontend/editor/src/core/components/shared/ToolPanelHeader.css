@@ -33,8 +33,8 @@
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 9999px;
-  background: var(--mantine-color-blue-light);
-  color: var(--mantine-color-blue-filled);
+  background: var(--c-primary-subtle);
+  color: var(--c-accent-fg, var(--c-primary));
   flex-shrink: 0;
 }
 
@@ -74,12 +74,8 @@
 }
 
 [data-mantine-color-scheme="dark"] .sui-panelhdr__icon {
-  background: color-mix(
-    in srgb,
-    var(--mantine-color-blue-filled) 18%,
-    transparent
-  );
-  color: var(--mantine-color-blue-3, var(--mantine-color-blue-filled));
+  background: color-mix(in srgb, var(--c-primary) 18%, transparent);
+  color: var(--c-accent-fg, var(--c-primary));
 }
 
 /* Dark mode: the subtle gray close button is too dim against the dark rail —

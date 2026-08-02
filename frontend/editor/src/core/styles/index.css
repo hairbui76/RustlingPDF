@@ -57,19 +57,19 @@ code {
 }
 
 .footer-link:hover {
-  color: var(--mantine-color-blue-8);
+  color: var(--c-accent-fg, var(--c-primary));
   text-decoration: underline;
 }
 
 .rustling-link {
-  color: var(--mantine-color-blue-6);
+  color: var(--c-accent-fg, var(--c-primary));
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s ease;
 }
 
 .rustling-link:hover {
-  color: var(--mantine-color-blue-8);
+  color: var(--c-accent-fg, var(--c-primary));
   text-decoration: underline;
 }
 

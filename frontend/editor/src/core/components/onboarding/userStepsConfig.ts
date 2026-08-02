@@ -26,6 +26,7 @@ interface UserStepActions {
   saveWorkbenchState: () => void;
   closeFilesModal: () => void;
   backToAllTools: () => void;
+  showCropToolGroup: () => void;
   selectCropTool: () => void;
   loadSampleFile: () => void;
   switchToActiveFiles: () => void;
@@ -50,6 +51,7 @@ export function createUserStepsConfig({
     saveWorkbenchState,
     closeFilesModal,
     backToAllTools,
+    showCropToolGroup,
     selectCropTool,
     loadSampleFile,
     switchToActiveFiles,
@@ -78,6 +80,8 @@ export function createUserStepsConfig({
     },
     [TourStep.SELECT_CROP_TOOL]: {
       selector: '[data-tour="tool-button-crop"]',
+      // The rail lists one group at a time, so reveal Crop's group first.
+      action: () => showCropToolGroup(),
       content: t(
         "onboarding.selectCropTool",
         "Let's select the <strong>Crop</strong> tool to demonstrate how to use one of the tools.",

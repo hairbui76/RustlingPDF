@@ -45,6 +45,7 @@ export const TOUR_REGISTRY: Record<string, TourDefinition> = {
             saveWorkbenchState: workbench.saveWorkbenchState,
             closeFilesModal,
             backToAllTools: workbench.backToAllTools,
+            showCropToolGroup: workbench.showCropToolGroup,
             selectCropTool: workbench.selectCropTool,
             loadSampleFile: workbench.loadSampleFile,
             switchToActiveFiles: workbench.switchToActiveFiles,

@@ -6,6 +6,7 @@ import { ToolRegistryProvider } from "@app/contexts/ToolRegistryProvider";
 import { FilesModalProvider } from "@app/contexts/FilesModalContext";
 import { ToolWorkflowProvider } from "@app/contexts/ToolWorkflowContext";
 import { HotkeyProvider } from "@app/contexts/HotkeyContext";
+import { ToolGroupProvider } from "@app/contexts/ToolGroupContext";
 import { SidebarProvider } from "@app/contexts/SidebarContext";
 import {
   PreferencesProvider,
@@ -125,29 +126,31 @@ export function AppProviders({
                     <NavigationProvider>
                       <FilesModalProvider>
                         <ToolWorkflowProvider>
-                          <HotkeyProvider>
-                            <SidebarProvider>
-                              <ViewerProvider>
-                                <PageEditorProvider>
-                                  <SignatureProvider>
-                                    <RedactionProvider>
-                                      <FormFillProvider>
-                                        <FormDesignerProvider>
-                                          <AnnotationProvider>
-                                            <WorkbenchBarProvider>
-                                              <TourOrchestrationProvider>
-                                                {children}
-                                              </TourOrchestrationProvider>
-                                            </WorkbenchBarProvider>
-                                          </AnnotationProvider>
-                                        </FormDesignerProvider>
-                                      </FormFillProvider>
-                                    </RedactionProvider>
-                                  </SignatureProvider>
-                                </PageEditorProvider>
-                              </ViewerProvider>
-                            </SidebarProvider>
-                          </HotkeyProvider>
+                          <ToolGroupProvider>
+                            <HotkeyProvider>
+                              <SidebarProvider>
+                                <ViewerProvider>
+                                  <PageEditorProvider>
+                                    <SignatureProvider>
+                                      <RedactionProvider>
+                                        <FormFillProvider>
+                                          <FormDesignerProvider>
+                                            <AnnotationProvider>
+                                              <WorkbenchBarProvider>
+                                                <TourOrchestrationProvider>
+                                                  {children}
+                                                </TourOrchestrationProvider>
+                                              </WorkbenchBarProvider>
+                                            </AnnotationProvider>
+                                          </FormDesignerProvider>
+                                        </FormFillProvider>
+                                      </RedactionProvider>
+                                    </SignatureProvider>
+                                  </PageEditorProvider>
+                                </ViewerProvider>
+                              </SidebarProvider>
+                            </HotkeyProvider>
+                          </ToolGroupProvider>
                         </ToolWorkflowProvider>
                       </FilesModalProvider>
                     </NavigationProvider>

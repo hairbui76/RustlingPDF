@@ -14,6 +14,8 @@ import styles from "@app/components/layout/Workbench.module.css";
 import WorkbenchBar from "@app/components/shared/WorkbenchBar";
 import LandingPage from "@app/components/shared/LandingPage";
 import DismissAllErrorsButton from "@app/components/shared/DismissAllErrorsButton";
+import ToolGroupBar from "@app/components/tools/ToolGroupBar";
+import { useIsMobile } from "@app/hooks/useIsMobile";
 
 // Workbench panels are loaded on demand. Viewer pulls in pdfjs-dist and the
 // full @embedpdf plugin set; FileEditor/PageEditor are only needed once a file
@@ -60,6 +62,18 @@ export default function Workbench() {
   // have no workbench files, but still need the bar's view switcher so users can
   // navigate back out.
   const isCustomViewActive = !isBaseWorkbench(currentView);
+
+  // The group bar is the top-level tool navigation, so it shows exactly where
+  // the tool panel it drives does: not on /files, not on a custom workbench
+  // that takes the screen over, and not on mobile (which has its own bottom
+  // bar and a swipeable full-width tool list).
+  const isMobile = useIsMobile();
+  const hideToolPanel =
+    currentView === "myFiles" ||
+    (customWorkbenchViews.find((v) => v.workbenchId === currentView)
+      ?.hideToolPanel ??
+      false);
+  const showToolGroupBar = !isMobile && !hideToolPanel;
 
   // Enable bar transitions after first paint so the initial hidden state shows
   // without animating (landing page on load shouldn't animate the bar up).
@@ -235,6 +249,10 @@ export default function Workbench() {
           {renderMainContent()}
         </Suspense>
       </Box>
+
+      {/* Bottom tool-group bar. A sibling row, not an overlay, so the document
+          above never scrolls underneath it. */}
+      {showToolGroupBar && <ToolGroupBar />}
     </Box>
   );
 }

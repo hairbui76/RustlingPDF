@@ -51,6 +51,13 @@ test.describe("15.1 Tour selectors - static layout", () => {
   });
 
   test("tool-button-crop is present in tool panel", async ({ page }) => {
+    // The rail lists one group at a time; Crop lives in Page Formatting, and
+    // the tour's SELECT_CROP_TOOL step reveals that group before pointing at
+    // the button. Do the same here.
+    await page
+      .getByRole("tab", { name: /page formatting/i })
+      .first()
+      .click();
     await expect(
       page.locator('[data-tour="tool-button-crop"]').first(),
     ).toBeVisible({ timeout: 10_000 });

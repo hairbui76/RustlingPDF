@@ -44,8 +44,12 @@ test.describe("3. Tool Search", () => {
       // The app uses fuzzy search with a fallback that shows all tools when nothing
       // matches, so we verify the search state is active (no "recommended" section)
       // and the page remains functional without errors.
+      // Scope to the tool panel: the bottom group bar always carries a
+      // "Recommended" group tab, search or no search.
       await expect(
-        page.locator("text=/recommended|direkomendasikan/i"),
+        page
+          .locator('[data-sidebar="tool-panel"]')
+          .locator("text=/recommended|direkomendasikan/i"),
       ).toHaveCount(0, { timeout: 5000 });
 
       // Step 4: Clear the search field

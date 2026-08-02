@@ -116,22 +116,3 @@
   white-space: normal;
   text-align: left;
 }
-
-/* Resting / compact tool list — taller rows, room for description. */
-.tool-picker__compact {
-  padding: 0.5rem var(--mantine-spacing-sm) var(--mantine-spacing-sm);
-}
-
-.tool-picker__compact .tool-button .mantine-Button-label {
-  align-items: center;
-}
-
-.tool-picker__compact-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.tool-picker__view-all {
-  margin-top: 0.75rem;
-}

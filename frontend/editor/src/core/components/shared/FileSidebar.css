@@ -24,7 +24,7 @@
 
 /* ---- Native file drag-and-drop ---- */
 .file-sidebar[data-file-drag-over] {
-  outline: 2px dashed var(--mantine-color-blue-6, var(--c-primary));
+  outline: 2px dashed var(--c-primary);
   outline-offset: -4px;
 }
 
@@ -42,20 +42,20 @@
   pointer-events: none;
   background-color: color-mix(
     in srgb,
-    var(--mantine-color-blue-6, var(--c-primary)) 12%,
+    var(--c-primary) 12%,
     var(--c-bg-raised)
   );
 }
 
 .file-sidebar-drop-overlay-icon {
-  color: var(--mantine-color-blue-6, var(--c-primary)) !important;
+  color: var(--c-accent-fg, var(--c-primary)) !important;
   font-size: 28px !important;
 }
 
 .file-sidebar-drop-overlay-text {
   font-size: 13px;
   font-weight: 600;
-  color: var(--mantine-color-blue-6, var(--c-primary));
+  color: var(--c-accent-fg, var(--c-primary));
 }
 
 /* ---- Header ---- */
@@ -102,6 +102,18 @@
 .file-sidebar-brand-mark {
   height: 24px;
   width: auto;
+  flex-shrink: 0;
+}
+
+/* Horizontal lockup (mark + wordmark). Raster at 689x195 (3.53:1): fix the
+   height and let the width follow so it can never stretch. 28px sits well
+   above the 22px floor below which the "Rustling" text thins out on light
+   backgrounds, and the wordmark needs the extra height the bare mark did not. */
+.file-sidebar-brand-lockup {
+  height: 28px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
@@ -578,7 +590,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background-color: var(--mantine-color-blue-6, var(--c-primary));
+  background-color: var(--c-primary);
   color: var(--c-text-on-primary);
   font-size: 12px;
   font-weight: 600;

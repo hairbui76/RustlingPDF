@@ -7,6 +7,8 @@ import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import { useAllFiles, useFileManagement } from "@app/contexts/FileContext";
 import { RustlingFile } from "@app/types/fileContext";
 import { fileStorage } from "@app/services/fileStorage";
+import { useToolGroupSelection } from "@app/contexts/ToolGroupContext";
+import { RECOMMENDED_GROUP_ID } from "@app/hooks/tools/useToolGroups";
 
 interface TourOrchestrationContextType {
   // State management
@@ -17,6 +19,7 @@ interface TourOrchestrationContextType {
   backToAllTools: () => void;
 
   // Tool selection
+  showCropToolGroup: () => void;
   selectCropTool: () => void;
 
   // File operations
@@ -49,7 +52,8 @@ export const TourOrchestrationProvider: React.FC<{
   const { addFiles } = useFileHandler();
   const { closeFilesModal } = useFilesModalContext();
   const { actions: navActions } = useNavigationActions();
-  const { handleToolSelect, handleBackToTools } = useToolWorkflow();
+  const { handleToolSelect, handleBackToTools, toolRegistry } =
+    useToolWorkflow();
   const { files } = useAllFiles();
   const { clearAllFiles } = useFileManagement();
 
@@ -122,6 +126,14 @@ export const TourOrchestrationProvider: React.FC<{
   const backToAllTools = useCallback(() => {
     handleBackToTools();
   }, [handleBackToTools]);
+
+  // The right rail only lists the group picked in the bottom group bar, so the
+  // tour has to reveal Crop's group before it can point at the Crop button.
+  const { setSelectedGroup } = useToolGroupSelection();
+  const showCropToolGroup = useCallback(() => {
+    const crop = toolRegistry?.crop;
+    setSelectedGroup(crop ? crop.subcategoryId : RECOMMENDED_GROUP_ID);
+  }, [setSelectedGroup, toolRegistry]);
 
   const selectCropTool = useCallback(() => {
     handleToolSelect("crop");
@@ -221,6 +233,7 @@ export const TourOrchestrationProvider: React.FC<{
     saveWorkbenchState,
     restoreWorkbenchState,
     backToAllTools,
+    showCropToolGroup,
     selectCropTool,
     loadSampleFile,
     switchToViewer,

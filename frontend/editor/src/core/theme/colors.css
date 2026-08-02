@@ -25,9 +25,16 @@ html[data-app-theme="light"] {
   --c-border-subtle: var(--p-gray-200);
   --c-border-strong: var(--p-gray-400);
 
-  --c-primary: var(--p-blue-500);
-  --c-primary-hover: var(--p-blue-600);
-  --c-primary-subtle: color-mix(in srgb, var(--p-blue-500) 10%, transparent);
+  /* Brand green. Deep enough that white label text clears WCAG AA (6.2:1) and
+     far enough from --c-success (emerald, 2x lighter) to read as a different
+     thing. See primitives.css for why the two green ramps are separate. */
+  --c-primary: var(--p-brand-green-700);
+  --c-primary-hover: var(--p-brand-green-800);
+  --c-primary-subtle: color-mix(
+    in srgb,
+    var(--p-brand-green-700) 10%,
+    transparent
+  );
 
   --c-success: var(--p-green-600);
   --c-danger: var(--p-red-600);
@@ -130,9 +137,16 @@ html[data-app-theme="midnight"] {
   --c-border-subtle: rgba(255, 255, 255, 0.05);
   --c-border-strong: var(--p-zinc-500);
 
-  --c-primary: var(--p-blue-500);
-  --c-primary-hover: var(--p-blue-700);
-  --c-primary-subtle: color-mix(in srgb, var(--p-blue-500) 15%, transparent);
+  /* Dark base lifts the fill one step (deep green on near-black needs >=3:1
+     against the surface) and *brightens* on hover instead of darkening. */
+  --c-primary: var(--p-brand-green-600);
+  --c-primary-hover: var(--p-brand-green-500);
+  --c-primary-subtle: color-mix(
+    in srgb,
+    var(--p-brand-green-600) 15%,
+    transparent
+  );
+  --c-accent-fg: var(--p-brand-green-300);
 
   --c-success: var(--p-green-500);
   --c-danger: var(--p-red-500);
@@ -149,10 +163,10 @@ html[data-app-theme="midnight"] {
   --c-onboarding-hero-tile: var(--p-navy-900);
 }
 
-/* ── Base accent — fixed default (blue buttons); [data-accent="default"] blocks at the end keep surfaces neutral. LIGHT base here, DARK base next. ── */
+/* ── Base accent — fixed brand green; [data-accent="default"] blocks at the end keep surfaces neutral. LIGHT base here, DARK base next. ── */
 html[data-app-theme="custom"] {
-  --c-primary: var(--p-blue-500);
-  --c-primary-hover: color-mix(in srgb, var(--c-primary) 85%, var(--p-black));
+  --c-primary: var(--p-brand-green-700);
+  --c-primary-hover: var(--p-brand-green-800);
   --c-primary-subtle: color-mix(in srgb, var(--c-primary) 14%, transparent);
   --c-text-on-primary: var(--p-white);
   --c-accent-fg: var(--c-primary);
@@ -270,6 +284,15 @@ html[data-app-theme="custom"] {
 
 /* ── DARK — editor dark theme: neutral text/borders/icons + accent-tinted surfaces (default override opts out). After :root so it wins for dark. ── */
 html[data-app-theme="custom"][data-mantine-color-scheme="dark"] {
+  /* Brand green, dark base: one step lighter than the light-theme fill so the
+     button still clears 3:1 against the near-black surface, and hover
+     brightens rather than darkens. --c-accent-fg is the bright leaf green —
+     the deep fill green as *text* on a dark surface is only ~3.5:1, which is
+     fine for a fill but not for a label. */
+  --c-primary: var(--p-brand-green-600);
+  --c-primary-hover: var(--p-brand-green-500);
+  --c-accent-fg: var(--p-brand-green-300);
+
   /* Neutral text / borders / overlay (not accent-tinted). */
   --c-text: var(--p-zinc-100);
   --c-text-muted: var(--p-zinc-200);

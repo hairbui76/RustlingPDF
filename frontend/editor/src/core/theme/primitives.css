@@ -36,6 +36,18 @@
   --p-green-500: #22c55e;
   --p-green-600: #16a34a;
   --p-green-700: #15803d;
+
+  /* Brand green — the RustlingPDF logo/wordmark hue (deep, ~123deg), kept
+     deliberately apart from the --p-green-* STATUS ramp above (emerald,
+     ~142deg, brighter) so "primary action" never reads as "already succeeded".
+     Anchored on the horizontal lockup's wordmark green (#1f6d26) and the
+     logo's deep outline greens; -300 is the bright leaf green, used as
+     accent-as-text on dark surfaces where the deep fills would go muddy. */
+  --p-brand-green-300: #77d369;
+  --p-brand-green-500: #228725;
+  --p-brand-green-600: #1f7a22;
+  --p-brand-green-700: #17701d;
+  --p-brand-green-800: #105b16;
   --p-amber-400: #fbbf24;
   --p-amber-500: #f59e0b;
   --p-amber-600: #d97706;

@@ -38,6 +38,12 @@ test.describe("Navigation", () => {
       .click();
     await expect(page).toHaveURL("/");
 
+    // Split lives in the Page Formatting group; the right rail only lists the
+    // group selected in the bottom group bar, so pick that group first.
+    await page
+      .getByRole("tab", { name: /page formatting/i })
+      .first()
+      .click();
     await page.locator('a[href="/split"]').first().click();
     await expect(page).toHaveURL(/\/split/);
 

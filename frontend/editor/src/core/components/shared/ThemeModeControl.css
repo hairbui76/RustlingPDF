@@ -1,0 +1,37 @@
+/* Theme switcher in the file-sidebar footer. Sits directly above the
+   name/settings row so app-level controls stay in one cluster. */
+
+.file-sidebar-theme-row {
+  display: flex;
+  padding: 0.25rem 0.5rem;
+  flex-shrink: 0;
+}
+
+.file-sidebar-theme-row[data-collapsed="true"] {
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.theme-mode-control__trigger.sui-btn.mantine-Button-root {
+  width: 100%;
+  min-height: 2rem;
+  height: 2rem;
+  justify-content: flex-start;
+  padding: 0 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--c-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.theme-mode-control__trigger[data-collapsed="true"].sui-btn.mantine-Button-root {
+  width: 2rem;
+  min-width: 2rem;
+  padding: 0;
+  justify-content: center;
+}
+
+.theme-mode-control__trigger:hover.sui-btn.mantine-Button-root {
+  background: var(--c-hover);
+  color: var(--c-text);
+}

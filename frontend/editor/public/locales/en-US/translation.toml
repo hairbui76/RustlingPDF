@@ -2008,6 +2008,7 @@ workbench = "Workbench"
 [fileSidebar]
 addFiles = "Add files"
 addingFiles = "Adding files…"
+brandLockupAlt = "RustlingPDF"
 collapse = "Collapse sidebar"
 dropHint = "Open files to get started"
 dropToAdd = "Drop files to add"
@@ -2023,6 +2024,7 @@ openFromComputer = "Open from computer"
 openSettings = "Open settings"
 search = "Search"
 searchPlaceholder = "Search files..."
+themeCurrent = "Theme: {{mode}}"
 
 [fileSidebar.fileItem]
 closeViewer = "Close viewer"
@@ -4540,6 +4542,10 @@ selectFilesHint = "Select files in Active Files to run this tool"
 singleFileScope = "Only applying to: {{fileName}}"
 viewerMode = "Switch to the file editor to add multiple files."
 
+[toolGroupBar]
+itemTitle = "{{group}} ({{count}} tools)"
+label = "Tool groups"
+
 [toolPanel]
 alpha = "Alpha"
 backToAllTools = "Back to all tools"
@@ -4547,8 +4553,6 @@ collapse = "Collapse panel"
 expand = "Expand panel"
 goBack = "Go back"
 placeholder = "Choose a tool to get started"
-toolsHeader = "Tools"
-viewAllTools = "View all tools"
 
 [toolPanel.fullscreen]
 comingSoon = "Coming soon:"

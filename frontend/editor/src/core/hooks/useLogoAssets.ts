@@ -20,6 +20,10 @@ export function useLogoAssets() {
       favicon: `${folderPath}/favicon.ico`,
       logo192: `${folderPath}/logo192.png`,
       logo512: `${folderPath}/logo512.png`,
+      /* Horizontal lockup: mark + "RustlingPDF" wordmark. One asset for both
+         themes — every glyph carries a light outline, so it reads on dark as
+         well as on light. Ratio 3.53:1; never render it below 22px tall. */
+      horizontalLockup: `${folderPath}/RustlingPDFLogoHorizontal.png`,
       manifestHref:
         logoVariant === "classic"
           ? `${BASE_PATH}/manifest-classic.json`

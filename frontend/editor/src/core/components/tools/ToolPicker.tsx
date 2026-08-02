@@ -1,35 +1,24 @@
 import React, { useMemo, useRef } from "react";
 import { Box, Stack } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import { Button } from "@app/ui/Button";
-import { ToolRegistryEntry } from "@app/data/toolsTaxonomy";
 import "@app/components/tools/toolPicker/ToolPicker.css";
-import { useToolSections } from "@app/hooks/useToolSections";
-import type { SubcategoryGroup } from "@app/hooks/useToolSections";
 import { useFavoriteToolItems } from "@app/hooks/tools/useFavoriteToolItems";
 import NoToolsFound from "@app/components/tools/shared/NoToolsFound";
-import { renderToolButtons } from "@app/components/tools/shared/renderToolButtons";
 import ToolButton from "@app/components/tools/toolPicker/ToolButton";
 import { useToolWorkflowData } from "@app/contexts/ToolWorkflowContext";
-import { ToolId } from "@app/types/toolId";
-import { getSubcategoryLabel } from "@app/data/toolsTaxonomy";
+import { useToolGroupSelection } from "@app/contexts/ToolGroupContext";
+import {
+  RECOMMENDED_GROUP_ID,
+  useToolGroups,
+} from "@app/hooks/tools/useToolGroups";
+import { TOOL_GROUP_PANEL_ID } from "@app/constants/toolPanel";
 import { ToolPickerFooterExtensions } from "@app/components/tools/toolPicker/ToolPickerFooterExtensions";
 
 interface ToolPickerProps {
   selectedToolKey: string | null;
   onSelect: (id: string) => void;
-  filteredTools: Array<{
-    item: [ToolId, ToolRegistryEntry];
-    matchedText?: string;
-  }>;
-  isSearching?: boolean;
-  /** Compact "resting" view: favourites + recommended only, with a button to expand. */
-  compact?: boolean;
-  /** Called when the user clicks "View all tools" in compact mode. */
-  onShowAllTools?: () => void;
 }
 
-const EMPTY_FILTERED_TOOLS: ToolPickerProps["filteredTools"] = [];
 const HEADER_TEXT_STYLE: React.CSSProperties = {
   fontSize: "0.68rem",
   fontWeight: 600,
@@ -57,45 +46,29 @@ const toTitleCase = (s: string) =>
     (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase(),
   );
 
-const ToolPicker = ({
-  selectedToolKey,
-  onSelect,
-  filteredTools,
-  isSearching = false,
-  compact = false,
-  onShowAllTools,
-}: ToolPickerProps) => {
+/**
+ * The right rail's tool list: the tools in the group currently selected in the
+ * bottom group bar, and nothing else. Search has its own view (SearchResults),
+ * so this never has to render the whole catalogue.
+ */
+const ToolPicker = ({ selectedToolKey, onSelect }: ToolPickerProps) => {
   const { t } = useTranslation();
 
   const scrollableRef = useRef<HTMLDivElement>(null);
 
-  const { sections: visibleSections } = useToolSections(filteredTools);
   const { favoriteTools, toolRegistry } = useToolWorkflowData();
 
   const favoriteToolItems = useFavoriteToolItems(favoriteTools, toolRegistry);
 
-  const quickSection = useMemo(
-    () => visibleSections.find((s) => s.key === "quick"),
-    [visibleSections],
+  // Group detail view: the bottom bar picks the group, this lists its tools.
+  const { selectedGroup } = useToolGroupSelection();
+  const groups = useToolGroups(toolRegistry);
+  const activeGroup = useMemo(
+    () => groups.find((g) => g.id === selectedGroup) ?? groups[0],
+    [groups, selectedGroup],
   );
-
-  const recommendedItems = useMemo(() => {
-    const items: Array<{ id: string; tool: ToolRegistryEntry }> = [];
-    quickSection?.subcategories.forEach((sc: SubcategoryGroup) =>
-      sc.tools.forEach((toolEntry) => items.push(toolEntry)),
-    );
-    return items;
-  }, [quickSection]);
-
-  const allSection = useMemo(
-    () => visibleSections.find((s) => s.key === "all"),
-    [visibleSections],
-  );
-
-  // Build flat list by subcategory for search mode
-  const effectiveFilteredForSearch: ToolPickerProps["filteredTools"] =
-    isSearching ? filteredTools : EMPTY_FILTERED_TOOLS;
-  const { searchGroups } = useToolSections(effectiveFilteredForSearch);
+  const showFavourites =
+    favoriteToolItems.length > 0 && activeGroup?.id === RECOMMENDED_GROUP_ID;
 
   return (
     <Box h="100%" style={CONTAINER_STYLE}>
@@ -104,143 +77,59 @@ const ToolPicker = ({
         style={SCROLLABLE_STYLE}
         className="tool-picker-scrollable"
       >
-        {isSearching ? (
-          <Stack p="sm" gap="xs">
-            {searchGroups.length === 0 ? (
-              <NoToolsFound />
-            ) : (
-              searchGroups.map((group) =>
-                renderToolButtons(
-                  t,
-                  group,
-                  selectedToolKey,
-                  onSelect,
-                  true,
-                  false,
-                  filteredTools,
-                  true,
-                ),
-              )
-            )}
-          </Stack>
-        ) : compact ? (
-          /* Resting state: flat list of pinned + recommended only. */
-          <Box className="tool-picker__compact">
-            <div style={HEADER_TEXT_STYLE}>
-              {t("toolPanel.toolsHeader", "Tools")}
-            </div>
-            {favoriteToolItems.length === 0 && recommendedItems.length === 0 ? (
-              <NoToolsFound />
-            ) : (
-              <div className="tool-picker__compact-list">
-                {favoriteToolItems.map(({ id, tool }) => (
-                  <ToolButton
-                    key={`fav-${id}`}
-                    id={id}
-                    tool={tool}
-                    isSelected={selectedToolKey === id}
-                    onSelect={onSelect}
-                    hasStars
-                    showDescription
-                  />
-                ))}
-                {recommendedItems
-                  .filter(
-                    ({ id }) => !favoriteToolItems.some((fav) => fav.id === id),
-                  )
-                  .map(({ id, tool }) => (
+        {/* Group detail: only the group picked in the bottom bar. The list is
+            the `tabpanel` for that bar's `tab`, hence the id/role/labelledby.
+            Favourites ride along at the top of Recommended so pinned tools stay
+            one click away without needing a group of their own. */}
+        <div
+          id={TOOL_GROUP_PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={`tool-group-tab-${selectedGroup}`}
+          tabIndex={-1}
+        >
+          <Stack px="sm" pb="sm" pt={4} gap="xs">
+            {showFavourites && (
+              <Box w="100%">
+                <div style={HEADER_TEXT_STYLE}>
+                  {t("toolPanel.fullscreen.favorites", "Favourites")}
+                </div>
+                <div>
+                  {favoriteToolItems.map(({ id, tool }) => (
                     <ToolButton
-                      key={`rec-${id}`}
-                      id={id as ToolId}
+                      key={`fav-${id}`}
+                      id={id}
                       tool={tool}
                       isSelected={selectedToolKey === id}
                       onSelect={onSelect}
                       hasStars
-                      showDescription
                     />
                   ))}
-              </div>
+                </div>
+              </Box>
             )}
-            {onShowAllTools && (
-              <Button
-                variant="tertiary"
-                size="sm"
-                fullWidth
-                onClick={onShowAllTools}
-                className="tool-picker__view-all"
-                aria-label={t("toolPanel.viewAllTools", "View all tools")}
-              >
-                {t("toolPanel.viewAllTools", "View all tools")}
-              </Button>
+            {activeGroup && activeGroup.tools.length > 0 ? (
+              <Box w="100%">
+                <div style={HEADER_TEXT_STYLE}>
+                  {toTitleCase(activeGroup.label)}
+                </div>
+                <div>
+                  {activeGroup.tools.map(({ id, tool }) => (
+                    <ToolButton
+                      key={`grp-${id}`}
+                      id={id}
+                      tool={tool}
+                      isSelected={selectedToolKey === id}
+                      onSelect={onSelect}
+                      hasStars
+                    />
+                  ))}
+                </div>
+              </Box>
+            ) : (
+              !showFavourites && <NoToolsFound />
             )}
-          </Box>
-        ) : (
-          <>
-            {/* All-tools view: favourites + recommended + all subcategories. */}
-            <Stack px="sm" pb="sm" pt={4} gap="xs">
-              {favoriteToolItems.length > 0 && (
-                <Box w="100%">
-                  <div style={HEADER_TEXT_STYLE}>
-                    {t("toolPanel.fullscreen.favorites", "Favourites")}
-                  </div>
-                  <div>
-                    {favoriteToolItems.map(({ id, tool }) => (
-                      <ToolButton
-                        key={`fav-${id}`}
-                        id={id}
-                        tool={tool}
-                        isSelected={selectedToolKey === id}
-                        onSelect={onSelect}
-                        hasStars
-                      />
-                    ))}
-                  </div>
-                </Box>
-              )}
-              {recommendedItems.length > 0 && (
-                <Box w="100%">
-                  <div style={HEADER_TEXT_STYLE}>
-                    {t("toolPanel.fullscreen.recommended", "Recommended")}
-                  </div>
-                  <div>
-                    {recommendedItems.map(({ id, tool }) => (
-                      <ToolButton
-                        key={`rec-${id}`}
-                        id={id as ToolId}
-                        tool={tool}
-                        isSelected={selectedToolKey === id}
-                        onSelect={onSelect}
-                        hasStars
-                      />
-                    ))}
-                  </div>
-                </Box>
-              )}
-              {allSection &&
-                allSection.subcategories.map((sc: SubcategoryGroup) => (
-                  <Box key={sc.subcategoryId} w="100%">
-                    <div style={HEADER_TEXT_STYLE}>
-                      {toTitleCase(getSubcategoryLabel(t, sc.subcategoryId))}
-                    </div>
-                    {renderToolButtons(
-                      t,
-                      sc,
-                      selectedToolKey,
-                      onSelect,
-                      false,
-                      false,
-                      undefined,
-                      true,
-                    )}
-                  </Box>
-                ))}
-            </Stack>
-
-            {!quickSection && !allSection && <NoToolsFound />}
-
-            <div aria-hidden style={{ height: 200 }} />
-          </>
-        )}
+          </Stack>
+        </div>
       </Box>
       <ToolPickerFooterExtensions />
     </Box>
