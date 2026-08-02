@@ -73,7 +73,7 @@ export function useToolGroups(
     if (recommended.length > 0) {
       groups.push({
         id: RECOMMENDED_GROUP_ID,
-        label: t("toolPanel.fullscreen.recommended", "Recommended"),
+        label: t("toolPanel.fullscreen.recommended", "Recommend"),
         icon: React.createElement(AutoAwesomeRoundedIcon),
         tools: recommended,
       });

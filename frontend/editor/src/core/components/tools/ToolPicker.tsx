@@ -7,10 +7,7 @@ import NoToolsFound from "@app/components/tools/shared/NoToolsFound";
 import ToolButton from "@app/components/tools/toolPicker/ToolButton";
 import { useToolWorkflowData } from "@app/contexts/ToolWorkflowContext";
 import { useToolGroupSelection } from "@app/contexts/ToolGroupContext";
-import {
-  RECOMMENDED_GROUP_ID,
-  useToolGroups,
-} from "@app/hooks/tools/useToolGroups";
+import { useToolGroups } from "@app/hooks/tools/useToolGroups";
 import { TOOL_GROUP_PANEL_ID } from "@app/constants/toolPanel";
 import { ToolPickerFooterExtensions } from "@app/components/tools/toolPicker/ToolPickerFooterExtensions";
 
@@ -67,8 +64,12 @@ const ToolPicker = ({ selectedToolKey, onSelect }: ToolPickerProps) => {
     () => groups.find((g) => g.id === selectedGroup) ?? groups[0],
     [groups, selectedGroup],
   );
-  const showFavourites =
-    favoriteToolItems.length > 0 && activeGroup?.id === RECOMMENDED_GROUP_ID;
+  // Pinned tools are pinned to the panel, not to one group. Scoping this to the
+  // Recommended group meant a favourite vanished the moment you picked any
+  // other group in the bottom bar — the one place a pinned tool most needs to
+  // stay, since switching group is exactly when you are not looking at your
+  // usual tools.
+  const showFavourites = favoriteToolItems.length > 0;
 
   return (
     <Box h="100%" style={CONTAINER_STYLE}>

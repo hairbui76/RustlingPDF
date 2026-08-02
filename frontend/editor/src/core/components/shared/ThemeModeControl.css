@@ -1,5 +1,25 @@
-/* Theme switcher in the file-sidebar footer. Sits directly above the
-   name/settings row so app-level controls stay in one cluster. */
+/* Theme switcher in the file-sidebar footer. It lives beside the settings gear
+   in the name row, so the two app-level controls read as one cluster; the
+   standalone row below is only used by the collapsed rail, which is too narrow
+   to hold two icons side by side. */
+
+/* Pushes itself and the gear that follows to the right edge. The gear's own
+   `margin-left: auto` then has no free space left to claim, so the two sit
+   together rather than at opposite ends of the row. */
+.file-sidebar-bottom-theme {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Match the gear it now sits beside. At the footer's muted weight the theme
+   glyph — a solid disc for System — read heavier than the gear and pulled the
+   eye to the wrong control of the pair. */
+.file-sidebar-bottom-theme
+  .theme-mode-control__trigger.sui-btn.mantine-Button-root {
+  color: var(--c-text-subtle);
+}
 
 .file-sidebar-theme-row {
   display: flex;

@@ -204,7 +204,7 @@ const FullscreenToolList = ({
                     <ThumbUpRoundedIcon />
                   </span>
                   <Text size="sm" fw={600} tt="uppercase" lts={0.5} c="dimmed">
-                    {t("toolPanel.fullscreen.recommended", "Recommended")}
+                    {t("toolPanel.fullscreen.recommended", "Recommend")}
                   </Text>
                 </div>
                 <Badge

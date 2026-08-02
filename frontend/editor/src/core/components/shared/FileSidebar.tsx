@@ -938,10 +938,16 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
         />
 
         {/* Theme switcher — same preference as Settings → General, surfaced
-            here so it can be found without opening Settings. */}
-        <div className="file-sidebar-theme-row" data-collapsed={collapsed}>
-          <ThemeModeControl collapsed={collapsed} />
-        </div>
+            here so it can be found without opening Settings.
+
+            Expanded, it sits beside the settings gear in the row below. It
+            keeps a row of its own only in the 3.5rem collapsed rail, which has
+            no room to put two icons side by side. */}
+        {collapsed && (
+          <div className="file-sidebar-theme-row" data-collapsed={collapsed}>
+            <ThemeModeControl collapsed={collapsed} />
+          </div>
+        )}
 
         {/* Bottom bar: user name + settings */}
         <Tooltip
@@ -982,6 +988,22 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
             {!collapsed && (
               <span className="file-sidebar-bottom-name sidebar-content-fade">
                 {displayName}
+              </span>
+            )}
+            {!collapsed && (
+              /* The whole row is the "open settings" target, so the theme
+                 trigger inside it has to swallow its own click and keys —
+                 otherwise picking a theme would also open Settings behind the
+                 menu. `collapsed` is passed as true to get the icon-only form:
+                 here it means "no room for a text label", not "the sidebar is
+                 collapsed". */
+              <span
+                className="file-sidebar-bottom-theme"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                role="presentation"
+              >
+                <ThemeModeControl collapsed />
               </span>
             )}
             {onOpenSettings && !collapsed && (

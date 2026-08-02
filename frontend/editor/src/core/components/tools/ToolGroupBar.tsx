@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@app/ui/Button";
+import { Tooltip } from "@app/components/shared/Tooltip";
 import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import { useToolGroupSelection } from "@app/contexts/ToolGroupContext";
 import {
@@ -129,38 +130,51 @@ export default function ToolGroupBar({ className }: ToolGroupBarProps = {}) {
       >
         {groups.map((group) => {
           const selected = group.id === activeGroup;
+          const description = t(
+            "toolGroupBar.itemTitle",
+            "{{group}} ({{count}} tools)",
+            {
+              group: group.label,
+              count: group.tools.length,
+            },
+          );
           return (
-            <Button
+            // Icon only, name on hover. The shared Tooltip rather than a native
+            // `title` because `title` never appears for a keyboard user: this
+            // one opens on focus too, so tabbing through the bar still tells you
+            // what each icon is. `aria-label` carries the same name for screen
+            // readers, which is why removing the visible text costs them
+            // nothing.
+            <Tooltip
               key={group.id}
-              type="button"
-              variant="quiet"
-              hover={false}
-              role="tab"
-              id={`tool-group-tab-${group.id}`}
-              ref={(node: HTMLButtonElement | null) => {
-                if (node) buttonRefs.current.set(group.id, node);
-                else buttonRefs.current.delete(group.id);
-              }}
-              aria-selected={selected}
-              aria-controls={TOOL_GROUP_PANEL_ID}
-              tabIndex={selected ? 0 : -1}
-              className="tool-group-bar__item"
-              data-selected={selected}
-              title={t(
-                "toolGroupBar.itemTitle",
-                "{{group}} ({{count}} tools)",
-                {
-                  group: group.label,
-                  count: group.tools.length,
-                },
-              )}
-              onClick={() => handleSelect(group.id)}
+              content={description}
+              position="top"
+              arrow
+              delay={250}
             >
-              <span className="tool-group-bar__icon" aria-hidden="true">
-                {group.icon}
-              </span>
-              <span className="tool-group-bar__label">{group.label}</span>
-            </Button>
+              <Button
+                type="button"
+                variant="quiet"
+                hover={false}
+                role="tab"
+                id={`tool-group-tab-${group.id}`}
+                ref={(node: HTMLButtonElement | null) => {
+                  if (node) buttonRefs.current.set(group.id, node);
+                  else buttonRefs.current.delete(group.id);
+                }}
+                aria-selected={selected}
+                aria-controls={TOOL_GROUP_PANEL_ID}
+                aria-label={description}
+                tabIndex={selected ? 0 : -1}
+                className="tool-group-bar__item"
+                data-selected={selected}
+                onClick={() => handleSelect(group.id)}
+              >
+                <span className="tool-group-bar__icon" aria-hidden="true">
+                  {group.icon}
+                </span>
+              </Button>
+            </Tooltip>
           );
         })}
       </div>
