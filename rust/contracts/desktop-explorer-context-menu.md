@@ -63,7 +63,7 @@ and review:
    `--tool <action>` verb commands;
 2. `frontend/editor/src-tauri/src/launch_intent.rs` — `TOOL_INTENT_ACTIONS`
    (`["open", "merge", "compress", "convert"]`, unit-tested);
-3. `frontend/editor/src/desktop/services/toolIntentService.ts` —
+3. `frontend/editor/src/core/services/toolIntentService.ts` —
    `TOOL_INTENT_ACTIONS` (vitest-pinned) plus the intent→tool-route map
    (`open` → no navigation; `merge`/`compress`/`convert` → the same-named SPA
    tool routes).
@@ -117,16 +117,38 @@ batch; intent batches are separate units and are never appended to.
   window-targeted) as a nudge to re-pop the queue; plain opens are
   emit-per-launch exactly as before.
 
-## Frontend routing (desktop layer)
+## Frontend routing
 
-`useOpenedFile` pops batches; `useAppInitialization` loads each batch's files
-into `FileContext` (`selectFiles: true`, `localFilePath` attached), then
-`navigateToToolIntent(batch.tool)` routes a mapped intent to its tool by
-pushing the tool's URL and dispatching a synthetic `popstate` — the exact
-URL-driven selection path used by browser back/forward
-(`useNavigationUrlSync`), including its availability checks. Batches
-process sequentially in launch order, so the last intent's navigation wins.
-`open`, unknown intents, and `tool: null` add files with no navigation.
+There is no separate desktop build layer. `frontend/editor/src/core` is the
+only product layer, and this behaviour lives in it behind an explicit runtime
+check (`isDesktopRuntime()` in `core/services/desktop/desktopRuntime.ts`, the
+single Tauri-detection helper). On web every step below is a no-op.
+
+`core/hooks/useOpenedFile` drains the queue: once on mount, for a cold launch
+whose batch was enqueued before the webview existed, and again on each
+`files-changed` event emitted at this window, for a warm launch. Batches
+accumulate rather than replace, so an event arriving mid-load cannot drop an
+earlier launch's files.
+
+`core/hooks/useAppInitialization` — mounted once by `AppProviders` inside
+`FileContextProvider` — reads each batch's paths, publishes the
+quickKey→path mapping through `pendingFilePathMappings` (which is what
+attaches `localFilePath` as `addFiles` builds each stub, the same mechanism
+the native open dialog uses), adds the files with `selectFiles: true`, then
+calls `navigateToToolIntent(batch.tool)`. That routes a mapped intent to its
+tool by pushing the tool's URL and dispatching a synthetic `popstate` — the
+exact URL-driven selection path used by browser back/forward
+(`useNavigationUrlSync`), including its availability checks. Batches process
+sequentially in launch order, so the last intent's navigation wins. `open`,
+unknown intents, and `tool: null` add files with no navigation. An unreadable
+path is skipped with a log; the rest of its batch still opens.
+
+The frontend consumes only `pop_opened_batches`. `get_opened_files`,
+`pop_opened_files` and `clear_opened_files` remain registered and unit-tested
+on the Rust side but have no JavaScript caller; that is recorded, with the
+reason, in the ledger in
+`frontend/editor/src/core/services/desktop/desktopCommands.test.ts`, which
+fails if a registered command loses (or silently never had) a caller.
 
 ## Caveats
 

@@ -40,6 +40,49 @@ sidecar at an absolute loopback URL, its requests are cross-origin.
 `RUSTLING_PDF_TAURI_MODE` is what enables the narrow origin allow-list that
 makes them work; see `desktop-cors.md`.
 
+## How the frontend finds the sidecar
+
+The port is ephemeral, so it is neither a build constant nor stable for the
+lifetime of a window. The frontend resolves it in two stages:
+
+1. **Seed.** After a successful start the launcher writes
+   `http://127.0.0.1:<port>` to `localStorage` under
+   `rustlingpdf.desktopBackendUrl` and reloads the webview once, so the first
+   render already has an address.
+2. **Live getter.** `core/services/desktop/desktopBackend.ts` invokes
+   `get_backend_port` and republishes what Rust reports. The axios request
+   interceptor prefixes relative URLs from that getter **per request**, not
+   from the base URL captured when the client module loaded. A sidecar that
+   restarts on a different port is therefore picked up without a reload; the
+   seed alone would leave every request going to a dead port until the user
+   fully quit the app.
+
+Raw `fetch` call sites that bypass axios — the AI orchestrate stream and the
+AI result-file download — read the same getter through
+`core/services/aiBaseUrl.ts`.
+
+The loopback literal `127.0.0.1` is used deliberately rather than `localhost`:
+on macOS and some Linux setups `localhost` resolves to `::1` first, but the
+sidecar binds the IPv4 wildcard, so a `::1` connection is refused and the app
+reports the backend offline while it is in fact up.
+
+## Readiness
+
+`core/services/backendHealthMonitor.ts` polls
+`/api/v1/config/app-config` every five seconds while any subscriber is
+mounted, and treats the backend as usable only when the response reports
+`dependenciesReady: true`. The HTTP listener accepts connections before native
+tool discovery finishes, so a plain 200 is not readiness — running a tool in
+that window fails with a confusing dependency error instead.
+
+`ensureBackendReady` gates every server-backed tool run on that state and
+forces a fresh probe before refusing, so clicking Run the instant the backend
+comes up is not rejected on a stale snapshot. Tool Run buttons are disabled
+while the backend is not online.
+
+Web builds are served by the backend they call, so both the monitor and the
+guard are constant-true there and never poll.
+
 For bundled tools, explicit operator values take precedence. Otherwise the
 launcher sets:
 
@@ -90,6 +133,33 @@ process.
 
 Provenance, import closures, checksums, and redistribution decisions live in
 `rust/scripts/desktop-tools/SOURCES.md`.
+
+## Files on disk
+
+Desktop builds read and write the user's filesystem directly; web builds
+cannot and keep their browser behaviour unchanged. Both live in
+`frontend/editor/src/core` behind `isDesktopRuntime()`, with every
+`@tauri-apps/*` module reached by dynamic import from
+`core/services/desktop/**` — the only directory ESLint permits to name one, so
+the web bundle never evaluates Tauri code.
+
+- **Opening.** The add-files action opens a native dialog and records each
+  selected file's absolute path as that file's `localFilePath`. Files handed
+  over by the OS (double-click, "Open with", drag onto the shortcut, an
+  Explorer verb) arrive the same way; see
+  `desktop-explorer-context-menu.md`.
+- **Saving.** A file with a `localFilePath` is overwritten in place. A file
+  without one gets a native Save As dialog whose type filter is derived from
+  the output's own extension, so a non-PDF result is not mislabelled `.pdf`.
+  Ctrl/Cmd+S saves the selection, or everything when nothing is selected;
+  the shortcut is not bound on web, where Ctrl+S belongs to the browser.
+- **Dirty state.** A successful write returns the path it wrote, and only that
+  return clears `isDirty`. A cancelled dialog and a failed write both leave
+  the file marked unsaved.
+- **Tool results.** On desktop, a run that produced several outputs writes
+  each result back to its own source path. Web receives the aggregate download
+  (a ZIP for multiple outputs), because a browser cannot write back to the
+  files it was given.
 
 ## Updates
 

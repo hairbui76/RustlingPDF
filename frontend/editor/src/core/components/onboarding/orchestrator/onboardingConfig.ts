@@ -1,3 +1,5 @@
+import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
+
 export type OnboardingStepId = "welcome" | "desktop-install" | "tour-overview";
 
 export type OnboardingStepType = "modal-slide" | "tool-prompt";
@@ -22,7 +24,12 @@ export interface OnboardingStep {
 export const DEFAULT_RUNTIME_STATE: OnboardingRuntimeState = {
   tourRequested: false,
   tourType: "whatsnew",
-  isDesktopApp: false,
+  // Every step below is gated on `!isDesktopApp`, so hardcoding false here
+  // showed the desktop app the web onboarding — including a `desktop-install`
+  // slide inviting the user to download the app they are already running.
+  // Safe to evaluate at module load: the Tauri globals are injected into the
+  // webview before any application script runs.
+  isDesktopApp: isDesktopRuntime(),
   desktopSlideEnabled: true,
 };
 

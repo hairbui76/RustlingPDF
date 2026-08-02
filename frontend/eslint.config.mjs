@@ -26,6 +26,23 @@ const baseRestrictedImportPatterns = [
   },
 ];
 
+// The single directory allowed to name a Tauri module. See the config block
+// near the bottom of this file for why, and `core/services/desktop/
+// desktopRuntime.ts` for what it exports to the rest of the app.
+const desktopBridgeGlob = "editor/src/core/services/desktop/**/*.{ts,tsx}";
+
+const tauriImportRestriction = {
+  regex: "^@tauri-apps/",
+  message:
+    "Tauri APIs may only be imported from editor/src/core/services/desktop/**. Everywhere else, use the helpers that directory exports (isDesktopRuntime, desktopInvoke, ...) so the web bundle never loads a Tauri module.",
+};
+
+const embedpdfEnginesImportRestriction = {
+  regex: "^@embedpdf/engines",
+  message:
+    "Import useLocalPdfiumEngine from @app/services/pdfiumEngine instead. @embedpdf/engines defaults wasmUrl AND fontFallback to a public CDN, so constructing the engine directly risks a silent third-party request on document open.",
+};
+
 // Button/SegmentedControl/Chip must come from the shared DS (@app/ui), not Mantine.
 // If no variant fits, extend @app/ui — that layer (editor/src/core/ui) is exempt below.
 const mantineComponentImportRestrictions = [
@@ -113,18 +130,12 @@ export default defineConfig(
   // The web application must not import native Tauri APIs.
   {
     files: srcGlobs,
+    ignores: [desktopBridgeGlob],
     rules: {
       "no-restricted-imports": [
         "error",
         {
-          patterns: [
-            ...baseRestrictedImportPatterns,
-            {
-              regex: "^@tauri-apps/",
-              message:
-                "Tauri APIs are desktop-only. Review frontend/editor/DeveloperGuide.md for structure advice.",
-            },
-          ],
+          patterns: [...baseRestrictedImportPatterns, tauriImportRestriction],
         },
       ],
     },
@@ -137,22 +148,35 @@ export default defineConfig(
   // place; nothing else may construct an engine.
   {
     files: ["editor/src/**/*.{js,mjs,jsx,ts,tsx}"],
+    ignores: [desktopBridgeGlob],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
             ...baseRestrictedImportPatterns,
-            {
-              regex: "^@tauri-apps/",
-              message:
-                "Tauri APIs are desktop-only. Review frontend/editor/DeveloperGuide.md for structure advice.",
-            },
-            {
-              regex: "^@embedpdf/engines",
-              message:
-                "Import useLocalPdfiumEngine from @app/services/pdfiumEngine instead. @embedpdf/engines defaults wasmUrl AND fontFallback to a public CDN, so constructing the engine directly risks a silent third-party request on document open.",
-            },
+            tauriImportRestriction,
+            embedpdfEnginesImportRestriction,
+          ],
+        },
+      ],
+    },
+  },
+  // The one exception to the Tauri ban. Desktop behaviour lives in `core`
+  // behind a runtime check, and every `@tauri-apps/*` module it needs is
+  // reached by *dynamic* import from this directory alone — so the web bundle
+  // never evaluates one, and there is exactly one place to look when asking
+  // what the desktop shell is allowed to do. Everything else in the app goes
+  // through the helpers this directory exports.
+  {
+    files: [desktopBridgeGlob],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...baseRestrictedImportPatterns,
+            embedpdfEnginesImportRestriction,
           ],
         },
       ],

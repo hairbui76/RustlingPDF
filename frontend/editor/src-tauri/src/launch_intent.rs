@@ -12,7 +12,7 @@
 //! must stay identical across:
 //! - this allowlist,
 //! - `windows/wix/provisioning.wxs` (the `--tool <action>` verb commands),
-//! - `src/desktop/services/toolIntentService.ts` (`TOOL_INTENT_ACTIONS`).
+//! - `src/core/services/toolIntentService.ts` (`TOOL_INTENT_ACTIONS`).
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};

@@ -1,11 +1,45 @@
 import { useTranslation } from "react-i18next";
+import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
 
 /**
- * File action terminology for web builds
- * Desktop builds override this with different terminology
+ * Wording for the add-files and write-files actions.
+ *
+ * "Upload" and "Download" describe moving bytes between the user's machine and
+ * somewhere else. On desktop there is no somewhere else: the files are already
+ * on the user's disk and the app writes back to that same disk, so the
+ * accurate verbs are Open and Save.
  */
 export function useFileActionTerminology() {
   const { t } = useTranslation();
+
+  if (isDesktopRuntime()) {
+    return {
+      uploadFiles: t("fileManager.openFiles", "Open Files"),
+      uploadFile: t("fileManager.openFile", "Open File"),
+      upload: t("fileUpload.open", "Open"),
+      dropFilesHere: t(
+        "fileUpload.dropFilesHereOpen",
+        "Drop files here or click the open button",
+      ),
+      addFiles: t("fileManager.openFiles", "Open Files"),
+      mobileUpload: t("landing.mobileUpload", "Upload from Mobile"),
+      uploadFromComputer: t(
+        "fileSidebar.openFromComputer",
+        "Open from computer",
+      ),
+      download: t("save", "Save"),
+      downloadAll: t("workbenchBar.saveAll", "Save All"),
+      downloadSelected: t("fileManager.saveSelected", "Save Selected"),
+      downloadUnavailable: t(
+        "saveUnavailable",
+        "Save unavailable for this item",
+      ),
+      noFilesInStorage: t(
+        "fileUpload.noFilesInStorageOpen",
+        "No files available in storage. Open some files first.",
+      ),
+    };
+  }
 
   return {
     uploadFiles: t("fileUpload.uploadFiles", "Upload Files"),

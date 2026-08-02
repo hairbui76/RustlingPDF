@@ -106,13 +106,20 @@ function scanForUsedIcons() {
           });
         }
 
-        // Match icon config usage: icon: 'icon-name' or icon: "icon-name"
+        // Match icon config usage: icon: 'icon-name', but also the
+        // `<something>Icon` / `<something>IconName` properties that hooks like
+        // useFileActionIcons expose and components then render through
+        // `<LocalIcon icon={icons.downloadIconName} />`. Those indirect names
+        // are invisible to every other pattern here, and a name that is not
+        // extracted renders as *nothing* — silently, because LocalIcon has no
+        // network fallback by design.
+        const iconPropertyPattern = /[Ii]con(?:Name)?:\s*(['"])([a-z0-9-]+)\1/;
         const iconPropertyMatches = content.match(
-          /icon:\s*(['"])([a-z0-9-]+)\1/g,
+          new RegExp(iconPropertyPattern, "g"),
         );
         if (iconPropertyMatches) {
           iconPropertyMatches.forEach((match) => {
-            const iconMatch = match.match(/icon:\s*(['"])([a-z0-9-]+)\1/);
+            const iconMatch = match.match(iconPropertyPattern);
             if (iconMatch) {
               usedIcons.add(iconMatch[2]);
               debug(

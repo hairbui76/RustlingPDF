@@ -3,9 +3,9 @@ import { useAppConfig } from "@app/contexts/AppConfigContext";
 /**
  * Whether the AI engine is enabled, per the backend's app-config.
  *
- * Web builds read it straight from the app-config (which already comes from the
- * backend the app talks to). Desktop shadows this (desktop/hooks/useAiEngineEnabled)
- * to read it from the legacy web build backend in legacy web build mode instead of the local bundled one.
+ * Read straight from the app-config, which already comes from whichever
+ * backend the app talks to — the same value in every runtime, since desktop's
+ * bundled sidecar reports its own AI configuration like any other backend.
  */
 export function useAiEngineEnabled(): boolean {
   const { config } = useAppConfig();
