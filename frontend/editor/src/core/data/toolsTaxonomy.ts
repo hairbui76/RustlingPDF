@@ -15,7 +15,7 @@ import {
   ToolKind,
 } from "@app/types/toolId";
 import DrawRoundedIcon from "@mui/icons-material/DrawRounded";
-import SecurityRoundedIcon from "@mui/icons-material/SecurityRounded";
+import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import RateReviewRoundedIcon from "@mui/icons-material/RateReviewRounded";
 import ViewAgendaRoundedIcon from "@mui/icons-material/ViewAgendaRounded";
@@ -113,8 +113,14 @@ export const getSubcategoryIcon = (
   switch (subcategory) {
     case SubcategoryId.SIGNING:
       return React.createElement(DrawRoundedIcon);
+    // A padlock, not a shield. This group and Verification below were a shield
+    // and a shield-with-a-tick, which the tool-group bar's labels used to tell
+    // apart; the bar is icon-only now, so at a glance they were the same
+    // picture. A padlock is also the more literal fit — the group is Add
+    // Password, Change Permissions, Sanitize, Flatten — and nothing else in
+    // the bar looks remotely like one.
     case SubcategoryId.DOCUMENT_SECURITY:
-      return React.createElement(SecurityRoundedIcon);
+      return React.createElement(LockRoundedIcon);
     case SubcategoryId.VERIFICATION:
       return React.createElement(VerifiedUserRoundedIcon);
     case SubcategoryId.DOCUMENT_REVIEW:
