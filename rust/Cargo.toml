@@ -38,3 +38,31 @@ office2pdf = { git = "https://github.com/hairbui76/office2pdf.git", rev = "0e6fd
 # branch sits at 0.4.19 while crates.io is already at 0.4.22, so the resolver
 # ignores it; mirroring it here would only add an inert git dependency.)
 umya-spreadsheet = { git = "https://github.com/developer0hye/umya-spreadsheet.git", rev = "f4e2dc468dedd140f21ba967904bcbf74dcbc1c6" }
+
+[profile.release]
+# Cargo's defaults leave a lot on the table for a binary that ships inside an
+# installer. Measured on rustling-processing, same machine and toolchain:
+#
+#                              raw        xz      build
+#   cargo defaults          101.3 MB   24.3 MB   7m21s
+#   this profile             68.2 MB   20.9 MB  16m25s
+#
+# Read the xz column, not the raw one. 33 MB off the binary is only 3.4 MB off
+# a compressed installer, because debug symbols and duplicated generic code
+# compress extremely well — the raw figure overstates the benefit roughly
+# eightfold. `strip` is the cheap part; the rest is what LTO removes across
+# crate boundaries, where 6.6 MB of this binary was generic code instantiated
+# once per crate.
+#
+# The cost is build time: the three desktop release legs run in parallel, so a
+# release takes about nine minutes longer. `lto = "thin"` is a one-word change
+# if that trade stops being worth it.
+#
+# panic stays "unwind" on purpose. Aborting would drop ~7.8 MB of unwind tables,
+# but the HTTP layer isolates a panicking request handler by unwinding just that
+# task; turning it into a process abort trades installer bytes for taking the
+# whole service down on one malformed document.
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "unwind"
