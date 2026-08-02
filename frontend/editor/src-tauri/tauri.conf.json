@@ -27,14 +27,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "publisher": "RustlingPDF contributors",
-    "targets": [
-      "deb",
-      "rpm",
-      "appimage",
-      "dmg",
-      "app",
-      "msi"
-    ],
+    "targets": ["deb", "rpm", "appimage", "dmg", "app", "msi"],
     "icon": [
       "icons/icon.png",
       "icons/icon.icns",
@@ -45,18 +38,11 @@
       "icons/128x128.png",
       "icons/192x192.png"
     ],
-    "externalBin": [
-      "binaries/rustling-processing"
-    ],
-    "resources": [
-      "resources/pdfium",
-      "resources/tools"
-    ],
+    "externalBin": ["binaries/rustling-processing"],
+    "resources": ["resources/pdfium", "resources/tools"],
     "fileAssociations": [
       {
-        "ext": [
-          "pdf"
-        ],
+        "ext": ["pdf"],
         "name": "PDF Document",
         "role": "Editor",
         "mimeType": "application/pdf"
@@ -85,12 +71,8 @@
         "upgradeCode": "92156D31-4DBC-43C0-8717-C60CF63C435C",
         "bannerPath": "windows/wix/banner.bmp",
         "dialogImagePath": "windows/wix/dialog.bmp",
-        "fragmentPaths": [
-          "windows/wix/provisioning.wxs"
-        ],
-        "componentGroupRefs": [
-          "ProvisioningComponentGroup"
-        ]
+        "fragmentPaths": ["windows/wix/provisioning.wxs"],
+        "componentGroupRefs": ["ProvisioningComponentGroup"]
       }
     },
     "macOS": {

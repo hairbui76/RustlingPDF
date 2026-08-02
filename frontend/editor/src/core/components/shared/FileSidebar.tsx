@@ -27,6 +27,7 @@ import {
 import { GoogleDriveIcon } from "@app/components/shared/CloudStorageIcons";
 import ThemeModeControl from "@app/components/shared/ThemeModeControl";
 import { useLogoAssets } from "@app/hooks/useLogoAssets";
+import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import type { RustlingFileStub } from "@app/types/fileContext";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
@@ -123,6 +124,12 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
   ) {
     const { t } = useTranslation();
     const logoAssets = useLogoAssets();
+    // Same vocabulary source as the empty state's primary button. Hardcoding
+    // "Open from computer" here left the web build calling one action two
+    // names on the same screen — this row said "Open", the button said
+    // "Upload". The hook says "Open"/"Save" on desktop, where files come from
+    // and go back to the user's disk, and "Upload"/"Download" on the web.
+    const terminology = useFileActionTerminology();
     const [searchActive, setSearchActive] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -690,7 +697,7 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                 "Open from computer" vs FolderOpen for "My Files") so the
                 collapsed rail isn't two identical folder icons either. */}
             <Tooltip
-              label={t("fileSidebar.openFromComputer", "Open from computer")}
+              label={terminology.uploadFromComputer}
               position="right"
               withinPortal
               disabled={!collapsed}
@@ -711,10 +718,7 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                 }}
                 role="button"
                 tabIndex={0}
-                aria-label={t(
-                  "fileSidebar.openFromComputer",
-                  "Open from computer",
-                )}
+                aria-label={terminology.uploadFromComputer}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
@@ -725,7 +729,7 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                 <UploadFileIcon className="file-sidebar-action-icon" />
                 {!collapsed && (
                   <span className="file-sidebar-action-label sidebar-content-fade">
-                    {t("fileSidebar.openFromComputer", "Open from computer")}
+                    {terminology.uploadFromComputer}
                   </span>
                 )}
               </div>
