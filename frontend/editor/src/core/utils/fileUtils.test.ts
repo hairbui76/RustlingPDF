@@ -4,6 +4,7 @@ import {
   detectFileExtension,
   formatFileSize,
   detectNonPdfFileType,
+  mimeTypeForFileName,
 } from "@app/utils/fileUtils";
 
 describe("fileUtils", () => {
@@ -107,6 +108,31 @@ describe("fileUtils", () => {
       expect(
         detectNonPdfFileType({ name: "diagram.png", type: "application/json" }),
       ).toBe("json");
+    });
+  });
+
+  describe("mimeTypeForFileName", () => {
+    it("maps the extensions the desktop open path actually receives", () => {
+      expect(mimeTypeForFileName("logo.png")).toBe("image/png");
+      expect(mimeTypeForFileName("scan.JPG")).toBe("image/jpeg");
+      expect(mimeTypeForFileName("report.pdf")).toBe("application/pdf");
+      expect(mimeTypeForFileName("letter.docx")).toBe(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+    });
+
+    it("says octet-stream rather than guessing at an unknown extension", () => {
+      expect(mimeTypeForFileName("archive.qqq")).toBe(
+        "application/octet-stream",
+      );
+      expect(mimeTypeForFileName("README")).toBe("application/octet-stream");
+    });
+
+    it("reads the last extension, not the first", () => {
+      // The desktop bug this guards was the opposite mistake — assuming one
+      // type for every file — but a name like this is where a naive split
+      // would hand back the wrong answer instead of no answer.
+      expect(mimeTypeForFileName("report.pdf.png")).toBe("image/png");
     });
   });
 });

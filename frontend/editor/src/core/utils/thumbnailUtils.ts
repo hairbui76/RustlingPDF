@@ -7,6 +7,7 @@ import {
   renderPdfiumPageDataUrl,
   readPdfiumPageMetadata,
 } from "@app/utils/pdfiumPageRender";
+import { mimeTypeForFileName } from "@app/utils/fileUtils";
 
 export interface ThumbnailWithMetadata {
   thumbnail: string; // Always returns a thumbnail (placeholder if needed)
@@ -137,8 +138,24 @@ export async function generateThumbnailForFile(file: File): Promise<string> {
     return "";
   }
 
+  // Images accept a second opinion from the name. `file.type` is only as good
+  // as whoever built the File, and a wrong one here cost the preview outright:
+  // an image labelled "application/pdf" fell through to the PDF branch, failed
+  // to open, and returned nothing. Reading the extension too makes that
+  // recoverable, and costs a FileReader that always settles.
+  //
+  // The PDF branch deliberately does NOT do the same. Trusting the extension
+  // there would hand PDFium every file merely *named* .pdf, and a PDFium that
+  // fails to load leaves that call outstanding rather than returning — turning
+  // a wrong label into a hang instead of a missing thumbnail. The desktop open
+  // path that produced the wrong labels now sets the type from the name at
+  // source, so nothing needs the fallback here.
+  const isImage =
+    file.type.startsWith("image/") ||
+    mimeTypeForFileName(file.name).startsWith("image/");
+
   // Handle image files - convert to data URL for persistence
-  if (file.type.startsWith("image/")) {
+  if (isImage) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);

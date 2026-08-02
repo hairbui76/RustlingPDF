@@ -1,6 +1,7 @@
 import JSZip, { JSZipObject } from "jszip";
 import { RustlingFileStub, createRustlingFile } from "@app/types/fileContext";
 import { generateThumbnailForFile } from "@app/utils/thumbnailUtils";
+import { mimeTypeForFileName } from "@app/utils/fileUtils";
 import { fileStorage } from "@app/services/fileStorage";
 
 // Undocumented interface in JSZip for JSZipObject._data
@@ -637,44 +638,14 @@ export class ZipFileService {
   }
 
   /**
-   * Get MIME type based on file extension
+   * Get MIME type based on file extension.
+   *
+   * Delegates to the shared table. This class used to carry its own copy, which
+   * is how the two drifted: the desktop open path had no table at all and
+   * hardcoded "application/pdf" for every file instead.
    */
   private getMimeTypeFromExtension(fileName: string): string {
-    const ext = fileName.toLowerCase().split(".").pop();
-
-    const mimeTypes: Record<string, string> = {
-      // Images
-      png: "image/png",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      gif: "image/gif",
-      webp: "image/webp",
-      bmp: "image/bmp",
-      svg: "image/svg+xml",
-      tiff: "image/tiff",
-      tif: "image/tiff",
-
-      // Documents
-      pdf: "application/pdf",
-      txt: "text/plain",
-      html: "text/html",
-      css: "text/css",
-      js: "application/javascript",
-      json: "application/json",
-      xml: "application/xml",
-
-      // Office documents
-      doc: "application/msword",
-      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      xls: "application/vnd.ms-excel",
-      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-      // Archives
-      zip: "application/zip",
-      rar: "application/x-rar-compressed",
-    };
-
-    return mimeTypes[ext || ""] || "application/octet-stream";
+    return mimeTypeForFileName(fileName);
   }
 
   /**

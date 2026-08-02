@@ -326,6 +326,63 @@ const FileEditor = ({
     [selectors, fileActions, removeFiles],
   );
 
+  // Anchor for Shift-ranges: the last card clicked without Shift. Kept in a ref
+  // because it is only ever read inside the next click, never rendered.
+  const selectionAnchorRef = useRef<FileId | null>(null);
+
+  // Every selection made from the grid goes through here so the active tool's
+  // `maxFiles` is honoured. Without it a Shift-range could hand a
+  // single-file tool twelve documents; the effect below would then trim it,
+  // but only after the selection had already been published.
+  const applySelection = useCallback(
+    (ids: FileId[]) => {
+      setSelectedFiles(
+        Number.isFinite(maxAllowed) && ids.length > maxAllowed
+          ? ids.slice(-maxAllowed)
+          : ids,
+      );
+    },
+    [maxAllowed, setSelectedFiles],
+  );
+
+  const handleCardSelect = useCallback(
+    (fileId: FileId, modifiers: { shift: boolean; toggle: boolean }) => {
+      const ids = stubsRef.current.map((stub) => stub.id);
+      const current = selectedFileIdsRef.current;
+
+      if (modifiers.shift && selectionAnchorRef.current) {
+        const from = ids.indexOf(selectionAnchorRef.current);
+        const to = ids.indexOf(fileId);
+        if (from !== -1 && to !== -1) {
+          const [lo, hi] = from <= to ? [from, to] : [to, from];
+          // The range replaces the selection rather than adding to it, so a
+          // stray Shift-click cannot silently grow a selection a destructive
+          // tool is about to run on.
+          applySelection(ids.slice(lo, hi + 1));
+          return;
+        }
+      }
+
+      selectionAnchorRef.current = fileId;
+
+      if (modifiers.toggle) {
+        applySelection(
+          current.includes(fileId)
+            ? current.filter((id) => id !== fileId)
+            : [...current, fileId],
+        );
+        return;
+      }
+
+      // A plain click on the only selected card clears it, so there is a way
+      // back to "nothing selected" without reaching for the sidebar.
+      applySelection(
+        current.length === 1 && current[0] === fileId ? [] : [fileId],
+      );
+    },
+    [applySelection],
+  );
+
   const handleViewFile = useCallback(
     (fileId: FileId) => {
       const index = stubsRef.current.findIndex((r) => r.id === fileId);
@@ -404,6 +461,8 @@ const FileEditor = ({
                     onUnzipFile={handleUnzipFile}
                     toolMode={toolMode}
                     isSupported={isFileSupported(record.name)}
+                    isSelected={selectedFileIds.includes(record.id)}
+                    onCardSelect={handleCardSelect}
                   />
                 );
               })}

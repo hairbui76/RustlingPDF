@@ -9,6 +9,7 @@ import { navigateToToolIntent } from "@app/services/toolIntentService";
 import { rememberLocalFilePath } from "@app/services/localFilePathRegistry";
 import { useFileManagement } from "@app/contexts/file/fileHooks";
 import { backendHealthMonitor } from "@app/services/backendHealthMonitor";
+import { mimeTypeForFileName } from "@app/utils/fileUtils";
 
 /**
  * App-level initialization that needs FileContext. Mounted once by
@@ -54,7 +55,14 @@ export function useAppInitialization(): void {
               return null;
             }
             const file = new File([fileData.arrayBuffer], fileData.fileName, {
-              type: "application/pdf",
+              // Derived from the name, not hardcoded. This used to say
+              // "application/pdf" for everything the OS handed us, so a PNG
+              // opened by double-click or "Open with" claimed to be a PDF —
+              // and every code path that branches on `file.type` believed it.
+              // Thumbnail generation is the visible one: it took the PDF
+              // branch, PDFium could not open the image, and the card fell
+              // back to a generic type icon instead of showing the picture.
+              type: mimeTypeForFileName(fileData.fileName),
               // The file's real mtime. Defaulting to Date.now() would make
               // every file in this Promise.all share a timestamp, so two
               // same-named, same-sized documents would collide on `quickKey`

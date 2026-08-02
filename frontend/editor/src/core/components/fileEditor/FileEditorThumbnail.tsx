@@ -51,6 +51,16 @@ interface FileEditorThumbnailProps {
   onUnzipFile?: (fileId: FileId) => void;
   toolMode?: boolean;
   isSupported?: boolean;
+  /** Whether this card is in the current selection. */
+  isSelected?: boolean;
+  /**
+   * Click on the card body. The modifier state travels with it because the
+   * range and toggle rules need the whole list, which only the grid has.
+   */
+  onCardSelect?: (
+    fileId: FileId,
+    modifiers: { shift: boolean; toggle: boolean },
+  ) => void;
 }
 
 const FileEditorThumbnail = ({
@@ -61,6 +71,8 @@ const FileEditorThumbnail = ({
   onDownloadFile,
   onUnzipFile,
   isSupported = true,
+  isSelected = false,
+  onCardSelect,
 }: FileEditorThumbnailProps) => {
   const { t } = useTranslation();
   const terminology = useFileActionTerminology();
@@ -365,7 +377,7 @@ const FileEditorThumbnail = ({
     unpinFile,
   ]);
 
-  const handleCardClick = () => {
+  const handleCardClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!isSupported) return;
     if (hasError) {
       try {
@@ -374,6 +386,15 @@ const FileEditorThumbnail = ({
         void _e;
       }
     }
+    // Clicking a card selects it. Selection used to be reachable only through
+    // the checkbox in the file sidebar, so the grid — the surface actually
+    // showing the documents — could not be used to choose which ones a tool
+    // runs on. Ctrl/Cmd adds or removes one; Shift takes the run from the last
+    // click, which is what every file manager does.
+    onCardSelect?.(file.id, {
+      shift: event.shiftKey,
+      toggle: event.ctrlKey || event.metaKey,
+    });
   };
 
   const handleCardDoubleClick = () => {
@@ -392,10 +413,12 @@ const FileEditorThumbnail = ({
       data-testid="file-thumbnail"
       data-tour="file-card-checkbox"
       data-supported={isSupported}
+      data-selected={isSelected}
       className={`${styles.card} select-none`}
       style={{ opacity: isDragging ? 0.9 : 1 }}
       tabIndex={0}
       role="listitem"
+      aria-selected={onCardSelect ? isSelected : undefined}
       onClick={handleCardClick}
       onDoubleClick={handleCardDoubleClick}
     >

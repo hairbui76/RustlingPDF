@@ -57,6 +57,26 @@
   opacity: 1;
 }
 
+/* Selected card. The grid is now a real selection surface — click, Ctrl-click,
+   Shift-click — so the state has to be visible on the card itself and not only
+   as a tick in the file sidebar. A tinted panel behind the whole card rather
+   than a border, so it reads at a glance across a wide grid without shifting
+   any layout. */
+.card[data-selected="true"] {
+  background: color-mix(in srgb, var(--c-primary) 10%, transparent);
+  border-radius: 12px;
+}
+
+.card[data-selected="true"]:hover {
+  background: color-mix(in srgb, var(--c-primary) 14%, transparent);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
 .thumbWrap {
   width: 100%;
   position: relative;

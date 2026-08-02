@@ -98,6 +98,64 @@ export function isPdfFile(
   return false;
 }
 
+/**
+ * Best-effort MIME type from a file name.
+ *
+ * A `File` built by the application carries whatever `type` we hand the
+ * constructor, and several code paths had no better source than a guess — the
+ * desktop open path labelled every file `application/pdf`, so a PNG opened by
+ * double-click claimed to be a PDF and anything keyed on `file.type` treated it
+ * as one. The browser's own file picker sets this from the OS; when we build a
+ * `File` ourselves the extension is the only thing left to read.
+ *
+ * Falls back to `application/octet-stream`, which is the honest answer for an
+ * extension we do not know — deliberately not a guess at the most likely type.
+ */
+const MIME_TYPES_BY_EXTENSION: Record<string, string> = {
+  // Images
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
+  tiff: "image/tiff",
+  tif: "image/tiff",
+
+  // Documents
+  pdf: "application/pdf",
+  txt: "text/plain",
+  html: "text/html",
+  htm: "text/html",
+  css: "text/css",
+  js: "application/javascript",
+  json: "application/json",
+  xml: "application/xml",
+  csv: "text/csv",
+  md: "text/markdown",
+
+  // Office documents
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  odt: "application/vnd.oasis.opendocument.text",
+  ods: "application/vnd.oasis.opendocument.spreadsheet",
+  odp: "application/vnd.oasis.opendocument.presentation",
+
+  // Archives
+  zip: "application/zip",
+  rar: "application/x-rar-compressed",
+};
+
+export function mimeTypeForFileName(fileName: string): string {
+  const ext = detectFileExtension(fileName);
+  return MIME_TYPES_BY_EXTENSION[ext] || "application/octet-stream";
+}
+
 export type NonPdfFileType =
   "image" | "csv" | "json" | "text" | "markdown" | "html" | "unknown";
 
