@@ -45,24 +45,24 @@ umya-spreadsheet = { git = "https://github.com/developer0hye/umya-spreadsheet.gi
 #
 #                              raw        xz      build
 #   cargo defaults          101.3 MB   24.3 MB   7m21s
-#   this profile             68.2 MB   20.9 MB  16m25s
+#   lto = "thin"             72.5 MB   21.1 MB   9m45s
+#   lto = "fat"              68.2 MB   20.9 MB  16m25s
 #
-# Read the xz column, not the raw one. 33 MB off the binary is only 3.4 MB off
-# a compressed installer, because debug symbols and duplicated generic code
-# compress extremely well — the raw figure overstates the benefit roughly
-# eightfold. `strip` is the cheap part; the rest is what LTO removes across
-# crate boundaries, where 6.6 MB of this binary was generic code instantiated
-# once per crate.
+# Read the xz column, not the raw one. Most of what LTO and `strip` remove is
+# debug symbols and duplicated generic code, which compress extremely well:
+# 33 MB off the raw binary is 3.4 MB off a compressed installer, overstating
+# the benefit roughly eightfold.
 #
-# The cost is build time: the three desktop release legs run in parallel, so a
-# release takes about nine minutes longer. `lto = "thin"` is a one-word change
-# if that trade stops being worth it.
+# Thin is what ships. Fat buys a further 0.2 MB of installer for 6m40s more
+# build time on every leg of every release — the last 4 MB of raw size is
+# almost entirely things the compressor was already collapsing. Thin captures
+# 3.2 of the 3.4 MB for a third of the extra time.
 #
 # panic stays "unwind" on purpose. Aborting would drop ~7.8 MB of unwind tables,
 # but the HTTP layer isolates a panicking request handler by unwinding just that
 # task; turning it into a process abort trades installer bytes for taking the
 # whole service down on one malformed document.
-lto = "fat"
+lto = "thin"
 codegen-units = 1
 strip = "symbols"
 panic = "unwind"
