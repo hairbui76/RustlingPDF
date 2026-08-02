@@ -10,6 +10,11 @@ import type { Connect, PluginOption } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { SHIPPED_LATIN_FONT_FILES } from "./src/core/constants/fallbackFonts";
+import { DESKTOP_SHIPPED_LOCALES } from "./src/core/constants/desktopLocales";
+import {
+  DESKTOP_LOGO_VARIANT,
+  LOGO_FOLDER_BY_VARIANT,
+} from "./src/core/constants/logo";
 
 const gzipPromise = promisify(gzip);
 const brotliPromise = promisify(brotliCompress);
@@ -59,6 +64,96 @@ function pruneDesktopOnlyOutputPlugin(dirs: string[]): PluginOption {
       }
       console.log(
         `[prune-desktop-only-output] removed ${dirs.join(", ")} from the desktop bundle`,
+      );
+    },
+  };
+}
+
+/**
+ * Drop the translations a desktop installer does not carry.
+ *
+ * Kept separate from `pruneDesktopOnlyOutputPlugin` because this removes a
+ * subset of a directory rather than the directory: `locales/` still ships, with
+ * `DESKTOP_SHIPPED_LOCALES` inside it. The same list filters
+ * `supportedLanguages` at runtime, so the picker never offers a language whose
+ * file was pruned here.
+ */
+function pruneUnshippedLocalesPlugin(): PluginOption {
+  return {
+    name: "prune-unshipped-locales",
+    apply: "build" as const,
+    async closeBundle() {
+      const localesDir = path.resolve(__dirname, "dist", "locales");
+      let entries: string[];
+      try {
+        entries = await fs.readdir(localesDir);
+      } catch {
+        return; // no locales in this build
+      }
+      const dropped = entries.filter(
+        (code) => !DESKTOP_SHIPPED_LOCALES.includes(code as never),
+      );
+      await Promise.all(
+        dropped.map((code) =>
+          fs.rm(path.join(localesDir, code), {
+            recursive: true,
+            force: true,
+          }),
+        ),
+      );
+      console.log(
+        `[prune-unshipped-locales] kept ${entries.length - dropped.length}, removed ${dropped.length}`,
+      );
+    },
+  };
+}
+
+/**
+ * Drop the logo variant a desktop install cannot select.
+ *
+ * `useLogoVariant` resolves `preferences.logoVariant ?? config.logoStyle`, and
+ * nothing in the application ever writes that preference — no settings toggle,
+ * no menu — so the variant is whatever the backend reports, which defaults to
+ * "classic" (`runtime_config.rs`). The modern set is therefore unreachable in a
+ * desktop install while costing 1.57 MB of installer.
+ *
+ * Ten of its eleven files are byte-identical to the classic set anyway; only
+ * `Firstpage.png` genuinely differs. Two are kept because `index.html`
+ * hard-references those exact paths for the pre-React favicon and manifest,
+ * before any of the variant logic has run.
+ *
+ * Web and Docker builds keep both sets: there `config.logoStyle` is a real
+ * deployment setting, and an operator can point it at either.
+ */
+const DESKTOP_KEEP_FROM_PRUNED_LOGO = ["favicon.ico", "logo192.png"];
+
+function pruneUnusedLogoVariantPlugin(): PluginOption {
+  return {
+    name: "prune-unused-logo-variant",
+    apply: "build" as const,
+    async closeBundle() {
+      const keptFolder = LOGO_FOLDER_BY_VARIANT[DESKTOP_LOGO_VARIANT];
+      const prunedFolder = Object.values(LOGO_FOLDER_BY_VARIANT).find(
+        (folder) => folder !== keptFolder,
+      );
+      if (!prunedFolder) return;
+      const dir = path.resolve(__dirname, "dist", prunedFolder);
+      let entries: string[];
+      try {
+        entries = await fs.readdir(dir);
+      } catch {
+        return;
+      }
+      const dropped = entries.filter(
+        (file) => !DESKTOP_KEEP_FROM_PRUNED_LOGO.includes(file),
+      );
+      await Promise.all(
+        dropped.map((file) =>
+          fs.rm(path.join(dir, file), { recursive: true, force: true }),
+        ),
+      );
+      console.log(
+        `[prune-unused-logo-variant] removed ${dropped.length} unreachable ${prunedFolder} files`,
       );
     },
   };
@@ -406,7 +501,11 @@ export default defineConfig(async ({ mode, command }) => {
       //
       // MUST stay last: it runs in closeBundle, after prerenderOgPlugin.
       ...(isDesktopBuild
-        ? [pruneDesktopOnlyOutputPlugin(["og_images", "vendor/jscanify"])]
+        ? [
+            pruneDesktopOnlyOutputPlugin(["og_images", "vendor/jscanify"]),
+            pruneUnshippedLocalesPlugin(),
+            pruneUnusedLogoVariantPlugin(),
+          ]
         : []),
     ],
     server: {

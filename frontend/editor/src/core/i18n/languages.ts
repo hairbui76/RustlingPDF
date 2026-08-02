@@ -3,8 +3,11 @@
  * i18next instance or application state.
  */
 
-/** Supported languages, keyed by BCP-47-ish code → native display name. */
-export const supportedLanguages: Record<string, string> = {
+import { isDesktopShippedLocale } from "@app/constants/desktopLocales";
+import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
+
+/** Every language that has a translation in the repository. */
+const translatedLanguages: Record<string, string> = {
   "en-US": "English (US)",
   "en-GB": "English (UK)",
   "ar-AR": "العربية",
@@ -47,6 +50,28 @@ export const supportedLanguages: Record<string, string> = {
   "zh-CN": "简体中文",
   "zh-TW": "繁體中文",
 };
+
+/**
+ * Languages this build can actually show, keyed by BCP-47-ish code → native
+ * display name.
+ *
+ * On the web every translation is present and fetched on demand, so this is
+ * the full set. A desktop installer carries only `DESKTOP_SHIPPED_LOCALES`,
+ * and offering a language whose file was never bundled is worse than not
+ * offering it: i18next would fail the fetch, silently fall back to English,
+ * and look like a broken translation rather than an absent one.
+ *
+ * The runtime test rather than a build-time flag because `isDesktopRuntime` is
+ * the single definition of "am I in Tauri?" in this codebase, and the globals
+ * it reads are injected before any application script runs.
+ */
+export const supportedLanguages: Record<string, string> = isDesktopRuntime()
+  ? Object.fromEntries(
+      Object.entries(translatedLanguages).filter(([code]) =>
+        isDesktopShippedLocale(code),
+      ),
+    )
+  : translatedLanguages;
 
 /** Right-to-left languages (drives `document.dir`). */
 export const rtlLanguages = ["ar-AR", "fa-IR"];
