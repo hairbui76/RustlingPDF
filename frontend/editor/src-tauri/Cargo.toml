@@ -61,3 +61,17 @@ windows = { version = "0.62", features = [
     "Win32_UI_Shell",
     "Win32_System_ApplicationInstallationAndServicing",
 ] }
+
+[profile.release]
+# The desktop shell is its own workspace, so the profile in rust/Cargo.toml
+# does not reach it — this binary was still being built with cargo's defaults
+# while the sidecar next to it in the same installer was not. It carries the
+# whole embedded frontend plus the Tauri runtime and shipped at 42.2 MB with
+# symbols retained; stripping alone accounts for 6.3 MB of that.
+#
+# Same settings and the same reasoning as the sidecar's profile: read
+# rust/Cargo.toml for the measurements and for why `panic` stays "unwind".
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "unwind"

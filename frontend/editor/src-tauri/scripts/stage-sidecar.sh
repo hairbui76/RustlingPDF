@@ -73,6 +73,34 @@ cp -R "$pdfium_dir/." "$pdfium_resources_dir/"
 # runtime libraries, English tessdata, and third-party license notices.
 cp -R "$tools_dir/." "$tools_resources_dir/"
 
+# Collapse soname symlinks onto real files.
+#
+# The curated tools tree keeps `libqpdf.so.30 -> libqpdf.so.30.3.2` as a
+# symlink, and this script preserves it — but Tauri's bundler dereferences
+# symlinks when it copies resources into the package, so the installer ended up
+# carrying two byte-identical 4.4 MB copies of libqpdf. That was measured by
+# extracting a shipped .deb and comparing checksums, not inferred; SOURCES.md
+# used to assert the opposite.
+#
+# Keeping the link name and dropping the versioned one is safe because the
+# library's own SONAME is `libqpdf.so.30` and that is the exact string qpdf's
+# DT_NEEDED asks the loader for — the fully-versioned name is never requested.
+# Restricted to same-directory links so nothing outside this tree can be moved.
+while IFS= read -r link; do
+  link_target="$(readlink "$link")"
+  case "$link_target" in
+    */*) continue ;;
+  esac
+  link_dir="$(dirname "$link")"
+  [ -f "$link_dir/$link_target" ] || continue
+  /bin/rm -f "$link"
+  mv "$link_dir/$link_target" "$link"
+  printf 'staged: collapsed %s (was a symlink to %s)\n' \
+    "${link#"$tauri_dir/"}" "$link_target"
+done <<EOF
+$(find "$tools_resources_dir" -type l)
+EOF
+
 # Smoke-test what was actually staged with system command discovery disabled,
 # so a host installation cannot mask an incomplete bundled runtime.
 for staged_tool in \

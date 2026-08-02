@@ -135,7 +135,7 @@ build host in the first place.
 
 | Shipped file | Version | How established | License (as distributed by us) |
 |---|---|---|---|
-| `libqpdf.so.30.3.2` | qpdf 12.3.2 | version string | Apache-2.0 |
+| `libqpdf.so.30` (archive name `libqpdf.so.30.3.2`) | qpdf 12.3.2 | version string | Apache-2.0 |
 | `libgnutls.so.30` | GnuTLS 3.7.3 | `Enabled GnuTLS 3.7.3 logging...` string | LGPL-2.1-or-later |
 | `libnettle.so.8` | Nettle 3.7.3 | `.text` == `libnettle8 3.7.3-1build2` | LGPL-3.0-or-later (elected from GPL-2.0+/LGPL-3.0+) |
 | `libhogweed.so.6` | Nettle 3.7.3 | `.text` == `libhogweed6 3.7.3-1build2` | LGPL-3.0-or-later (elected) |
@@ -146,8 +146,16 @@ build host in the first place.
 | `libffi.so.8` | libffi 3.4.2 | `.text` == `libffi8 3.4.2-4` | libffi (MIT-style) |
 | `libjpeg.so.8` | libjpeg-turbo 2.1.2 | `libjpeg-turbo version 2.1.2 (build 20220221)` string | BSD-3-Clause, IJG, zlib |
 
-`lib/libqpdf.so.30` is a symlink to `libqpdf.so.30.3.2`, preserved as a
-symlink by the installer — it is not a second 4.4 MiB copy.
+`lib/libqpdf.so.30` ships as one real file under the library's own SONAME.
+The curated archive holds it as `libqpdf.so.30.3.2` with `libqpdf.so.30` as a
+symlink, and `install-desktop-tools.sh` preserves that — but Tauri's bundler
+dereferences symlinks when copying resources, so the packaged installer used to
+carry two byte-identical 4.4 MiB copies. This was found by extracting a shipped
+`.deb` and comparing checksums; the text here previously asserted the opposite.
+`stage-sidecar.sh` now collapses the link onto the target before packaging.
+Dropping the fully-versioned name is safe: the SONAME recorded in the library
+is `libqpdf.so.30`, and that is the exact string the qpdf executable's
+`DT_NEEDED` asks the loader for.
 
 Four further libraries are **not** shipped and resolve from the host:
 `libgmp.so.10`, `libstdc++.so.6`, `libgcc_s.so.1`, `libz.so.1`. `libgmp` is
