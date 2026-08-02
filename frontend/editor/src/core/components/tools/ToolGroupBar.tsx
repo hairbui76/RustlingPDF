@@ -30,7 +30,14 @@ import "@app/components/tools/ToolGroupBar.css";
  * list in the right rail — with a roving tabindex, so the bar is one Tab stop
  * and the arrow keys move between groups.
  */
-export default function ToolGroupBar() {
+interface ToolGroupBarProps {
+  /** Extra class on the region wrapper. The mobile layout uses it to stop the
+      bar stretching, since `.mobile-slide-content > *` gives every child
+      `flex: 1 1 auto`. */
+  className?: string;
+}
+
+export default function ToolGroupBar({ className }: ToolGroupBarProps = {}) {
   const { t } = useTranslation();
   const {
     toolRegistry,
@@ -112,7 +119,7 @@ export default function ToolGroupBar() {
   if (groups.length === 0) return null;
 
   return (
-    <div className="tool-group-bar-region">
+    <div className={`tool-group-bar-region${className ? ` ${className}` : ""}`}>
       <div
         className="tool-group-bar"
         role="tablist"

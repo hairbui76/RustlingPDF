@@ -174,3 +174,12 @@
   font-weight: 500;
   color: var(--c-text-subtle);
 }
+
+/* The tool-group bar inside the mobile Tools slide. `.mobile-slide-content > *`
+   gives every child `flex: 1 1 auto`, which would stretch the bar to fill the
+   slide; it should sit at the bottom at its natural height, as it does on
+   desktop. It already scrolls horizontally when twelve groups do not fit,
+   which is the normal case at these widths. */
+.mobile-slide-content > .mobile-tool-group-bar {
+  flex: 0 0 auto;
+}

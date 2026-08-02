@@ -30,9 +30,7 @@
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.06),
     0 8px 24px rgba(0, 0, 0, 0.12);
-  /* Last-resort valve for very narrow windows: all ~12 groups fit without
-     scrolling from roughly 700px of workbench width upwards, which is every
-     desktop layout. Below that the bar scrolls rather than clipping. */
+  /* Final valve only — see the wrap rule at the foot of this file. */
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -44,13 +42,18 @@
 /* Built on the shared Button (variant="quiet"), so most of this is undoing the
    Button's horizontal label layout in favour of an icon-over-label stack. */
 .tool-group-bar__item.sui-btn.mantine-Button-root {
-  /* Shrinks from 4.5rem to 3.4rem before the bar starts scrolling. */
+  /* Shrinks from 4.5rem down to this floor before the bar starts scrolling.
+     The floor is set by what keeps all 12 groups visible at 1280px — the
+     narrowest common desktop width — not by what fits the longest label:
+     "Recommended" needs ~4.1rem for one line, and 12 tabs that wide do not
+     fit, so something has to give. A label on two lines is legible; a group
+     scrolled out of a bar with no visible scrollbar is simply gone. */
   flex: 0 1 4.5rem;
   width: auto;
-  min-width: 3.4rem;
+  min-width: 3.5rem;
   height: auto;
   min-height: 0;
-  padding: 0.4375rem 0.25rem 0.375rem;
+  padding: 0.4375rem 0.125rem 0.375rem;
   border: 0;
   border-radius: 0.625rem;
   background: transparent;
@@ -120,7 +123,17 @@
   font-size: 0.59375rem;
   font-weight: 500;
   line-height: 1.25;
+  /* Buys back the ~1px that keeps "Recommended" on one line in the widest
+     tab the bar ever gives it. Without it the word breaks after "Recommende",
+     which reads as a rendering fault on the tab that is selected by default. */
+  letter-spacing: -0.015em;
   text-align: center;
+  /* Bound the label to its tab. Without this the span keeps its intrinsic
+     width — "Recommended" measures ~65px in a ~57px tab at 1280px — and the
+     button clips it at both ends, so the default-selected tab reads
+     "ecommende". With a bound, the wrapping and hyphenation below can do
+     their job instead. */
+  max-width: 100%;
   /* Two lines max — "Advanced Formatting" wraps at its space rather than
      truncating. Never break mid-word; hyphenate if the locale allows it, and
      only fall back to a hard break for a word that cannot fit at all. */
@@ -135,5 +148,28 @@
 @media (prefers-reduced-motion: reduce) {
   .tool-group-bar__item {
     transition: none;
+  }
+}
+
+/* All 12 groups fit on one row from roughly 700px of workbench width upwards.
+   Between the mobile breakpoint and about 1220px the desktop layout keeps both
+   sidebars open and leaves the bar around 570px, which is two groups short.
+
+   It used to scroll there, with the scrollbar hidden — the bar looked complete
+   while two groups sat off its right edge, reachable only by a drag gesture
+   with nothing to suggest it. Restoring the scrollbar does not help either:
+   overlay scrollbars are invisible at rest. A second row keeps every group on
+   screen with its label intact, and costs one row of height in the only band
+   that needs it.
+
+   The wrap is scoped to a media query rather than left on: a wrapping flex
+   container reports a max-content width that is not the sum of its items, so
+   an always-on `flex-wrap: wrap` sent the last group to a second row even at
+   1920px, where the bar had 700px to spare. */
+@media (min-width: 1025px) and (max-width: 1220px) {
+  .tool-group-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.125rem;
   }
 }

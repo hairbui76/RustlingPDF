@@ -21,6 +21,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 
 import RightSidebar from "@app/components/tools/RightSidebar";
+import ToolGroupBar from "@app/components/tools/ToolGroupBar";
 import Workbench from "@app/components/layout/Workbench";
 import FileSidebar from "@app/components/shared/FileSidebar";
 import FileManager from "@app/components/FileManager";
@@ -395,6 +396,14 @@ export default function HomePage() {
                 >
                   <div className="mobile-slide-content">
                     <RightSidebar />
+                    {/* The rail lists one group at a time, so without the bar
+                        there is no way to reach the other eleven — about fifty
+                        tools would be findable only by typing their name. The
+                        desktop layout renders this in Workbench; the mobile
+                        layout has its own tree, so it needs its own copy. The
+                        bar already scrolls horizontally when it runs out of
+                        room, which is what happens at these widths. */}
+                    <ToolGroupBar className="mobile-tool-group-bar" />
                   </div>
                 </div>
                 <div
