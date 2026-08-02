@@ -468,11 +468,12 @@ mechanism from the fidelity losses below: those happen while rewriting a page, t
 one happens before the page is ever touched, by deciding the wrong rectangle.
 
 The rule for the whole area: *anything detection under-reports is destroyed, not
-merely mis-framed.* Three instances of it have been found and fixed — the
-coordinate mapping in [Page geometry](#page-geometry), pixel sampling, and optional
-content — and a fourth is deliberate and documented below. Anyone changing a
-threshold, a stride, a render flag or a configuration here is changing what gets
-deleted, not how a page is framed.
+merely mis-framed.* Four instances have been found. Two are fixed — the coordinate
+mapping in [Page geometry](#page-geometry) and pixel sampling. One is **refused**
+rather than fixed, because it cannot be measured at all: optional content. One is
+deliberate: the white threshold. Anyone changing a threshold, a stride, a render
+flag or a configuration here is changing what gets deleted, not how a page is
+framed.
 
 **Sampling.** The scan skipped every second pixel on pages over 2,000 px. Measured:
 a 1000x1200 pt page (2084x2500 px at 150 DPI) with a 0.2 pt rule at `x = 40` — the
@@ -494,15 +495,11 @@ and fully transparent images. It is recorded here because it is the same shape a
 the two defects above, and because a caller storing a near-white watermark should
 know it will not survive `removeDataOutsideCrop=true`.
 
-**Optional content — measured as what the reader *can* display, not what is
-displayed now.** PDFium renders the default optional-content configuration, so a
-layer switched off in `/OCProperties /D /OFF` contributes no pixel. Deleting it was
-this endpoint's own cardinal failure one level up: the output still advertised a
-layer named `Confidential Layer`, the reader ticked it in the layers panel, and
-nothing appeared — a file lying about what it contains, lying about a layer rather
-than about ink. It compounded, because a layer invisible to detection also shrinks
-the crop box, so a drawing whose dimensions or alternate-language text live on
-their own layers was cropped to its always-on layer and *then* stripped of the rest.
+**Optional content — refused, not measured.** PDFium renders one optional-content
+configuration: the default one. Anything a layer would show in another one
+contributes no pixel, falls outside the rectangle, and is deleted, while
+`/OCProperties` and the layer's name stay in the output — the reader ticks a layer
+that is still advertised and nothing appears.
 
 This was, briefly, filed under "renders as nothing" above. That was wrong, and the
 distinction is worth stating because it is the line the whole class turns on:
@@ -511,15 +508,41 @@ action a reader can take, which is what makes deleting them the honest answer.
 Optional content is *not currently displayed*, which is a different thing — there
 is a checkbox.
 
-Removal therefore measures **twice**: the document as it renders by default, and a
-throwaway copy with every group forced on, taking the union per page. The union is
-load-bearing, not caution: an `/OCMD` with `/P /AllOff` is visible precisely
-*because* its group is off, so an all-on measurement alone hides it — verified, a
-fixture of that shape loses its content and collapses to the anchor block when the
-union is removed. Forcing every group on, by itself, would have been a fifth defect
-of this same class. The union is monotone: whatever any configuration can display
-is inside the rectangle. Documents with no optional content skip the second render
-entirely.
+The repair that suggests itself — measure again with every group forced on, take the
+union — was implemented and then removed. It closes exactly one shape. Four more go
+straight through it, each verified as silent loss at `200` with the layer still
+named in the output:
+
+| Shape | Why the union misses it |
+|---|---|
+| `/OCMD /P /AllOff`, `/P /AnyOff` | hides content while the group is **on**, so forcing groups on does not reveal it |
+| `/OCMD /VE [/Not g]` | a visibility *expression*; `/Not` inverts whatever the forced state is |
+| `/OCG` `/Usage /View /ViewState /OFF` with `/Print /PrintState /ON` | PDFium consults the group's own `/Usage`; replacing `/D` and dropping `/AS` never reaches it — and the **printed** page carries what the cropped file no longer holds |
+
+`/VE` is an arbitrary boolean tree over the groups, so the configuration space is
+`2^n` and **no fixed number of renders can cover it**. A mechanism that is right on
+two configurations and wrong on the rest is worse than refusing, because it looks
+like coverage.
+
+So automatic crop **refuses**: a document whose catalog declares any
+optional-content group answers `422 Unprocessable Content` when
+`removeDataOutsideCrop=true`, naming optional content and pointing at
+`removeDataOutsideCrop=false`, logged at `WARN` with
+`event = "crop_optional_content_refused"`. Clip-only is unaffected and keeps the
+content, which is what the refusal points callers at.
+
+**Manual coordinates are not refused**, because they are not measured: the
+rectangle comes from the caller and an object is judged by its geometry like any
+other. Verified rather than assumed, against all five shapes with a rectangle that
+genuinely removes content — the layer's text, its `BDC` marking and `/OCProperties`
+all survive while the out-of-crop block goes.
+
+The refusal is a stopgap for a measurement problem, and the fix is to stop
+measuring: classify each page object from document **structure** — anything
+carrying or enclosed by an `/OC` mechanism is reachable and never deleted, whatever
+its policy, expression or usage, and only objects invisible in every configuration
+may go. Specified in
+`docs/plans/active/crop-structural-visibility-classifier.md`.
 
 Checked and **not** deletion paths, so that the list is exhaustive rather than
 merely the ones that were found:
@@ -610,6 +633,10 @@ variable and ignored.
   form graph expands without bound (see
   [When removal is refused](#when-removal-is-refused)); logged at `WARN` with
   `event = "crop_form_expansion_refused"`
+- `422 Unprocessable Content` when `autoCrop=true`, `removeDataOutsideCrop=true`
+  and the document declares any optional-content group (see
+  [What detection cannot see](#what-detection-cannot-see)); logged at `WARN` with
+  `event = "crop_optional_content_refused"`. Manual coordinates are not refused.
 - Download name: `<base>_cropped.pdf`
 - Rebuilt pages have media boxes `[x, y, x + width, y + height]`, clip source
   content to the same rectangle, and remove stale AcroForm/outlines associated
@@ -637,12 +664,17 @@ gone when removal was asked for, and the returned media box to be a *tight*
 rectangle sitting on the ink. Reverting the mapping to a scale factor, or dropping
 only the media box shift, each fails it.
 
-`auto_crop_removal_covers_optional_content_a_reader_can_switch_on` crops three
-layer shapes — off by default, on by default, and visible only *because* its group
-is off (`/OCMD /P /AllOff`) — and requires the layer's content to survive at both
-flag values, plus the media box to reach the layer rather than stopping at the
-always-on block. Removing the widening fails it on the first shape; keeping the
-widening but dropping the union fails it on the third.
+`auto_crop_removal_refuses_documents_that_use_optional_content` covers all five
+layer shapes — `/D /OFF`, `/OCMD /P /AllOff`, `/P /AnyOff`, `/OCMD /VE [/Not g]`,
+and an `/OCG` whose `/Usage` hides it for viewing but prints it — plus a witness
+that renders by default, so the refusal is seen to be about the document feature
+rather than about which layer happens to be showing. Each must answer `422`, name
+the reason and the way forward, and the way forward must itself return `200` with
+the layer intact. `manual_removal_keeps_optional_content_and_is_not_refused` pins
+the other half: with a rectangle that genuinely removes content, manual removal
+keeps the layer, its `BDC` marking, and drops only what is outside. When the
+structural classifier lands, the first test is what it has to overturn — every
+shape must then return `200` with the layer intact.
 
 `auto_crop_removal_samples_every_pixel_so_a_hairline_is_not_deleted` pins the
 sampling density against the shape that defeats it: a 0.2 pt rule on a page large

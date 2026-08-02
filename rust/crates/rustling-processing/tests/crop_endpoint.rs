@@ -436,106 +436,231 @@ async fn auto_crop_removal_samples_every_pixel_so_a_hairline_is_not_deleted()
     Ok(())
 }
 
-/// Optional content that is off by default must survive removal, because a reader
-/// can switch it back on.
+/// Automatic removal refuses a document that uses optional content, instead of
+/// measuring a rectangle it cannot trust.
 ///
-/// This is the classification that was got wrong once: an optional-content group
-/// was filed alongside `3 Tr` text and transparent images as "renders as nothing",
-/// and deleted. Those render as nothing in every viewer under every action a reader
-/// can take, which is what makes deleting them honest. A layer is *optional*, not
-/// invisible — every viewer has a panel with a checkbox.
+/// Automatic crop derives its rectangle by rendering, and `PDFium` renders one
+/// optional-content configuration. Anything a layer would show in another one
+/// contributes no pixel, so it falls outside the rectangle and — once the rectangle
+/// decides deletion — is destroyed, while `/OCProperties` and the layer name stay
+/// in the output. The reader ticks `Confidential Layer` and nothing appears.
 ///
-/// Deleting it reproduced this endpoint's own cardinal failure one level up: the
-/// output still advertised `Confidential Layer` in `/OCProperties`, the reader
-/// ticked it, and nothing appeared. A file that lies about what it contains, lying
-/// about a layer rather than about ink. It compounded, because a layer invisible to
-/// detection also shrinks the crop box — a drawing whose dimensions or
-/// alternate-language text live on their own layers was cropped to its always-on
-/// layer and then stripped of the rest.
+/// Measuring a second time with every group forced on and unioning the two was
+/// implemented and is gone. It closed exactly one of these five shapes. `/VE` is an
+/// arbitrary boolean tree over the groups, so the configuration space is `2^n` and
+/// no fixed number of renders can cover it; a mechanism right on two configurations
+/// and wrong on the rest is worse than a refusal because it looks like coverage.
 ///
-/// The third case is why the fix unions two measurements instead of simply forcing
-/// every group on. An `/OCMD` with `/P /AllOff` is visible precisely *because* its
-/// group is off, so an all-on measurement hides it — verified: with the union
-/// removed, `alloff policy` loses its content and its box collapses to the anchor
-/// block. Forcing all groups on, alone, would have been a new deletion path.
+/// Each shape below is a case that reached `200` with the content deleted:
+///
+/// - the group listed in `/D /OFF` — the only one the union caught;
+/// - `/OCMD /P /AllOff` and `/P /AnyOff`, hiding content while the group is *on*;
+/// - `/OCMD /VE [/Not g]`, a visibility expression;
+/// - an `/OCG` whose own `/Usage /View /ViewState /OFF` hides it for viewing while
+///   `/Print /PrintState /ON` keeps it on paper, so the printed page holds what the
+///   cropped file does not. `PDFium` reads `/Usage` directly, which is why replacing
+///   `/D` and dropping `/AS` never reached it.
+///
+/// The last shape is a witness rather than a defect: it renders by default, and it
+/// is here so that the refusal is seen to be about the *document feature* and not
+/// about whether a particular layer happens to be showing.
+///
+/// Clip-only keeps working and keeps the content, which is what the refusal points
+/// callers at. When the structural classifier in
+/// `docs/plans/active/crop-structural-visibility-classifier.md` lands, this test is
+/// what it has to overturn: every shape here must then come back `200` with the
+/// layer intact.
 #[tokio::test]
-async fn auto_crop_removal_covers_optional_content_a_reader_can_switch_on()
+async fn auto_crop_removal_refuses_documents_that_use_optional_content()
 -> Result<(), Box<dyn std::error::Error>> {
-    for (label, default_on, policy, expect_wide) in [
-        // Off by default: the layer is hidden when rendered, and must still survive.
-        ("off by default", false, None, true),
-        // On by default: nothing special, and a guard that the widening did not
-        // break the ordinary case.
-        ("on by default", true, None, true),
-        // Visible *because* the group is off. An all-on-only measurement hides it.
-        ("alloff policy", false, Some("AllOff"), true),
+    for (label, default_on, membership) in [
+        ("group off in the default configuration", false, None),
+        (
+            "OCMD /P /AllOff with the group on",
+            true,
+            Some(Membership::Policy("AllOff")),
+        ),
+        (
+            "OCMD /P /AnyOff with the group on",
+            true,
+            Some(Membership::Policy("AnyOff")),
+        ),
+        (
+            "OCMD /VE [/Not g] with the group on",
+            true,
+            Some(Membership::NotExpression),
+        ),
+        (
+            "OCG /Usage /View /ViewState /OFF",
+            true,
+            Some(Membership::ViewOffPrintOn),
+        ),
+        (
+            "visible by default, still refused",
+            false,
+            Some(Membership::NotExpression),
+        ),
     ] {
-        let source = pdf_with_optional_content_layer(default_on, policy)?;
-        for remove in ["true", "false"] {
-            let response = post_crop(
-                "layers.pdf",
-                &source,
-                &[("autoCrop", "true"), ("removeDataOutsideCrop", remove)],
-            )
-            .await?;
-            if response.status() == StatusCode::NOT_IMPLEMENTED {
-                continue;
-            }
-            let bytes = to_bytes(
-                require_status(response, StatusCode::OK).await?.into_body(),
-                usize::MAX,
-            )
-            .await?;
-            assert!(
-                document_contains(&bytes, b"LAYERINK")?,
-                "{label} (removeDataOutsideCrop={remove}): the layer's content is gone, but \
-                 /OCProperties still advertises the layer — the file now lies about what it holds"
-            );
-            if remove == "false" || !expect_wide {
-                continue;
-            }
-            let document = Document::load_mem(&bytes)?;
-            let page_id = document
-                .get_pages()
-                .into_values()
-                .next()
-                .ok_or("missing page")?;
-            let page_box = page_box(&document, page_id)?;
-            // The layer sits at y 220..260 and the always-on block at y 40..70, so
-            // a box that stops short of ~260 was measured from one layer only.
-            assert!(
-                page_box[3] > 250.0 && page_box[0] < 25.0,
-                "{label}: {page_box:?} covers the always-on content only, so the crop was \
-                 framed as though the layer did not exist"
-            );
+        let source = pdf_with_optional_content_layer(default_on, membership)?;
+
+        let refused = post_crop(
+            "layers.pdf",
+            &source,
+            &[("autoCrop", "true"), ("removeDataOutsideCrop", "true")],
+        )
+        .await?;
+        if refused.status() == StatusCode::NOT_IMPLEMENTED {
+            continue;
         }
+        let status = refused.status();
+        let body = to_bytes(refused.into_body(), usize::MAX).await?;
+        let body = String::from_utf8_lossy(&body);
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{label}: expected a refusal, got {status}: {body}"
+        );
+        assert!(
+            body.contains("optional content") && body.contains("removeDataOutsideCrop=false"),
+            "{label}: the refusal must name the reason and the way forward: {body}"
+        );
+
+        // The way forward has to actually work, and has to keep the content.
+        let clipped = post_crop(
+            "layers.pdf",
+            &source,
+            &[("autoCrop", "true"), ("removeDataOutsideCrop", "false")],
+        )
+        .await?;
+        let clipped = to_bytes(
+            require_status(clipped, StatusCode::OK).await?.into_body(),
+            usize::MAX,
+        )
+        .await?;
+        assert!(
+            document_contains(&clipped, b"LAYERINK")?,
+            "{label}: clip-only lost the layer content the refusal points callers at"
+        );
     }
     Ok(())
 }
 
+/// Manual coordinates are not measured, so they are not refused — and they do not
+/// lose the layer either.
+///
+/// The rectangle comes from the caller, so an object is judged by its geometry like
+/// any other and no rendering is consulted. Scoping the refusal to automatic mode
+/// rests on that, so it is checked rather than argued: with a rectangle that
+/// genuinely removes content — it keeps the layer's band and drops the always-on
+/// block — the layer's text survives, its `BDC` marking survives, and
+/// `/OCProperties` survives.
+#[tokio::test]
+async fn manual_removal_keeps_optional_content_and_is_not_refused()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (label, default_on, membership) in [
+        ("group off in the default configuration", false, None),
+        (
+            "OCMD /VE [/Not g] with the group on",
+            true,
+            Some(Membership::NotExpression),
+        ),
+        (
+            "OCG /Usage /View /ViewState /OFF",
+            true,
+            Some(Membership::ViewOffPrintOn),
+        ),
+    ] {
+        let source = pdf_with_optional_content_layer(default_on, membership)?;
+        let response = post_crop(
+            "layers.pdf",
+            &source,
+            &[
+                ("x", "0"),
+                ("y", "200"),
+                ("width", "200"),
+                ("height", "100"),
+                ("removeDataOutsideCrop", "true"),
+            ],
+        )
+        .await?;
+        if response.status() == StatusCode::NOT_IMPLEMENTED {
+            continue;
+        }
+        let bytes = to_bytes(
+            require_status(response, StatusCode::OK).await?.into_body(),
+            usize::MAX,
+        )
+        .await?;
+        assert!(
+            document_contains(&bytes, b"LAYERINK")?,
+            "{label}: manual removal deleted the layer content inside its own rectangle"
+        );
+        assert!(
+            document_contains(&bytes, b"BDC")?,
+            "{label}: the /OC marked-content structure was lost, so the layer's content \
+             is now unconditionally visible"
+        );
+        // Removal really ran: the always-on block below the rectangle is gone.
+        assert!(
+            !document_contains(&bytes, b"80 40 40 30 re")?,
+            "{label}: nothing was removed, so this proves nothing"
+        );
+    }
+    Ok(())
+}
+
+/// How the layer's content is attached to its group.
+#[derive(Clone, Copy)]
+enum Membership {
+    /// An `/OCMD` with a `/P` visibility policy.
+    Policy(&'static str),
+    /// An `/OCMD` with a `/VE` visibility expression, `[/Not group]`.
+    NotExpression,
+    /// The group itself, carrying a `/Usage` that hides it for viewing while
+    /// keeping it on for printing.
+    ViewOffPrintOn,
+}
+
 /// A page with ordinary always-on ink plus an optional-content group carrying
-/// `LAYERINK`, marked visible or hidden by default, optionally reached through an
-/// `/OCMD` visibility policy rather than the group directly.
+/// `LAYERINK`, visible or hidden in the default configuration, reached either
+/// directly or through one of the `/OCMD` mechanisms in [`Membership`].
 fn pdf_with_optional_content_layer(
     default_on: bool,
-    policy: Option<&str>,
+    membership: Option<Membership>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut document = Document::with_version("1.7");
     let root_pages_id = document.new_object_id();
     let font_id = document.add_object(dictionary! {
         "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
     });
-    let group_id = document.add_object(dictionary! {
+    let mut group = dictionary! {
         "Type" => "OCG",
         "Name" => Object::string_literal("Confidential Layer"),
-    });
-    let membership_id = policy.map(|policy| {
-        document.add_object(dictionary! {
+    };
+    if matches!(membership, Some(Membership::ViewOffPrintOn)) {
+        // Hidden on screen, printed anyway — so a removal driven by what renders
+        // deletes content the printed page still carries.
+        group.set(
+            "Usage",
+            dictionary! {
+                "View" => dictionary! { "ViewState" => Object::Name(b"OFF".to_vec()) },
+                "Print" => dictionary! { "PrintState" => Object::Name(b"ON".to_vec()) },
+            },
+        );
+    }
+    let group_id = document.add_object(group);
+    let membership_id = match membership {
+        Some(Membership::Policy(policy)) => Some(document.add_object(dictionary! {
             "Type" => "OCMD",
             "OCGs" => vec![Object::Reference(group_id)],
             "P" => Object::Name(policy.as_bytes().to_vec()),
-        })
-    });
+        })),
+        Some(Membership::NotExpression) => Some(document.add_object(dictionary! {
+            "Type" => "OCMD",
+            "VE" => vec![Object::Name(b"Not".to_vec()), Object::Reference(group_id)],
+        })),
+        Some(Membership::ViewOffPrintOn) | None => None,
+    };
     let content_id = document.add_object(Stream::new(
         dictionary! {},
         b"0 0 0 rg 80 40 40 30 re f\n\

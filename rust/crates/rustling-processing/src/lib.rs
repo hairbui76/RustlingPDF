@@ -12266,6 +12266,19 @@ fn map_crop_error(error: &CropError) -> ApiError {
             );
             ApiError::unprocessable_at(CROP_PATH, error.to_string())
         }
+        // Also a property of the payload: automatic crop measures what renders, and
+        // a layer can be switched on afterwards, so the measurement cannot bound
+        // what deletion would destroy. Refusing is the only answer that neither
+        // deletes recoverable content nor returns a 200 that misdescribes the file.
+        CropError::OptionalContent { groups } => {
+            tracing::warn!(
+                target: "rustling_processing::crop",
+                event = "crop_optional_content_refused",
+                groups = %groups,
+                "refused automatic out-of-crop removal because the document uses optional content"
+            );
+            ApiError::unprocessable_at(CROP_PATH, error.to_string())
+        }
     }
 }
 
