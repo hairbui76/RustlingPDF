@@ -87,7 +87,13 @@ cp -R "$tools_dir/." "$tools_resources_dir/"
 # DT_NEEDED asks the loader for — the fully-versioned name is never requested.
 # Restricted to same-directory links so nothing outside this tree can be moved.
 while IFS= read -r link; do
-  link_target="$(readlink "$link")"
+  # `find` printing nothing still yields one empty line through the heredoc, and
+  # `readlink ""` fails, which under `set -e` took the whole script down. That is
+  # what broke the macOS and Windows legs while Linux passed: only Linux has a
+  # symlink here, so only Linux ever entered the loop with real input.
+  [ -n "$link" ] || continue
+  link_target="$(readlink "$link" 2>/dev/null)" || continue
+  [ -n "$link_target" ] || continue
   case "$link_target" in
     */*) continue ;;
   esac
@@ -98,7 +104,7 @@ while IFS= read -r link; do
   printf 'staged: collapsed %s (was a symlink to %s)\n' \
     "${link#"$tauri_dir/"}" "$link_target"
 done <<EOF
-$(find "$tools_resources_dir" -type l)
+$(find "$tools_resources_dir" -type l 2>/dev/null)
 EOF
 
 # Smoke-test what was actually staged with system command discovery disabled,
