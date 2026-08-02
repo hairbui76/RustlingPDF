@@ -14,6 +14,55 @@ const gzipPromise = promisify(gzip);
 const brotliPromise = promisify(brotliCompress);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * True when this build was started by the Tauri CLI (`beforeBuildCommand` /
+ * `beforeDevCommand` in src-tauri/tauri.conf.json).
+ *
+ * The desktop build runs the SAME vite mode as the web build (`--mode core`),
+ * so the mode cannot tell them apart. The Tauri CLI does export a set of
+ * `TAURI_ENV_*` variables into the before-command's environment
+ * (TAURI_ENV_PLATFORM / _ARCH / _FAMILY / _TARGET_TRIPLE / _PLATFORM_VERSION),
+ * which is the signal used here — verified by running `tauri build` with the
+ * before-command replaced by an environment dump.
+ *
+ * `RUSTLING_DESKTOP_BUILD=1` is an explicit escape hatch for anyone driving the
+ * frontend build outside the Tauri CLI (e.g. building dist/ separately in CI
+ * and handing it to `tauri build --no-bundle`).
+ *
+ * Only ever used to DROP output the desktop app cannot use. A web build must
+ * keep producing exactly what it produced before.
+ */
+const isDesktopBuild =
+  Boolean(process.env.TAURI_ENV_PLATFORM) ||
+  process.env.RUSTLING_DESKTOP_BUILD === "1";
+
+/**
+ * Delete build output the desktop app can never reach.
+ *
+ * dist/ is embedded into the Tauri executable (brotli-compressed, one blob per
+ * file) and served from memory over the custom protocol — there is no HTTP
+ * server, no Accept-Encoding negotiation, and no crawler. Anything that only
+ * exists for one of those is dead weight in the installer.
+ *
+ * Runs after the public dir has been copied and after the OG prerender, so it
+ * must be the last plugin in the list.
+ */
+function pruneDesktopOnlyOutputPlugin(dirs: string[]): PluginOption {
+  return {
+    name: "prune-desktop-only-output",
+    apply: "build" as const,
+    async closeBundle() {
+      const distDir = path.resolve(__dirname, "dist");
+      for (const dir of dirs) {
+        await fs.rm(path.join(distDir, dir), { recursive: true, force: true });
+      }
+      console.log(
+        `[prune-desktop-only-output] removed ${dirs.join(", ")} from the desktop bundle`,
+      );
+    },
+  };
+}
+
 function compressStaticCopyPlugin(): PluginOption {
   return {
     name: "compress-static-copy",
@@ -221,18 +270,28 @@ export default defineConfig(async ({ mode, command }) => {
       tsconfigPaths({
         projects: [tsconfigProject],
       }),
-      compression({
-        threshold: 1024,
-        exclude: [/\.(png|jpg|jpeg|gif|webp|woff|woff2)$/],
-        algorithms: [
-          defineAlgorithm("gzip", { level: 9 }),
-          defineAlgorithm("brotliCompress", {
-            params: {
-              [constants.BROTLI_PARAM_QUALITY]: 11,
-            },
-          }),
-        ],
-      }),
+      // Pre-compressed siblings exist so a static HTTP server (Docker, the Rust
+      // backend, Cloudflare Pages) can answer `Accept-Encoding` without
+      // compressing on every request. The desktop build has no HTTP layer -
+      // Tauri embeds dist/ in the executable and hands the raw bytes to the
+      // webview - so nothing ever opens a .gz/.br there and they are pure
+      // installer weight. Web builds must keep emitting them.
+      ...(isDesktopBuild
+        ? []
+        : [
+            compression({
+              threshold: 1024,
+              exclude: [/\.(png|jpg|jpeg|gif|webp|woff|woff2)$/],
+              algorithms: [
+                defineAlgorithm("gzip", { level: 9 }),
+                defineAlgorithm("brotliCompress", {
+                  params: {
+                    [constants.BROTLI_PARAM_QUALITY]: 11,
+                  },
+                }),
+              ],
+            }),
+          ]),
       // Set ANALYZE=true to emit dist/stats.html (treemap) alongside the
       // build; rollup-plugin-visualizer is ESM-only so we import dynamically.
       ...(process.env.ANALYZE === "true"
@@ -248,12 +307,24 @@ export default defineConfig(async ({ mode, command }) => {
         : []),
       viteStaticCopy({
         targets: [
-          {
-            // node_modules is hoisted to the workspace root (frontend/), so
-            // these paths walk up one level from editor/.
-            src: "../node_modules/@embedpdf/pdfium/dist/pdfium.wasm",
-            dest: "pdfium",
-          },
+          // Dev-server only. `wasmPrecompiler` resolves the WASM two different
+          // ways: under `import.meta.env.DEV` it asks for `/pdfium/pdfium.wasm`
+          // (this copy, served by this plugin's middleware), and in every
+          // production build it uses the hashed asset Vite emits from
+          // `@embedpdf/pdfium/pdfium.wasm?url` (dist/assets/pdfium-*.wasm).
+          // Copying it into dist/ therefore shipped a second, byte-identical
+          // 4.6 MB WASM that no production code path can request - the string
+          // "pdfium/pdfium.wasm" does not occur anywhere in the built output.
+          // node_modules is hoisted to the workspace root (frontend/), so this
+          // path walks up one level from editor/.
+          ...(command === "serve"
+            ? [
+                {
+                  src: "../node_modules/@embedpdf/pdfium/dist/pdfium.wasm",
+                  dest: "pdfium",
+                },
+              ]
+            : []),
           {
             // Copy jscanify vendor files to dist
             src: "public/vendor/jscanify/*",
@@ -305,8 +376,18 @@ export default defineConfig(async ({ mode, command }) => {
           },
         ],
       }),
-      compressStaticCopyPlugin(),
+      ...(isDesktopBuild ? [] : [compressStaticCopyPlugin()]),
       prerenderOgPlugin(),
+      // og_images are Open Graph link-preview art: they are only ever written
+      // into <meta property="og:image"> (see useDocumentMeta / getToolOgImage
+      // and the prerendered per-route HTML). No <img>, no CSS, no fetch - a
+      // browser does not load og:image, an unfurling crawler does. The desktop
+      // app has no shareable URL and nothing crawls it, so the art is 6 MB of
+      // installer for a tag nobody reads. The <meta> tags themselves stay, so
+      // the web build and the prerender are untouched.
+      //
+      // MUST stay last: it runs in closeBundle, after prerenderOgPlugin.
+      ...(isDesktopBuild ? [pruneDesktopOnlyOutputPlugin(["og_images"])] : []),
     ],
     server: {
       host: true,
