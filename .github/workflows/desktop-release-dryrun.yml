@@ -8,8 +8,8 @@ name: Desktop release dry-run
 # get proven on real runners before a release tag is cut (there is no local
 # environment for either platform).
 #
-# The platforms input selects the full three-leg matrix or a cheap
-# linux-only smoke leg.
+# The platforms input selects the full matrix or a cheap single-leg run
+# (linux-only smoke, windows-only installer proof).
 
 on:
   workflow_dispatch:
@@ -21,6 +21,7 @@ on:
           - all
           - all-with-macos
           - linux-only
+          - windows-only
         default: all
 
 permissions:

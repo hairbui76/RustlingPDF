@@ -5,7 +5,8 @@ name: Desktop build (reusable)
 #   - desktop-release-dryrun.yml for manually dispatched proof runs.
 #
 # Legs (see the plan job): ubuntu-latest builds AppImage + deb for
-# linux-x86_64, windows-latest builds the WiX MSI for windows-x86_64, and
+# linux-x86_64, windows-latest builds the WiX MSI and the NSIS setup.exe for
+# windows-x86_64, and
 # macos-latest (Apple silicon) builds .app + dmg for darwin-aarch64. Each leg
 # stages the release Rust backend as the Tauri externalBin sidecar plus the
 # pinned PDFium, qpdf, and Tesseract runtimes
@@ -49,7 +50,7 @@ on:
         type: boolean
         default: true
       platforms:
-        description: "Matrix legs to run: all | linux-only"
+        description: "Matrix legs to run: all | linux-only | windows-only"
         type: string
         default: all
     secrets:
@@ -86,7 +87,11 @@ jobs:
           set -euo pipefail
 
           linux='{"os":"ubuntu-latest","platform":"linux-x86_64","bundles":"appimage,deb"}'
-          windows='{"os":"windows-latest","platform":"windows-x86_64","bundles":"msi"}'
+          # The windows leg builds both installers: the WiX MSI (the
+          # enterprise-deployable artifact, CAB/LZX) and the NSIS setup.exe
+          # (same content, LZMA solid compression — measurably smaller
+          # download). Both are signed and collected.
+          windows='{"os":"windows-latest","platform":"windows-x86_64","bundles":"msi,nsis"}'
           # macOS is paused ("coming soon"): pulled from the default matrix by
           # the maintainer on 2026-08-04 — the leg roughly doubled release
           # wall-clock and no macOS build is being shipped for now. The leg
@@ -98,8 +103,9 @@ jobs:
             all)             matrix="[${linux},${windows}]" ;;
             all-with-macos)  matrix="[${linux},${windows},${macos}]" ;;
             linux-only)      matrix="[${linux}]" ;;
+            windows-only)    matrix="[${windows}]" ;;
             *)
-              echo "::error::Unknown platforms input '${PLATFORMS}' (expected 'all', 'all-with-macos' or 'linux-only')."
+              echo "::error::Unknown platforms input '${PLATFORMS}' (expected 'all', 'all-with-macos', 'linux-only' or 'windows-only')."
               exit 1
               ;;
           esac

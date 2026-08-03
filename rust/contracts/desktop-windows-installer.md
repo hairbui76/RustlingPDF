@@ -7,9 +7,16 @@ app's own startup behaviour in `desktop-native-startup.md`.
 
 ## Toolchain (what the behaviour below is derived from)
 
-`bundle.targets` is `["deb","rpm","appimage","dmg","app","msi"]` — **MSI only** on
-Windows, no NSIS target. The MSI is produced by tauri-bundler's own WiX template,
-which this repository extends through one fragment:
+`bundle.targets` is `["deb","rpm","appimage","dmg","app","msi","nsis"]`. The MSI
+remains the artifact this contract specifies; the `nsis` target additionally
+produces a `*-setup.exe` (LZMA, `installMode: perMachine`) under size
+evaluation. The NSIS installer does NOT carry `provisioning.wxs` — no
+thumbnail-handler COM registration, no Explorer cascade menu, no
+`RUSTLING_*` MDM provisioning properties — so it is not yet a substitute for
+the MSI; if it is promoted beyond evaluation those must be ported to NSIS
+installer hooks and this contract extended. The MSI is produced by
+tauri-bundler's own WiX template, which this repository extends through one
+fragment:
 
 | Layer | Version / file |
 | --- | --- |

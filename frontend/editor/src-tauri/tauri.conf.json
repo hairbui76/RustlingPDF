@@ -27,7 +27,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "publisher": "RustlingPDF contributors",
-    "targets": ["deb", "rpm", "appimage", "dmg", "app", "msi"],
+    "targets": ["deb", "rpm", "appimage", "dmg", "app", "msi", "nsis"],
     "icon": [
       "icons/icon.png",
       "icons/icon.icns",
@@ -74,6 +74,10 @@
         "dialogImagePath": "windows/wix/dialog.bmp",
         "fragmentPaths": ["windows/wix/provisioning.wxs"],
         "componentGroupRefs": ["ProvisioningComponentGroup"]
+      },
+      "nsis": {
+        "compression": "lzma",
+        "installMode": "perMachine"
       }
     },
     "macOS": {
