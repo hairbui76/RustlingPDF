@@ -1165,8 +1165,18 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
               {displayName.charAt(0).toUpperCase()}
             </div>
             {!collapsed && (
-              <span className="file-sidebar-bottom-name sidebar-content-fade">
-                {displayName}
+              <span className="file-sidebar-bottom-identity sidebar-content-fade">
+                <span className="file-sidebar-bottom-name">{displayName}</span>
+                {/* The installed version, right where a screenshot of a bug
+                    report crops to. Settings has the long-form copy; this is
+                    the at-a-glance answer to "which build am I on?". Absent
+                    until the backend reports in — showing a placeholder would
+                    just be a second unknown. */}
+                {config?.appVersion && (
+                  <span className="file-sidebar-bottom-version">
+                    v{config.appVersion}
+                  </span>
+                )}
               </span>
             )}
             {!collapsed && (

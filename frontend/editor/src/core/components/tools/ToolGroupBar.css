@@ -74,8 +74,17 @@
   color: inherit;
 }
 
+/* The !important on the hover backgrounds is load-bearing; both gentler
+   routes were tried and lost. The shared Button's `hover={false}` pins
+   `background: var(--button-bg, transparent) !important` on :hover to beat
+   Mantine, which also beat the plain rules that used to live here — the
+   selected tab went white-on-white under the cursor: green fill lost to the
+   forced transparent while the white icon stayed. Feeding `--button-bg` from
+   a stylesheet loses too, because the Button writes it as an INLINE style
+   ("inline to win", its own comment). So: same !important, strictly higher
+   specificity, and the cascade picks these deterministically. */
 .tool-group-bar__item:hover.sui-btn.mantine-Button-root {
-  background: var(--c-hover);
+  background: var(--c-hover) !important;
   color: var(--c-text);
 }
 
@@ -89,7 +98,7 @@
 }
 
 .tool-group-bar__item[data-selected="true"]:hover.sui-btn.mantine-Button-root {
-  background: var(--c-primary-hover);
+  background: var(--c-primary-hover) !important;
   color: var(--c-text-on-primary);
 }
 

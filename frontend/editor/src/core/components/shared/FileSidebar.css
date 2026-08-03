@@ -614,6 +614,24 @@
   object-fit: cover;
 }
 
+/* Name over version, one flex-item so the theme/gear cluster still packs
+   right. The version is part of the settings row's click target on purpose —
+   it is information, not a control. */
+.file-sidebar-bottom-identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.file-sidebar-bottom-version {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--c-text-subtle);
+  white-space: nowrap;
+}
+
 .file-sidebar-bottom-name {
   flex: 1;
   font-size: 13px;

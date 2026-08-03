@@ -34,6 +34,21 @@
   gap: 0.5rem;
 }
 
+/* Toolbar buttons keep their labels whole. The shared Button defaults to a
+   wrapping label and flex lets items shrink below their content, so when the
+   header row ran out of room "New folder" broke onto two lines and "Upload"
+   clipped to "Uploa" mid-word. A toolbar button that cannot show its own name
+   is worse than a toolbar that wraps, so: no shrinking, no mid-label breaks —
+   the row's grid parent gives this cluster its own track to grow into. */
+.files-page-header-actions > .sui-btn,
+.files-page-header-actions > * > .sui-btn {
+  flex-shrink: 0;
+}
+
+.files-page-header-actions .sui-btn .mantine-Button-label {
+  white-space: nowrap;
+}
+
 .files-page-breadcrumbs {
   display: flex;
   align-items: center;
