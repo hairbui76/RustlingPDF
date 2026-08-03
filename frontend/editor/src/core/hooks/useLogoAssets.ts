@@ -16,7 +16,6 @@ export function useLogoAssets() {
       folderPath,
       getAssetPath: (name: string) => `${folderPath}/${name}`,
       tooltipLogo: `${folderPath}/logo-tooltip.svg`,
-      firstPage: `${folderPath}/Firstpage.png`,
       favicon: `${folderPath}/favicon.ico`,
       logo192: `${folderPath}/logo192.png`,
       logo512: `${folderPath}/logo512.png`,

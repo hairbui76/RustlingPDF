@@ -11,6 +11,22 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { SHIPPED_LATIN_FONT_FILES } from "./src/core/constants/fallbackFonts";
 import { DESKTOP_SHIPPED_LOCALES } from "./src/core/constants/desktopLocales";
+
+/**
+ * Brand files a build actually serves, each traced to the thing that asks for
+ * it: index.html and the two manifests (favicon, logo192, logo512),
+ * `useLogoAssets` (logo-tooltip, the horizontal lockup) and `useLogoPath`
+ * (the two no-text marks).
+ */
+const SHIPPED_BRAND_ASSETS = [
+  "favicon.ico",
+  "logo192.png",
+  "logo512.png",
+  "logo-tooltip.svg",
+  "RustlingPDFLogoHorizontal.png",
+  "RustlingPDFLogoNoTextDark.svg",
+  "RustlingPDFLogoNoTextLight.svg",
+];
 import {
   DESKTOP_LOGO_VARIANT,
   LOGO_FOLDER_BY_VARIANT,
@@ -469,11 +485,20 @@ export default defineConfig(async ({ mode, command }) => {
             // Brand assets live in core; the editor serves them by URL per
             // variant, so copy each set to the /{variant}-logo path its
             // manifests, index.html and useLogoAssets resolve against.
-            src: "src/core/assets/brand/classic-logo/*",
+            // Named files, not a glob. The brand folders also hold three text
+            // lockups that only Brand.stories.tsx imports (from src, so
+            // Storybook is unaffected) and, until now, a Firstpage.png that
+            // nothing rendered at all — together 0.9 MB per variant of assets
+            // no code path can request. A glob shipped them anyway.
+            src: SHIPPED_BRAND_ASSETS.map(
+              (file) => `src/core/assets/brand/classic-logo/${file}`,
+            ),
             dest: "classic-logo",
           },
           {
-            src: "src/core/assets/brand/modern-logo/*",
+            src: SHIPPED_BRAND_ASSETS.map(
+              (file) => `src/core/assets/brand/modern-logo/${file}`,
+            ),
             dest: "modern-logo",
           },
         ],

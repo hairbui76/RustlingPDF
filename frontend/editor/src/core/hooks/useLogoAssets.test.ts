@@ -21,7 +21,6 @@ describe("useLogoAssets - Logo Asset Files", () => {
   // no longer referenced by either hook and are not required here.
   const requiredAssets = [
     "logo-tooltip.svg",
-    "Firstpage.png",
     "favicon.ico",
     "logo192.png",
     "logo512.png",
