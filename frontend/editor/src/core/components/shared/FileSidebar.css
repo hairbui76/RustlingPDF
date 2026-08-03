@@ -656,3 +656,104 @@
   justify-content: center;
   padding: 8px 0;
 }
+
+/* ── Collections ──────────────────────────────────────────────────────────
+   The same folders the My Files page manages, surfaced here so a collection
+   made in either place is usable in both. Only collections holding a file get
+   a header; unfiled files render bare, exactly as the flat list always did. */
+
+/* Built on the shared Button, so the specificity here has to beat Mantine's
+   own rules the same way the tool-group bar does. */
+.file-sidebar-collection-header.sui-btn.mantine-Button-root {
+  height: auto;
+  min-height: 0;
+  justify-content: flex-start;
+}
+
+.file-sidebar-collection-header.sui-btn .mantine-Button-inner,
+.file-sidebar-collection-header.sui-btn .mantine-Button-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+}
+
+.file-sidebar-collection-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--c-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.file-sidebar-collection-header:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+
+.file-sidebar-collection-header:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: -2px;
+}
+
+.file-sidebar-collection-chevron {
+  flex-shrink: 0;
+  transition: transform 120ms ease-out;
+}
+
+.file-sidebar-collection-chevron[data-open="true"] {
+  transform: rotate(90deg);
+}
+
+.file-sidebar-collection-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.file-sidebar-collection-count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+/* Rows inside a collection are indented and share a hairline rail.
+   Without this the collection's files and the unfiled ones below them are
+   visually identical siblings, so the group reads as containing everything
+   after its header — the count says 1 while three rows sit under it. */
+.file-sidebar-collection > *:not(.file-sidebar-collection-header) {
+  margin-left: 0.75rem;
+  border-left: 1px solid var(--c-border-subtle);
+  padding-left: 0.25rem;
+}
+
+.file-sidebar-collection {
+  margin-bottom: 0.25rem;
+}
+
+.file-sidebar-collection-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-sidebar-collection-chevron {
+    transition: none;
+  }
+}

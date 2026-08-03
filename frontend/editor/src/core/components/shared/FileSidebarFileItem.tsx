@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import FolderIcon from "@mui/icons-material/FolderOutlined";
+import FolderOffIcon from "@mui/icons-material/FolderOffOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import type { FileId } from "@app/types/file";
@@ -135,6 +137,14 @@ export interface FileItemProps {
   onVersionHistory?: (fileId: FileId) => void;
   /** Whether this file has more than one version (drives the menu item). */
   hasVersionHistory?: boolean;
+  /**
+   * Collections this file can be moved into, plus where it is now. Omit to
+   * leave the menu entry out entirely — the web build's grouped layout has its
+   * own move affordance.
+   */
+  collections?: { id: string; name: string }[];
+  currentCollectionId?: string | null;
+  onMoveToCollection?: (fileId: FileId, collectionId: string | null) => void;
 }
 
 export function FileItem({
@@ -142,6 +152,9 @@ export function FileItem({
   name,
   size,
   lastModified,
+  collections,
+  currentCollectionId,
+  onMoveToCollection,
   isSelected,
   isActive,
   isViewedInViewer,
@@ -264,6 +277,43 @@ export function FileItem({
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+                {onMoveToCollection &&
+                  collections &&
+                  collections.length > 0 && (
+                    <>
+                      <Menu.Label>
+                        {t("fileSidebar.fileItem.moveTo", "Move to collection")}
+                      </Menu.Label>
+                      {currentCollectionId && (
+                        <Menu.Item
+                          leftSection={<FolderOffIcon sx={{ fontSize: 16 }} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMoveToCollection(fileId, null);
+                          }}
+                        >
+                          {t(
+                            "fileSidebar.fileItem.removeFromCollection",
+                            "None",
+                          )}
+                        </Menu.Item>
+                      )}
+                      {collections.map((collection) => (
+                        <Menu.Item
+                          key={collection.id}
+                          disabled={collection.id === currentCollectionId}
+                          leftSection={<FolderIcon sx={{ fontSize: 16 }} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMoveToCollection(fileId, collection.id);
+                          }}
+                        >
+                          {collection.name}
+                        </Menu.Item>
+                      ))}
+                      <Menu.Divider />
+                    </>
+                  )}
                 {hasVersionHistory && onVersionHistory && (
                   <Menu.Item
                     leftSection={<HistoryIcon sx={{ fontSize: 16 }} />}

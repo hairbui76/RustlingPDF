@@ -6,8 +6,9 @@ import React, {
   useEffect,
   forwardRef,
 } from "react";
-import { Loader, Tooltip } from "@mantine/core";
+import { Loader, Menu, Modal, TextInput, Tooltip } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
+import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useFileState, useFileActions } from "@app/contexts/file/fileHooks";
@@ -35,6 +36,11 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutlined";
+import { useFolders } from "@app/contexts/FolderContext";
+import type { FolderId } from "@app/types/folder";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SettingsIcon from "@mui/icons-material/Settings";
 import type { FileId } from "@app/types/file";
@@ -509,6 +515,85 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
 
     const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
+    // ── Collections ────────────────────────────────────────────────────────
+    // These are the same folders the My Files page manages, not a second
+    // grouping concept: same store, same records, same ids. Surfacing them here
+    // means a collection made in either place shows up in both.
+    const { folders, createFolder } = useFolders();
+    const { moveFilesToFolder } = useIndexedDB();
+    const [closedCollections, setClosedCollections] = useState<Set<string>>(
+      new Set(),
+    );
+    const toggleCollection = useCallback((id: string) => {
+      setClosedCollections((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      });
+    }, []);
+
+    const [creatingCollection, setCreatingCollection] = useState(false);
+    const [newCollectionName, setNewCollectionName] = useState("");
+
+    const submitNewCollection = useCallback(async () => {
+      const name = newCollectionName.trim();
+      if (!name) return;
+      await createFolder(name, null);
+      setNewCollectionName("");
+      setCreatingCollection(false);
+    }, [createFolder, newCollectionName]);
+
+    const collectionOptions = useMemo(
+      () => folders.map((f) => ({ id: f.id as string, name: f.name })),
+      [folders],
+    );
+
+    const handleMoveToCollection = useCallback(
+      async (fileId: FileId, collectionId: string | null) => {
+        await moveFilesToFolder([fileId], collectionId as FolderId | null);
+        await refreshStubs();
+      },
+      [moveFilesToFolder, refreshStubs],
+    );
+
+    // Only collections that currently hold a file get a header. An empty
+    // collection in the sidebar is a row that does nothing; My Files is where
+    // collections are managed, this is where they are used.
+    const groupedFileStubs = useMemo(() => {
+      const byCollection = new Map<string, RustlingFileStub[]>();
+      const unfiled: RustlingFileStub[] = [];
+      for (const stub of filteredFileStubs) {
+        const id = (stub.folderId as string | null) ?? null;
+        if (!id) {
+          unfiled.push(stub);
+          continue;
+        }
+        const bucket = byCollection.get(id);
+        if (bucket) bucket.push(stub);
+        else byCollection.set(id, [stub]);
+      }
+      const groups: {
+        collection: { id: string; name: string } | null;
+        stubs: RustlingFileStub[];
+      }[] = [];
+      for (const folder of folders) {
+        const stubs = byCollection.get(folder.id as string);
+        if (stubs?.length) {
+          groups.push({
+            collection: { id: folder.id as string, name: folder.name },
+            stubs,
+          });
+        }
+      }
+      // A file whose collection was deleted elsewhere still has to appear.
+      for (const [id, stubs] of byCollection) {
+        if (!folders.some((f) => (f.id as string) === id))
+          unfiled.push(...stubs);
+      }
+      if (unfiled.length) groups.push({ collection: null, stubs: unfiled });
+      return groups;
+    }, [filteredFileStubs, folders]);
+
     // Render one file row (shared by the flat list and the grouped legacy web build layout).
     const renderFileRow = (stub: RustlingFileStub) => {
       // O(1) membership instead of a per-row linear scan of the workbench ids.
@@ -549,6 +634,9 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
           onDelete={handleSidebarDelete}
           onVersionHistory={handleVersionHistory}
           hasVersionHistory={(stub.versionNumber ?? 1) > 1}
+          collections={collectionOptions}
+          currentCollectionId={(stub.folderId as string | null) ?? null}
+          onMoveToCollection={handleMoveToCollection}
         />
       );
     };
@@ -891,15 +979,34 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                   >
                     <OpenInNewIcon sx={{ fontSize: "1rem" }} />
                   </ActionIcon>
-                  <ActionIcon
-                    variant="quiet"
-                    className="file-sidebar-section-btn file-sidebar-section-btn-add"
-                    onClick={() => nativeFileInputRef.current?.click()}
-                    title={t("fileSidebar.addFiles", "Add files")}
-                    aria-label={t("fileSidebar.addFiles", "Add files")}
-                  >
-                    <AddIcon sx={{ fontSize: "1rem" }} />
-                  </ActionIcon>
+                  <Menu position="bottom-end" withinPortal shadow="md">
+                    <Menu.Target>
+                      <ActionIcon
+                        variant="quiet"
+                        className="file-sidebar-section-btn file-sidebar-section-btn-add"
+                        title={t("fileSidebar.addFiles", "Add files")}
+                        aria-label={t("fileSidebar.addFiles", "Add files")}
+                      >
+                        <AddIcon sx={{ fontSize: "1rem" }} />
+                      </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Item
+                        leftSection={<AddIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => nativeFileInputRef.current?.click()}
+                      >
+                        {t("fileSidebar.addFiles", "Add files")}
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={
+                          <CreateNewFolderOutlinedIcon sx={{ fontSize: 16 }} />
+                        }
+                        onClick={() => setCreatingCollection(true)}
+                      >
+                        {t("fileSidebar.newCollection", "New collection")}
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
                 </div>
 
                 <BulkAddProgressRow />
@@ -910,7 +1017,43 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                   </div>
                 ) : filteredFileStubs.length > 0 ? (
                   <div className="file-sidebar-file-list">
-                    {filteredFileStubs.map(renderFileRow)}
+                    {groupedFileStubs.map(({ collection, stubs }) => {
+                      // Files with no collection render bare, exactly as the
+                      // flat list always did — a collection header for "the
+                      // ones you have not filed" would be noise for the many
+                      // users who never make a collection at all.
+                      if (!collection) return stubs.map(renderFileRow);
+                      const isOpen = !closedCollections.has(collection.id);
+                      return (
+                        <div
+                          key={collection.id}
+                          className="file-sidebar-collection"
+                        >
+                          <Button
+                            type="button"
+                            variant="quiet"
+                            hover={false}
+                            className="file-sidebar-collection-header"
+                            aria-expanded={isOpen}
+                            onClick={() => toggleCollection(collection.id)}
+                          >
+                            <ChevronRightIcon
+                              className="file-sidebar-collection-chevron"
+                              data-open={isOpen}
+                              sx={{ fontSize: "1rem" }}
+                            />
+                            <FolderOutlinedIcon sx={{ fontSize: "0.95rem" }} />
+                            <span className="file-sidebar-collection-name">
+                              {collection.name}
+                            </span>
+                            <span className="file-sidebar-collection-count">
+                              {stubs.length}
+                            </span>
+                          </Button>
+                          {isOpen && stubs.map(renderFileRow)}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   !searchActive && (
@@ -928,6 +1071,42 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
             )}
           </div>
         </div>
+
+        {/* Naming a new collection. A dialog rather than an inline row: the
+            sidebar list is virtual-feeling and a text field wedged into it
+            fights the scroll position the moment the list re-sorts. */}
+        <Modal
+          opened={creatingCollection}
+          onClose={() => setCreatingCollection(false)}
+          title={t("fileSidebar.newCollection", "New collection")}
+          centered
+          size="sm"
+        >
+          <TextInput
+            data-autofocus
+            value={newCollectionName}
+            onChange={(e) => setNewCollectionName(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void submitNewCollection();
+            }}
+            placeholder={t("fileSidebar.collectionName", "Collection name")}
+            aria-label={t("fileSidebar.collectionName", "Collection name")}
+          />
+          <div className="file-sidebar-collection-actions">
+            <Button
+              variant="secondary"
+              onClick={() => setCreatingCollection(false)}
+            >
+              {t("common.cancel", "Cancel")}
+            </Button>
+            <Button
+              disabled={!newCollectionName.trim()}
+              onClick={() => void submitNewCollection()}
+            >
+              {t("common.create", "Create")}
+            </Button>
+          </div>
+        </Modal>
 
         {/* Kebab "Version history" modal. */}
         <VersionHistoryModal

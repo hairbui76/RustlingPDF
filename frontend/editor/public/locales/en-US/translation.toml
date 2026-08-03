@@ -1387,6 +1387,7 @@ title = "Choose color"
 [common]
 cancel = "Cancel"
 close = "Close"
+create = "Create"
 collapse = "Collapse"
 copied = "Copied!"
 copy = "Copy"
@@ -2025,6 +2026,8 @@ openSettings = "Open settings"
 search = "Search"
 searchPlaceholder = "Search files..."
 themeCurrent = "Theme: {{mode}}"
+newCollection = "New collection"
+collectionName = "Collection name"
 
 [fileSidebar.fileItem]
 closeViewer = "Close viewer"
@@ -2032,6 +2035,8 @@ delete = "Delete"
 moreActions = "More actions"
 openInViewer = "Open in viewer"
 versionHistory = "Version history"
+moveTo = "Move to collection"
+removeFromCollection = "None"
 
 [filesPage]
 addToWorkspace = "Add to workspace"
