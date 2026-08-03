@@ -68,6 +68,7 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com",
       "wix": {
+        "template": "windows/wix/main.wxs",
         "upgradeCode": "92156D31-4DBC-43C0-8717-C60CF63C435C",
         "bannerPath": "windows/wix/banner.bmp",
         "dialogImagePath": "windows/wix/dialog.bmp",
