@@ -26,7 +26,11 @@
 # for the collect step to catch — which is what a keyless smoke run wants.
 set -euo pipefail
 
-bundle_root="${1:?usage: recompress-linux-bundles.sh <bundle_root>}"
+# Canonicalised up front: the loops below cd into scratch directories, and a
+# relative root stops resolving the moment they do. That is exactly how the
+# first CI run of this script failed while the local test — which happened to
+# pass an absolute path — stayed green.
+bundle_root="$(cd "${1:?usage: recompress-linux-bundles.sh <bundle_root>}" && pwd)"
 
 resign() {
   local file="$1"
@@ -48,7 +52,7 @@ shopt -s nullglob
 for deb in "${bundle_root}"/deb/*.deb; do
   work="$(mktemp -d)"
   before=$(stat -c%s "${deb}")
-  (cd "${work}" && ar x "$(realpath "${deb}")" 2>/dev/null || ar x "${deb}")
+  (cd "${work}" && ar x "${deb}")
   if [ ! -f "${work}/data.tar.gz" ]; then
     echo "recompress: ${deb##*/} has no data.tar.gz (already repacked?); skipping"
     /bin/rm -rf "${work}"
