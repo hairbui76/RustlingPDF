@@ -156,7 +156,8 @@ jobs:
             zsync \
             xdg-utils \
             shared-mime-info \
-            file
+            file \
+            squashfs-tools
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
@@ -251,6 +252,26 @@ jobs:
             args+=(--no-sign)
           fi
           npx tauri "${args[@]}"
+
+      # Repack the Linux bundles with stronger compression and re-sign them.
+      # Tauri writes the deb's data.tar with gzip and the AppImage's squashfs
+      # with light zstd; the identical content costs 25% / 8% less repacked
+      # (measured on the v0.0.5 artifacts). Runs between build and collect
+      # because tauri signs during build — a later repack would orphan the
+      # .sig — and the script re-signs with the same key from the same env.
+      # Each repacked artifact is verified before it replaces the original:
+      # dpkg-deb must parse the deb, and the AppImage must self-extract with
+      # its own runtime (which exits 0 even on failure, so the script checks
+      # the extraction produced AppRun rather than trusting the exit code).
+      - name: Recompress Linux bundles
+        if: runner.os == 'Linux'
+        working-directory: frontend/editor
+        env:
+          # `sign` is a boolean input; a string compare against 'true' here
+          # would coerce and silently disable signing.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.sign && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: bash src-tauri/scripts/recompress-linux-bundles.sh src-tauri/target/release/bundle
 
       # Flatten the bundle outputs into one directory, renaming space→dot
       # (see the header comment; a no-op for the spaceless "RustlingPDF"
