@@ -87,13 +87,19 @@ jobs:
 
           linux='{"os":"ubuntu-latest","platform":"linux-x86_64","bundles":"appimage,deb"}'
           windows='{"os":"windows-latest","platform":"windows-x86_64","bundles":"msi"}'
+          # macOS is paused ("coming soon"): pulled from the default matrix by
+          # the maintainer on 2026-08-04 — the leg roughly doubled release
+          # wall-clock and no macOS build is being shipped for now. The leg
+          # definition stays; bringing it back is selecting 'all-with-macos'
+          # or moving it back into the 'all' case.
           macos='{"os":"macos-latest","platform":"darwin-aarch64","bundles":"app,dmg"}'
 
           case "${PLATFORMS}" in
-            all)        matrix="[${linux},${windows},${macos}]" ;;
-            linux-only) matrix="[${linux}]" ;;
+            all)             matrix="[${linux},${windows}]" ;;
+            all-with-macos)  matrix="[${linux},${windows},${macos}]" ;;
+            linux-only)      matrix="[${linux}]" ;;
             *)
-              echo "::error::Unknown platforms input '${PLATFORMS}' (expected 'all' or 'linux-only')."
+              echo "::error::Unknown platforms input '${PLATFORMS}' (expected 'all', 'all-with-macos' or 'linux-only')."
               exit 1
               ;;
           esac

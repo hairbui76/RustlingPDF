@@ -73,7 +73,7 @@ requirement in [What RustlingPDF can do](docs/product/features.md).
 
 | Surface | Best for | Notes |
 | :-- | :-- | :-- |
-| **Desktop app** | Private day-to-day use | Native Tauri shell; desktop packages bundle qpdf and Tesseract with English OCR data |
+| **Desktop app** | Private day-to-day use | Windows (`.msi`) and Linux (`.AppImage`/`.deb`); **macOS: coming soon**. Native Tauri shell; desktop packages bundle qpdf and Tesseract with English OCR data |
 | **Docker** | Home lab, team network, or server | Web UI and REST API in one container |
 | **From source** | Development and customization | Rust backend plus Vite/React frontend |
 | **CLI** | Shell scripts, CI, and batch jobs | Processes local files directly; no server or account |

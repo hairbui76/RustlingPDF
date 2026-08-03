@@ -19,6 +19,7 @@ on:
         type: choice
         options:
           - all
+          - all-with-macos
           - linux-only
         default: all
 

@@ -88,7 +88,12 @@ newest release tag; running an older tag would move the mutable container
 |---|---|---|---|
 | Linux x86-64 | `ubuntu-latest` | AppImage and deb | `desktop-linux-x86_64` |
 | Windows x86-64 | `windows-latest` | WiX MSI | `desktop-windows-x86_64` |
-| macOS arm64 | `macos-latest` | app archive and DMG | `desktop-darwin-aarch64` |
+| macOS arm64 (**paused**) | `macos-latest` | app archive and DMG | `desktop-darwin-aarch64` |
+
+macOS is paused ("coming soon") by maintainer decision as of 2026-08-04 —
+v0.0.7 was the last release to ship it. The leg still exists behind the
+`all-with-macos` platforms input of the dry-run and the reusable build
+workflow, so restoring it is a one-word matrix change, not a rebuild.
 
 Every leg:
 
@@ -181,7 +186,7 @@ distribution; they are not a commercial product-license mechanism.
 
 ## Current packaging limits
 
-- macOS publishes an Apple-silicon build only.
+- macOS is paused — no macOS artifact is published. When it returns it will be Apple-silicon only.
 - macOS bundles are not notarized while `signingIdentity` is unset.
 - Windows publishes WiX MSI; NSIS is not part of the release matrix.
 - Mutable `latest` image tags are for convenience. Reproducible deployments
