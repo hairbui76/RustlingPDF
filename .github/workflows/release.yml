@@ -36,10 +36,14 @@ name: Release
 # committed minisign public key). github-release then downloads the
 # desktop-<os>-<arch> artifacts and uploads the bundles together with their
 # `.sig` signature files to the release, so anyone downloading a build can
-# verify it against the public key. The app itself never phones home: it
-# does not check for updates, and this pipeline publishes no update
-# manifest. Asset uploads use --clobber so a re-run after a transient
-# failure completes an existing release idempotently instead of erroring.
+# verify it against the public key. It also generates and uploads
+# latest.json, the tauri-updater manifest the desktop app's startup check
+# reads (endpoint pinned in tauri.conf.json; the check can be turned off in
+# Settings -> General). The manifest carries the MSI for windows-x86_64 and
+# the AppImage for linux-x86_64 — deb/rpm installs update through their
+# package manager, and macOS is paused. Asset uploads use --clobber so a
+# re-run after a transient failure completes an existing release
+# idempotently instead of erroring.
 
 on:
   push:
@@ -271,7 +275,7 @@ jobs:
 
           Installers built and signed by this release run, attached below: Linux (\`.AppImage\`, \`.deb\`), Windows (\`.msi\`), macOS Apple silicon (\`.dmg\`). Each signed bundle has a \`.sig\` file next to it so you can verify your download against the project's minisign public key.
 
-          The app does not check for updates and sends no data anywhere. To get a newer version, come back to this releases page and download it yourself.
+          At startup the desktop app asks this releases page once whether a newer version exists (Settings -> General turns that off); nothing else is ever sent anywhere. Updates install only when you ask, and every download is verified against the signing key first.
           EOF
 
             gh release create "${TAG}" \
@@ -287,3 +291,56 @@ jobs:
           # against.
           gh release upload "${TAG}" --clobber \
             desktop-artifacts/*/*
+
+      # The tauri-updater manifest the desktop app's startup check reads from
+      # .../releases/latest/download/latest.json. One entry per in-place
+      # updatable install: the MSI for Windows, the AppImage for Linux
+      # (deb/rpm go through the package manager; macOS is paused). The
+      # `signature` fields carry the same minisign signatures uploaded as
+      # .sig assets — the app verifies the download against the committed
+      # public key before installing. Generated after the asset upload so
+      # the URLs it points at already resolve; uploaded with --clobber for
+      # the same idempotent re-run behaviour as the assets themselves.
+      #
+      # Missing MSI or AppImage fails this step (set -euo pipefail on the
+      # globs): a release must never go out with a manifest pointing at
+      # assets that are not there, and never silently without a manifest.
+      - name: Generate and upload the updater manifest (latest.json)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify-version.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          version="${TAG#v}"
+          base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+
+          msi=(desktop-artifacts/desktop-windows-x86_64/*.msi)
+          appimage=(desktop-artifacts/desktop-linux-x86_64/*.AppImage)
+          [ -f "${msi[0]}" ] || { echo "::error::No MSI found for the updater manifest."; exit 1; }
+          [ -f "${appimage[0]}" ] || { echo "::error::No AppImage found for the updater manifest."; exit 1; }
+          [ -f "${msi[0]}.sig" ] || { echo "::error::MSI signature missing."; exit 1; }
+          [ -f "${appimage[0]}.sig" ] || { echo "::error::AppImage signature missing."; exit 1; }
+
+          jq -n \
+            --arg version "${version}" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg notes "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
+            --arg win_url "${base_url}/$(basename "${msi[0]}")" \
+            --arg win_sig "$(cat "${msi[0]}.sig")" \
+            --arg linux_url "${base_url}/$(basename "${appimage[0]}")" \
+            --arg linux_sig "$(cat "${appimage[0]}.sig")" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "windows-x86_64": { url: $win_url, signature: $win_sig },
+                "linux-x86_64": { url: $linux_url, signature: $linux_sig }
+              }
+            }' > latest.json
+
+          echo "Updater manifest:"
+          cat latest.json
+
+          gh release upload "${TAG}" --clobber latest.json

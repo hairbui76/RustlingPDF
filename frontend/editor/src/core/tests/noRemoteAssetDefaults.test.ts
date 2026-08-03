@@ -123,18 +123,19 @@ describe("no remote asset defaults", () => {
   });
 
   /**
-   * `bundle.createUpdaterArtifacts` is what makes Tauri emit the `.sig` files
-   * we publish so a manual download can be verified, and the bundler refuses to
-   * build unless `plugins.updater` exists to read a `pubkey` from — removing the
-   * block entirely failed every desktop leg with "plugins > updater doesn't
-   * exist". So the block stays, but reduced to the public key alone.
+   * The desktop updater is deliberately enabled (maintainer decision,
+   * 2026-08-04): the app may ask exactly one place — this project's own
+   * GitHub releases — whether a newer version exists, the check is opt-out in
+   * Settings → General, and installs verify against the pinned `pubkey`
+   * before anything runs. See rust/contracts/desktop-native-startup.md
+   * "Updates" for the full behaviour.
    *
-   * It must never regrow `endpoints`. Nothing can poll today (the plugin is not
-   * a dependency and the `updater:*` capabilities are gone), but an endpoint
-   * sitting in config is an invitation to re-add the plugin and quietly restore
-   * the phone-home this release exists to remove.
+   * What this test still refuses: any second endpoint, any non-HTTPS
+   * endpoint, any host other than github.com, and any extra updater config
+   * key. One pinned URL is a reviewed product decision; a growing list is
+   * how a quiet phone-home returns.
    */
-  it("keeps the updater config to a signing pubkey, with nothing to poll", () => {
+  it("keeps the updater pointed at exactly one HTTPS GitHub endpoint", () => {
     const config = JSON.parse(
       readFileSync(join(SRC, "..", "src-tauri", "tauri.conf.json"), "utf8"),
     ) as {
@@ -144,7 +145,13 @@ describe("no remote asset defaults", () => {
     const updater = config.plugins?.updater;
 
     expect(updater, "plugins.updater is required by the bundler").toBeDefined();
-    expect(Object.keys(updater ?? {})).toEqual(["pubkey"]);
+    expect(Object.keys(updater ?? {}).sort()).toEqual([
+      "endpoints",
+      "pubkey",
+    ]);
+    expect(updater?.endpoints).toEqual([
+      "https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json",
+    ]);
     expect(config.bundle?.createUpdaterArtifacts).toBe(true);
   });
 });

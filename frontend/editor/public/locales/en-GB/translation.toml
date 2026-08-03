@@ -1888,6 +1888,14 @@ title = "How to Crop PDFs"
 [defaultApp]
 title = "Set as Default PDF App"
 
+[desktopUpdate]
+available = "RustlingPDF {{version}} is available."
+dismiss = "Not now"
+downloading = "Downloading update…"
+failed = "The update could not be installed. Try again, or download it from the releases page."
+installButton = "Update and restart"
+installing = "Installing update…"
+
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4163,9 +4171,16 @@ read = "Reader"
 tools = "Tools"
 
 [settings.general.updates]
+checkOnStartup = "Check for updates at startup"
+checkOnStartupDescription = "Turning this off stops the only network request the app makes on its own. Updates are then manual via the releases page."
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
+
+[settings.general.version]
+description = "RustlingPDF does not check for updates. Visit the releases page when you want to see whether a newer version exists."
+descriptionDesktop = "At startup the app asks GitHub once whether a newer version exists and offers it as a banner. Nothing else is ever sent anywhere."
+title = "Version"
 
 [settings.general.zoomLevel]
 auto = "Auto"

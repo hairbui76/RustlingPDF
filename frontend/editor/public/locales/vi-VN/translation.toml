@@ -1891,6 +1891,14 @@ title = "Cách cắt PDF"
 [defaultApp]
 title = "Đặt làm ứng dụng PDF mặc định"
 
+[desktopUpdate]
+available = "Đã có RustlingPDF {{version}}."
+dismiss = "Để sau"
+downloading = "Đang tải bản cập nhật…"
+failed = "Không thể cài bản cập nhật. Hãy thử lại, hoặc tải về từ trang phát hành."
+installButton = "Cập nhật và khởi động lại"
+installing = "Đang cài bản cập nhật…"
+
 [devAirgapped]
 tags = "air-gapped,offline,isolated,no internet,disconnected,secure,network isolation,standalone"
 
@@ -4152,9 +4160,16 @@ read = "Trình đọc"
 tools = "Công cụ"
 
 [settings.general.updates]
+checkOnStartup = "Kiểm tra cập nhật khi khởi động"
+checkOnStartupDescription = "Tắt tùy chọn này sẽ chặn yêu cầu mạng duy nhất mà ứng dụng tự thực hiện. Khi đó việc cập nhật là thủ công qua trang phát hành."
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
+
+[settings.general.version]
+description = "RustlingPDF không tự kiểm tra cập nhật. Hãy vào trang phát hành khi bạn muốn xem có phiên bản mới hơn hay không."
+descriptionDesktop = "Khi khởi động, ứng dụng hỏi GitHub một lần xem có phiên bản mới hơn không và hiển thị dưới dạng banner. Ngoài ra không gửi bất cứ thứ gì đi đâu."
+title = "Phiên bản"
 
 [settings.general.zoomLevel]
 auto = "Tự động"

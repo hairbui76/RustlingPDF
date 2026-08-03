@@ -53,6 +53,12 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        // Updater: the frontend calls check()/downloadAndInstall() through the
+        // desktop bridge (desktopUpdater.ts) against the latest.json manifest
+        // release.yml publishes; nothing here checks on its own. process is
+        // registered only for relaunch() after an update is installed.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // Runs in the existing instance when a second launch is attempted

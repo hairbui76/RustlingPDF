@@ -30,6 +30,8 @@ export interface UserPreferences {
   hideUnavailableConversions: boolean;
   logoVariant: LogoVariant | null;
   pdfRenderMode: PdfRenderMode;
+  /** Desktop only: ask GitHub for a newer version at startup. */
+  checkForUpdatesOnStartup: boolean;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -49,6 +51,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   hideUnavailableConversions: false,
   logoVariant: null,
   pdfRenderMode: "normal",
+  checkForUpdatesOnStartup: true,
 };
 
 const STORAGE_KEY = "rustlingpdf_preferences";

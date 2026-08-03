@@ -22,6 +22,7 @@ import {
 } from "@app/services/preferencesService";
 import { Z_INDEX_OVER_CONFIG_MODAL } from "@app/styles/zIndex";
 import { useFrontendVersionInfo } from "@app/hooks/useFrontendVersionInfo";
+import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
 
 const DEFAULT_AUTO_UNZIP_FILE_LIMIT = 4;
 
@@ -65,8 +66,9 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
         </div>
       )}
 
-      {/* Version info. Purely local: the app never contacts a remote service
-          to look for a newer release — see README "Privacy model". */}
+      {/* Version info. On web this stays purely local — see README "Privacy
+          model". The desktop app has exactly one self-initiated request: the
+          startup update check below, and its toggle lives right here. */}
       {(config?.appVersion || appVersion !== undefined) && (
         <Paper withBorder p="md" radius="md">
           <Stack gap="md">
@@ -75,12 +77,50 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
                 {t("settings.general.version.title", "Version")}
               </Text>
               <Text size="xs" c="dimmed" mt={4}>
-                {t(
-                  "settings.general.version.description",
-                  "RustlingPDF does not check for updates. Visit the releases page when you want to see whether a newer version exists.",
-                )}
+                {isDesktopRuntime()
+                  ? t(
+                      "settings.general.version.descriptionDesktop",
+                      "At startup the app asks GitHub once whether a newer version exists and offers it as a banner. Nothing else is ever sent anywhere.",
+                    )
+                  : t(
+                      "settings.general.version.description",
+                      "RustlingPDF does not check for updates. Visit the releases page when you want to see whether a newer version exists.",
+                    )}
               </Text>
             </div>
+            {isDesktopRuntime() && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text fw={500} size="sm">
+                    {t(
+                      "settings.general.updates.checkOnStartup",
+                      "Check for updates at startup",
+                    )}
+                  </Text>
+                  <Text size="xs" c="dimmed" mt={4}>
+                    {t(
+                      "settings.general.updates.checkOnStartupDescription",
+                      "Turning this off stops the only network request the app makes on its own. Updates are then manual via the releases page.",
+                    )}
+                  </Text>
+                </div>
+                <Switch
+                  checked={preferences.checkForUpdatesOnStartup}
+                  onChange={(event) =>
+                    updatePreference(
+                      "checkForUpdatesOnStartup",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+              </div>
+            )}
             {appVersion !== undefined && (
               <div>
                 <Text size="sm" c="dimmed">

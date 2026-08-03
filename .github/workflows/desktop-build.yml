@@ -22,8 +22,9 @@ name: Desktop build (reusable)
 # minisign public key — and the collect step fails if any expected .sig is
 # missing. sign=false builds with --no-sign for keyless smoke runs. The .sig
 # files are published as release assets alongside the bundles so a manual
-# downloader can verify what they got; nothing in the app consumes them, and
-# no update manifest is produced.
+# downloader can verify what they got; release.yml additionally folds the
+# MSI and AppImage signatures into latest.json, the updater manifest the
+# desktop app's startup check reads.
 #
 # Bundle file names are renamed space→dot before upload: GitHub release
 # assets get the same rename server-side, so doing it here keeps local file
