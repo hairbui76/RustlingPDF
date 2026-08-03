@@ -48,8 +48,7 @@ import { FolderId, ROOT_FOLDER_ID } from "@app/types/folder";
 import { FileGrid, FilesPageEntry } from "@app/components/filesPage/FileGrid";
 import { FileDetailsPanel } from "@app/components/filesPage/FileDetailsPanel";
 import MobileUploadModal from "@app/components/shared/MobileUploadModal";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
-import { useIsMobile } from "@app/hooks/useIsMobile";
+import { useMobileUploadAvailability } from "@app/hooks/useMobileUploadAvailability";
 import { MoveToFolderDialog } from "@app/components/filesPage/MoveToFolderDialog";
 import { FolderNameDialog } from "@app/components/filesPage/FolderNameDialog";
 import { DeleteFolderDialog } from "@app/components/filesPage/DeleteFolderDialog";
@@ -83,10 +82,7 @@ export default function FileManagerView() {
     [activeWorkspaceFileIds],
   );
   const { addFiles } = useFileHandler();
-  const { config: appConfig } = useAppConfig();
-  const isMobile = useIsMobile();
-  const isMobileUploadAvailable =
-    Boolean(appConfig?.enableMobileScanner) && !isMobile;
+  const isMobileUploadAvailable = useMobileUploadAvailability();
   const [mobileUploadModalOpen, setMobileUploadModalOpen] = useState(false);
   const { actions: navActions } = useNavigationActions();
   const { requestNavigation } = useNavigationGuard();

@@ -9,8 +9,8 @@ import { useGoogleDrivePicker } from "@app/hooks/useGoogleDrivePicker";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
-import { useIsMobile } from "@app/hooks/useIsMobile";
 import MobileUploadModal from "@app/components/shared/MobileUploadModal";
+import { useMobileUploadAvailability } from "@app/hooks/useMobileUploadAvailability";
 import { GoogleDriveIcon } from "@app/components/shared/CloudStorageIcons";
 
 interface FileSourceButtonsProps {
@@ -35,8 +35,7 @@ const FileSourceButtons: React.FC<FileSourceButtonsProps> = ({
   const UploadIcon = icons.upload;
   const [mobileUploadModalOpen, setMobileUploadModalOpen] = useState(false);
   const { config } = useAppConfig();
-  const isMobile = useIsMobile();
-  const isMobileUploadEnabled = config?.enableMobileScanner && !isMobile;
+  const isMobileUploadEnabled = useMobileUploadAvailability();
 
   const handleGoogleDriveClick = async () => {
     try {

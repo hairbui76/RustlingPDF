@@ -6,8 +6,7 @@ import LocalIcon from "@app/components/shared/LocalIcon";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
-import { useAppConfig } from "@app/contexts/AppConfigContext";
-import { useIsMobile } from "@app/hooks/useIsMobile";
+import { useMobileUploadAvailability } from "@app/hooks/useMobileUploadAvailability";
 
 type LandingActionsProps = {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -25,8 +24,7 @@ export function LandingActions({
   const terminology = useFileActionTerminology();
   const { openFilesModal } = useFilesModalContext();
   const icons = useFileActionIcons();
-  const { config } = useAppConfig();
-  const isMobile = useIsMobile();
+  const showMobileUpload = useMobileUploadAvailability();
 
   return (
     <>
@@ -63,7 +61,7 @@ export function LandingActions({
           {terminology.addFiles}
         </Button>
 
-        {config?.enableMobileScanner && !isMobile && (
+        {showMobileUpload && (
           <Tooltip label={terminology.mobileUpload} position="bottom">
             <ActionIcon
               size="md"
