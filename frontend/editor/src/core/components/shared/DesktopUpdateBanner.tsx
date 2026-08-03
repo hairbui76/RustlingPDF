@@ -80,6 +80,7 @@ export default function DesktopUpdateBanner() {
       py={6}
       wrap="nowrap"
       bg="var(--mantine-color-blue-light)"
+      data-testid="desktop-update-banner"
     >
       <Text size="sm" style={{ minWidth: 0 }} truncate>
         {failed
@@ -96,7 +97,13 @@ export default function DesktopUpdateBanner() {
                   version: update.version,
                 })}
       </Text>
-      <Button variant="primary" size="sm" onClick={install} loading={busy}>
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={install}
+        loading={busy}
+        data-testid="desktop-update-install"
+      >
         {t("desktopUpdate.installButton", "Update and restart")}
       </Button>
       <Button

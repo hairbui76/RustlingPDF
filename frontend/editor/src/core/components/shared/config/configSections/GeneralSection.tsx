@@ -68,8 +68,11 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
 
       {/* Version info. On web this stays purely local — see README "Privacy
           model". The desktop app has exactly one self-initiated request: the
-          startup update check below, and its toggle lives right here. */}
-      {(config?.appVersion || appVersion !== undefined) && (
+          startup update check below, and its toggle lives right here.
+          On desktop the card must render even before any version resolves:
+          the update-check toggle is a privacy control, and a control the
+          user may want to turn off cannot hide behind version display. */}
+      {(isDesktopRuntime() || config?.appVersion || appVersion !== undefined) && (
         <Paper withBorder p="md" radius="md">
           <Stack gap="md">
             <div>
