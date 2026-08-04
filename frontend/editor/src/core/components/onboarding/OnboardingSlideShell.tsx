@@ -6,7 +6,7 @@ import { Button, type ButtonAccent } from "@app/ui/Button";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import { Z_INDEX_OVER_FULLSCREEN_SURFACE } from "@app/styles/zIndex";
-import rustlingMark from "@app/assets/brand/modern-logo/logo512.png";
+import { useLogoAssets } from "@app/hooks/useLogoAssets";
 import styles from "@app/components/onboarding/InitialOnboardingModal/InitialOnboardingModal.module.css";
 
 /** A footer button. `action` is an opaque string handled by the caller. */
@@ -49,13 +49,14 @@ export function ShellHero({
   appIcon?: boolean;
   children?: ReactNode;
 }) {
+  // Served by URL for the active variant, same as every other brand asset
+  // (useLogoAssets). Importing the PNG here instead used to bundle a second,
+  // byte-identical hashed copy of logo512 into the installer — and always
+  // showed the modern mark even on classic deployments.
+  const { logo512 } = useLogoAssets();
   if (appIcon) {
     return (
-      <img
-        src={rustlingMark}
-        alt="RustlingPDF"
-        className={styles.heroAppIcon}
-      />
+      <img src={logo512} alt="RustlingPDF" className={styles.heroAppIcon} />
     );
   }
   return <div className={styles.heroTile}>{children}</div>;
@@ -80,6 +81,7 @@ export default function OnboardingSlideShell({
   allowDismiss = true,
 }: OnboardingSlideShellProps) {
   const { t } = useTranslation();
+  const { logo512 } = useLogoAssets();
   const showProgress = stepCount > 1;
 
   // Back/icon buttons anchor the left; text actions cluster on the right.
@@ -128,7 +130,7 @@ export default function OnboardingSlideShell({
         <header className={styles.header}>
           <div className={styles.brand}>
             <img
-              src={rustlingMark}
+              src={logo512}
               alt=""
               aria-hidden="true"
               className={styles.brandLogo}

@@ -86,6 +86,56 @@ function pruneDesktopOnlyOutputPlugin(dirs: string[]): PluginOption {
 }
 
 /**
+ * Drop the CJK CMaps a desktop install has already given up on.
+ *
+ * pdfjs/cmaps is 1.17 MB (951 KB of installer) of predefined CMap tables, and
+ * exactly one code path ever loads them: the Compare tool's
+ * pixelCompareWorker (the only `cMapUrl` in the tree). 99.7% of the bytes are
+ * the CJK registries (Adobe-Japan1/GB1/CNS1/Korea1/KR) — and the desktop
+ * build already, deliberately, does not ship CJK fallback fonts (141 MB, see
+ * the fonts/latin copy target below), so a CJK document without embedded
+ * fonts renders no CJK glyphs anywhere else in the app either. Compare on
+ * such a document degrades the affected page and reports through its
+ * existing warnings channel instead of silently shipping a megabyte to every
+ * install for it.
+ *
+ * The non-CJK residue (H/V/Roman + LICENSE, ~3 KB) is kept so any
+ * non-CJK predefined-CMap document keeps working. Web and Docker keep the
+ * full set — an operator there may serve CJK users.
+ */
+const DESKTOP_KEPT_CMAPS = new Set([
+  "H.bcmap",
+  "V.bcmap",
+  "Roman.bcmap",
+  "LICENSE",
+]);
+
+function pruneCjkCmapsPlugin(): PluginOption {
+  return {
+    name: "prune-cjk-cmaps",
+    apply: "build" as const,
+    async closeBundle() {
+      const cmapsDir = path.resolve(__dirname, "dist", "pdfjs", "cmaps");
+      let entries: string[];
+      try {
+        entries = await fs.readdir(cmapsDir);
+      } catch {
+        return; // no cmaps in this build
+      }
+      const dropped = entries.filter((file) => !DESKTOP_KEPT_CMAPS.has(file));
+      await Promise.all(
+        dropped.map((file) =>
+          fs.rm(path.join(cmapsDir, file), { force: true }),
+        ),
+      );
+      console.log(
+        `[prune-cjk-cmaps] kept ${entries.length - dropped.length}, removed ${dropped.length} CJK CMaps`,
+      );
+    },
+  };
+}
+
+/**
  * Drop the translations a desktop installer does not carry.
  *
  * Kept separate from `pruneDesktopOnlyOutputPlugin` because this removes a
@@ -527,7 +577,19 @@ export default defineConfig(async ({ mode, command }) => {
       // MUST stay last: it runs in closeBundle, after prerenderOgPlugin.
       ...(isDesktopBuild
         ? [
-            pruneDesktopOnlyOutputPlugin(["og_images", "vendor/jscanify"]),
+            // pdfjs/standard_fonts joins the prune list: it is pdf.js's copy
+            // of the base-14 substitutes (Liberation + Foxit, 511 KB of
+            // installer), and the only `standardFontDataUrl` in the tree is
+            // the Compare worker's — every other pdf.js path has always run
+            // without it, falling back to metric substitution. The pdfium
+            // engine's own substitutes (fonts/latin, the set the product
+            // actually curates) keep shipping.
+            pruneDesktopOnlyOutputPlugin([
+              "og_images",
+              "vendor/jscanify",
+              "pdfjs/standard_fonts",
+            ]),
+            pruneCjkCmapsPlugin(),
             pruneUnshippedLocalesPlugin(),
             pruneUnusedLogoVariantPlugin(),
           ]

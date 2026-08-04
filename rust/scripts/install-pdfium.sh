@@ -101,6 +101,15 @@ if [[ ! -f "$extracted_library" ]]; then
 fi
 
 cp -f "$extracted_library" "$current_library"
+# The published Linux .so carries a ~0.9 MB static .symtab (no .debug_*);
+# stripping it is verified safe (see stage-sidecar.sh: pdfium survives
+# --strip-all, unlike libqpdf which must NEVER be stripped) and saves
+# ~0.14 MB of compressed installer. Strip the installed copy only — the
+# cached download stays pristine for checksum re-verification. Linux only:
+# the macOS dylib and Windows dll ship without a static symtab.
+if [[ "$library_name" == libpdfium.so ]] && command -v strip > /dev/null; then
+  strip --strip-all "$current_library"
+fi
 cp -f "$extracted/LICENSE" "$current/LICENSE"
 if [[ -d "$extracted/licenses" ]]; then
   mkdir -p "$current/licenses"

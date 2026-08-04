@@ -361,6 +361,71 @@ function Assert-NoJbigImport {
     Write-Output "Verified: no JBIG library is shipped or imported anywhere in the staged bundle."
 }
 
+# --- MinGW debug-payload strip ----------------------------------------------
+# The official Tesseract installer ships its MinGW runtime with full DWARF
+# debug info — libstdc++-6.dll alone is 26.4 MB of which 21.2 MB is .debug_*
+# sections — which is pure installer weight (measured: −5.8 MB compressed on
+# the NSIS installer). Stripping is limited to UNSIGNED binaries:
+# tesseract.exe and libtesseract-5.dll carry Authenticode signatures that a
+# strip would invalidate, so they keep their (comparatively small) debug
+# payload. The staged qpdf closure is MSVC-built and ships no debug sections,
+# so only the Tesseract directory is processed.
+#
+# GNU objcopy is the required tool: llvm-objcopy (LLVM 19) rejects
+# libstdc++-6.dll with "invalid SymbolTableIndex", verified 2026-08-04, so
+# LLVM is deliberately NOT a fallback. The runner's MSYS2 provides objcopy
+# via its binutils package, installed on demand below.
+function Resolve-GnuObjcopy {
+    $msysObjcopy = 'C:\msys64\usr\bin\objcopy.exe'
+    if (Test-Path -LiteralPath $msysObjcopy) {
+        return $msysObjcopy
+    }
+    $onPath = Get-Command objcopy -ErrorAction SilentlyContinue
+    if ($null -ne $onPath) {
+        return $onPath.Source
+    }
+    $pacman = 'C:\msys64\usr\bin\pacman.exe'
+    if (Test-Path -LiteralPath $pacman) {
+        Write-Output 'Installing binutils via MSYS2 pacman for objcopy'
+        & $pacman -S --noconfirm binutils | Out-Null
+        if (Test-Path -LiteralPath $msysObjcopy) {
+            return $msysObjcopy
+        }
+    }
+    throw 'No GNU objcopy available to strip the MinGW debug payload. Install binutils (MSYS2: pacman -S binutils) or put objcopy on PATH.'
+}
+
+function Remove-UnsignedPeDebugSections {
+    param(
+        [Parameter(Mandatory = $true)][string]$Directory
+    )
+    $objcopy = Resolve-GnuObjcopy
+    $before = 0
+    $after = 0
+    foreach ($pe in Get-ChildItem -LiteralPath $Directory -File |
+        Where-Object { $_.Extension -in @('.dll', '.exe') }) {
+        $signature = Get-AuthenticodeSignature -LiteralPath $pe.FullName
+        if ($signature.Status -ne 'NotSigned') {
+            Write-Output "Keeping signed binary intact: $($pe.Name)"
+            continue
+        }
+        $before += $pe.Length
+        & $objcopy --strip-debug $pe.FullName
+        if ($LASTEXITCODE -ne 0) {
+            throw "objcopy --strip-debug failed on $($pe.FullName)"
+        }
+        $after += (Get-Item -LiteralPath $pe.FullName).Length
+    }
+    Write-Output ("Stripped MinGW debug sections: {0:N0} -> {1:N0} bytes" -f $before, $after)
+    # Regression tripwire: libstdc++-6.dll is the whale (26.4 MB unstripped,
+    # 4.6 MB stripped). If it is still fat the strip silently did nothing —
+    # fail the build rather than ship the debug payload again.
+    $libstdcxx = Join-Path $Directory 'libstdc++-6.dll'
+    if ((Test-Path -LiteralPath $libstdcxx) -and (Get-Item -LiteralPath $libstdcxx).Length -gt 8MB) {
+        throw "libstdc++-6.dll is still larger than 8 MB after the strip pass; the debug payload was not removed."
+    }
+}
+
 function Copy-NamedNotices {
     param(
         [Parameter(Mandatory = $true)][string]$Source,
@@ -477,6 +542,12 @@ Copy-PeImportClosure `
     -SourceDirectory $TesseractExecutable.Directory.FullName `
     -RootName 'tesseract.exe' `
     -Destination $TesseractBin
+
+# Strip the MinGW DWARF payload from the staged (not cached) copies. Runs
+# before the JBIG gate so that gate re-parses every stripped PE's import
+# tables — a corrupted strip fails loudly there, and the staged
+# `tesseract.exe --version` smoke test below exercises the stripped DLLs.
+Remove-UnsignedPeDebugSections -Directory $TesseractBin
 
 # Gate: the swap must have removed every JBIG reference from what was actually
 # staged (both bins), across import and delay-import tables.

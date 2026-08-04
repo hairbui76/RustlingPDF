@@ -29,7 +29,7 @@ expect_used = "deny"
 # component. Pinned to a commit, never a branch, so the dependency cannot move
 # under us.
 [patch.crates-io]
-office2pdf = { git = "https://github.com/hairbui76/office2pdf.git", rev = "0e6fd14fed602cbb37e7172ab5d529eed86c169c" }
+office2pdf = { git = "https://github.com/hairbui76/office2pdf.git", rev = "065fc1030907f676515cf02c2d6f15d525284b18" }
 # `office2pdf`'s own workspace patches `umya-spreadsheet` to a panic-safety
 # branch, and a `[patch]` section only takes effect in the top-level workspace.
 # Without this entry we would run the XLSX path against published 2.3.3 — the

@@ -283,6 +283,16 @@ EOF
     readelf -l "$install_root/tesseract/bin/tesseract" >&2
     exit 1
   fi
+  # The musl build links Alpine's static libc/libstdc++ archives, which drag
+  # ~2.2 MB of DWARF debug_info into the binary (the build itself is a
+  # CMAKE_BUILD_TYPE=Release build) — ~0.53 MB of installer after
+  # compression. Stripping this binary is verified safe: OCR output is
+  # byte-identical before/after (unlike libqpdf, which strip corrupts — see
+  # stage-sidecar.sh — so this strip is deliberately per-file here, on the
+  # INSTALLED copy only; the cached download stays pristine for checksum
+  # re-verification). The --version smoke test below runs the stripped
+  # binary.
+  strip --strip-all "$install_root/tesseract/bin/tesseract"
   extract_source_archive \
     "$tesseract_source_archive" "$work/tesseract-source" \
     "tesseract-${tesseract_version}"
