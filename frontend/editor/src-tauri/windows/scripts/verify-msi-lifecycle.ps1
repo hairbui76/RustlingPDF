@@ -529,6 +529,14 @@ Invoke-MsiExec -Label 'install' -Arguments @(
 
 Write-Phase 'Post-install assertions'
 
+# perMachine (ALLUSERS=1) resolves WiX's DesktopFolder to the shared desktop.
+# INSTALLDESKTOPSHORTCUT defaults to 1, and this install passed no override,
+# so the shortcut must exist — the =0 path is proven in its own rehearsal
+# cycle after the main uninstall below.
+$desktopShortcut = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'RustlingPDF.lnk'
+Add-Result -Phase 'install' -Name 'desktop shortcut created by default (INSTALLDESKTOPSHORTCUT=1)' `
+    -Ok (Test-Path -LiteralPath $desktopShortcut) -Detail $desktopShortcut
+
 $arp = Get-ArpEntry -ProductCode $productCode
 Add-Result -Phase 'install' -Name 'Add/Remove Programs entry exists' -Ok ($null -ne $arp) `
     -FailureDetail 'no Uninstall registry entry for the ProductCode'
@@ -763,6 +771,34 @@ if ($null -ne $installDir) {
             ForEach-Object { Write-Info ("leftover in install dir: {0}" -f $_.FullName) }
     }
 }
+
+Add-Result -Phase 'uninstall' -Name 'desktop shortcut removed' `
+    -Ok (-not (Test-Path -LiteralPath $desktopShortcut)) -Detail $desktopShortcut
+
+# The opt-out is a fork addition to main.wxs (INSTALLDESKTOPSHORTCUT gates the
+# ApplicationShortcutDesktop component). The condition is `= 1` on purpose —
+# a bare property-name condition would treat msiexec's `=0` string as truthy —
+# and only a real install proves the compiled Component table row carries it.
+# Everything else about this cycle (registry surface, uninstall cleanup) was
+# already proven above, so this rehearsal asserts the shortcut alone.
+Write-Phase 'Rehearse INSTALLDESKTOPSHORTCUT=0 (opt-out install/uninstall)'
+$optOutInstallLog = Join-Path $LogDirectory 'install-no-desktop-shortcut.log'
+$optOutUninstallLog = Join-Path $LogDirectory 'uninstall-no-desktop-shortcut.log'
+Invoke-MsiExec -Label 'opt-out install' -Arguments @(
+    '/i', "`"$MsiPath`"",
+    '/qn', '/norestart',
+    'INSTALLDESKTOPSHORTCUT=0',
+    '/l*v', "`"$optOutInstallLog`""
+)
+Add-Result -Phase 'opt-out' -Name 'desktop shortcut NOT created with INSTALLDESKTOPSHORTCUT=0' `
+    -Ok (-not (Test-Path -LiteralPath $desktopShortcut)) -Detail $desktopShortcut
+Invoke-MsiExec -Label 'opt-out uninstall' -Arguments @(
+    '/x', "`"$MsiPath`"",
+    '/qn', '/norestart',
+    '/l*v', "`"$optOutUninstallLog`""
+)
+Add-Result -Phase 'opt-out' -Name 'opt-out install uninstalled cleanly (ARP gone)' `
+    -Ok ($null -eq (Get-ArpEntry -ProductCode $productCode))
 
 Write-Phase 'Advertised .pdf file association (suspected over-deletion mechanism)'
 # bundle.fileAssociations in tauri.conf.json makes the bundler template author an

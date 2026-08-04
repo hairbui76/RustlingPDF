@@ -2,16 +2,21 @@
   Forked from tauri @tauri-apps/cli-v2.11.4:
   crates/tauri-bundler/src/bundle/windows/msi/main.wxs
 
-  One functional change, marked "RustlingPDF fork note" at the <Media> element:
-  cabinet compression mszip -> high (LZX). Everything else is byte-identical to
-  upstream, on purpose — this file replaces the template embedded in the CLI,
-  so any real divergence would silently change what the MSI does.
+  Functional changes vs upstream, each marked with a fork comment at its site:
+  1. Cabinet compression mszip -> high (LZX), at the <Media> element.
+  2. Optional desktop shortcut: the INSTALLDESKTOPSHORTCUT property (default
+     1), a condition on the ApplicationShortcutDesktop component, and the
+     InstallDirShortcutDlg dialog (InstallDirDlg cloned from WiX 3.14 plus an
+     "Add desktop icon" checkbox) wired in over WixUI_InstallDir.
+  Everything else is byte-identical to upstream, on purpose — this file
+  replaces the template embedded in the CLI, so any unmarked divergence would
+  silently change what the MSI does.
 
   On a @tauri-apps/cli upgrade, re-fetch the template at the new tag, re-apply
-  the one-line change, and let the desktop dry-run's MSI install/uninstall
-  lifecycle check prove it. If that maintenance ever stops being worth it,
-  deleting this file and the "template" line in tauri.conf.json restores stock
-  behaviour at the old size.
+  the marked changes, and let the desktop dry-run's MSI install/uninstall
+  lifecycle check prove it (it exercises INSTALLDESKTOPSHORTCUT both ways).
+  If that maintenance ever stops being worth it, deleting this file and the
+  "template" line in tauri.conf.json restores stock behaviour.
 -->
 <?if $(sys.BUILDARCH)="x86"?>
     <?define Win64 = "no" ?>
@@ -106,14 +111,80 @@
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
         <CustomAction Id="LaunchApplication" Impersonate="yes" FileKey="Path" ExeCommand="[LAUNCHAPPARGS]" Return="asyncNoWait" />
 
+        <!-- Desktop shortcut opt-out (fork addition, not in the upstream
+             template). Default 1 = checkbox pre-ticked and silent installs
+             keep today's behaviour; interactive installs get the checkbox on
+             InstallDirShortcutDlg below, and unattended deploys pass
+             INSTALLDESKTOPSHORTCUT=0. The component condition tests `= 1`
+             on purpose: an unticked checkbox REMOVES the property and
+             msiexec's `=0` sets a non-empty (truthy) string, so a bare
+             property-name condition would get both cases wrong.
+             Known wart, accepted: the choice does not persist across major
+             upgrades (the auto-updater's passive upgrade re-applies the
+             default), because persisting it would need a custom action for
+             one checkbox. Documented in the installer contract. -->
+        <Property Id="INSTALLDESKTOPSHORTCUT" Value="1" Secure="yes" />
+
         <UI>
             <!-- launch app checkbox -->
             <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
 
             <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 
+            <!-- Fork addition: InstallDirDlg cloned from WiX 3.14's
+                 InstallDirDlg.wxs with one extra control — the
+                 "Add desktop icon" checkbox. Stock dialogs cannot be
+                 extended in place in WiX3, so the whole dialog is cloned
+                 and the WixUI_InstallDir wiring below is overridden (a
+                 higher Order on the same control makes the later NewDialog
+                 win) to route Welcome -> this dialog -> VerifyReady. Keep
+                 the control set in sync with upstream when the pinned WiX
+                 toolset ever changes. -->
+            <Dialog Id="InstallDirShortcutDlg" Width="370" Height="270" Title="!(loc.InstallDirDlg_Title)">
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+                    <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+                </Control>
+                <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.InstallDirDlgDescription)" />
+                <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.InstallDirDlgTitle)" />
+                <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.InstallDirDlgBannerBitmap)" />
+                <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+                <Control Id="FolderLabel" Type="Text" X="20" Y="60" Width="290" Height="30" NoPrefix="yes" Text="!(loc.InstallDirDlgFolderLabel)" />
+                <Control Id="Folder" Type="PathEdit" X="20" Y="100" Width="320" Height="18" Property="WIXUI_INSTALLDIR" Indirect="yes" />
+                <Control Id="ChangeFolder" Type="PushButton" X="20" Y="120" Width="56" Height="17" Text="!(loc.InstallDirDlgChange)" />
+                <Control Id="DesktopShortcutCheckBox" Type="CheckBox" X="20" Y="160" Width="290" Height="17" Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Add desktop icon" />
+            </Dialog>
+
+            <!-- Route the flow through the cloned dialog. The publishes for
+                 its Next/ChangeFolder controls mirror WixUI_InstallDir.wxs
+                 verbatim; the WelcomeDlg/VerifyReadyDlg overrides use a
+                 higher Order than both the stock set (Order 1) and this
+                 fork's existing skip-license overrides (Order 2). -->
+            <Publish Dialog="InstallDirShortcutDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirShortcutDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+            <Publish Dialog="InstallDirShortcutDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+            <Publish Dialog="InstallDirShortcutDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+            <Publish Dialog="InstallDirShortcutDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirShortcutDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+            <Publish Dialog="InstallDirShortcutDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="1">1</Publish>
+
+            <Publish Dialog="WelcomeDlg"
+                     Control="Next"
+                     Event="NewDialog"
+                     Value="InstallDirShortcutDlg"
+                     Order="3">1</Publish>
+            <Publish Dialog="VerifyReadyDlg"
+                     Control="Back"
+                     Event="NewDialog"
+                     Value="InstallDirShortcutDlg"
+                     Order="3">NOT Installed</Publish>
+
             {{#unless license}}
-            <!-- Skip license dialog -->
+            <!-- Skip license dialog (superseded by the Order=3 overrides
+                 above, kept so removing the cloned dialog restores the
+                 upstream behaviour by deleting one block) -->
             <Publish Dialog="WelcomeDlg"
                      Control="Next"
                      Event="NewDialog"
@@ -132,6 +203,9 @@
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
+                    <!-- Fork addition: gated on the INSTALLDESKTOPSHORTCUT
+                         property (see its declaration above). -->
+                    <Condition>INSTALLDESKTOPSHORTCUT = 1</Condition>
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{product_name}}" Description="Runs {{product_name}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
                     <RemoveFolder Id="DesktopFolder" On="uninstall" />
                     <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />

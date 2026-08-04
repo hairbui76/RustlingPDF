@@ -58,6 +58,24 @@ Optional properties for unattended / MDM deploys, consumed by the deferred
 When any of them is set, `rustling-provision.exe` writes
 `%PROGRAMDATA%\RustlingPDF\rustling-provisioning.json`.
 
+**The desktop shortcut is optional.** `INSTALLDESKTOPSHORTCUT` (default `1`)
+gates the `ApplicationShortcutDesktop` component; interactive installs get an
+"Add desktop icon" checkbox on the install-directory dialog
+(`InstallDirShortcutDlg`, a fork-added clone of WiX's `InstallDirDlg` —
+see the `main.wxs` header), and unattended deploys pass
+`INSTALLDESKTOPSHORTCUT=0`. The component condition is `= 1`, not a bare
+property test, because msiexec's `=0` sets a non-empty (truthy) string.
+Known limitation, accepted: the choice does not persist across major
+upgrades — the auto-updater's passive upgrade re-applies the default and
+recreates the shortcut. The MSI lifecycle check proves both paths (default
+creates the shortcut and uninstall removes it; a second install/uninstall
+rehearsal with `=0` proves it is not created).
+
+The NSIS installer's equivalent has always existed upstream: the finish page
+offers a "Create desktop shortcut" checkbox (the repurposed
+`MUI_FINISHPAGE_SHOWREADME` in tauri's `installer.nsi`); silent/passive NSIS
+installs create the shortcut unconditionally.
+
 Installed surface:
 
 - `[INSTALLDIR]` (default `%ProgramFiles%\RustlingPDF`): the app executable, the
