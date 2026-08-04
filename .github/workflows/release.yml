@@ -273,7 +273,7 @@ jobs:
 
           ## Desktop apps
 
-          Installers built and signed by this release run, attached below: Linux (\`.AppImage\`, \`.deb\`), Windows (\`.msi\`), macOS Apple silicon (\`.dmg\`). Each signed bundle has a \`.sig\` file next to it so you can verify your download against the project's minisign public key.
+          Installers built and signed by this release run, attached below: Linux (\`.AppImage\`, \`.deb\`), Windows (\`-setup.exe\` — the smaller download — or \`.msi\` for msiexec/GPO deployment; pick one and stay on it, updates keep whichever you installed). Each signed bundle has a \`.sig\` file next to it so you can verify your download against the project's minisign public key.
 
           At startup the desktop app asks this releases page once whether a newer version exists (Settings -> General turns that off); nothing else is ever sent anywhere. Updates install only when you ask, and every download is verified against the signing key first.
           EOF
@@ -293,18 +293,31 @@ jobs:
             desktop-artifacts/*/*
 
       # The tauri-updater manifest the desktop app's startup check reads from
-      # .../releases/latest/download/latest.json. One entry per in-place
-      # updatable install: the MSI for Windows, the AppImage for Linux
-      # (deb/rpm go through the package manager; macOS is paused). The
-      # `signature` fields carry the same minisign signatures uploaded as
+      # .../releases/latest/download/latest.json. The platform keys are the
+      # per-installer form `{os}-{arch}-{installer}` that tauri-plugin-updater
+      # searches FIRST (updater.rs get_urls; the running app knows how it was
+      # installed via tauri's baked-in bundle_type marker):
+      #
+      #   windows-x86_64-msi   -> the MSI     (an MSI install updates via MSI)
+      #   windows-x86_64-nsis  -> setup.exe   (an NSIS install stays NSIS)
+      #   linux-x86_64-appimage -> AppImage
+      #
+      # Deliberately NO bare `{os}-{arch}` fallback keys: a fallback would
+      # match installs that must not in-place update (deb/rpm via the package
+      # manager, portable/dev runs) and cross-grade them onto the wrong
+      # installer, leaving two Add/Remove entries on Windows. Without a
+      # fallback those installs get TargetNotFound from check(), which the
+      # frontend bridge swallows silently by design.
+      #
+      # The `signature` fields carry the same minisign signatures uploaded as
       # .sig assets — the app verifies the download against the committed
       # public key before installing. Generated after the asset upload so
       # the URLs it points at already resolve; uploaded with --clobber for
       # the same idempotent re-run behaviour as the assets themselves.
       #
-      # Missing MSI or AppImage fails this step (set -euo pipefail on the
-      # globs): a release must never go out with a manifest pointing at
-      # assets that are not there, and never silently without a manifest.
+      # A missing artifact or signature fails this step: a release must never
+      # go out with a manifest pointing at assets that are not there, and
+      # never silently without a manifest.
       - name: Generate and upload the updater manifest (latest.json)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -316,18 +329,21 @@ jobs:
           base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
 
           msi=(desktop-artifacts/desktop-windows-x86_64/*.msi)
+          nsis=(desktop-artifacts/desktop-windows-x86_64/*-setup.exe)
           appimage=(desktop-artifacts/desktop-linux-x86_64/*.AppImage)
-          [ -f "${msi[0]}" ] || { echo "::error::No MSI found for the updater manifest."; exit 1; }
-          [ -f "${appimage[0]}" ] || { echo "::error::No AppImage found for the updater manifest."; exit 1; }
-          [ -f "${msi[0]}.sig" ] || { echo "::error::MSI signature missing."; exit 1; }
-          [ -f "${appimage[0]}.sig" ] || { echo "::error::AppImage signature missing."; exit 1; }
+          for f in "${msi[0]}" "${nsis[0]}" "${appimage[0]}"; do
+            [ -f "${f}" ] || { echo "::error::Updater manifest input missing: ${f}"; exit 1; }
+            [ -f "${f}.sig" ] || { echo "::error::Signature missing: ${f}.sig"; exit 1; }
+          done
 
           jq -n \
             --arg version "${version}" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg notes "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
-            --arg win_url "${base_url}/$(basename "${msi[0]}")" \
-            --arg win_sig "$(cat "${msi[0]}.sig")" \
+            --arg msi_url "${base_url}/$(basename "${msi[0]}")" \
+            --arg msi_sig "$(cat "${msi[0]}.sig")" \
+            --arg nsis_url "${base_url}/$(basename "${nsis[0]}")" \
+            --arg nsis_sig "$(cat "${nsis[0]}.sig")" \
             --arg linux_url "${base_url}/$(basename "${appimage[0]}")" \
             --arg linux_sig "$(cat "${appimage[0]}.sig")" \
             '{
@@ -335,8 +351,9 @@ jobs:
               notes: $notes,
               pub_date: $pub_date,
               platforms: {
-                "windows-x86_64": { url: $win_url, signature: $win_sig },
-                "linux-x86_64": { url: $linux_url, signature: $linux_sig }
+                "windows-x86_64-msi": { url: $msi_url, signature: $msi_sig },
+                "windows-x86_64-nsis": { url: $nsis_url, signature: $nsis_sig },
+                "linux-x86_64-appimage": { url: $linux_url, signature: $linux_sig }
               }
             }' > latest.json
 
