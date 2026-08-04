@@ -4,10 +4,10 @@ name: Desktop build (reusable)
 #   - release.yml (publish-desktop job) on release tags, and
 #   - desktop-release-dryrun.yml for manually dispatched proof runs.
 #
-# Legs (see the plan job): ubuntu-latest builds AppImage + deb for
-# linux-x86_64, windows-latest builds the WiX MSI and the NSIS setup.exe for
-# windows-x86_64, and
-# macos-latest (Apple silicon) builds .app + dmg for darwin-aarch64. Each leg
+# Legs (see the plan job): ubuntu-latest builds the deb for linux-x86_64
+# (AppImage paused — "coming soon"), windows-latest builds the WiX MSI and
+# the NSIS setup.exe for windows-x86_64, and
+# macos-latest (Apple silicon, paused) builds .app + dmg for darwin-aarch64. Each leg
 # stages the release Rust backend as the Tauri externalBin sidecar plus the
 # pinned PDFium, qpdf, and Tesseract runtimes
 # (`task desktop:stage-sidecar`), prepares the desktop frontend, runs
@@ -88,7 +88,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          linux='{"os":"ubuntu-latest","platform":"linux-x86_64","bundles":"appimage,deb"}'
+          # AppImage is paused ("coming soon", same treatment as macOS):
+          # pulled by the maintainer on 2026-08-04 — v0.1.0 shipped the last
+          # one. Bringing it back is restoring "appimage,deb" here AND
+          # re-adding the linux-x86_64-appimage entry to the updater
+          # manifest step in release.yml (the two must move together, or
+          # the manifest step fails / AppImage installs stop updating).
+          linux='{"os":"ubuntu-latest","platform":"linux-x86_64","bundles":"deb"}'
           # The windows leg builds both installers: the WiX MSI (the
           # enterprise-deployable artifact, CAB/LZX) and the NSIS setup.exe
           # (same content, LZMA solid compression — measurably smaller

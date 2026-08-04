@@ -31,19 +31,19 @@ name: Release
 # targets have in common.
 #
 # Desktop bundles: publish-desktop calls the reusable desktop-build workflow
-# (linux AppImage+deb, windows MSI, macOS-arm64 app+dmg), signing the
-# bundles with the TAURI_SIGNING_PRIVATE_KEY secret (counterpart of the
-# committed minisign public key). github-release then downloads the
-# desktop-<os>-<arch> artifacts and uploads the bundles together with their
-# `.sig` signature files to the release, so anyone downloading a build can
-# verify it against the public key. It also generates and uploads
-# latest.json, the tauri-updater manifest the desktop app's startup check
-# reads (endpoint pinned in tauri.conf.json; the check can be turned off in
-# Settings -> General). The manifest carries the MSI for windows-x86_64 and
-# the AppImage for linux-x86_64 — deb/rpm installs update through their
-# package manager, and macOS is paused. Asset uploads use --clobber so a
-# re-run after a transient failure completes an existing release
-# idempotently instead of erroring.
+# (linux deb, windows MSI + NSIS setup.exe; AppImage and macOS are paused —
+# "coming soon"), signing the bundles with the TAURI_SIGNING_PRIVATE_KEY
+# secret (counterpart of the committed minisign public key). github-release
+# then downloads the desktop-<os>-<arch> artifacts and uploads the bundles
+# together with their `.sig` signature files to the release, so anyone
+# downloading a build can verify it against the public key. It also
+# generates and uploads latest.json, the tauri-updater manifest the desktop
+# app's startup check reads (endpoint pinned in tauri.conf.json; the check
+# can be turned off in Settings -> General). The manifest carries the MSI
+# and NSIS entries for windows-x86_64 — deb/rpm installs update through
+# their package manager. Asset uploads use --clobber so a re-run after a
+# transient failure completes an existing release idempotently instead of
+# erroring.
 
 on:
   push:
@@ -273,7 +273,7 @@ jobs:
 
           ## Desktop apps
 
-          Installers built and signed by this release run, attached below: Linux (\`.AppImage\`, \`.deb\`), Windows (\`-setup.exe\` — the smaller download — or \`.msi\` for msiexec/GPO deployment; pick one and stay on it, updates keep whichever you installed). Each signed bundle has a \`.sig\` file next to it so you can verify your download against the project's minisign public key.
+          Installers built and signed by this release run, attached below: Linux (\`.deb\`; AppImage is paused — coming soon), Windows (\`-setup.exe\` — the smaller download — or \`.msi\` for msiexec/GPO deployment; pick one and stay on it, updates keep whichever you installed). Each signed bundle has a \`.sig\` file next to it so you can verify your download against the project's minisign public key.
 
           At startup the desktop app asks this releases page once whether a newer version exists (Settings -> General turns that off); nothing else is ever sent anywhere. Updates install only when you ask, and every download is verified against the signing key first.
           EOF
@@ -300,7 +300,14 @@ jobs:
       #
       #   windows-x86_64-msi   -> the MSI     (an MSI install updates via MSI)
       #   windows-x86_64-nsis  -> setup.exe   (an NSIS install stays NSIS)
-      #   linux-x86_64-appimage -> AppImage
+      #
+      # AppImage is paused ("coming soon") as of 2026-08-04; v0.1.0 shipped
+      # the last one, so its `linux-x86_64-appimage` entry is gone. Known
+      # consequence, accepted: existing AppImage installs (v0.0.8–v0.1.0)
+      # get TargetNotFound from their update check and go silent — they
+      # will not learn about newer versions until AppImage returns.
+      # Restoring it means re-adding the entry here AND "appimage" to the
+      # linux bundles list in desktop-build.yml, together.
       #
       # Deliberately NO bare `{os}-{arch}` fallback keys: a fallback would
       # match installs that must not in-place update (deb/rpm via the package
@@ -330,8 +337,7 @@ jobs:
 
           msi=(desktop-artifacts/desktop-windows-x86_64/*.msi)
           nsis=(desktop-artifacts/desktop-windows-x86_64/*-setup.exe)
-          appimage=(desktop-artifacts/desktop-linux-x86_64/*.AppImage)
-          for f in "${msi[0]}" "${nsis[0]}" "${appimage[0]}"; do
+          for f in "${msi[0]}" "${nsis[0]}"; do
             [ -f "${f}" ] || { echo "::error::Updater manifest input missing: ${f}"; exit 1; }
             [ -f "${f}.sig" ] || { echo "::error::Signature missing: ${f}.sig"; exit 1; }
           done
@@ -344,16 +350,13 @@ jobs:
             --arg msi_sig "$(cat "${msi[0]}.sig")" \
             --arg nsis_url "${base_url}/$(basename "${nsis[0]}")" \
             --arg nsis_sig "$(cat "${nsis[0]}.sig")" \
-            --arg linux_url "${base_url}/$(basename "${appimage[0]}")" \
-            --arg linux_sig "$(cat "${appimage[0]}.sig")" \
             '{
               version: $version,
               notes: $notes,
               pub_date: $pub_date,
               platforms: {
                 "windows-x86_64-msi": { url: $msi_url, signature: $msi_sig },
-                "windows-x86_64-nsis": { url: $nsis_url, signature: $nsis_sig },
-                "linux-x86_64-appimage": { url: $linux_url, signature: $linux_sig }
+                "windows-x86_64-nsis": { url: $nsis_url, signature: $nsis_sig }
               }
             }' > latest.json
 

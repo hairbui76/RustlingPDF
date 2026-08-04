@@ -86,7 +86,7 @@ newest release tag; running an older tag would move the mutable container
 
 | Platform | Runner | Bundles | Artifact |
 |---|---|---|---|
-| Linux x86-64 | `ubuntu-latest` | AppImage and deb | `desktop-linux-x86_64` |
+| Linux x86-64 | `ubuntu-latest` | deb (AppImage **paused** — "coming soon"; v0.1.0 shipped the last one) | `desktop-linux-x86_64` |
 | Windows x86-64 | `windows-latest` | WiX MSI and NSIS setup.exe | `desktop-windows-x86_64` |
 | macOS arm64 (**paused**) | `macos-latest` | app archive and DMG | `desktop-darwin-aarch64` |
 
@@ -180,6 +180,11 @@ distribution; they are not a commercial product-license mechanism.
 ## Current packaging limits
 
 - macOS is paused — no macOS artifact is published. When it returns it will be Apple-silicon only.
+- AppImage is paused ("coming soon") — v0.1.0 shipped the last one. While
+  paused, `latest.json` has no `linux-x86_64-appimage` entry, so existing
+  AppImage installs cannot see newer versions. Restoring it is two edits
+  that must land together: "appimage" back into the linux bundles list in
+  desktop-build.yml, and the manifest entry back into release.yml.
 - macOS bundles are not notarized while `signingIdentity` is unset.
 - Windows publishes both installers: the NSIS `-setup.exe` (smaller download)
   and the WiX MSI (msiexec/GPO; the only one carrying the provisioning
