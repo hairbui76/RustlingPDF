@@ -4843,7 +4843,7 @@ dependencies = [
 
 [[package]]
 name = "rustling-ai-engine"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "aes-gcm",
  "axum",
@@ -4868,7 +4868,7 @@ dependencies = [
 
 [[package]]
 name = "rustling-cli"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "axum",
  "clap",
@@ -4886,7 +4886,7 @@ dependencies = [
 
 [[package]]
 name = "rustling-operation-catalog"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4894,7 +4894,7 @@ dependencies = [
 
 [[package]]
 name = "rustling-processing"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "ab_glyph",
  "aes 0.9.2",
