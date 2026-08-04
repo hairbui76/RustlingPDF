@@ -7,7 +7,8 @@ import {
   renderPdfiumPageDataUrl,
   readPdfiumPageMetadata,
 } from "@app/utils/pdfiumPageRender";
-import { mimeTypeForFileName } from "@app/utils/fileUtils";
+import { mimeTypeForFileName, detectFileExtension } from "@app/utils/fileUtils";
+import apiClient from "@app/services/apiClient";
 
 export interface ThumbnailWithMetadata {
   thumbnail: string; // Always returns a thumbnail (placeholder if needed)
@@ -189,8 +190,81 @@ export async function generateThumbnailForFile(file: File): Promise<string> {
     }
   }
 
-  // Non-PDF, non-image files use scalable SVG icons in the UI — no raster thumbnail needed
+  // Word documents get a real first-page preview by converting through the
+  // backend (the same office engine the Convert tool uses) and rendering the
+  // resulting PDF locally. The result is persisted by the caller's IndexedDB
+  // tier, so each document converts at most once per import — not per hover.
+  if (OFFICE_PREVIEW_EXTENSIONS.has(detectFileExtension(file.name))) {
+    return generateOfficeThumbnail(file);
+  }
+
+  // Everything else uses scalable SVG icons in the UI — no raster thumbnail needed
   return "";
+}
+
+/**
+ * Extensions previewed via backend conversion. Deliberately just the Word
+ * family for now: docx renders through the built-in engine everywhere, and
+ * legacy doc renders when LibreOffice is installed (its absence degrades to
+ * the icon, same as any conversion failure). Spreadsheets/slides could join
+ * this set, but their first page is rarely a useful preview.
+ */
+const OFFICE_PREVIEW_EXTENSIONS = new Set(["doc", "docx"]);
+
+/** Skip conversion-backed previews above this size — a preview must never be
+ * the reason the backend chews a huge upload. */
+const OFFICE_PREVIEW_MAX_BYTES = 25 * 1024 * 1024;
+
+/** At most this many conversion-backed previews in flight; a folder of Word
+ * files must not turn into a thundering herd against the sidecar. */
+const OFFICE_PREVIEW_MAX_CONCURRENT = 2;
+let officePreviewsInFlight = 0;
+const officePreviewQueue: Array<() => void> = [];
+
+function acquireOfficePreviewSlot(): Promise<void> {
+  if (officePreviewsInFlight < OFFICE_PREVIEW_MAX_CONCURRENT) {
+    officePreviewsInFlight++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) =>
+    officePreviewQueue.push(() => {
+      officePreviewsInFlight++;
+      resolve();
+    }),
+  );
+}
+
+function releaseOfficePreviewSlot(): void {
+  officePreviewsInFlight--;
+  officePreviewQueue.shift()?.();
+}
+
+async function generateOfficeThumbnail(file: File): Promise<string> {
+  if (file.size > OFFICE_PREVIEW_MAX_BYTES) {
+    return "";
+  }
+  await acquireOfficePreviewSlot();
+  try {
+    const form = new FormData();
+    form.append("fileInput", file, file.name);
+    // suppressErrorToast: a preview is decoration — a failed conversion
+    // (backend still booting, LibreOffice absent for legacy .doc, malformed
+    // document) must degrade to the file-type icon, never toast the user.
+    const response = await apiClient.post("/api/v1/convert/file/pdf", form, {
+      responseType: "arraybuffer",
+      suppressErrorToast: true,
+    });
+    const pdfBytes = response.data as ArrayBuffer;
+    if (!pdfBytes || pdfBytes.byteLength === 0) {
+      return "";
+    }
+    return await generatePDFThumbnail(pdfBytes, 1.0);
+  } catch (error) {
+    console.warn(`Office preview conversion failed for ${file.name}:`, error);
+    return "";
+  } finally {
+    releaseOfficePreviewSlot();
+  }
 }
 
 /**

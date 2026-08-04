@@ -530,12 +530,13 @@ Invoke-MsiExec -Label 'install' -Arguments @(
 Write-Phase 'Post-install assertions'
 
 # perMachine (ALLUSERS=1) resolves WiX's DesktopFolder to the shared desktop.
-# INSTALLDESKTOPSHORTCUT defaults to 1, and this install passed no override,
-# so the shortcut must exist — the =0 path is proven in its own rehearsal
-# cycle after the main uninstall below.
+# The desktop shortcut is opt-IN (INSTALLDESKTOPSHORTCUT has no default), and
+# this install passed no property, so the shortcut must NOT exist — the =1
+# path and the choice's persistence across an upgrade are proven in their own
+# rehearsal cycle after the main uninstall below.
 $desktopShortcut = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'RustlingPDF.lnk'
-Add-Result -Phase 'install' -Name 'desktop shortcut created by default (INSTALLDESKTOPSHORTCUT=1)' `
-    -Ok (Test-Path -LiteralPath $desktopShortcut) -Detail $desktopShortcut
+Add-Result -Phase 'install' -Name 'desktop shortcut NOT created by default (opt-in property absent)' `
+    -Ok (-not (Test-Path -LiteralPath $desktopShortcut)) -Detail $desktopShortcut
 
 $arp = Get-ArpEntry -ProductCode $productCode
 Add-Result -Phase 'install' -Name 'Add/Remove Programs entry exists' -Ok ($null -ne $arp) `
@@ -772,32 +773,46 @@ if ($null -ne $installDir) {
     }
 }
 
-Add-Result -Phase 'uninstall' -Name 'desktop shortcut removed' `
-    -Ok (-not (Test-Path -LiteralPath $desktopShortcut)) -Detail $desktopShortcut
-
-# The opt-out is a fork addition to main.wxs (INSTALLDESKTOPSHORTCUT gates the
-# ApplicationShortcutDesktop component). The condition is `= 1` on purpose —
-# a bare property-name condition would treat msiexec's `=0` string as truthy —
-# and only a real install proves the compiled Component table row carries it.
-# Everything else about this cycle (registry surface, uninstall cleanup) was
-# already proven above, so this rehearsal asserts the shortcut alone.
-Write-Phase 'Rehearse INSTALLDESKTOPSHORTCUT=0 (opt-out install/uninstall)'
-$optOutInstallLog = Join-Path $LogDirectory 'install-no-desktop-shortcut.log'
-$optOutUninstallLog = Join-Path $LogDirectory 'uninstall-no-desktop-shortcut.log'
-Invoke-MsiExec -Label 'opt-out install' -Arguments @(
+# The opt-in is a fork addition to main.wxs: INSTALLDESKTOPSHORTCUT (no
+# default) gates the ApplicationShortcutDesktop component, and the choice is
+# persisted through the component's own HKCU "Desktop Shortcut" KeyPath value
+# via RegistrySearch + SetProperty normalisation ("#1" -> "1"). Only a real
+# install proves the compiled tables carry all three pieces, so this
+# rehearsal proves the whole opt-in story: =1 creates the shortcut, a
+# repair-style re-run WITHOUT the property keeps it (the persistence path),
+# and uninstall removes both shortcut and registry choice.
+Write-Phase 'Rehearse INSTALLDESKTOPSHORTCUT=1 (opt-in, persistence, cleanup)'
+$optInInstallLog = Join-Path $LogDirectory 'install-desktop-shortcut.log'
+$optInRepairLog = Join-Path $LogDirectory 'repair-desktop-shortcut.log'
+$optInUninstallLog = Join-Path $LogDirectory 'uninstall-desktop-shortcut.log'
+Invoke-MsiExec -Label 'opt-in install' -Arguments @(
     '/i', "`"$MsiPath`"",
     '/qn', '/norestart',
-    'INSTALLDESKTOPSHORTCUT=0',
-    '/l*v', "`"$optOutInstallLog`""
+    'INSTALLDESKTOPSHORTCUT=1',
+    '/l*v', "`"$optInInstallLog`""
 )
-Add-Result -Phase 'opt-out' -Name 'desktop shortcut NOT created with INSTALLDESKTOPSHORTCUT=0' `
-    -Ok (-not (Test-Path -LiteralPath $desktopShortcut)) -Detail $desktopShortcut
-Invoke-MsiExec -Label 'opt-out uninstall' -Arguments @(
+Add-Result -Phase 'opt-in' -Name 'desktop shortcut created with INSTALLDESKTOPSHORTCUT=1' `
+    -Ok (Test-Path -LiteralPath $desktopShortcut) -Detail $desktopShortcut
+
+# A passive repair with no property is the closest local stand-in for what
+# the auto-updater's upgrade does: AppSearch must recover the choice from the
+# registry, or the upgrade would silently delete a shortcut the user chose.
+Invoke-MsiExec -Label 'opt-in repair (property recovered from registry)' -Arguments @(
+    '/famus', "`"$MsiPath`"",
+    '/qn', '/norestart',
+    '/l*v', "`"$optInRepairLog`""
+)
+Add-Result -Phase 'opt-in' -Name 'desktop shortcut survives a repair without the property (persisted choice)' `
+    -Ok (Test-Path -LiteralPath $desktopShortcut) -Detail $desktopShortcut
+
+Invoke-MsiExec -Label 'opt-in uninstall' -Arguments @(
     '/x', "`"$MsiPath`"",
     '/qn', '/norestart',
-    '/l*v', "`"$optOutUninstallLog`""
+    '/l*v', "`"$optInUninstallLog`""
 )
-Add-Result -Phase 'opt-out' -Name 'opt-out install uninstalled cleanly (ARP gone)' `
+Add-Result -Phase 'opt-in' -Name 'desktop shortcut removed on uninstall' `
+    -Ok (-not (Test-Path -LiteralPath $desktopShortcut)) -Detail $desktopShortcut
+Add-Result -Phase 'opt-in' -Name 'opt-in install uninstalled cleanly (ARP gone)' `
     -Ok ($null -eq (Get-ArpEntry -ProductCode $productCode))
 
 Write-Phase 'Advertised .pdf file association (suspected over-deletion mechanism)'

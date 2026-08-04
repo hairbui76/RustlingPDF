@@ -76,6 +76,7 @@
         "componentGroupRefs": ["ProvisioningComponentGroup"]
       },
       "nsis": {
+        "template": "windows/nsis/installer.nsi",
         "compression": "lzma",
         "installMode": "perMachine"
       }

@@ -4,8 +4,10 @@
 
   Functional changes vs upstream, each marked with a fork comment at its site:
   1. Cabinet compression mszip -> high (LZX), at the <Media> element.
-  2. Optional desktop shortcut: the INSTALLDESKTOPSHORTCUT property (default
-     1), a condition on the ApplicationShortcutDesktop component, and the
+  2. Opt-in desktop shortcut: the INSTALLDESKTOPSHORTCUT property (no
+     default — checkbox starts unchecked, choice persisted through the
+     component's HKCU KeyPath value via RegistrySearch + SetProperty), a
+     condition on the ApplicationShortcutDesktop component, and the
      InstallDirShortcutDlg dialog (InstallDirDlg cloned from WiX 3.14 plus an
      "Add desktop icon" checkbox) wired in over WixUI_InstallDir.
   Everything else is byte-identical to upstream, on purpose — this file
@@ -111,19 +113,28 @@
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
         <CustomAction Id="LaunchApplication" Impersonate="yes" FileKey="Path" ExeCommand="[LAUNCHAPPARGS]" Return="asyncNoWait" />
 
-        <!-- Desktop shortcut opt-out (fork addition, not in the upstream
-             template). Default 1 = checkbox pre-ticked and silent installs
-             keep today's behaviour; interactive installs get the checkbox on
-             InstallDirShortcutDlg below, and unattended deploys pass
-             INSTALLDESKTOPSHORTCUT=0. The component condition tests `= 1`
-             on purpose: an unticked checkbox REMOVES the property and
-             msiexec's `=0` sets a non-empty (truthy) string, so a bare
+        <!-- Desktop shortcut opt-in (fork addition, not in the upstream
+             template). No default value: the checkbox on
+             InstallDirShortcutDlg below starts UNCHECKED and a bare silent
+             install creates no desktop shortcut; unattended deploys opt in
+             with INSTALLDESKTOPSHORTCUT=1. The component condition tests
+             `= 1` on purpose: an unticked checkbox REMOVES the property and
+             msiexec's `=0` would set a non-empty (truthy) string, so a bare
              property-name condition would get both cases wrong.
-             Known wart, accepted: the choice does not persist across major
-             upgrades (the auto-updater's passive upgrade re-applies the
-             default), because persisting it would need a custom action for
-             one checkbox. Documented in the installer contract. -->
-        <Property Id="INSTALLDESKTOPSHORTCUT" Value="1" Secure="yes" />
+
+             The choice persists across upgrades: the shortcut component's
+             KeyPath is the HKCU "Desktop Shortcut" registry value, the
+             RegistrySearch below reads it back on the next run (raw search
+             of an integer value yields "#1"), and the SetProperty
+             normalises that to "1" after AppSearch in both sequences — so
+             the auto-updater's passive major upgrade keeps a shortcut the
+             user opted into, and never resurrects one they declined.
+             Uninstall removes the registry value with the component, which
+             resets a later fresh install to unchecked. -->
+        <Property Id="INSTALLDESKTOPSHORTCUT" Secure="yes">
+            <RegistrySearch Id="PrevDesktopShortcutChoice" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Desktop Shortcut" Type="raw" />
+        </Property>
+        <SetProperty Id="INSTALLDESKTOPSHORTCUT" Value="1" After="AppSearch" Sequence="both">INSTALLDESKTOPSHORTCUT = "#1"</SetProperty>
 
         <UI>
             <!-- launch app checkbox -->

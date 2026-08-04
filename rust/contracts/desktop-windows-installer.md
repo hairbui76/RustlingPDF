@@ -58,23 +58,30 @@ Optional properties for unattended / MDM deploys, consumed by the deferred
 When any of them is set, `rustling-provision.exe` writes
 `%PROGRAMDATA%\RustlingPDF\rustling-provisioning.json`.
 
-**The desktop shortcut is optional.** `INSTALLDESKTOPSHORTCUT` (default `1`)
+**The desktop shortcut is opt-in.** `INSTALLDESKTOPSHORTCUT` (no default)
 gates the `ApplicationShortcutDesktop` component; interactive installs get an
-"Add desktop icon" checkbox on the install-directory dialog
-(`InstallDirShortcutDlg`, a fork-added clone of WiX's `InstallDirDlg` —
-see the `main.wxs` header), and unattended deploys pass
-`INSTALLDESKTOPSHORTCUT=0`. The component condition is `= 1`, not a bare
-property test, because msiexec's `=0` sets a non-empty (truthy) string.
-Known limitation, accepted: the choice does not persist across major
-upgrades — the auto-updater's passive upgrade re-applies the default and
-recreates the shortcut. The MSI lifecycle check proves both paths (default
-creates the shortcut and uninstall removes it; a second install/uninstall
-rehearsal with `=0` proves it is not created).
+"Add desktop icon" checkbox — unchecked by default — on the
+install-directory dialog (`InstallDirShortcutDlg`, a fork-added clone of
+WiX's `InstallDirDlg`, see the `main.wxs` header), and unattended deploys
+opt in with `INSTALLDESKTOPSHORTCUT=1`. The component condition is `= 1`,
+not a bare property test, because a non-empty string like `0` would
+otherwise count as true.
 
-The NSIS installer's equivalent has always existed upstream: the finish page
-offers a "Create desktop shortcut" checkbox (the repurposed
-`MUI_FINISHPAGE_SHOWREADME` in tauri's `installer.nsi`); silent/passive NSIS
-installs create the shortcut unconditionally.
+**The choice persists across upgrades.** The shortcut component's KeyPath is
+the HKCU `Desktop Shortcut` registry value; a `RegistrySearch` reads it back
+on every run (raw integer search yields `#1`) and a `SetProperty` normalises
+it to `1` after AppSearch in both sequences. So the auto-updater's passive
+major upgrade keeps a shortcut the user opted into and never resurrects one
+they declined; uninstall removes the registry value with the component,
+resetting a later fresh install to unchecked. The MSI lifecycle check proves
+the full story: a bare install creates no shortcut; an `=1` install creates
+it; a repair without the property keeps it (persistence via AppSearch); and
+uninstall removes both the shortcut and the ARP entry.
+
+The NSIS installer's equivalent is the finish-page "Create desktop shortcut"
+checkbox (the repurposed `MUI_FINISHPAGE_SHOWREADME` in the forked
+`installer.nsi`), unchecked by default to match the MSI; silent/passive NSIS
+installs create the shortcut unconditionally (upstream behaviour, unchanged).
 
 Installed surface:
 
