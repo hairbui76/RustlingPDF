@@ -45,3 +45,6 @@ test-results
 /scripts/dev-update-test/.e2e-work/
 /scripts/dev-update-test/screenshots/
 /editor/src-tauri/tauri.conf.dev-update.json
+
+# Screenshot-capture output (ui-walkthrough reports)
+editor/screenshots/

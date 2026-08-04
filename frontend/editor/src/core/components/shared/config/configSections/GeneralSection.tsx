@@ -72,7 +72,9 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
           On desktop the card must render even before any version resolves:
           the update-check toggle is a privacy control, and a control the
           user may want to turn off cannot hide behind version display. */}
-      {(isDesktopRuntime() || config?.appVersion || appVersion !== undefined) && (
+      {(isDesktopRuntime() ||
+        config?.appVersion ||
+        appVersion !== undefined) && (
         <Paper withBorder p="md" radius="md">
           <Stack gap="md">
             <div>

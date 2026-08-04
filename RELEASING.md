@@ -87,7 +87,7 @@ newest release tag; running an older tag would move the mutable container
 | Platform | Runner | Bundles | Artifact |
 |---|---|---|---|
 | Linux x86-64 | `ubuntu-latest` | AppImage and deb | `desktop-linux-x86_64` |
-| Windows x86-64 | `windows-latest` | WiX MSI | `desktop-windows-x86_64` |
+| Windows x86-64 | `windows-latest` | WiX MSI and NSIS setup.exe | `desktop-windows-x86_64` |
 | macOS arm64 (**paused**) | `macos-latest` | app archive and DMG | `desktop-darwin-aarch64` |
 
 macOS is paused ("coming soon") by maintainer decision as of 2026-08-04 —
@@ -134,38 +134,31 @@ RWQLr0/8yC3amuV5GDR8m9AVltIe6+Czr0uGloq+3q4aLflmHXvKF9Jd
 Verify a download with
 `minisign -Vm <artifact> -P RWQLr0/8yC3amuV5GDR8m9AVltIe6+Czr0uGloq+3q4aLflmHXvKF9Jd`.
 
-### Why `bundle.createUpdaterArtifacts` is still `true`
+### `bundle.createUpdaterArtifacts` and the updater
 
-Despite the name, that flag is not an auto-update switch — it is the only path
-in `tauri-cli` that runs minisign over the bundles (`sign_updaters` in
-`bundle.rs`). Turning it off produces **no `.sig` files at all**, which is why
-`desktop-build.yml`'s collect step fails the build when signatures stop
-appearing. It is a build-output flag with no runtime effect: the updater
-plugin, its endpoints and its capabilities are all gone, so nothing in a
-packaged app can poll or install anything. The `task desktop:build:dev:*`
-targets override it to `false` on purpose — a local dev build has no signing
-key.
+`createUpdaterArtifacts: true` is the only path in `tauri-cli` that runs
+minisign over the bundles (`sign_updaters` in `bundle.rs`). Turning it off
+produces **no `.sig` files at all**, which is why `desktop-build.yml`'s
+collect step fails the build when signatures stop appearing. The
+`task desktop:build:dev:*` targets override it to `false` on purpose — a
+local dev build has no signing key.
 
-**`plugins.updater` must stay, reduced to `pubkey` alone.** Deleting the block
-outright looks correct and is not: the bundler reads the signing key from it and
-aborts with `failed to get updater configuration: plugins > updater doesn't
-exist`, which failed all three desktop legs. The block is now the public key and
-nothing else — no `endpoints`, so there is no address to poll even if someone
-later re-added the plugin. A public key is public by definition; the same key is
-printed below for manual verification. `noRemoteAssetDefaults.test.ts` fails if
-any key other than `pubkey` reappears there.
+**Since v0.0.8 those signatures are consumed at runtime too.** The desktop app
+checks `.../releases/latest/download/latest.json` once per start (opt-out in
+Settings → General; see `rust/contracts/desktop-native-startup.md` for the
+full behaviour) and verifies any downloaded update against the `pubkey` pinned
+in `plugins.updater` before installing. `release.yml` generates `latest.json`
+after the asset upload, keyed **per installer type**
+(`windows-x86_64-msi`, `windows-x86_64-nsis`, `linux-x86_64-appimage`) with
+deliberately no bare `{os}-{arch}` fallback — that keying is what keeps an
+NSIS install updating onto NSIS, an MSI install onto MSI, and deb/rpm/portable
+installs out of in-place updating entirely. `noRemoteAssetDefaults.test.ts`
+pins `plugins.updater` to exactly the `pubkey` plus that one HTTPS GitHub
+endpoint.
 
-This is only caught by an actual bundle build. `Desktop CI (Tauri)` runs check,
-clippy and tests and stayed green throughout; the failure surfaced solely in the
-`Desktop release dry-run`, which builds real bundles. Run that workflow before
-tagging, not just CI.
-
-The application does not check for updates. It contacts no update server and
-publishes no update manifest, so nothing about an install — not even its
-existence — is reported anywhere. To move to a newer version, check the
-releases page yourself and download the installer:
-
-`https://github.com/hairbui76/RustlingPDF/releases`
+Bundler-level breakage (a missing `plugins.updater` block, unsigned bundles)
+is only caught by an actual bundle build, not by `Desktop CI (Tauri)`. Run the
+`Desktop release dry-run` workflow before tagging, not just CI.
 
 ## Bundled native tools
 
@@ -188,6 +181,8 @@ distribution; they are not a commercial product-license mechanism.
 
 - macOS is paused — no macOS artifact is published. When it returns it will be Apple-silicon only.
 - macOS bundles are not notarized while `signingIdentity` is unset.
-- Windows publishes WiX MSI; NSIS is not part of the release matrix.
+- Windows publishes both installers: the NSIS `-setup.exe` (smaller download)
+  and the WiX MSI (msiexec/GPO; the only one carrying the provisioning
+  surface — see `rust/contracts/desktop-windows-installer.md`).
 - Mutable `latest` image tags are for convenience. Reproducible deployments
   should pin a version tag or image digest.

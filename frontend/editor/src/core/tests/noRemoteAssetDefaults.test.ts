@@ -145,10 +145,7 @@ describe("no remote asset defaults", () => {
     const updater = config.plugins?.updater;
 
     expect(updater, "plugins.updater is required by the bundler").toBeDefined();
-    expect(Object.keys(updater ?? {}).sort()).toEqual([
-      "endpoints",
-      "pubkey",
-    ]);
+    expect(Object.keys(updater ?? {}).sort()).toEqual(["endpoints", "pubkey"]);
     expect(updater?.endpoints).toEqual([
       "https://github.com/hairbui76/RustlingPDF/releases/latest/download/latest.json",
     ]);

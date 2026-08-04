@@ -21,6 +21,8 @@ playwright-report/
 editor/playwright-report/
 test-results/
 editor/test-results/
+# Screenshot-capture output (ui-walkthrough reports); generated, not hand-formatted.
+editor/screenshots/
 *.min.*
 *.md
 *.wxs
