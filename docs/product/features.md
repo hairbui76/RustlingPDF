@@ -8,6 +8,10 @@ marketing inventory. **166 distinct `/api/v1/...` endpoints** are registered.
 See [Methodology](#methodology) for how this list was produced and how it was
 cross-checked.
 
+To exercise these features by hand before a release, use the manual QA
+checklist: [`manual-test-checklist.vi.md`](manual-test-checklist.vi.md)
+(Vietnamese).
+
 For install/run instructions, ports, and environment variables, see
 [`rust/RUNNING_WITH_RUST.md`](../../rust/RUNNING_WITH_RUST.md). Public behavior
 details live in [`rust/contracts/`](../../rust/contracts/).
