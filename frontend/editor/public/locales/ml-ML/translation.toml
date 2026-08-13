@@ -4184,29 +4184,6 @@ title = "കീബോർഡ് ഷോർട്ട്‌കട്ടുകൾ"
 mac = "നിങ്ങളുടെ ഷോർട്ട്‌കട്ടിൽ ⌘ (Command), ⌥ (Option) അല്ലെങ്കിൽ മറ്റൊരു മൊഡിഫയർ ഉൾപ്പെടുത്തുക."
 windows = "നിങ്ങളുടെ ഷോർട്ട്‌കട്ടിൽ Ctrl, Alt അല്ലെങ്കിൽ മറ്റൊരു മൊഡിഫയർ ഉൾപ്പെടുത്തുക."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "ഈ server-നൊപ്പം bundled ചെയ്ത backend dependencies-ന്റെ licenses."
-backendLabel = "Backend Licenses"
-backendTitle = "Backend 3rd Party Licenses"
-empty = "Dependencies കണ്ടെത്തിയില്ല."
-frontendDescription = "Release build-ലേക്ക് bundled ചെയ്ത frontend dependencies-ന്റെ licenses."
-frontendLabel = "Frontend Licenses"
-frontendTitle = "Frontend 3rd Party Licenses"
-license = "License"
-listDescription = "Release bundle അല്ലെങ്കിൽ backend endpoint-ൽ നിന്ന് list നേരിട്ട് UI-ൽ കാണിക്കുന്നു."
-listTitle = "Bundled dependencies"
-loadError = "Third-party licenses ലോഡ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു"
-module = "Module"
-version = "Version"
-
 [settings.preferences]
 title = "അഭിരുചികൾ"
 

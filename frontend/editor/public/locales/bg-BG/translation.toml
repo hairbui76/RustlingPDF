@@ -4184,29 +4184,6 @@ title = "Клавишни комбинации"
 mac = "Включете ⌘ (Command), ⌥ (Option) или друг модификатор в комбинацията."
 windows = "Включете Ctrl, Alt или друг модификатор в комбинацията."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Лицензи за backend зависимости, включени с този сървър."
-backendLabel = "Backend лицензи"
-backendTitle = "Backend 3rd Party Licenses"
-empty = "Не са намерени зависимости."
-frontendDescription = "Лицензи за frontend зависимости, включени в release build."
-frontendLabel = "Frontend лицензи"
-frontendTitle = "Frontend 3rd Party Licenses"
-license = "Лиценз"
-listDescription = "Списъкът се показва директно в UI от release bundle или backend endpoint."
-listTitle = "Включени зависимости"
-loadError = "Неуспешно зареждане на лицензи на трети страни"
-module = "Модул"
-version = "Версия"
-
 [settings.preferences]
 title = "Предпочитания"
 

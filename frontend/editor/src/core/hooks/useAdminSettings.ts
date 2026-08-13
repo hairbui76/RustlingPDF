@@ -41,7 +41,7 @@ interface UseAdminSettingsReturn<T> {
  *
  * @example
  * const { settings, setSettings, saveSettings, isFieldPending } = useAdminSettings({
- *   sectionName: 'legal'
+ *   sectionName: 'general'
  * });
  */
 export function useAdminSettings<T = any>(

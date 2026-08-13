@@ -1,14 +1,7 @@
 import type React from "react";
 
 // Single source of truth for all valid nav keys
-export const VALID_NAV_KEYS = [
-  "general",
-  "hotkeys",
-  "help",
-  "legal",
-  "backendThirdPartyLicenses",
-  "frontendThirdPartyLicenses",
-] as const;
+export const VALID_NAV_KEYS = ["general", "hotkeys", "help"] as const;
 
 // Derive the type from the array
 export type NavKey = (typeof VALID_NAV_KEYS)[number];

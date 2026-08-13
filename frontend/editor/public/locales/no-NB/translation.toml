@@ -4184,29 +4184,6 @@ title = "Tastatursnarveier"
 mac = "Inkluder ⌘ (Command), ⌥ (Option) eller en annen modifikator i snarveien."
 windows = "Inkluder Ctrl, Alt eller en annen modifikator i snarveien."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Lisenser for backend-avhengigheter som er pakket med denne serveren."
-backendLabel = "Backend-lisenser"
-backendTitle = "Backend-tredjepartslisenser"
-empty = "Ingen avhengigheter funnet."
-frontendDescription = "Lisenser for frontend-avhengigheter som er pakket inn i release-builden."
-frontendLabel = "Frontend-lisenser"
-frontendTitle = "Frontend-tredjepartslisenser"
-license = "Lisens"
-listDescription = "Listen vises direkte i UI fra release-pakken eller backend-endpointet."
-listTitle = "Pakkede avhengigheter"
-loadError = "Kunne ikke laste tredjepartslisenser"
-module = "Modul"
-version = "Versjon"
-
 [settings.preferences]
 title = "Preferanser"
 

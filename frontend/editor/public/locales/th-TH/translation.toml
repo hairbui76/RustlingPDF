@@ -4184,29 +4184,6 @@ title = "แป้นพิมพ์ลัด"
 mac = "ให้มี ⌘ (Command), ⌥ (Option) หรือปุ่มดัดแปลงอื่นในชุดแป้นลัดของคุณ"
 windows = "ให้มี Ctrl, Alt หรือปุ่มดัดแปลงอื่นในชุดแป้นลัดของคุณ"
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licenses สำหรับ dependencies ของ backend ที่รวมมากับเซิร์ฟเวอร์นี้"
-backendLabel = "Backend Licenses"
-backendTitle = "Backend 3rd Party Licenses"
-empty = "ไม่พบ dependencies"
-frontendDescription = "Licenses สำหรับ dependencies ของ frontend ที่รวมอยู่ใน release build"
-frontendLabel = "Frontend Licenses"
-frontendTitle = "Frontend 3rd Party Licenses"
-license = "License"
-listDescription = "รายการจะแสดงโดยตรงใน UI จาก release bundle หรือ backend endpoint"
-listTitle = "Dependencies ที่รวมมา"
-loadError = "โหลด third-party licenses ไม่สำเร็จ"
-module = "Module"
-version = "Version"
-
 [settings.preferences]
 title = "ค่ากำหนด"
 

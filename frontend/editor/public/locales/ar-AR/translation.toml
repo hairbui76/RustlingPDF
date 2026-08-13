@@ -4184,29 +4184,6 @@ title = "اختصارات لوحة المفاتيح"
 mac = "ضمّن ⌘ (Command) أو ⌥ (Option) أو معدِّلاً آخر في اختصارك."
 windows = "ضمّن Ctrl أو Alt أو معدِّلاً آخر في اختصارك."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "تراخيص تبعيات الخلفية المضمّنة مع هذا الخادم."
-backendLabel = "تراخيص الخلفية"
-backendTitle = "تراخيص الطرف الثالث للخلفية"
-empty = "لم يتم العثور على تبعيات."
-frontendDescription = "تراخيص تبعيات الواجهة الأمامية المضمّنة في إصدار النشر."
-frontendLabel = "تراخيص الواجهة الأمامية"
-frontendTitle = "تراخيص الطرف الثالث للواجهة الأمامية"
-license = "الترخيص"
-listDescription = "تُعرض القائمة مباشرة في UI من حزمة الإصدار أو endpoint الخلفية."
-listTitle = "التبعيات المضمّنة"
-loadError = "فشل تحميل تراخيص الطرف الثالث"
-module = "الوحدة"
-version = "الإصدار"
-
 [settings.preferences]
 title = "التفضيلات"
 

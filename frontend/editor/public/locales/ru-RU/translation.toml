@@ -4184,29 +4184,6 @@ title = "Горячие клавиши"
 mac = "Добавьте ⌘ (Command), ⌥ (Option) или другой модификатор в сочетание."
 windows = "Добавьте Ctrl, Alt или другой модификатор в сочетание."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Лицензии backend-зависимостей, включённых в этот сервер."
-backendLabel = "Лицензии Backend"
-backendTitle = "Лицензии сторонних компонентов Backend"
-empty = "Зависимости не найдены."
-frontendDescription = "Лицензии frontend-зависимостей, включённых в release build."
-frontendLabel = "Лицензии Frontend"
-frontendTitle = "Лицензии сторонних компонентов Frontend"
-license = "Лицензия"
-listDescription = "Список отображается прямо в UI из release bundle или backend endpoint."
-listTitle = "Включённые зависимости"
-loadError = "Не удалось загрузить лицензии сторонних компонентов"
-module = "Модуль"
-version = "Версия"
-
 [settings.preferences]
 title = "Настройки"
 

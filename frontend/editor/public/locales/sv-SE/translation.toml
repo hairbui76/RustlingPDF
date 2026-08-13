@@ -4184,29 +4184,6 @@ title = "Kortkommandon"
 mac = "Inkludera ⌘ (Command), ⌥ (Option) eller en annan modifierare i ditt kortkommando."
 windows = "Inkludera Ctrl, Alt eller en annan modifierare i ditt kortkommando."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licenser för backend-beroenden som paketeras med denna server."
-backendLabel = "Backend-licenser"
-backendTitle = "Backend-licenser från tredje part"
-empty = "Inga beroenden hittades."
-frontendDescription = "Licenser för frontend-beroenden som paketeras i releasebygget."
-frontendLabel = "Frontend-licenser"
-frontendTitle = "Frontend-licenser från tredje part"
-license = "Licens"
-listDescription = "Listan visas direkt i UI från releasepaketet eller backend-endpoint."
-listTitle = "Paketerade beroenden"
-loadError = "Det gick inte att läsa in tredjepartslicenser"
-module = "Modul"
-version = "Version"
-
 [settings.preferences]
 title = "Preferenser"
 

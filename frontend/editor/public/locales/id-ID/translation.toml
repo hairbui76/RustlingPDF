@@ -4184,29 +4184,6 @@ title = "Pintasan Keyboard"
 mac = "Sertakan ⌘ (Command), ⌥ (Option), atau modifier lainnya dalam pintasan Anda."
 windows = "Sertakan Ctrl, Alt, atau modifier lainnya dalam pintasan Anda."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Lisensi untuk dependensi backend yang dibundel dengan server ini."
-backendLabel = "Lisensi Backend"
-backendTitle = "Lisensi Pihak Ketiga Backend"
-empty = "Tidak ada dependensi ditemukan."
-frontendDescription = "Lisensi untuk dependensi frontend yang dibundel ke dalam release build."
-frontendLabel = "Lisensi Frontend"
-frontendTitle = "Lisensi Pihak Ketiga Frontend"
-license = "Lisensi"
-listDescription = "Daftar ditampilkan langsung di UI dari release bundle atau endpoint backend."
-listTitle = "Dependensi yang dibundel"
-loadError = "Gagal memuat lisensi pihak ketiga"
-module = "Modul"
-version = "Versi"
-
 [settings.preferences]
 title = "Preferensi"
 

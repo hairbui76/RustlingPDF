@@ -4184,29 +4184,6 @@ title = "Sneltoetsen"
 mac = "Neem ⌘ (Command), ⌥ (Option) of een andere modificatietoets op in de sneltoets."
 windows = "Neem Ctrl, Alt of een andere modificatietoets op in de sneltoets."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licenties voor backend-afhankelijkheden die met deze server zijn gebundeld."
-backendLabel = "Backend-licenties"
-backendTitle = "Backend-licenties van derden"
-empty = "Geen afhankelijkheden gevonden."
-frontendDescription = "Licenties voor frontend-afhankelijkheden die in de release-build zijn gebundeld."
-frontendLabel = "Frontend-licenties"
-frontendTitle = "Frontend-licenties van derden"
-license = "Licentie"
-listDescription = "De lijst wordt rechtstreeks in de UI getoond vanuit de release-bundel of backend-endpoint."
-listTitle = "Gebundelde afhankelijkheden"
-loadError = "Laden van licenties van derden mislukt"
-module = "Module"
-version = "Versie"
-
 [settings.preferences]
 title = "Voorkeuren"
 

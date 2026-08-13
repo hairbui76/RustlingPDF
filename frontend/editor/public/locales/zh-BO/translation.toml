@@ -4184,29 +4184,6 @@ title = "键盘快捷键"
 mac = "快捷键需包含 ⌘（Command）、⌥（Option）或其他修饰键。"
 windows = "快捷键需包含 Ctrl、Alt 或其他修饰键。"
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "与此服务器捆绑的后端依赖项许可证。"
-backendLabel = "后端许可证"
-backendTitle = "后端第三方许可证"
-empty = "未找到依赖项。"
-frontendDescription = "打包到发布构建中的前端依赖项许可证。"
-frontendLabel = "前端许可证"
-frontendTitle = "前端第三方许可证"
-license = "许可证"
-listDescription = "该列表直接在 UI 中从发布包或后端端点显示。"
-listTitle = "捆绑依赖项"
-loadError = "加载第三方许可证失败"
-module = "模块"
-version = "版本"
-
 [settings.preferences]
 title = "首选项"
 

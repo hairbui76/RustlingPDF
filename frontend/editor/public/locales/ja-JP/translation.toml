@@ -4184,29 +4184,6 @@ title = "キーボードショートカット"
 mac = "ショートカットに⌘（Command）、⌥（Option）などの修飾キーを含めてください。"
 windows = "ショートカットにCtrl、Altなどの修飾キーを含めてください。"
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "このサーバーにバンドルされている backend 依存関係のライセンス。"
-backendLabel = "Backend ライセンス"
-backendTitle = "Backend サードパーティライセンス"
-empty = "依存関係が見つかりませんでした。"
-frontendDescription = "リリースビルドにバンドルされている frontend 依存関係のライセンス。"
-frontendLabel = "Frontend ライセンス"
-frontendTitle = "Frontend サードパーティライセンス"
-license = "ライセンス"
-listDescription = "リストは、リリースバンドルまたは backend エンドポイントから UI に直接表示されます。"
-listTitle = "バンドルされた依存関係"
-loadError = "サードパーティライセンスの読み込みに失敗しました"
-module = "モジュール"
-version = "バージョン"
-
 [settings.preferences]
 title = "環境設定"
 

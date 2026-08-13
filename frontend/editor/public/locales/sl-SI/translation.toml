@@ -4184,29 +4184,6 @@ title = "Bližnjice na tipkovnici"
 mac = "Vključite ⌘ (Command), ⌥ (Option) ali drug modifikator v bližnjici."
 windows = "Vključite Ctrl, Alt ali drug modifikator v bližnjici."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licence za backend odvisnosti, vključene v ta strežnik."
-backendLabel = "Backend licence"
-backendTitle = "Backend licence tretjih oseb"
-empty = "Ni najdenih odvisnosti."
-frontendDescription = "Licence za frontend odvisnosti, vključene v izdajo."
-frontendLabel = "Frontend licence"
-frontendTitle = "Frontend licence tretjih oseb"
-license = "Licenca"
-listDescription = "Seznam je prikazan neposredno v UI iz paketa izdaje ali backend endpointa."
-listTitle = "Vključene odvisnosti"
-loadError = "Nalaganje licenc tretjih oseb ni uspelo"
-module = "Modul"
-version = "Različica"
-
 [settings.preferences]
 title = "Nastavitve"
 

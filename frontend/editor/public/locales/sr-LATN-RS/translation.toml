@@ -4184,29 +4184,6 @@ title = "Prečice na tastaturi"
 mac = "Uključite ⌘ (Command), ⌥ (Option) ili neki drugi modifikator u prečicu."
 windows = "Uključite Ctrl, Alt ili neki drugi modifikator u prečicu."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licence za Backend zavisnosti uključene sa ovim serverom."
-backendLabel = "Backend licence"
-backendTitle = "Backend licence trećih strana"
-empty = "Nisu pronađene zavisnosti."
-frontendDescription = "Licence za Frontend zavisnosti uključene u release build."
-frontendLabel = "Frontend licence"
-frontendTitle = "Frontend licence trećih strana"
-license = "Licenca"
-listDescription = "Lista se prikazuje direktno u UI iz release bundle-a ili Backend endpoint-a."
-listTitle = "Uključene zavisnosti"
-loadError = "Učitavanje licenci trećih strana nije uspelo"
-module = "Modul"
-version = "Verzija"
-
 [settings.preferences]
 title = "Preferencije"
 

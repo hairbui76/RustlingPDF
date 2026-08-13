@@ -87,8 +87,8 @@ test.describe("2. Main Dashboard / Home Page", () => {
     });
   });
 
-  test.describe("2.4 Dashboard - Legal Links", () => {
-    test("legal links live in Settings → Legal, not in a footer", async ({
+  test.describe("2.4 Dashboard - no legal or licence surfaces", () => {
+    test("neither the dashboard nor Settings offers legal/licence pages", async ({
       page,
     }) => {
       await expect(
@@ -99,17 +99,21 @@ test.describe("2. Main Dashboard / Home Page", () => {
       await expect(page.locator(".footer-link")).toHaveCount(0);
       await expect(page.getByText("Survey")).toHaveCount(0);
 
+      // Settings keeps Preferences and Help only; the Legal group (legal
+      // documents + backend/frontend third-party licences) is gone.
       await openSettings(page);
-      const legalNav = page.locator('[data-tour="admin-legal-nav"]').first();
-      await expect(legalNav).toBeVisible({ timeout: 10000 });
-      await legalNav.click();
-
-      await expect(page.getByText("Privacy Policy").first()).toBeVisible({
-        timeout: 10000,
-      });
-      await expect(page.getByText(/Terms/i).first()).toBeVisible({
-        timeout: 10000,
-      });
+      await expect(
+        page.locator('[data-tour="admin-general-nav"]').first(),
+      ).toBeVisible({ timeout: 10000 });
+      for (const navKey of [
+        "legal",
+        "backendThirdPartyLicenses",
+        "frontendThirdPartyLicenses",
+      ]) {
+        await expect(
+          page.locator(`[data-tour="admin-${navKey}-nav"]`),
+        ).toHaveCount(0);
+      }
     });
   });
 });

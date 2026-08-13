@@ -4184,29 +4184,6 @@ title = "Klávesové skratky"
 mac = "Do skratky zahrňte ⌘ (Command), ⌥ (Option) alebo iný modifikátor."
 windows = "Do skratky zahrňte Ctrl, Alt alebo iný modifikátor."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licencie pre backend závislosti pribalené k tomuto serveru."
-backendLabel = "Backend licencie"
-backendTitle = "Licencie backend tretích strán"
-empty = "Nenašli sa žiadne závislosti."
-frontendDescription = "Licencie pre frontend závislosti pribalené do release buildu."
-frontendLabel = "Frontend licencie"
-frontendTitle = "Licencie frontend tretích strán"
-license = "Licencia"
-listDescription = "Zoznam sa zobrazuje priamo v UI z release balíka alebo backend endpointu."
-listTitle = "Pribalené závislosti"
-loadError = "Licencie tretích strán sa nepodarilo načítať"
-module = "Modul"
-version = "Verzia"
-
 [settings.preferences]
 title = "Predvoľby"
 

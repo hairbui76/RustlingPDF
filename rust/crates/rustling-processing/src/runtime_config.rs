@@ -909,6 +909,14 @@ impl RuntimeConfig {
     }
 
     fn insert_system_config(&self, config: &mut Map<String, Value>) {
+        // The build's own version, so the UI can name the running build without
+        // a second round trip. Same source as the persisted
+        // `AutomaticallyGenerated.appVersion`: the workspace VERSION file.
+        insert(
+            config,
+            "appVersion",
+            crate::runtime_metrics::application_version().to_owned(),
+        );
         insert(
             config,
             "defaultLocale",
@@ -2985,6 +2993,26 @@ mod tests {
                 &format!("  appVersion: {}", identity.app_version),
             );
         assert_eq!(fs::read_to_string(&settings)?, expected);
+        Ok(())
+    }
+
+    /// The SPA names the running build from the public app config alone (the
+    /// sidebar version line), so `appVersion` has to be present there even for
+    /// an install whose `settings.yml` carries no generated identity yet, and
+    /// it has to be the application version rather than the crate version.
+    #[test]
+    fn app_config_reports_the_application_version() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "system:\n  defaultLocale: en-GB\n")?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+
+        let expected_version = crate::runtime_metrics::application_version();
+        assert_ne!(expected_version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(
+            config.app_config(None, None)["appVersion"],
+            expected_version
+        );
         Ok(())
     }
 

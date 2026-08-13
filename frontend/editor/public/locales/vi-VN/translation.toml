@@ -4203,29 +4203,6 @@ title = "Phím tắt"
 mac = "Bao gồm ⌘ (Command), ⌥ (Option), hoặc một phím bổ trợ khác trong phím tắt của bạn."
 windows = "Bao gồm Ctrl, Alt, hoặc phím bổ trợ khác trong phím tắt của bạn."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Giấy phép cho các phụ thuộc backend được đóng gói với server này."
-backendLabel = "Giấy phép Backend"
-backendTitle = "Giấy phép bên thứ ba Backend"
-empty = "Không tìm thấy phụ thuộc nào."
-frontendDescription = "Giấy phép cho các phụ thuộc frontend được đóng gói vào bản dựng phát hành."
-frontendLabel = "Giấy phép Frontend"
-frontendTitle = "Giấy phép bên thứ ba Frontend"
-license = "Giấy phép"
-listDescription = "Danh sách được hiển thị trực tiếp trong UI từ gói phát hành hoặc endpoint backend."
-listTitle = "Phụ thuộc được đóng gói"
-loadError = "Không tải được giấy phép bên thứ ba"
-module = "Module"
-version = "Phiên bản"
-
 [settings.preferences]
 title = "Tùy chọn"
 

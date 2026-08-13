@@ -19,7 +19,7 @@ conventions. Product-specific variables use only the `RUSTLING_*` namespace.
 
 | Route | Response |
 |---|---|
-| `GET /api/v1/config/app-config` | Public UI, legal, timestamp, feature, dependency-readiness, and platform configuration. |
+| `GET /api/v1/config/app-config` | Public UI, legal, timestamp, feature, dependency-readiness, and platform configuration, plus `appVersion`. |
 | `GET /api/v1/config/login-disclaimer[?lang=<locale>]` | Configured agreement markdown with locale fallback. |
 | `GET /api/v1/config/endpoint-enabled?endpoint=<key>` | Boolean for one endpoint key. |
 | `GET /api/v1/config/endpoints-enabled?endpoints=<key>,<key>` | Boolean map for requested endpoint keys. |
@@ -28,7 +28,10 @@ conventions. Product-specific variables use only the `RUSTLING_*` namespace.
 | `GET /api/v1/settings/get-endpoints-status` | Explicitly disabled endpoint keys mapped to `false`. |
 
 The public app configuration contains only operational UI and processing
-settings.
+settings. `appVersion` is the running build's application version — the same
+workspace `VERSION` value persisted as `AutomaticallyGenerated.appVersion` —
+and is reported even before a generated identity exists, so the UI can name the
+build from one request.
 
 ## Endpoint availability
 

@@ -4169,14 +4169,6 @@ title = "མཐེབ་གཞོང་ཐུང་ངུ།"
 mac = "⌘ (བཀའ་བཀོད་) ⌥ (གདམ་ཁ་) ཡང་ན་ཁྱེད་ཀྱི་མགྱོགས་ལམ་ནང་བསྒྱུར་བཅོས་བྱེད་མཁན་གཞན་ཞིག་ཚུད་ཡོད།"
 windows = "ཁྱེད་རང་གི་མགྱོགས་ལམ་ནང་ལ་Ctrl, Alt, ཡང་ན་བསྒྱུར་བཅོས་བྱེད་མཁན་གཞན་ཞིག་ཚུད་ཡོད།"
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
 [settings.preferences]
 title = "འདོད་པ།"
 

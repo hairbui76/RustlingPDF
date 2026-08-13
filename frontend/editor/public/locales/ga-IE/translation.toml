@@ -4184,29 +4184,6 @@ title = "Aicearraí Méarchláir"
 mac = "Cuir ⌘ (Command), ⌥ (Option), nó modhnóir eile i do aicearra."
 windows = "Cuir Ctrl, Alt, nó modhnóir eile i do aicearra."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Ceadúnais do spleáchais backend atá cuachta leis an bhfreastalaí seo."
-backendLabel = "Ceadúnais Backend"
-backendTitle = "Ceadúnais Backend 3rd Party"
-empty = "Níor aimsíodh aon spleáchais."
-frontendDescription = "Ceadúnais do spleáchais frontend atá cuachta sa release build."
-frontendLabel = "Ceadúnais Frontend"
-frontendTitle = "Ceadúnais Frontend 3rd Party"
-license = "Ceadúnas"
-listDescription = "Taispeántar an liosta go díreach san UI ón release bundle nó ón backend endpoint."
-listTitle = "Spleáchais chuachta"
-loadError = "Theip ar lódáil ceadúnais tríú páirtí"
-module = "Modúl"
-version = "Leagan"
-
 [settings.preferences]
 title = "Sainroghanna"
 

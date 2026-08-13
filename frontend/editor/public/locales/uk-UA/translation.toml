@@ -4184,29 +4184,6 @@ title = "Комбінації клавіш"
 mac = "Додайте ⌘ (Command), ⌥ (Option) або інший модифікатор до комбінації."
 windows = "Додайте Ctrl, Alt або інший модифікатор до комбінації."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Ліцензії для залежностей backend, включених до цього сервера."
-backendLabel = "Ліцензії Backend"
-backendTitle = "Ліцензії сторонніх компонентів Backend"
-empty = "Залежностей не знайдено."
-frontendDescription = "Ліцензії для залежностей frontend, включених у release build."
-frontendLabel = "Ліцензії Frontend"
-frontendTitle = "Ліцензії сторонніх компонентів Frontend"
-license = "Ліцензія"
-listDescription = "Список показується безпосередньо в UI з release bundle або endpoint backend."
-listTitle = "Включені залежності"
-loadError = "Не вдалося завантажити ліцензії сторонніх компонентів"
-module = "Модуль"
-version = "Версія"
-
 [settings.preferences]
 title = "Параметри"
 

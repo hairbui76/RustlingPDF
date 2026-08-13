@@ -4182,29 +4182,6 @@ title = "Scorciatoie da tastiera"
 mac = "Includi ⌘ (Command), ⌥ (Option) o un altro modificatore nella scorciatoia."
 windows = "Includi Ctrl, Alt o un altro modificatore nella scorciatoia."
 
-[settings.legal]
-label = "Note legali"
-title = "Informative legali"
-
-[settings.legal.documents]
-description = "Informative e note legali per questo servizio."
-title = "Documenti legali"
-
-[settings.licenses]
-backendDescription = "Licenze per le dipendenze backend incluse con questo server."
-backendLabel = "Licenze backend"
-backendTitle = "Licenze backend di terze parti"
-empty = "Nessuna dipendenza trovata."
-frontendDescription = "Licenze per le dipendenze frontend incluse nella build di release."
-frontendLabel = "Licenze frontend"
-frontendTitle = "Licenze frontend di terze parti"
-license = "Licenza"
-listDescription = "L'elenco viene mostrato direttamente nella UI dal bundle di release o dall'endpoint backend."
-listTitle = "Dipendenze incluse"
-loadError = "Impossibile caricare le licenze di terze parti"
-module = "Modulo"
-version = "Versione"
-
 [settings.preferences]
 title = "Preferenze"
 

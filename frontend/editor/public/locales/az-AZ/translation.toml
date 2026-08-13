@@ -4184,29 +4184,6 @@ title = "Klaviatura qısayolları"
 mac = "Qısayolda ⌘ (Command), ⌥ (Option) və ya başqa bir modifikator daxil edin."
 windows = "Qısayolda Ctrl, Alt və ya başqa bir modifikator daxil edin."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Bu serverlə birlikdə paketlənmiş backend asılılıqları üçün lisenziyalar."
-backendLabel = "Backend Lisenziyaları"
-backendTitle = "Backend 3rd Party Lisenziyaları"
-empty = "Asılılıq tapılmadı."
-frontendDescription = "Release build-ə paketlənmiş frontend asılılıqları üçün lisenziyalar."
-frontendLabel = "Frontend Lisenziyaları"
-frontendTitle = "Frontend 3rd Party Lisenziyaları"
-license = "Lisenziya"
-listDescription = "Siyahı release bundle və ya backend endpoint-dən birbaşa UI-da göstərilir."
-listTitle = "Paketlənmiş asılılıqlar"
-loadError = "Üçüncü tərəf lisenziyalarını yükləmək alınmadı"
-module = "Modul"
-version = "Versiya"
-
 [settings.preferences]
 title = "Seçimlər"
 

@@ -4193,29 +4193,6 @@ title = "Tastenkürzel"
 mac = "Fügen Sie ⌘ (Command), ⌥ (Option) oder einen anderen Modifikator in Ihr Kürzel ein."
 windows = "Fügen Sie Strg, Alt oder einen anderen Modifikator in Ihr Kürzel ein."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Lizenzen für Backend-Abhängigkeiten, die mit diesem Server gebündelt sind."
-backendLabel = "Backend-Lizenzen"
-backendTitle = "Backend-Drittanbieterlizenzen"
-empty = "Keine Abhängigkeiten gefunden."
-frontendDescription = "Lizenzen für Frontend-Abhängigkeiten, die in den Release-Build gebündelt sind."
-frontendLabel = "Frontend-Lizenzen"
-frontendTitle = "Frontend-Drittanbieterlizenzen"
-license = "Lizenz"
-listDescription = "Die Liste wird direkt in der UI aus dem Release-Bundle oder Backend-Endpoint angezeigt."
-listTitle = "Gebündelte Abhängigkeiten"
-loadError = "Drittanbieterlizenzen konnten nicht geladen werden"
-module = "Modul"
-version = "Version"
-
 [settings.preferences]
 title = "Einstellungen"
 

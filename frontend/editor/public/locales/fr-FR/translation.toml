@@ -4184,29 +4184,6 @@ title = "Raccourcis clavier"
 mac = "Incluez ⌘ (Command), ⌥ (Option) ou un autre modificateur dans votre raccourci."
 windows = "Incluez Ctrl, Alt ou un autre modificateur dans votre raccourci."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licences des dépendances backend intégrées à ce serveur."
-backendLabel = "Licences backend"
-backendTitle = "Licences tierces backend"
-empty = "Aucune dépendance trouvée."
-frontendDescription = "Licences des dépendances frontend intégrées à la version de publication."
-frontendLabel = "Licences frontend"
-frontendTitle = "Licences tierces frontend"
-license = "Licence"
-listDescription = "La liste est affichée directement dans l’UI depuis le bundle de publication ou l’endpoint backend."
-listTitle = "Dépendances intégrées"
-loadError = "Échec du chargement des licences tierces"
-module = "Module"
-version = "Version"
-
 [settings.preferences]
 title = "Préférences"
 

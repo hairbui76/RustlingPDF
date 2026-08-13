@@ -4184,29 +4184,6 @@ title = "میانبرهای صفحه‌کلید"
 mac = "در میانبر خود ⌘ (Command)، ⌥ (Option) یا یک کلید اصلاحی دیگر را بگنجانید."
 windows = "در میانبر خود Ctrl، Alt یا یک کلید اصلاحی دیگر را بگنجانید."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "مجوزهای وابستگی‌های backend که با این سرور بسته‌بندی شده‌اند."
-backendLabel = "مجوزهای Backend"
-backendTitle = "مجوزهای شخص ثالث Backend"
-empty = "هیچ وابستگی‌ای یافت نشد."
-frontendDescription = "مجوزهای وابستگی‌های frontend که در build انتشار بسته‌بندی شده‌اند."
-frontendLabel = "مجوزهای Frontend"
-frontendTitle = "مجوزهای شخص ثالث Frontend"
-license = "مجوز"
-listDescription = "فهرست مستقیماً در UI از بسته انتشار یا endpoint مربوط به backend نمایش داده می‌شود."
-listTitle = "وابستگی‌های بسته‌بندی‌شده"
-loadError = "بارگیری مجوزهای شخص ثالث ناموفق بود"
-module = "ماژول"
-version = "نسخه"
-
 [settings.preferences]
 title = "ترجیحات"
 

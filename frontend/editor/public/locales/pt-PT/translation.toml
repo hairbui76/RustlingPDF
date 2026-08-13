@@ -4184,29 +4184,6 @@ title = "Atalhos de teclado"
 mac = "Inclua ⌘ (Command), ⌥ (Option) ou outro modificador no seu atalho."
 windows = "Inclua Ctrl, Alt ou outro modificador no seu atalho."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licenças das dependências de backend incluídas neste servidor."
-backendLabel = "Licenças de backend"
-backendTitle = "Licenças de terceiros de backend"
-empty = "Nenhuma dependência encontrada."
-frontendDescription = "Licenças das dependências de frontend incluídas na build de lançamento."
-frontendLabel = "Licenças de frontend"
-frontendTitle = "Licenças de terceiros de frontend"
-license = "Licença"
-listDescription = "A lista é apresentada diretamente na UI a partir do pacote de lançamento ou do endpoint de backend."
-listTitle = "Dependências incluídas"
-loadError = "Falha ao carregar licenças de terceiros"
-module = "Módulo"
-version = "Versão"
-
 [settings.preferences]
 title = "Preferências"
 

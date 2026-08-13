@@ -4184,29 +4184,6 @@ title = "鍵盤快速鍵"
 mac = "請在快速鍵中包含 ⌘（Command）、⌥（Option）或其他修飾鍵。"
 windows = "請在快速鍵中包含 Ctrl、Alt 或其他修飾鍵。"
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "與此伺服器一起封裝的後端相依套件授權。"
-backendLabel = "後端授權"
-backendTitle = "後端第三方授權"
-empty = "找不到相依套件。"
-frontendDescription = "封裝到 release build 中的前端相依套件授權。"
-frontendLabel = "前端授權"
-frontendTitle = "前端第三方授權"
-license = "授權"
-listDescription = "清單會直接從 release bundle 或後端 endpoint 顯示在 UI 中。"
-listTitle = "已封裝相依套件"
-loadError = "無法載入第三方授權"
-module = "模組"
-version = "版本"
-
 [settings.preferences]
 title = "偏好設定"
 

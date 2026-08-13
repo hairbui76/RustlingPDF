@@ -4184,29 +4184,6 @@ title = "कीबोर्ड शॉर्टकट्स"
 mac = "अपने शॉर्टकट में ⌘ (Command), ⌥ (Option), या कोई अन्य मॉडिफ़ायर शामिल करें।"
 windows = "अपने शॉर्टकट में Ctrl, Alt, या कोई अन्य मॉडिफ़ायर शामिल करें।"
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "इस server के साथ bundled backend dependencies के licenses।"
-backendLabel = "Backend Licenses"
-backendTitle = "Backend 3rd Party Licenses"
-empty = "कोई dependencies नहीं मिली।"
-frontendDescription = "Release build में bundled frontend dependencies के licenses।"
-frontendLabel = "Frontend Licenses"
-frontendTitle = "Frontend 3rd Party Licenses"
-license = "License"
-listDescription = "सूची release bundle या backend endpoint से सीधे UI में दिखाई जाती है।"
-listTitle = "Bundled dependencies"
-loadError = "Third-party licenses लोड करने में विफल"
-module = "Module"
-version = "Version"
-
 [settings.preferences]
 title = "प्राथमिकताएँ"
 

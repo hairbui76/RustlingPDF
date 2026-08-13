@@ -4184,29 +4184,6 @@ title = "Συντομεύσεις πληκτρολογίου"
 mac = "Συμπεριλάβετε το ⌘ (Command), ⌥ (Option), ή άλλο τροποποιητή στη συντόμευσή σας."
 windows = "Συμπεριλάβετε το Ctrl, Alt, ή άλλο τροποποιητή στη συντόμευσή σας."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Άδειες για backend εξαρτήσεις που περιλαμβάνονται σε αυτόν τον server."
-backendLabel = "Backend άδειες"
-backendTitle = "Backend άδειες τρίτων"
-empty = "Δεν βρέθηκαν εξαρτήσεις."
-frontendDescription = "Άδειες για frontend εξαρτήσεις που περιλαμβάνονται στο release build."
-frontendLabel = "Frontend άδειες"
-frontendTitle = "Frontend άδειες τρίτων"
-license = "Άδεια"
-listDescription = "Η λίστα εμφανίζεται απευθείας στο UI από το release bundle ή το backend endpoint."
-listTitle = "Πακέτα εξαρτήσεων"
-loadError = "Αποτυχία φόρτωσης αδειών τρίτων"
-module = "Module"
-version = "Έκδοση"
-
 [settings.preferences]
 title = "Προτιμήσεις"
 

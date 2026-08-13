@@ -4184,29 +4184,6 @@ title = "Scurtături de tastatură"
 mac = "Includeți ⌘ (Command), ⌥ (Option) sau un alt modificator în scurtătură."
 windows = "Includeți Ctrl, Alt sau un alt modificator în scurtătură."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licențe pentru dependențele backend incluse cu acest server."
-backendLabel = "Licențe backend"
-backendTitle = "Licențe backend 3rd Party"
-empty = "Nu s-au găsit dependențe."
-frontendDescription = "Licențe pentru dependențele frontend incluse în build-ul de release."
-frontendLabel = "Licențe frontend"
-frontendTitle = "Licențe frontend 3rd Party"
-license = "Licență"
-listDescription = "Lista este afișată direct în UI din pachetul de release sau endpoint-ul backend."
-listTitle = "Dependențe incluse"
-loadError = "Licențele third-party nu au putut fi încărcate"
-module = "Modul"
-version = "Versiune"
-
 [settings.preferences]
 title = "Preferințe"
 

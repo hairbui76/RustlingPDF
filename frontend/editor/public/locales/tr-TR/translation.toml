@@ -4184,29 +4184,6 @@ title = "Klavye Kısayolları"
 mac = "Kısayolunuza ⌘ (Command), ⌥ (Option) veya başka bir değiştirici ekleyin."
 windows = "Kısayolunuza Ctrl, Alt veya başka bir değiştirici ekleyin."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Bu sunucuyla paketlenen backend bağımlılıkları için lisanslar."
-backendLabel = "Backend Lisansları"
-backendTitle = "Backend 3. Taraf Lisansları"
-empty = "Bağımlılık bulunamadı."
-frontendDescription = "Sürüm derlemesine paketlenen frontend bağımlılıkları için lisanslar."
-frontendLabel = "Frontend Lisansları"
-frontendTitle = "Frontend 3. Taraf Lisansları"
-license = "Lisans"
-listDescription = "Liste, sürüm paketinden veya backend endpoint'inden doğrudan UI içinde gösterilir."
-listTitle = "Paketlenmiş bağımlılıklar"
-loadError = "Üçüncü taraf lisansları yüklenemedi"
-module = "Modül"
-version = "Sürüm"
-
 [settings.preferences]
 title = "Tercihler"
 

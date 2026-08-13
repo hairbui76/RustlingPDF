@@ -4184,29 +4184,6 @@ title = "Billentyűparancsok"
 mac = "A billentyűparancs tartalmazzon ⌘ (Command), ⌥ (Option) vagy más módosítóbillentyűt."
 windows = "A billentyűparancs tartalmazzon Ctrl, Alt vagy más módosítóbillentyűt."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "A szerverrel csomagolt backend függőségek licencei."
-backendLabel = "Backend licencek"
-backendTitle = "Backend harmadik féltől származó licencek"
-empty = "Nem találhatók függőségek."
-frontendDescription = "A release buildbe csomagolt frontend függőségek licencei."
-frontendLabel = "Frontend licencek"
-frontendTitle = "Frontend harmadik féltől származó licencek"
-license = "Licenc"
-listDescription = "A lista közvetlenül az UI-ban jelenik meg a release bundle-ből vagy a backend endpointból."
-listTitle = "Csomagolt függőségek"
-loadError = "Nem sikerült betölteni a harmadik féltől származó licenceket"
-module = "Modul"
-version = "Verzió"
-
 [settings.preferences]
 title = "Beállítások"
 

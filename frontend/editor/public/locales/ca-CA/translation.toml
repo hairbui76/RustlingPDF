@@ -4184,29 +4184,6 @@ title = "Dreceres de teclat"
 mac = "Inclou ⌘ (Command), ⌥ (Option) o un altre modificador a la drecera."
 windows = "Inclou Ctrl, Alt o un altre modificador a la drecera."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Llicències de les dependències de backend incloses amb aquest servidor."
-backendLabel = "Llicències de backend"
-backendTitle = "Llicències de tercers del backend"
-empty = "No s'han trobat dependències."
-frontendDescription = "Llicències de les dependències de frontend incloses a la build de publicació."
-frontendLabel = "Llicències de frontend"
-frontendTitle = "Llicències de tercers del frontend"
-license = "Llicència"
-listDescription = "La llista es mostra directament a la UI des del paquet de publicació o l'endpoint de backend."
-listTitle = "Dependències incloses"
-loadError = "No s'han pogut carregar les llicències de tercers"
-module = "Mòdul"
-version = "Versió"
-
 [settings.preferences]
 title = "Preferències"
 

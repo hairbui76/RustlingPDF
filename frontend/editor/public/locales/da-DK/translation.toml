@@ -4184,29 +4184,6 @@ title = "Tastaturgenveje"
 mac = "Medtag ⌘ (Command), ⌥ (Option) eller en anden modifikatortast i din genvej."
 windows = "Medtag Ctrl, Alt eller en anden modifikatortast i din genvej."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licenser for backend-afhængigheder, der er inkluderet med denne server."
-backendLabel = "Backend-licenser"
-backendTitle = "Backend-licenser fra 3. parter"
-empty = "Ingen afhængigheder fundet."
-frontendDescription = "Licenser for frontend-afhængigheder, der er inkluderet i release-buildet."
-frontendLabel = "Frontend-licenser"
-frontendTitle = "Frontend-licenser fra 3. parter"
-license = "Licens"
-listDescription = "Listen vises direkte i UI'et fra release-bundlet eller backend-endpointet."
-listTitle = "Bundled afhængigheder"
-loadError = "Kunne ikke indlæse tredjepartslicenser"
-module = "Modul"
-version = "Version"
-
 [settings.preferences]
 title = "Præferencer"
 

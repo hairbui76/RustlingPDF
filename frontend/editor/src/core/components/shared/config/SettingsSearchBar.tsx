@@ -29,9 +29,6 @@ const SETTINGS_SEARCH_TRANSLATION_PREFIXES: Partial<Record<string, string[]>> =
     general: ["settings.general"],
     hotkeys: ["settings.hotkeys"],
     help: ["settings.help"],
-    legal: ["settings.legal"],
-    backendThirdPartyLicenses: ["settings.licenses"],
-    frontendThirdPartyLicenses: ["settings.licenses"],
   };
 
 const getTranslationPrefixesForNavKey = (key: string): string[] => {

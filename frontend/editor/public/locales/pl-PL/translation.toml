@@ -4184,29 +4184,6 @@ title = "Skróty klawiaturowe"
 mac = "Dodaj ⌘ (Command), ⌥ (Option) lub inny modyfikator do skrótu."
 windows = "Dodaj Ctrl, Alt lub inny modyfikator do skrótu."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licencje zależności Backend dołączonych do tego serwera."
-backendLabel = "Licencje Backend"
-backendTitle = "Licencje zewnętrzne Backend"
-empty = "Nie znaleziono zależności."
-frontendDescription = "Licencje zależności Frontend dołączonych do kompilacji wydania."
-frontendLabel = "Licencje Frontend"
-frontendTitle = "Licencje zewnętrzne Frontend"
-license = "Licencja"
-listDescription = "Lista jest wyświetlana bezpośrednio w UI z pakietu wydania lub endpointu Backend."
-listTitle = "Dołączone zależności"
-loadError = "Nie udało się załadować licencji stron trzecich"
-module = "Moduł"
-version = "Wersja"
-
 [settings.preferences]
 title = "Preferencje"
 

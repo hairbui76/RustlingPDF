@@ -4214,29 +4214,6 @@ title = "Keyboard Shortcuts"
 mac = "Include ⌘ (Command), ⌥ (Option), or another modifier in your shortcut."
 windows = "Include Ctrl, Alt, or another modifier in your shortcut."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Licences for backend dependencies bundled with this server."
-backendLabel = "Backend Licences"
-backendTitle = "Backend third-party licences"
-empty = "No dependencies found."
-frontendDescription = "Licences for frontend dependencies bundled into the release build."
-frontendLabel = "Frontend Licences"
-frontendTitle = "Frontend third-party licences"
-license = "Licence"
-listDescription = "The list is shown directly in the UI from the release bundle or backend endpoint."
-listTitle = "Bundled dependencies"
-loadError = "Failed to load third-party licences"
-module = "Module"
-version = "Version"
-
 [settings.preferences]
 title = "Preferences"
 

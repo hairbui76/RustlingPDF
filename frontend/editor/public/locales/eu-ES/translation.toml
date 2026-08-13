@@ -4184,29 +4184,6 @@ title = "Laster-teklak"
 mac = "Sartu ⌘ (Command), ⌥ (Option) edo beste aldatzaile bat zure laster-teklean."
 windows = "Sartu Ctrl, Alt edo beste aldatzaile bat zure laster-teklean."
 
-[settings.legal]
-label = "Legal"
-title = "Legal"
-
-[settings.legal.documents]
-description = "Policies and legal information for this service."
-title = "Legal Documents"
-
-[settings.licenses]
-backendDescription = "Zerbitzari honekin batera bildutako backend mendekotasunen lizentziak."
-backendLabel = "Backend lizentziak"
-backendTitle = "Backend-eko 3rd Party lizentziak"
-empty = "Ez da mendekotasunik aurkitu."
-frontendDescription = "Release build-ean bildutako frontend mendekotasunen lizentziak."
-frontendLabel = "Frontend lizentziak"
-frontendTitle = "Frontend-eko 3rd Party lizentziak"
-license = "Lizentzia"
-listDescription = "Zerrenda zuzenean UIan erakusten da release bundle-tik edo backend endpoint-etik."
-listTitle = "Bildutako mendekotasunak"
-loadError = "Ezin izan dira hirugarrenen lizentziak kargatu"
-module = "Modulua"
-version = "Bertsioa"
-
 [settings.preferences]
 title = "Hobespenak"
 
