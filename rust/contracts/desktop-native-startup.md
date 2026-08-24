@@ -268,6 +268,21 @@ What each install does with the manifest:
   is then verified against the minisign public key baked into
   `tauri.conf.json` before it is installed (`tauri-plugin-updater`), the
   installer runs, and the app relaunches.
+
+**One click is worth two attempts.** A failed download-and-install is retried
+once, with a freshly checked handle, before the banner reports anything;
+`desktopUpdater.ts` pins this. It exists because a first click failing and an
+otherwise identical second click succeeding was reproducible in the field on
+Windows — the signature of a transient fault (a cold CDN edge or proxy on the
+~50 MB download, an antivirus scanner holding the freshly written installer,
+an unresolvable resource id) rather than a bad release. Retrying cannot install
+twice: on Windows the plugin calls `ShellExecute` and then `process::exit(0)`,
+so an attempt that reached the installer never returns to the retry loop, and
+reaching it proves nothing was installed. The relaunch sits outside the loop,
+so a relaunch failure never re-enters the download. When the second attempt
+also fails, the banner shows the underlying error text rather than a bare
+"could not be installed", because a packaged app's user has no devtools
+console to consult.
 - **Linux deb/rpm**: the plugin rejects in-place updates there;
   `desktopUpdater.ts` swallows that rejection silently by design — package
   installs update through the package manager and must never see an error

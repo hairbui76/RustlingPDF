@@ -37,6 +37,42 @@ export type DesktopUpdatePhase = "downloading" | "installing";
 let pendingUpdate: import("@tauri-apps/plugin-updater").Update | null = null;
 
 /**
+ * Attempts one click of "Update and restart" is worth.
+ *
+ * The first attempt failing and the second succeeding was reproducible in the
+ * field on Windows, which is the signature of a transient fault rather than a
+ * broken release: the ~50 MB download crossing a cold CDN edge or a proxy, an
+ * antivirus scanner holding the freshly written installer in the temp
+ * directory, or a handle whose Rust-side resource no longer resolves. None of
+ * those are worth showing a user an error for when simply doing it again
+ * works, and none of them can be told apart from here.
+ *
+ * Retrying cannot install twice: on Windows the plugin calls ShellExecute and
+ * then `process::exit(0)`, so a first attempt that reached the installer never
+ * returns here at all. Reaching the catch block proves nothing was installed.
+ */
+const INSTALL_ATTEMPTS = 2;
+
+/**
+ * The handle to install with, re-checking when there is none.
+ *
+ * A failed attempt drops its handle rather than reusing it, because one
+ * failure mode is the handle itself: the plugin's Update owns a resource id in
+ * the webview's resource table, and a spent or unresolvable id fails the same
+ * way every time it is retried. Only a fresh check produces a new one.
+ */
+async function resolveUpdateHandle(): Promise<
+  import("@tauri-apps/plugin-updater").Update | null
+> {
+  if (pendingUpdate) {
+    return pendingUpdate;
+  }
+  const { check } = await import("@tauri-apps/plugin-updater");
+  pendingUpdate = await check();
+  return pendingUpdate;
+}
+
+/**
  * Ask the release manifest whether a newer version exists.
  *
  * Returns null on web, when already current, when this install cannot update
@@ -66,27 +102,58 @@ export async function checkForDesktopUpdate(): Promise<DesktopUpdateInfo | null>
 
 /**
  * Download, verify and install the update found by the last check, then
- * relaunch. Rejects if there is no pending update or the install fails —
- * callers surface that to the user, unlike the silent check.
+ * relaunch. Retries once before rejecting; callers surface the final failure
+ * to the user, unlike the silent check.
  *
- * On Windows the MSI takes over and exits the process itself, so the
+ * On Windows the installer takes over and exits the process itself, so the
  * relaunch call below is never reached there; on Linux it is what restarts
  * the replaced AppImage.
  */
 export async function installDesktopUpdate(
   onPhase?: (phase: DesktopUpdatePhase) => void,
 ): Promise<void> {
-  if (!pendingUpdate) {
-    throw new Error("No pending desktop update to install");
-  }
-  const update = pendingUpdate;
-  onPhase?.("downloading");
-  await update.downloadAndInstall((event) => {
-    if (event.event === "Finished") {
-      onPhase?.("installing");
+  let lastError: unknown;
+  let installed = false;
+
+  for (
+    let attempt = 1;
+    attempt <= INSTALL_ATTEMPTS && !installed;
+    attempt += 1
+  ) {
+    const update = await resolveUpdateHandle();
+    if (!update) {
+      // A retry whose re-check finds nothing reports what actually went wrong
+      // on the attempt before it, not the emptiness that followed.
+      throw lastError ?? new Error("No pending desktop update to install");
     }
-  });
-  pendingUpdate = null;
+
+    onPhase?.("downloading");
+    try {
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Finished") {
+          onPhase?.("installing");
+        }
+      });
+      pendingUpdate = null;
+      installed = true;
+    } catch (error) {
+      lastError = error;
+      pendingUpdate = null;
+      console.warn(
+        `[desktopUpdater] Install attempt ${attempt}/${INSTALL_ATTEMPTS} failed:`,
+        error,
+      );
+    }
+  }
+
+  if (!installed) {
+    throw lastError;
+  }
+
+  // Outside the retry loop on purpose: reaching here means the update is
+  // already applied, so a relaunch failure must never re-enter the download.
+  // Only platforms where the installer leaves this process alive get this far
+  // (Linux AppImage); on Windows the process is gone by now.
   const { relaunch } = await import("@tauri-apps/plugin-process");
   await relaunch();
 }

@@ -32,8 +32,9 @@ export default function DesktopUpdateBanner() {
   const { preferences } = usePreferences();
   const [update, setUpdate] = useState<DesktopUpdateInfo | null>(null);
   const [phase, setPhase] = useState<DesktopUpdatePhase | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const failed = failure !== null;
 
   const checkEnabled =
     isDesktopRuntime() && preferences.checkForUpdatesOnStartup;
@@ -63,11 +64,14 @@ export default function DesktopUpdateBanner() {
   const busy = phase !== null && !failed;
 
   const install = () => {
-    setFailed(false);
+    setFailure(null);
     setPhase("downloading");
-    installDesktopUpdate(setPhase).catch((error) => {
+    installDesktopUpdate(setPhase).catch((error: unknown) => {
       console.error("[DesktopUpdateBanner] Install failed:", error);
-      setFailed(true);
+      // Both attempts are spent by the time this runs, so the reason is worth
+      // showing rather than hiding behind a devtools console the user of a
+      // packaged app has no reason to open.
+      setFailure(error instanceof Error ? error.message : String(error));
       setPhase(null);
     });
   };
@@ -82,12 +86,19 @@ export default function DesktopUpdateBanner() {
       bg="var(--mantine-color-blue-light)"
       data-testid="desktop-update-banner"
     >
-      <Text size="sm" style={{ minWidth: 0 }} truncate>
-        {failed
-          ? t(
+      <Text
+        size="sm"
+        style={{ minWidth: 0 }}
+        truncate
+        // The line truncates on a narrow window, so the reason stays reachable
+        // on hover instead of being cut off.
+        title={failure ?? undefined}
+      >
+        {failure !== null
+          ? `${t(
               "desktopUpdate.failed",
               "The update could not be installed. Try again, or download it from the releases page.",
-            )
+            )} (${failure})`
           : phase === "installing"
             ? t("desktopUpdate.installing", "Installing update…")
             : phase === "downloading"
