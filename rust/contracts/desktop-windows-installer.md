@@ -9,8 +9,11 @@ app's own startup behaviour in `desktop-native-startup.md`.
 
 `bundle.targets` is `["deb","rpm","appimage","dmg","app","msi","nsis"]`. Both
 Windows installers ship on every release: the `nsis` target's `*-setup.exe`
-(LZMA, `installMode: perMachine`; measured 52.7 MiB vs the MSI's 58.6 MiB at
-v0.0.7 content) is the smaller general-public download, while the MSI remains
+(solid LZMA with a 64 MiB dictionary since 0.1.6 — the forked
+`windows/nsis/installer.nsi` sets `SetCompressorDictSize 64`, so installing
+needs ~64 MiB of RAM for decompression; `installMode: perMachine`; measured
+52.7 MiB vs the MSI's 58.6 MiB at v0.0.7 content, before the dictionary
+change) is the smaller general-public download, while the MSI remains
 the artifact this contract specifies and the one for msiexec/GPO deployment.
 The two do not cross-grade: the updater manifest keys entries per installer
 type (`windows-x86_64-msi` / `windows-x86_64-nsis`), so an install only ever

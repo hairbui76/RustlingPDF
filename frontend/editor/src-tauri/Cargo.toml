@@ -72,8 +72,9 @@ windows = { version = "0.62", features = [
 # symbols retained; stripping alone accounts for 6.3 MB of that.
 #
 # Same settings and the same reasoning as the sidecar's profile: read
-# rust/Cargo.toml for the measurements and for why `panic` stays "unwind".
-lto = "fat"
+# rust/Cargo.toml for the measurements, for why LTO is thin rather than fat,
+# and for why `panic` stays "unwind".
+lto = "thin"
 codegen-units = 1
 strip = "symbols"
 panic = "unwind"

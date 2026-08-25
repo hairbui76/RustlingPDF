@@ -53,16 +53,18 @@ umya-spreadsheet = { git = "https://github.com/developer0hye/umya-spreadsheet.gi
 # 33 MB off the raw binary is 3.4 MB off a compressed installer, overstating
 # the benefit roughly eightfold.
 #
-# Fat is what ships, chosen by the maintainer with the table above in hand.
-# It buys 0.2 MB of installer over thin for 6m40s more build time on every leg
-# of every release; thin would capture 3.2 of the 3.4 MB for a third of that
-# time. Both were built and smoke-tested — swapping is one word.
+# Thin is what ships (since 0.1.6). Fat shipped from 0.0.5 to 0.1.5; it bought
+# 0.2 MB of installer over thin for 6m40s more build time on every leg of every
+# release, and the 2026-08-25 audit (docs/plans/active/build-speed-and-app-size.md)
+# measured the fat link alone at 511s on a warm build — the one stage no cache
+# can shorten. Thin captures 3.2 of fat's 3.4 MB for a third of the time. Both
+# were built and smoke-tested — swapping back is one word.
 #
 # panic stays "unwind" on purpose. Aborting would drop ~7.8 MB of unwind tables,
 # but the HTTP layer isolates a panicking request handler by unwinding just that
 # task; turning it into a process abort trades installer bytes for taking the
 # whole service down on one malformed document.
-lto = "fat"
+lto = "thin"
 codegen-units = 1
 strip = "symbols"
 panic = "unwind"

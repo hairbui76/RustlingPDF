@@ -1,16 +1,18 @@
 ; Forked from tauri @tauri-apps/cli-v2.11.4 (tauri-bundler 2.9.4):
 ; crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi
 ;
-; One functional change, marked "RustlingPDF fork note" below: the finish
-; page's "Create desktop shortcut" checkbox starts UNCHECKED
-; (MUI_FINISHPAGE_SHOWREADME_NOTCHECKED), matching the MSI's opt-in
-; INSTALLDESKTOPSHORTCUT default. Everything else is byte-identical to
-; upstream, on purpose — this file replaces the template embedded in the
-; CLI, so any unmarked divergence would silently change what the
-; installer does.
+; Two functional changes, each marked "RustlingPDF fork note" below:
+;   1. the finish page's "Create desktop shortcut" checkbox starts UNCHECKED
+;      (MUI_FINISHPAGE_SHOWREADME_NOTCHECKED), matching the MSI's opt-in
+;      INSTALLDESKTOPSHORTCUT default;
+;   2. SetCompressorDictSize 64, so the LZMA dictionary spans both Rust
+;      executables in the solid stream.
+; Everything else is byte-identical to upstream, on purpose — this file
+; replaces the template embedded in the CLI, so any unmarked divergence
+; would silently change what the installer does.
 ;
 ; On a @tauri-apps/cli upgrade, re-fetch the template at the new tag,
-; re-apply the marked change, and let the desktop dry-run prove the
+; re-apply the marked changes, and let the desktop dry-run prove the
 ; installer still builds. Deleting this file and the nsis.template line
 ; in tauri.conf.json restores stock behaviour.
 
@@ -27,6 +29,13 @@ ManifestDPIAwareness PerMonitorV2
 !else
   ; Set the compression algorithm. We default to LZMA.
   SetCompressor /SOLID "{{compression}}"
+  ; RustlingPDF fork note: NSIS's default LZMA dictionary is 8 MiB. The two Rust executables in this
+  ; installer (the app shell and the processing sidecar) share a large amount
+  ; of identical code — same std, same tokio, same serde — but sit far more
+  ; than 8 MiB apart in the solid stream, so the default dictionary never sees
+  ; the repeat. 64 MiB spans both. Costs ~64 MiB of RAM at install time on the
+  ; user's machine, which every supported Windows has.
+  SetCompressorDictSize 64
 !endif
 
 ; Keep above !include to stay ahead of any plugin command

@@ -28,4 +28,4 @@ decision into `docs/decisions/`; keep task-local choices in the plan.
 
 ## Active Plans
 
-No active execution plans are currently indexed.
+- [Build speed and app size](active/build-speed-and-app-size.md) — measured audit of where release time and installer bytes go, with a batched plan.

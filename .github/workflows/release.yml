@@ -26,9 +26,13 @@ name: Release
 #
 # Caching: the Dockerfile's BuildKit cache mounts (cargo registry + target)
 # do not persist on hosted runners, so both build steps share a
-# `type=gha,scope=release` layer cache; mode=max also exports the
-# intermediate stages (rust-build, frontend-build, pdfium) that the two final
-# targets have in common.
+# `type=gha,scope=release` layer cache. mode=min exports only the final
+# image layers. mode=max used to export the intermediate stages too, and
+# those blobs (~3.3 GB, regenerated every release because the rust-build
+# stage changes with every commit) were what pushed the repository over the
+# 10 GB Actions cache limit and got the desktop Rust caches evicted — turning
+# ~27-minute desktop legs into ~50-minute cold builds. The intermediate stages
+# almost never hit anyway: a release is a new commit, so rust-build is a miss.
 #
 # Desktop bundles: publish-desktop calls the reusable desktop-build workflow
 # (linux deb, windows MSI + NSIS setup.exe; AppImage and macOS are paused —
@@ -174,7 +178,7 @@ jobs:
             CREATED=${{ steps.meta.outputs.created }}
             SOURCE=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha,scope=release
-          cache-to: type=gha,mode=max,scope=release
+          cache-to: type=gha,mode=min,scope=release
 
       # Shares the rust-build stage with the runtime build above: the buildx
       # builder's local state plus the scope=release gha cache make this an
@@ -195,7 +199,7 @@ jobs:
             CREATED=${{ steps.meta.outputs.created }}
             SOURCE=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha,scope=release
-          cache-to: type=gha,mode=max,scope=release
+          cache-to: type=gha,mode=min,scope=release
 
   # The desktop bundle matrix lives in the reusable workflow (also used by
   # the desktop-release-dryrun proof workflow); its legs run in parallel

@@ -38,6 +38,12 @@ on the *user's* machine during install — 64 MiB is the recommended setting;
 192 MiB can hurt low-end machines. Reversible by deleting the fork.
 Result: ~41.7 MiB.
 
+**Taken in 0.1.6** at 64 MiB. The `installer.nsi` fork already existed by
+then (for the finish-page checkbox), so the maintenance cost this option was
+priced against had already been paid; the dictionary line is its second
+marked change. See `docs/plans/active/build-speed-and-app-size.md` for the
+measured result.
+
 ### Option B — Typst embedded-font subset: −1 to −2.9 MB, tiered fidelity loss
 
 The Office engine embeds 17 fonts (8.76 MB raw / 3.67 MB compressed) so every

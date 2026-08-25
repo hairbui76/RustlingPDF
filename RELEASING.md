@@ -54,6 +54,17 @@ For a packaging proof without publishing, dispatch
 `.github/workflows/desktop-release-dryrun.yml`. Use `linux-only` for a fast
 smoke run or `all` for the complete desktop matrix.
 
+Dispatch it only when the release touches the packaging surface: anything
+under `frontend/editor/src-tauri/`, `.github/workflows/desktop-*.yml`,
+`.github/workflows/release.yml`, `rust/scripts/desktop-tools/`, or the
+`install-pdfium` / `install-desktop-tools` scripts. That is where
+bundler-level breakage (unsigned bundles, a missing `plugins.updater` block, a
+staging layout change) comes from, and it is what the dry-run exists to catch.
+A release whose diff is confined to `rust/crates/`, `frontend/editor/src/`,
+locales, or docs gains nothing from it: the release workflow builds and signs
+from scratch anyway, `verify-version` still gates the tag, and the dry-run
+would only add a second full desktop matrix (~27 minutes) to the release.
+
 ## Publish
 
 After the release commit is merged:
