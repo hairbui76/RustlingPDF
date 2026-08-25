@@ -698,15 +698,16 @@
   color: inherit;
 }
 
-/* Checkbox + collapse button on one line. The button keeps the whole
-   remaining width so the click target for expanding stays as large as it was
-   before the checkbox existed. */
+/* Collapse button + checkbox on one line, checkbox trailing. The button keeps
+   the whole remaining width so the click target for expanding stays as large
+   as it was before the checkbox existed. */
 .file-sidebar-collection-header-row {
   display: flex;
   align-items: center;
   gap: 4px;
   width: 100%;
   min-width: 0;
+  padding-right: 4px;
 }
 
 .file-sidebar-collection-header-row .file-sidebar-collection-header {
@@ -780,13 +781,15 @@
   opacity: 0.7;
 }
 
-/* Rows inside a collection are indented and share a hairline rail.
-   Without this the collection's files and the unfiled ones below them are
-   visually identical siblings, so the group reads as containing everything
-   after its header — the count says 1 while three rows sit under it. */
-.file-sidebar-collection > *:not(.file-sidebar-collection-header) {
+/* Rows inside a collection are indented so the collection's files and the
+   unfiled ones below them do not read as identical siblings — without some
+   offset the group looks like it contains everything after its header, and
+   the count says 1 while three rows sit under it. The indent carries that on
+   its own; the hairline rail that used to sit here as well was one line too
+   many in a rail this narrow. The header row is excluded: indenting the
+   header would push the whole collection off its own left edge. */
+.file-sidebar-collection > *:not(.file-sidebar-collection-header-row) {
   margin-left: 0.75rem;
-  border-left: 1px solid var(--c-border-subtle);
   padding-left: 0.25rem;
 }
 

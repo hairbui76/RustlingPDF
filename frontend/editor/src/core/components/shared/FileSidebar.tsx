@@ -1115,28 +1115,6 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                               invalid markup and the collapse toggle would
                               swallow its clicks. */}
                           <div className="file-sidebar-collection-header-row">
-                            <Checkbox
-                              size="xs"
-                              className="file-sidebar-collection-checkbox"
-                              checked={allOpened}
-                              indeterminate={!allOpened && openedCount > 0}
-                              onChange={() => {
-                                void handleCollectionToggle(stubs);
-                              }}
-                              aria-label={
-                                allOpened
-                                  ? t("fileSidebar.deselectCollection", {
-                                      defaultValue:
-                                        "Remove all files in {{name}} from the workspace",
-                                      name: collection.name,
-                                    })
-                                  : t("fileSidebar.selectCollection", {
-                                      defaultValue:
-                                        "Add all files in {{name}} to the workspace",
-                                      name: collection.name,
-                                    })
-                              }
-                            />
                             <Button
                               type="button"
                               variant="quiet"
@@ -1160,6 +1138,28 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                                 {stubs.length}
                               </span>
                             </Button>
+                            <Checkbox
+                              size="xs"
+                              className="file-sidebar-collection-checkbox"
+                              checked={allOpened}
+                              indeterminate={!allOpened && openedCount > 0}
+                              onChange={() => {
+                                void handleCollectionToggle(stubs);
+                              }}
+                              aria-label={
+                                allOpened
+                                  ? t("fileSidebar.deselectCollection", {
+                                      defaultValue:
+                                        "Remove all files in {{name}} from the workspace",
+                                      name: collection.name,
+                                    })
+                                  : t("fileSidebar.selectCollection", {
+                                      defaultValue:
+                                        "Add all files in {{name}} to the workspace",
+                                      name: collection.name,
+                                    })
+                              }
+                            />
                           </div>
                           {isOpen && stubs.map(renderFileRow)}
                         </div>
