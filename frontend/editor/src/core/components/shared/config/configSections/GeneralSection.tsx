@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  Group,
   Paper,
   Stack,
   Switch,
@@ -8,6 +9,9 @@ import {
   NumberInput,
   Select,
 } from "@mantine/core";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { ActionIcon } from "@app/ui/ActionIcon";
+import { Button } from "@app/ui/Button";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
 import { useTranslation } from "react-i18next";
 import { usePreferences } from "@app/contexts/PreferencesContext";
@@ -23,6 +27,7 @@ import {
 import { Z_INDEX_OVER_CONFIG_MODAL } from "@app/styles/zIndex";
 import { useFrontendVersionInfo } from "@app/hooks/useFrontendVersionInfo";
 import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
+import { useDesktopUpdate } from "@app/hooks/useDesktopUpdate";
 
 const DEFAULT_AUTO_UNZIP_FILE_LIMIT = 4;
 
@@ -44,6 +49,9 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
     config?.appVersion,
   );
   const frontendVersionLabel = appVersion ?? t("common.loading", "Loading..."); // null = loading, shown only when appVersion !== undefined
+  // Manual update check. Shares its state machine with the startup banner, so
+  // an update found here installs through exactly the same path.
+  const desktopUpdate = useDesktopUpdate();
 
   // Sync local state with preference changes
   useEffect(() => {
@@ -77,22 +85,52 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
         appVersion !== undefined) && (
         <Paper withBorder p="md" radius="md">
           <Stack gap="md">
-            <div>
-              <Text fw={600} size="sm">
-                {t("settings.general.version.title", "Version")}
-              </Text>
-              <Text size="xs" c="dimmed" mt={4}>
-                {isDesktopRuntime()
-                  ? t(
-                      "settings.general.version.descriptionDesktop",
-                      "At startup the app asks GitHub once whether a newer version exists and offers it as a banner. Nothing else is ever sent anywhere.",
-                    )
-                  : t(
-                      "settings.general.version.description",
-                      "RustlingPDF does not check for updates. Visit the releases page when you want to see whether a newer version exists.",
+            <Group justify="space-between" align="flex-start" wrap="nowrap">
+              <div style={{ minWidth: 0 }}>
+                <Text fw={600} size="sm">
+                  {t("settings.general.version.title", "Version")}
+                </Text>
+                <Text size="xs" c="dimmed" mt={4}>
+                  {isDesktopRuntime()
+                    ? t(
+                        "settings.general.version.descriptionDesktop",
+                        "At startup the app asks GitHub once whether a newer version exists and offers it as a banner. Nothing else is ever sent anywhere.",
+                      )
+                    : t(
+                        "settings.general.version.description",
+                        "RustlingPDF does not check for updates. Visit the releases page when you want to see whether a newer version exists.",
+                      )}
+                </Text>
+              </div>
+              {/* Check now. The startup check runs once per launch and never on
+                  a timer, so without this the only way to ask again is to
+                  restart the app — and a user who has just turned the startup
+                  check off has no way at all. */}
+              {isDesktopRuntime() && (
+                <Tooltip
+                  label={t(
+                    "settings.general.updates.checkNow",
+                    "Check for updates now",
+                  )}
+                  withinPortal
+                >
+                  <ActionIcon
+                    variant="quiet"
+                    size="sm"
+                    loading={desktopUpdate.status === "checking"}
+                    onClick={() => void desktopUpdate.check()}
+                    disabled={desktopUpdate.busy}
+                    aria-label={t(
+                      "settings.general.updates.checkNow",
+                      "Check for updates now",
                     )}
-              </Text>
-            </div>
+                    data-testid="check-for-updates"
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </Group>
             {isDesktopRuntime() && (
               <div
                 style={{
@@ -125,6 +163,48 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
                   }
                 />
               </div>
+            )}
+            {/* The manual check's answer. Only ever rendered after the user
+                presses the button: an unprompted "you are up to date" line is
+                a claim nobody asked for and nothing refreshes. */}
+            {isDesktopRuntime() && desktopUpdate.status !== "idle" && (
+              <Group gap="sm" wrap="nowrap" align="center">
+                <Text size="sm" c="dimmed" style={{ minWidth: 0, flex: 1 }}>
+                  {desktopUpdate.failure !== null
+                    ? `${t(
+                        "desktopUpdate.failed",
+                        "The update could not be installed. Try again, or download it from the releases page.",
+                      )} (${desktopUpdate.failure})`
+                    : desktopUpdate.phase === "installing"
+                      ? t("desktopUpdate.installing", "Installing update…")
+                      : desktopUpdate.phase === "downloading"
+                        ? t("desktopUpdate.downloading", "Downloading update…")
+                        : desktopUpdate.status === "checking"
+                          ? t(
+                              "settings.general.updates.checking",
+                              "Checking for updates…",
+                            )
+                          : desktopUpdate.update
+                            ? t("desktopUpdate.available", {
+                                defaultValue:
+                                  "RustlingPDF {{version}} is available.",
+                                version: desktopUpdate.update.version,
+                              })
+                            : t(
+                                "settings.general.updates.upToDate",
+                                "No newer version was offered. Note that deb and rpm installs update through your package manager, and an offline check cannot tell you anything.",
+                              )}
+                </Text>
+                {desktopUpdate.update && (
+                  <Button
+                    size="sm"
+                    onClick={desktopUpdate.install}
+                    loading={desktopUpdate.busy}
+                  >
+                    {t("desktopUpdate.installButton", "Update and restart")}
+                  </Button>
+                )}
+              </Group>
             )}
             {appVersion !== undefined && (
               <div>

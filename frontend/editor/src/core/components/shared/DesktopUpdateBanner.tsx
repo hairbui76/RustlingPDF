@@ -5,12 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@app/ui/Button";
 import { usePreferences } from "@app/contexts/PreferencesContext";
 import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
-import {
-  checkForDesktopUpdate,
-  installDesktopUpdate,
-  type DesktopUpdateInfo,
-  type DesktopUpdatePhase,
-} from "@app/services/desktop/desktopUpdater";
+import { useDesktopUpdate } from "@app/hooks/useDesktopUpdate";
 
 /**
  * Wait this long after mount before asking GitHub for a newer version. The
@@ -25,16 +20,14 @@ const STARTUP_CHECK_DELAY_MS = 10_000;
  *
  * Renders nothing on web, when up to date, when the user turned the startup
  * check off, when the check fails (offline, deb/rpm installs), and after a
- * dismissal — the check runs once per app start, never on a timer.
+ * dismissal — the check runs once per app start, never on a timer. Settings →
+ * General has the button for asking again on purpose.
  */
 export default function DesktopUpdateBanner() {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
-  const [update, setUpdate] = useState<DesktopUpdateInfo | null>(null);
-  const [phase, setPhase] = useState<DesktopUpdatePhase | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  const { update, phase, failure, busy, check, install } = useDesktopUpdate();
   const [dismissed, setDismissed] = useState(false);
-  const failed = failure !== null;
 
   const checkEnabled =
     isDesktopRuntime() && preferences.checkForUpdatesOnStartup;
@@ -43,38 +36,17 @@ export default function DesktopUpdateBanner() {
     if (!checkEnabled) {
       return;
     }
-    let cancelled = false;
     const timer = setTimeout(() => {
-      void checkForDesktopUpdate().then((info) => {
-        if (!cancelled && info) {
-          setUpdate(info);
-        }
-      });
+      void check();
     }, STARTUP_CHECK_DELAY_MS);
     return () => {
-      cancelled = true;
       clearTimeout(timer);
     };
-  }, [checkEnabled]);
+  }, [checkEnabled, check]);
 
   if (!update || dismissed) {
     return null;
   }
-
-  const busy = phase !== null && !failed;
-
-  const install = () => {
-    setFailure(null);
-    setPhase("downloading");
-    installDesktopUpdate(setPhase).catch((error: unknown) => {
-      console.error("[DesktopUpdateBanner] Install failed:", error);
-      // Both attempts are spent by the time this runs, so the reason is worth
-      // showing rather than hiding behind a devtools console the user of a
-      // packaged app has no reason to open.
-      setFailure(error instanceof Error ? error.message : String(error));
-      setPhase(null);
-    });
-  };
 
   return (
     <Group

@@ -2176,6 +2176,7 @@ workbench = "Bàn làm việc"
 addFiles = "Thêm tệp"
 addingFiles = "Đang thêm tệp…"
 collapse = "Thu gọn thanh bên"
+deselectCollection = "Bỏ tất cả tệp trong {{name}} khỏi workspace"
 dropHint = "Mở tệp để bắt đầu"
 dropToAdd = "Drop files to add"
 expand = "Mở rộng thanh bên"
@@ -2190,6 +2191,7 @@ openFromComputer = "Mở từ máy tính"
 openSettings = "Mở cài đặt"
 search = "Tìm kiếm"
 searchPlaceholder = "Tìm kiếm tệp..."
+selectCollection = "Thêm tất cả tệp trong {{name}} vào workspace"
 
 [fileSidebar.fileItem]
 closeViewer = "Đóng trình xem"
@@ -4160,10 +4162,13 @@ read = "Trình đọc"
 tools = "Công cụ"
 
 [settings.general.updates]
+checkNow = "Kiểm tra cập nhật ngay"
 checkOnStartup = "Kiểm tra cập nhật khi khởi động"
 checkOnStartupDescription = "Tắt tùy chọn này sẽ chặn yêu cầu mạng duy nhất mà ứng dụng tự thực hiện. Khi đó việc cập nhật là thủ công qua trang phát hành."
+checking = "Đang kiểm tra cập nhật…"
 currentBackendVersion = "Current Backend Version"
 currentFrontendVersion = "Current Frontend Version"
+upToDate = "Không có bản mới nào được đề nghị. Lưu ý: bản cài deb và rpm cập nhật qua trình quản lý gói, và khi ngoại tuyến thì việc kiểm tra không cho biết điều gì."
 versionMismatch = "Warning: A mismatch has been detected between the client version and the AppConfig version. Using different versions can lead to compatibility issues, errors, and security risks. Please ensure that server and client are using the same version."
 
 [settings.general.version]

@@ -6,7 +6,14 @@ import React, {
   useEffect,
   forwardRef,
 } from "react";
-import { Loader, Menu, Modal, TextInput, Tooltip } from "@mantine/core";
+import {
+  Checkbox,
+  Loader,
+  Menu,
+  Modal,
+  TextInput,
+  Tooltip,
+} from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
@@ -382,6 +389,76 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
     // Which file is currently open in the viewer - stable ID, never index-derived.
     const viewedWorkbenchId =
       currentWorkbench === "viewer" ? activeFileId : null;
+
+    /**
+     * The collection checkbox: put every file in this collection into the
+     * workspace, or take them all back out.
+     *
+     * Batched rather than looping handleFileClick — that would re-enter the
+     * add mutex and switch workbench once per file, which for a 53-file
+     * collection is 53 renders and a visible stutter. One add call feeds the
+     * existing bulk-add progress row instead.
+     */
+    const handleCollectionToggle = useCallback(
+      async (stubs: RustlingFileStub[]) => {
+        const missing = stubs.filter(
+          (stub) => !workbenchIds.has(stub.id as string),
+        );
+
+        if (missing.length === 0) {
+          const ids = stubs.map((stub) => stub.id as FileId);
+          const remove = () => {
+            void fileActions.removeFiles(ids, false);
+          };
+          // Removing the file the viewer is showing has to go through the
+          // navigation guard, or unsaved changes are dropped silently.
+          if (
+            viewedWorkbenchId &&
+            stubs.some((stub) => (stub.id as string) === viewedWorkbenchId)
+          ) {
+            requestNavigation(remove);
+          } else {
+            remove();
+          }
+          return;
+        }
+
+        const workbenchCount = state.files.ids.length;
+        // Leave the viewer before mutating a non-empty workbench, same as the
+        // single-file path does.
+        if (workbenchCount > 0 && currentWorkbench === "viewer") {
+          navActions.setWorkbench("fileEditor");
+        }
+
+        await fileActions.addRustlingFileStubs(missing);
+
+        if (isMultiTool) {
+          fileActions.setSelectedFiles([
+            ...state.ui.selectedFileIds,
+            ...missing.map((stub) => stub.id),
+          ]);
+        } else {
+          // A collection always lands in the file editor: even a one-file
+          // collection is a "these files" action, and the viewer shows one.
+          navActions.setWorkbench(
+            workbenchCount === 0 && missing.length === 1
+              ? "viewer"
+              : "fileEditor",
+          );
+        }
+      },
+      [
+        workbenchIds,
+        fileActions,
+        navActions,
+        state.files.ids,
+        state.ui.selectedFileIds,
+        currentWorkbench,
+        isMultiTool,
+        viewedWorkbenchId,
+        requestNavigation,
+      ],
+    );
 
     const handleEyeClick = useCallback(
       async (fileId: FileId, _e: React.MouseEvent) => {
@@ -1024,32 +1101,66 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                       // users who never make a collection at all.
                       if (!collection) return stubs.map(renderFileRow);
                       const isOpen = !closedCollections.has(collection.id);
+                      const openedCount = stubs.filter((stub) =>
+                        workbenchIds.has(stub.id as string),
+                      ).length;
+                      const allOpened = openedCount === stubs.length;
                       return (
                         <div
                           key={collection.id}
                           className="file-sidebar-collection"
                         >
-                          <Button
-                            type="button"
-                            variant="quiet"
-                            hover={false}
-                            className="file-sidebar-collection-header"
-                            aria-expanded={isOpen}
-                            onClick={() => toggleCollection(collection.id)}
-                          >
-                            <ChevronRightIcon
-                              className="file-sidebar-collection-chevron"
-                              data-open={isOpen}
-                              sx={{ fontSize: "1rem" }}
+                          {/* The checkbox sits beside the header button, not
+                              inside it: a checkbox nested in a button is
+                              invalid markup and the collapse toggle would
+                              swallow its clicks. */}
+                          <div className="file-sidebar-collection-header-row">
+                            <Checkbox
+                              size="xs"
+                              className="file-sidebar-collection-checkbox"
+                              checked={allOpened}
+                              indeterminate={!allOpened && openedCount > 0}
+                              onChange={() => {
+                                void handleCollectionToggle(stubs);
+                              }}
+                              aria-label={
+                                allOpened
+                                  ? t("fileSidebar.deselectCollection", {
+                                      defaultValue:
+                                        "Remove all files in {{name}} from the workspace",
+                                      name: collection.name,
+                                    })
+                                  : t("fileSidebar.selectCollection", {
+                                      defaultValue:
+                                        "Add all files in {{name}} to the workspace",
+                                      name: collection.name,
+                                    })
+                              }
                             />
-                            <FolderOutlinedIcon sx={{ fontSize: "0.95rem" }} />
-                            <span className="file-sidebar-collection-name">
-                              {collection.name}
-                            </span>
-                            <span className="file-sidebar-collection-count">
-                              {stubs.length}
-                            </span>
-                          </Button>
+                            <Button
+                              type="button"
+                              variant="quiet"
+                              hover={false}
+                              className="file-sidebar-collection-header"
+                              aria-expanded={isOpen}
+                              onClick={() => toggleCollection(collection.id)}
+                            >
+                              <ChevronRightIcon
+                                className="file-sidebar-collection-chevron"
+                                data-open={isOpen}
+                                sx={{ fontSize: "1rem" }}
+                              />
+                              <FolderOutlinedIcon
+                                sx={{ fontSize: "0.95rem" }}
+                              />
+                              <span className="file-sidebar-collection-name">
+                                {collection.name}
+                              </span>
+                              <span className="file-sidebar-collection-count">
+                                {stubs.length}
+                              </span>
+                            </Button>
+                          </div>
                           {isOpen && stubs.map(renderFileRow)}
                         </div>
                       );

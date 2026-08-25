@@ -698,6 +698,37 @@
   color: inherit;
 }
 
+/* Checkbox + collapse button on one line. The button keeps the whole
+   remaining width so the click target for expanding stays as large as it was
+   before the checkbox existed. */
+.file-sidebar-collection-header-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.file-sidebar-collection-header-row .file-sidebar-collection-header {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Hidden until the collection row is hovered or the checkbox itself is
+   focused/checked — an always-on checkbox per collection is visual noise in a
+   rail this narrow, and the same restraint the file cards use. */
+.file-sidebar-collection-checkbox {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.file-sidebar-collection:hover .file-sidebar-collection-checkbox,
+.file-sidebar-collection-checkbox:focus-within,
+.file-sidebar-collection-checkbox:has(input:checked),
+.file-sidebar-collection-checkbox:has(input:indeterminate) {
+  opacity: 1;
+}
+
 .file-sidebar-collection-header {
   display: flex;
   align-items: center;
