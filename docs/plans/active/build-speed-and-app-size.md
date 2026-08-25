@@ -117,6 +117,29 @@ dictionary; F6 remove the four unreferenced packages and refile the tooling.
 bumps; F6 icon migration to drop the MUI/Emotion trio; F7 NotoSans italics
 (fidelity call), typst forks.
 
-**Expected after batch 1:** release wall-clock ~55 → ~20 min; setup.exe ~-3
-MB. Measure against this table before claiming either — the v0.1.6 release
-run and its artifact sizes are the first data point.
+**Measured after batch 1 (v0.1.6, run 32884313597, warm thin cache):**
+
+| | v0.1.4 (fat, warm) | v0.1.6 (thin, warm) | Δ |
+|---|---|---|---|
+| Windows `stage-sidecar` | 1009s | 680s | **−33%** |
+| Windows `tauri build` | 571s | 555s | −3% |
+| Windows leg total | 1829s | 1542s | −16% |
+| Linux `stage-sidecar` | 398s | 288s | −28% |
+| Linux leg total | 752s | 663s | −12% |
+| setup.exe | 44.6 MiB | 43.6 MiB | −1.0 MiB |
+| MSI | 49.6 MiB | 50.1 MiB | +0.5 MiB |
+| deb | 40.5 MiB | 40.9 MiB | +0.4 MiB |
+
+Read it straight: thin LTO delivered on the sidecar (−33%) but the Tauri
+shell's `tauri build` step barely moved — that step is mostly vite build,
+bundling and signing, not the shell's link. The NSIS dictionary's ~−3 MB was
+partly eaten by thin's +~0.2 MB per binary on setup.exe, and the MSI and deb,
+which have no dictionary lever, simply got the thin cost. The dry-run that
+preceded this release ran cold (2612s Windows) because the profile change
+invalidated every cached dependency — a one-time cost. With the dry-run now
+skipped for non-packaging releases, a release is ~26 min of desktop matrix
+instead of ~55. Stale mode=max Docker blobs were deleted by hand after this
+run; cache stood at 9.78 GB before that.
+
+The ~20-minute figure predicted above was optimistic by the `tauri build`
+step; the next lever for that step is the frontend build itself, not LTO.
