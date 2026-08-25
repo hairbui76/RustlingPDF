@@ -143,3 +143,15 @@ run; cache stood at 9.78 GB before that.
 
 The ~20-minute figure predicted above was optimistic by the `tauri build`
 step; the next lever for that step is the frontend build itself, not LTO.
+
+**Open after batch 1 — cache pressure is not solved, only relieved.** Thin
+LTO caches are larger than fat ones (Linux 1.8 → 2.8 GB, Windows 2.3 →
+3.2 GB: more object files kept alongside bitcode), so after deleting the
+Docker blobs the total sits at 9.24 GB of 10. The next eviction will come
+from whichever key is least recently used. Candidates, cheapest first:
+drop `v0-rust-desktop` (1.1 GB; the desktop *CI* workflow's shell-only cache,
+which overlaps the desktop-build shell cache) or point the desktop CI
+workflow at the same `shared-key` as desktop-build; set `save-if` to main
+only on all rust-cache steps so a branch can never add keys; last resort,
+`cache-targets: false` on the backend CI cache (1.8 GB) at the cost of
+slower backend CI.
