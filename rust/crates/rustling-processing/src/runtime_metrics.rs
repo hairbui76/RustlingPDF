@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn preserves_java_version_and_metric_filters() {
-        assert_eq!(application_version(), "0.1.3");
+        assert_eq!(application_version(), "0.1.4");
         let metrics = RuntimeMetrics::new(true, true);
         let mut headers = HeaderMap::new();
         headers.insert(header::COOKIE, HeaderValue::from_static("JSESSIONID=one"));
