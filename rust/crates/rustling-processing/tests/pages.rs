@@ -9,8 +9,8 @@
 //! module prefix. Cases that touch process-global state stay as standalone
 //! targets at the top of `tests/` on purpose: environment variables, the
 //! current directory, `current_exe`, and — the one that bit first —
-//! binding PDFium directly, which pdfium-render allows once per process and
-//! which the crate's own `PDFIUM` OnceLock has usually done already by the
+//! binding `PDFium` directly, which `pdfium-render` allows once per process and
+//! which the crate's own `PDFIUM` `OnceLock` has usually done already by the
 //! time a later module runs.
 
 #[path = "cases/auto_split_endpoint.rs"]
