@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Alert, Group, Modal, Stack, Text } from "@mantine/core";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 
 import { Button } from "@app/ui/Button";
 import type { RustlingFileStub } from "@app/types/fileContext";
@@ -68,7 +68,13 @@ export function DeleteFilesDialog({
         {error && (
           <Alert
             color="red"
-            icon={<ErrorOutlineIcon fontSize="small" />}
+            icon={
+              <LocalIcon
+                icon="error-outline-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             variant="light"
             role="alert"
           >

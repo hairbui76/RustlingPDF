@@ -1,4 +1,5 @@
 import { type TFunction } from "i18next";
+import { materialSymbol } from "@app/components/shared/LocalIcon";
 import React from "react";
 import {
   type ErasedToolParams,
@@ -14,17 +15,18 @@ import {
   ToolId,
   ToolKind,
 } from "@app/types/toolId";
-import DrawRoundedIcon from "@mui/icons-material/DrawRounded";
-import LockRoundedIcon from "@mui/icons-material/LockRounded";
-import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
-import RateReviewRoundedIcon from "@mui/icons-material/RateReviewRounded";
-import ViewAgendaRoundedIcon from "@mui/icons-material/ViewAgendaRounded";
-import FileDownloadRoundedIcon from "@mui/icons-material/FileDownloadRounded";
-import DeleteSweepRoundedIcon from "@mui/icons-material/DeleteSweepRounded";
-import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
-import BuildRoundedIcon from "@mui/icons-material/BuildRounded";
-import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
-import CodeRoundedIcon from "@mui/icons-material/CodeRounded";
+
+const DrawRoundedIcon = materialSymbol("draw-rounded");
+const LockRoundedIcon = materialSymbol("lock");
+const VerifiedUserRoundedIcon = materialSymbol("verified-user-rounded");
+const RateReviewRoundedIcon = materialSymbol("rate-review-rounded");
+const ViewAgendaRoundedIcon = materialSymbol("view-agenda");
+const FileDownloadRoundedIcon = materialSymbol("download-rounded");
+const DeleteSweepRoundedIcon = materialSymbol("delete-sweep-rounded");
+const SmartToyRoundedIcon = materialSymbol("smart-toy-rounded");
+const BuildRoundedIcon = materialSymbol("build-rounded");
+const TuneRoundedIcon = materialSymbol("tune-rounded");
+const CodeRoundedIcon = materialSymbol("code-rounded");
 
 export enum SubcategoryId {
   SIGNING = "signing",

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import LinkIcon from "@mui/icons-material/Link";
 import { Stack, Divider, Text } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { createToolFlow } from "@app/components/tools/shared/createToolFlow";
@@ -91,7 +90,16 @@ const GetPdfInfo = (props: BaseToolProps) => {
 
   const REPORT_VIEW_ID = "getPdfInfoReport";
   const REPORT_WORKBENCH_ID = "custom:getPdfInfoReport" as const;
-  const reportIcon = useMemo(() => <PictureAsPdfIcon fontSize="small" />, []);
+  const reportIcon = useMemo(
+    () => (
+      <LocalIcon
+        icon="picture-as-pdf-rounded"
+        width="1.25rem"
+        height="1.25rem"
+      />
+    ),
+    [],
+  );
 
   const base = useBaseTool(
     "getPdfInfo",
@@ -194,7 +202,12 @@ const GetPdfInfo = (props: BaseToolProps) => {
                   }}
                   style={{ padding: "8px 4px" }}
                   leftSection={
-                    <LinkIcon fontSize="small" style={{ opacity: 0.7 }} />
+                    <LocalIcon
+                      icon="link-rounded"
+                      width="1.25rem"
+                      height="1.25rem"
+                      style={{ opacity: 0.7 }}
+                    />
                   }
                 >
                   <Text size="md" c="dimmed">

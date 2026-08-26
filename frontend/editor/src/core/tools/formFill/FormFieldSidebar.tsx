@@ -8,6 +8,7 @@
  * - Better visual hierarchy and spacing
  */
 import React, { useCallback, useEffect, useRef } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Box, Text, ScrollArea, Badge, Tooltip } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
@@ -18,8 +19,6 @@ import {
   FIELD_TYPE_COLOR,
 } from "@app/tools/formFill/fieldMeta";
 import type { FormField } from "@app/tools/formFill/types";
-import CloseIcon from "@mui/icons-material/Close";
-import TextFieldsIcon from "@mui/icons-material/TextFields";
 import styles from "@app/tools/formFill/FormFill.module.css";
 
 interface FormFieldSidebarProps {
@@ -101,7 +100,12 @@ export function FormFieldSidebar({ visible, onToggle }: FormFieldSidebarProps) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <TextFieldsIcon sx={{ fontSize: 18, opacity: 0.7 }} />
+          <LocalIcon
+            icon="text-fields-rounded"
+            width={18}
+            height={18}
+            style={{ opacity: 0.7 }}
+          />
           <Text fw={600} size="sm">
             Form Fields
           </Text>
@@ -115,7 +119,7 @@ export function FormFieldSidebar({ visible, onToggle }: FormFieldSidebarProps) {
           onClick={onToggle}
           aria-label={t("formFill.sidebar.close", "Close sidebar")}
         >
-          <CloseIcon sx={{ fontSize: 16 }} />
+          <LocalIcon icon="close-rounded" width={16} height={16} />
         </ActionIcon>
       </div>
 

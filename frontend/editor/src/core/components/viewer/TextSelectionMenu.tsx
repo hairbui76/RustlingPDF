@@ -1,6 +1,6 @@
 import { Tooltip } from "@mantine/core";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -82,7 +82,7 @@ export function TextSelectionMenu({
               boxShadow: "0 2px 12px rgba(0, 0, 0, 0.25)",
             }}
           >
-            <ContentCopyIcon style={{ fontSize: 18 }} />
+            <LocalIcon icon="content-copy-rounded" style={{ fontSize: 18 }} />
           </ActionIcon>
         </Tooltip>
       </div>,

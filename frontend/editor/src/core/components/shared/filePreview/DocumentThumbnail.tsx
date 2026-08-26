@@ -1,6 +1,6 @@
 import React from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Box, Center, Loader, Stack, Text } from "@mantine/core";
-import LockIcon from "@mui/icons-material/Lock";
 import { getFileTypeIcon } from "@app/components/shared/filePreview/getFileTypeIcon";
 import { RustlingFileStub } from "@app/types/fileContext";
 import { detectFileExtension } from "@app/utils/fileUtils";
@@ -88,7 +88,8 @@ const DocumentThumbnail: React.FC<DocumentThumbnailProps> = ({
             borderRadius: "10px",
           }}
         >
-          <LockIcon
+          <LocalIcon
+            icon="lock"
             style={{ fontSize: iconSize, color: "var(--mantine-color-red-6)" }}
           />
           <span

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Group, Text, Stack } from "@mantine/core";
 import { Button } from "@app/ui/Button";
-import HistoryIcon from "@mui/icons-material/History";
 import { useTranslation } from "react-i18next";
 import { useFileManagerContext } from "@app/contexts/FileManagerContext";
 import LocalIcon from "@app/components/shared/LocalIcon";
@@ -48,7 +47,8 @@ const EmptyFilesState: React.FC = () => {
       >
         {/* No Recent Files Message */}
         <Stack align="center" gap="sm">
-          <HistoryIcon
+          <LocalIcon
+            icon="history-rounded"
             style={{ fontSize: "3rem", color: "var(--mantine-color-gray-5)" }}
           />
           <Text c="dimmed" ta="center" size="lg">

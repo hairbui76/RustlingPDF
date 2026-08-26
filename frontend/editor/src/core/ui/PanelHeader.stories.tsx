@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { PanelHeader } from "@app/ui/PanelHeader";
 import { StatusBadge } from "@app/ui/StatusBadge";
 import { Button } from "@app/ui/Button";
@@ -10,7 +10,9 @@ const meta: Meta<typeof PanelHeader> = {
   tags: ["autodocs"],
   parameters: { layout: "padded" },
   args: {
-    icon: <ShieldOutlinedIcon sx={{ fontSize: "1rem" }} />,
+    icon: (
+      <LocalIcon icon="shield-outline-rounded" width="1rem" height="1rem" />
+    ),
     title: "Security",
     closeLabel: "Close",
   },

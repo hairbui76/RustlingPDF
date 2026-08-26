@@ -1,13 +1,8 @@
 import React, { useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Group, Text, Menu, Box } from "@mantine/core";
 import { Button as SharedButton } from "@app/ui/Button";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import DownloadIcon from "@mui/icons-material/Download";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Tooltip } from "@app/components/shared/Tooltip";
 import { ToolIcon } from "@app/components/shared/ToolIcon";
 import { ToolRegistry } from "@app/data/toolsTaxonomy";
@@ -207,7 +202,9 @@ export default function AutomationEntry({
         >
           <Menu.Target>
             <SharedButton
-              leftSection={<MoreVertIcon style={{ fontSize: 20 }} />}
+              leftSection={
+                <LocalIcon icon="more-vert" style={{ fontSize: 20 }} />
+              }
               variant="tertiary"
               accent="neutral"
               size="md"
@@ -233,7 +230,12 @@ export default function AutomationEntry({
           <Menu.Dropdown>
             {onImport && (
               <Menu.Item
-                leftSection={<UploadFileIcon style={{ fontSize: 16 }} />}
+                leftSection={
+                  <LocalIcon
+                    icon="upload-file-rounded"
+                    style={{ fontSize: 16 }}
+                  />
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onImport();
@@ -244,7 +246,12 @@ export default function AutomationEntry({
             )}
             {onCopy && (
               <Menu.Item
-                leftSection={<ContentCopyIcon style={{ fontSize: 16 }} />}
+                leftSection={
+                  <LocalIcon
+                    icon="content-copy-rounded"
+                    style={{ fontSize: 16 }}
+                  />
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onCopy();
@@ -255,7 +262,9 @@ export default function AutomationEntry({
             )}
             {onEdit && (
               <Menu.Item
-                leftSection={<EditIcon style={{ fontSize: 16 }} />}
+                leftSection={
+                  <LocalIcon icon="edit-rounded" style={{ fontSize: 16 }} />
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit();
@@ -266,7 +275,9 @@ export default function AutomationEntry({
             )}
             {onExportAutomation && (
               <Menu.Item
-                leftSection={<DownloadIcon style={{ fontSize: 16 }} />}
+                leftSection={
+                  <LocalIcon icon="download-rounded" style={{ fontSize: 16 }} />
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onExportAutomation();
@@ -277,7 +288,9 @@ export default function AutomationEntry({
             )}
             {onExportFolderScan && (
               <Menu.Item
-                leftSection={<DownloadIcon style={{ fontSize: 16 }} />}
+                leftSection={
+                  <LocalIcon icon="download-rounded" style={{ fontSize: 16 }} />
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onExportFolderScan();
@@ -291,7 +304,9 @@ export default function AutomationEntry({
             )}
             {onDelete && (
               <Menu.Item
-                leftSection={<DeleteIcon style={{ fontSize: 16 }} />}
+                leftSection={
+                  <LocalIcon icon="delete-rounded" style={{ fontSize: 16 }} />
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete();

@@ -14,13 +14,6 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import WarningIcon from "@mui/icons-material/Warning";
-import ErrorIcon from "@mui/icons-material/Error";
-import InfoIcon from "@mui/icons-material/Info";
-import FontDownloadIcon from "@mui/icons-material/FontDownload";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 
 import { PdfJsonDocument } from "@app/tools/pdfTextEditor/pdfTextEditorTypes";
 import {
@@ -47,15 +40,15 @@ const FontStatusBadge = ({ analysis }: { analysis: FontAnalysis }) => {
   const icon = useMemo(() => {
     switch (analysis.status) {
       case "perfect":
-        return <CheckCircleIcon sx={{ fontSize: 14 }} />;
+        return <LocalIcon icon="check-circle-rounded" width={14} height={14} />;
       case "embedded-subset":
-        return <InfoIcon sx={{ fontSize: 14 }} />;
+        return <LocalIcon icon="info-rounded" width={14} height={14} />;
       case "system-fallback":
-        return <WarningIcon sx={{ fontSize: 14 }} />;
+        return <LocalIcon icon="warning-rounded" width={14} height={14} />;
       case "missing":
-        return <ErrorIcon sx={{ fontSize: 14 }} />;
+        return <LocalIcon icon="error-rounded" width={14} height={14} />;
       default:
-        return <InfoIcon sx={{ fontSize: 14 }} />;
+        return <LocalIcon icon="info-rounded" width={14} height={14} />;
     }
   }, [analysis.status]);
 
@@ -89,7 +82,12 @@ const FontDetailItem = ({ analysis }: { analysis: FontAnalysis }) => {
       <Stack gap={4}>
         <Flex align="center" justify="space-between" wrap="nowrap">
           <Group gap={4} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-            <FontDownloadIcon sx={{ fontSize: 16, flexShrink: 0 }} />
+            <LocalIcon
+              icon="font-download-rounded"
+              width={16}
+              height={16}
+              style={{ flexShrink: 0 }}
+            />
             <CustomTooltip
               sidebarTooltip={false}
               content={analysis.baseName}
@@ -118,9 +116,9 @@ const FontDetailItem = ({ analysis }: { analysis: FontAnalysis }) => {
           <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
             <FontStatusBadge analysis={analysis} />
             {expanded ? (
-              <ExpandLessIcon sx={{ fontSize: 16 }} />
+              <LocalIcon icon="expand-less-rounded" width={16} height={16} />
             ) : (
-              <ExpandMoreIcon sx={{ fontSize: 16 }} />
+              <LocalIcon icon="expand-more-rounded" width={16} height={16} />
             )}
           </Group>
         </Flex>
@@ -309,7 +307,13 @@ const FontStatusPanel: React.FC<FontStatusPanelProps> = ({
                   size="xs"
                   color="green"
                   variant="light"
-                  leftSection={<CheckCircleIcon sx={{ fontSize: 12 }} />}
+                  leftSection={
+                    <LocalIcon
+                      icon="check-circle-rounded"
+                      width={12}
+                      height={12}
+                    />
+                  }
                 >
                   {summary.perfect}{" "}
                   {t("pdfTextEditor.fontAnalysis.perfect", "perfect")}
@@ -320,7 +324,9 @@ const FontStatusPanel: React.FC<FontStatusPanelProps> = ({
                   size="xs"
                   color="blue"
                   variant="light"
-                  leftSection={<InfoIcon sx={{ fontSize: 12 }} />}
+                  leftSection={
+                    <LocalIcon icon="info-rounded" width={12} height={12} />
+                  }
                 >
                   {summary.embeddedSubset}{" "}
                   {t("pdfTextEditor.fontAnalysis.subset", "subset")}
@@ -331,7 +337,9 @@ const FontStatusPanel: React.FC<FontStatusPanelProps> = ({
                   size="xs"
                   color="yellow"
                   variant="light"
-                  leftSection={<WarningIcon sx={{ fontSize: 12 }} />}
+                  leftSection={
+                    <LocalIcon icon="warning-rounded" width={12} height={12} />
+                  }
                 >
                   {summary.systemFallback}{" "}
                   {t("pdfTextEditor.fontAnalysis.fallback", "fallback")}
@@ -342,7 +350,9 @@ const FontStatusPanel: React.FC<FontStatusPanelProps> = ({
                   size="xs"
                   color="red"
                   variant="light"
-                  leftSection={<ErrorIcon sx={{ fontSize: 12 }} />}
+                  leftSection={
+                    <LocalIcon icon="error-rounded" width={12} height={12} />
+                  }
                 >
                   {summary.missing}{" "}
                   {t("pdfTextEditor.fontAnalysis.missing", "missing")}

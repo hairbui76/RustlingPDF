@@ -1,11 +1,9 @@
 import { useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Card, Stack, Text, Group, Badge, Box, Tooltip } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
-import StorageIcon from "@mui/icons-material/Storage";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import EditIcon from "@mui/icons-material/Edit";
 
 import { RustlingFileStub } from "@app/types/fileContext";
 import { getFileSize, getFileDate } from "@app/utils/fileUtils";
@@ -113,7 +111,10 @@ const FileCard = ({
                       onView();
                     }}
                   >
-                    <VisibilityIcon style={{ fontSize: 16 }} />
+                    <LocalIcon
+                      icon="visibility-rounded"
+                      style={{ fontSize: 16 }}
+                    />
                   </ActionIcon>
                 </Tooltip>
               )}
@@ -134,7 +135,7 @@ const FileCard = ({
                       onEdit();
                     }}
                   >
-                    <EditIcon style={{ fontSize: 16 }} />
+                    <LocalIcon icon="edit-rounded" style={{ fontSize: 16 }} />
                   </ActionIcon>
                 </Tooltip>
               )}
@@ -165,7 +166,9 @@ const FileCard = ({
               color="green"
               variant="light"
               size="sm"
-              leftSection={<StorageIcon style={{ fontSize: 12 }} />}
+              leftSection={
+                <LocalIcon icon="storage-rounded" style={{ fontSize: 12 }} />
+              }
             >
               DB
             </Badge>

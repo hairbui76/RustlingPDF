@@ -1,8 +1,7 @@
 import { useCallback, useMemo } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Box, Center, Stack, Text } from "@mantine/core";
 import { Button } from "@app/ui/Button";
-import ArticleIcon from "@mui/icons-material/Article";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
 import { useFileState } from "@app/contexts/FileContext";
 import { useViewer } from "@app/contexts/ViewerContext";
@@ -71,7 +70,8 @@ export function NonPdfViewer({ file }: NonPdfViewerProps) {
         return (
           <Center style={{ flex: 1 }}>
             <Stack align="center" gap="sm">
-              <ArticleIcon
+              <LocalIcon
+                icon="article-rounded"
                 style={{
                   fontSize: "3rem",
                   color: "var(--mantine-color-gray-4)",
@@ -84,7 +84,7 @@ export function NonPdfViewer({ file }: NonPdfViewerProps) {
                 <Button
                   variant="secondary"
                   accent="warning"
-                  leftSection={<PictureAsPdfIcon />}
+                  leftSection={<LocalIcon icon="picture-as-pdf-rounded" />}
                   onClick={handleConvertToPdf}
                 >
                   Convert to PDF

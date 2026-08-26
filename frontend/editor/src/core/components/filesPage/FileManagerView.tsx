@@ -12,18 +12,6 @@ import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
 import { useMediaQuery } from "@mantine/hooks";
-import SearchIcon from "@mui/icons-material/Search";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
-import QrCode2Icon from "@mui/icons-material/QrCode2";
-import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
-import GridViewIcon from "@mui/icons-material/GridView";
-import ViewListIcon from "@mui/icons-material/ViewList";
-import DeleteIcon from "@mui/icons-material/Delete";
-import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
-import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { stripBasePath } from "@app/constants/app";
 import { useFolders } from "@app/contexts/FolderContext";
@@ -60,6 +48,7 @@ import {
 } from "@app/components/filesPage/dragDrop";
 import { clearFilesPageReturnRoute } from "@app/components/filesPage/filesPageReturnRoute";
 import "@app/components/filesPage/FilesPage.css";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 
 export default function FileManagerView() {
   const { t } = useTranslation();
@@ -735,7 +724,7 @@ export default function FileManagerView() {
                     onClick={handleRefresh}
                     aria-label={t("filesPage.refresh", "Refresh files")}
                   >
-                    <RefreshIcon />
+                    <LocalIcon icon="refresh-rounded" />
                   </ActionIcon>
                 </Tooltip>
                 {newFolderDisabledReason ? (
@@ -749,7 +738,13 @@ export default function FileManagerView() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        leftSection={<CreateNewFolderIcon fontSize="small" />}
+                        leftSection={
+                          <LocalIcon
+                            icon="create-new-folder-rounded"
+                            width="1.25rem"
+                            height="1.25rem"
+                          />
+                        }
                         disabled
                         style={{ pointerEvents: "auto" }}
                       >
@@ -761,7 +756,13 @@ export default function FileManagerView() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    leftSection={<CreateNewFolderIcon fontSize="small" />}
+                    leftSection={
+                      <LocalIcon
+                        icon="create-new-folder-rounded"
+                        width="1.25rem"
+                        height="1.25rem"
+                      />
+                    }
                     onClick={() => openNewFolderDialog()}
                   >
                     {t("filesPage.newFolder", "New folder")}
@@ -769,7 +770,13 @@ export default function FileManagerView() {
                 )}
                 <Button
                   size="sm"
-                  leftSection={<UploadFileIcon fontSize="small" />}
+                  leftSection={
+                    <LocalIcon
+                      icon="upload-file-rounded"
+                      width="1.25rem"
+                      height="1.25rem"
+                    />
+                  }
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {t("filesPage.upload", "Upload")}
@@ -791,7 +798,11 @@ export default function FileManagerView() {
                         "Upload from Mobile",
                       )}
                     >
-                      <QrCode2Icon fontSize="small" />
+                      <LocalIcon
+                        icon="qr-code-2-rounded"
+                        width="1.25rem"
+                        height="1.25rem"
+                      />
                     </ActionIcon>
                   </Tooltip>
                 )}
@@ -985,7 +996,13 @@ export default function FileManagerView() {
                       <Tooltip label={addLabel} withinPortal>
                         <Button
                           size="sm"
-                          leftSection={<OpenInNewIcon fontSize="small" />}
+                          leftSection={
+                            <LocalIcon
+                              icon="open-in-new-rounded"
+                              width="1.25rem"
+                              height="1.25rem"
+                            />
+                          }
                           onClick={() => handleAddToWorkspace(selectedFiles)}
                           aria-label={addLabel}
                           data-testid="add-to-workspace"
@@ -1004,7 +1021,11 @@ export default function FileManagerView() {
                               size="sm"
                               variant="secondary"
                               leftSection={
-                                <InfoOutlinedIcon fontSize="small" />
+                                <LocalIcon
+                                  icon="info-outline-rounded"
+                                  width="1.25rem"
+                                  height="1.25rem"
+                                />
                               }
                               onClick={() => setMobileDetailsOpen(true)}
                               aria-label={t(
@@ -1020,7 +1041,13 @@ export default function FileManagerView() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          leftSection={<DriveFileMoveIcon fontSize="small" />}
+                          leftSection={
+                            <LocalIcon
+                              icon="drive-file-move-rounded"
+                              width="1.25rem"
+                              height="1.25rem"
+                            />
+                          }
                           onClick={() => promptMoveFiles(selectedFiles)}
                           aria-label={moveLabel}
                         >
@@ -1032,7 +1059,13 @@ export default function FileManagerView() {
                           size="sm"
                           accent="danger"
                           variant="secondary"
-                          leftSection={<DeleteIcon fontSize="small" />}
+                          leftSection={
+                            <LocalIcon
+                              icon="delete-rounded"
+                              width="1.25rem"
+                              height="1.25rem"
+                            />
+                          }
                           onClick={() => handleRemoveFiles(selectedFiles)}
                           aria-label={removeLabel}
                         >
@@ -1142,7 +1175,11 @@ export default function FileManagerView() {
                         className="files-page-view-toggle-icon"
                         title={t("filesPage.viewMode.grid", "Grid view")}
                       >
-                        <GridViewIcon fontSize="small" />
+                        <LocalIcon
+                          icon="grid-view-rounded"
+                          width="1.25rem"
+                          height="1.25rem"
+                        />
                         <span className="files-page-sr-only">
                           {t("filesPage.viewMode.grid", "Grid view")}
                         </span>
@@ -1156,7 +1193,11 @@ export default function FileManagerView() {
                         className="files-page-view-toggle-icon"
                         title={t("filesPage.viewMode.list", "List view")}
                       >
-                        <ViewListIcon fontSize="small" />
+                        <LocalIcon
+                          icon="view-list-rounded"
+                          width="1.25rem"
+                          height="1.25rem"
+                        />
                         <span className="files-page-sr-only">
                           {t("filesPage.viewMode.list", "List view")}
                         </span>
@@ -1218,7 +1259,7 @@ export default function FileManagerView() {
             {isDraggingExternal && (
               <div className="files-page-drop-overlay" aria-live="polite">
                 <span className="files-page-drop-overlay-icon">
-                  <UploadFileIcon />
+                  <LocalIcon icon="upload-file-rounded" />
                 </span>
                 <span>
                   {t("filesPage.dropOverlay", "Drop files to upload")}
@@ -1378,7 +1419,12 @@ const SearchField = React.forwardRef<
   const { t } = useTranslation();
   return (
     <div className="files-page-search">
-      <SearchIcon fontSize="small" style={{ color: "var(--c-text-subtle)" }} />
+      <LocalIcon
+        icon="search-rounded"
+        width="1.25rem"
+        height="1.25rem"
+        style={{ color: "var(--c-text-subtle)" }}
+      />
       <input
         ref={ref}
         type="text"
@@ -1480,9 +1526,12 @@ function Breadcrumbs() {
               {entry.name}
             </Button>
             {!isLast && (
-              <KeyboardArrowRightIcon
+              <LocalIcon
+                icon="keyboard-arrow-right-rounded"
+                width="1.25rem"
+                height="1.25rem"
                 className="files-page-breadcrumb-sep"
-                fontSize="small"
+
                 aria-hidden="true"
               />
             )}

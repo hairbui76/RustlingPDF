@@ -1,9 +1,7 @@
 import { Modal, Text, Group, Stack } from "@mantine/core";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
-import CancelIcon from "@mui/icons-material/Cancel";
 import { CSSProperties } from "react";
 
 interface ZipWarningModalProps {
@@ -41,7 +39,7 @@ const ZipWarningModal = ({
       closeOnEscape={true}
     >
       <Stack ta="center" p="md" gap="sm">
-        <WarningAmberIcon style={WARNING_ICON_STYLE} />
+        <LocalIcon icon="warning-outline-rounded" style={WARNING_ICON_STYLE} />
         <Text size="md" fw={300}>
           {zipFileName}
         </Text>
@@ -59,7 +57,9 @@ const ZipWarningModal = ({
           variant="secondary"
           accent="neutral"
           onClick={onCancel}
-          leftSection={<CancelIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon icon="cancel-rounded" width="1.25rem" height="1.25rem" />
+          }
           style={{
             width: "10rem",
           }}
@@ -68,7 +68,13 @@ const ZipWarningModal = ({
         </Button>
         <Button
           onClick={onConfirm}
-          leftSection={<CheckCircleOutlineIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon
+              icon="check-circle-outline-rounded"
+              width="1.25rem"
+              height="1.25rem"
+            />
+          }
           style={{
             width: "10rem",
           }}
@@ -83,7 +89,9 @@ const ZipWarningModal = ({
           variant="secondary"
           accent="neutral"
           onClick={onCancel}
-          leftSection={<CancelIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon icon="cancel-rounded" width="1.25rem" height="1.25rem" />
+          }
           style={{
             width: "10rem",
           }}
@@ -92,7 +100,13 @@ const ZipWarningModal = ({
         </Button>
         <Button
           onClick={onConfirm}
-          leftSection={<CheckCircleOutlineIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon
+              icon="check-circle-outline-rounded"
+              width="1.25rem"
+              height="1.25rem"
+            />
+          }
           style={{
             width: "10rem",
           }}

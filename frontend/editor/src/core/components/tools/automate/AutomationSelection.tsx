@@ -1,8 +1,7 @@
 import { useState } from "react";
+import { materialSymbol } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Title, Stack, Divider } from "@mantine/core";
-import AddCircleOutline from "@mui/icons-material/AddCircleOutlined";
-import SettingsIcon from "@mui/icons-material/Settings";
 import AutomationEntry from "@app/components/tools/automate/AutomationEntry";
 import AutomationImportModal from "@app/components/tools/automate/AutomationImportModal";
 import { useSuggestedAutomations } from "@app/hooks/tools/automate/useSuggestedAutomations";
@@ -14,6 +13,9 @@ import {
   downloadFolderScanningConfig,
 } from "@app/utils/automationConverter";
 import type { ImportableAutomation } from "@app/hooks/tools/automate/useSavedAutomations";
+
+const AddCircleOutline = materialSymbol("add-circle-outline-rounded");
+const SettingsIcon = materialSymbol("settings-rounded");
 
 interface AutomationSelectionProps {
   savedAutomations: AutomationConfig[];

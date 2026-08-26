@@ -1,9 +1,6 @@
 import React from "react";
 import { Menu, Loader, Group, Text, Checkbox } from "@mantine/core";
 import { LocalIcon } from "@app/components/shared/LocalIcon";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import AddIcon from "@mui/icons-material/Add";
 import FitText from "@app/components/shared/FitText";
 import { getFileColorWithOpacity } from "@app/components/pageEditor/fileColors";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
@@ -124,7 +121,7 @@ const FileMenuItem: React.FC<FileMenuItemProps> = ({
               color: "var(--mantine-color-dimmed)",
             }}
           >
-            <DragIndicatorIcon fontSize="small" />
+            <LocalIcon icon="drag-indicator" width="1.25rem" height="1.25rem" />
           </div>
           <Checkbox
             checked={file.isSelected}
@@ -185,7 +182,11 @@ export const PageEditorFileDropdown: React.FC<PageEditorFileDropdownProps> = ({
           <span>
             {selectedCount}/{totalCount} files selected
           </span>
-          <KeyboardArrowDownIcon fontSize="small" />
+          <LocalIcon
+            icon="keyboard-arrow-down-rounded"
+            width="1.25rem"
+            height="1.25rem"
+          />
         </div>
       </Menu.Target>
       <Menu.Dropdown
@@ -237,8 +238,10 @@ export const PageEditorFileDropdown: React.FC<PageEditorFileDropdownProps> = ({
           }}
         >
           <Group gap="xs" style={{ width: "100%" }}>
-            <AddIcon
-              fontSize="small"
+            <LocalIcon
+              icon="add-rounded"
+              width="1.25rem"
+              height="1.25rem"
               style={{ color: "var(--mantine-color-text)" }}
             />
             <Text

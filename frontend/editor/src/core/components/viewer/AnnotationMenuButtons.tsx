@@ -1,11 +1,6 @@
 import { Tooltip, Popover, TextInput, Stack } from "@mantine/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import CommentIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
-import AddCommentIcon from "@mui/icons-material/AddCommentOutlined";
-import OpenInNewIcon from "@mui/icons-material/OpenInNewRounded";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
@@ -22,7 +17,7 @@ export function DeleteButton({ onDelete }: { onDelete: () => void }) {
         size="md"
         onClick={onDelete}
       >
-        <DeleteIcon style={{ fontSize: 18 }} />
+        <LocalIcon icon="delete-rounded" style={{ fontSize: 18 }} />
       </ActionIcon>
     </Tooltip>
   );
@@ -39,7 +34,7 @@ export function EditTextButton({ onEdit }: { onEdit: () => void }) {
         size="md"
         onClick={onEdit}
       >
-        <EditIcon style={{ fontSize: 18 }} />
+        <LocalIcon icon="edit-rounded" style={{ fontSize: 18 }} />
       </ActionIcon>
     </Tooltip>
   );
@@ -69,7 +64,10 @@ export function AttachCommentButton({
         size="md"
         onClick={isInSidebar ? onView : onAdd}
       >
-        <AddCommentIcon style={{ fontSize: 18 }} />
+        <LocalIcon
+          icon="add-comment-outline-rounded"
+          style={{ fontSize: 18 }}
+        />
       </ActionIcon>
     </Tooltip>
   );
@@ -94,7 +92,10 @@ export function CommentButton({ hasContent, onClick }: CommentButtonProps) {
         size="md"
         onClick={onClick}
       >
-        <CommentIcon style={{ fontSize: 18 }} />
+        <LocalIcon
+          icon="chat-bubble-outline-rounded"
+          style={{ fontSize: 18 }}
+        />
       </ActionIcon>
     </Tooltip>
   );
@@ -125,7 +126,7 @@ export function LinkButton({
           size="md"
           onClick={onGoToLink}
         >
-          <OpenInNewIcon style={{ fontSize: 18 }} />
+          <LocalIcon icon="open-in-new-rounded" style={{ fontSize: 18 }} />
         </ActionIcon>
       </Tooltip>
     );

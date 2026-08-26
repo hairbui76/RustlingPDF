@@ -14,11 +14,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CheckIcon from "@mui/icons-material/CheckRounded";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import EditIcon from "@mui/icons-material/Edit";
-import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useAnnotation } from "@embedpdf/plugin-annotation/react";
 import {
   getSidebarAnnotationsWithRepliesGroupedByPage,
@@ -732,13 +727,15 @@ export function CommentsSidebar({
                       "More actions",
                     )}
                   >
-                    <MoreHorizIcon style={{ fontSize: 20 }} />
+                    <LocalIcon icon="more-horiz" style={{ fontSize: 20 }} />
                   </ActionIcon>
                 </Tooltip>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item
-                  leftSection={<DeleteIcon style={{ fontSize: 18 }} />}
+                  leftSection={
+                    <LocalIcon icon="delete-rounded" style={{ fontSize: 18 }} />
+                  }
                   color="red"
                   onClick={() => setClearAllModalOpen(true)}
                 >
@@ -953,7 +950,10 @@ export function CommentsSidebar({
                                       handleLocateAnnotation(pageIndex, ann)
                                     }
                                   >
-                                    <VisibilityIcon style={{ fontSize: 16 }} />
+                                    <LocalIcon
+                                      icon="visibility-rounded"
+                                      style={{ fontSize: 16 }}
+                                    />
                                   </ActionIcon>
                                 </Tooltip>
                                 <Menu position="bottom-end" withArrow>
@@ -973,7 +973,8 @@ export function CommentsSidebar({
                                           "More actions",
                                         )}
                                       >
-                                        <MoreHorizIcon
+                                        <LocalIcon
+                                          icon="more-horiz"
                                           style={{ fontSize: 20 }}
                                         />
                                       </ActionIcon>
@@ -982,7 +983,10 @@ export function CommentsSidebar({
                                   <Menu.Dropdown>
                                     <Menu.Item
                                       leftSection={
-                                        <EditIcon style={{ fontSize: 18 }} />
+                                        <LocalIcon
+                                          icon="edit-rounded"
+                                          style={{ fontSize: 18 }}
+                                        />
                                       }
                                       onClick={() => setEditingMainKey(key)}
                                     >
@@ -990,7 +994,10 @@ export function CommentsSidebar({
                                     </Menu.Item>
                                     <Menu.Item
                                       leftSection={
-                                        <DeleteIcon style={{ fontSize: 18 }} />
+                                        <LocalIcon
+                                          icon="delete-rounded"
+                                          style={{ fontSize: 18 }}
+                                        />
                                       }
                                       color="red"
                                       onClick={() =>
@@ -1053,7 +1060,10 @@ export function CommentsSidebar({
                                       }}
                                       disabled={!(draft ?? "").trim()}
                                     >
-                                      <CheckIcon style={{ fontSize: 18 }} />
+                                      <LocalIcon
+                                        icon="check-rounded"
+                                        style={{ fontSize: 18 }}
+                                      />
                                     </ActionIcon>
                                   </Tooltip>
                                 </Group>
@@ -1206,7 +1216,8 @@ export function CommentsSidebar({
                                                         !replyBody.trim()
                                                       }
                                                     >
-                                                      <CheckIcon
+                                                      <LocalIcon
+                                                        icon="check-rounded"
                                                         style={{
                                                           fontSize: 18,
                                                         }}
@@ -1279,7 +1290,10 @@ export function CommentsSidebar({
                                       }
                                       disabled={!replyDraft.trim()}
                                     >
-                                      <CheckIcon style={{ fontSize: 20 }} />
+                                      <LocalIcon
+                                        icon="check-rounded"
+                                        style={{ fontSize: 20 }}
+                                      />
                                     </ActionIcon>
                                   </Tooltip>
                                 </Group>

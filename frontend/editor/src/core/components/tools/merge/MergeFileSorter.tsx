@@ -1,11 +1,9 @@
 import React, { useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Group, Text, Stack, Select } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
-import SortIcon from "@mui/icons-material/Sort";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { Z_INDEX_AUTOMATE_DROPDOWN } from "@app/styles/zIndex";
 
 interface MergeFileSorterProps {
@@ -84,14 +82,18 @@ const MergeFileSorter: React.FC<MergeFileSorterProps> = ({
                 : t("merge.sortBy.descending", "Descending")
             }
           >
-            {ascending ? <ArrowUpwardIcon /> : <ArrowDownwardIcon />}
+            {ascending ? (
+              <LocalIcon icon="arrow-upward-rounded" />
+            ) : (
+              <LocalIcon icon="arrow-downward-rounded" />
+            )}
           </ActionIcon>
         </Group>
 
         <Button
           variant="secondary"
           size="sm"
-          leftSection={<SortIcon />}
+          leftSection={<LocalIcon icon="sort-rounded" />}
           onClick={handleSort}
           disabled={disabled}
           fullWidth

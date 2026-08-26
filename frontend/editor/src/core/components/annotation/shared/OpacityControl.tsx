@@ -1,7 +1,7 @@
 import { Tooltip, Popover, Stack, Slider, Text } from "@mantine/core";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
-import OpacityIcon from "@mui/icons-material/Opacity";
 import { ActionIcon } from "@app/ui/ActionIcon";
 
 interface OpacityControlProps {
@@ -30,7 +30,7 @@ export function OpacityControl({
             onClick={() => setOpened(!opened)}
             disabled={disabled}
           >
-            <OpacityIcon style={{ fontSize: 18 }} />
+            <LocalIcon icon="opacity-rounded" style={{ fontSize: 18 }} />
           </ActionIcon>
         </Tooltip>
       </Popover.Target>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import {
   Text,
@@ -11,8 +12,6 @@ import {
 } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { Z_INDEX_AUTOMATE_MODAL } from "@app/styles/zIndex";
-import CheckIcon from "@mui/icons-material/Check";
-import DownloadIcon from "@mui/icons-material/Download";
 import { ToolRegistry } from "@app/data/toolsTaxonomy";
 import ToolConfigurationModal from "@app/components/tools/automate/ToolConfigurationModal";
 import ToolList from "@app/components/tools/automate/ToolList";
@@ -294,7 +293,7 @@ export default function AutomationCreation({
             {/* Action Buttons */}
             <Stack gap="sm">
               <Button
-                leftSection={<CheckIcon />}
+                leftSection={<LocalIcon icon="check-rounded" />}
                 onClick={saveAutomation}
                 disabled={!canSaveAutomation()}
                 fullWidth
@@ -305,7 +304,7 @@ export default function AutomationCreation({
               <Group gap="sm" grow>
                 <Button
                   variant="secondary"
-                  leftSection={<DownloadIcon />}
+                  leftSection={<LocalIcon icon="download-rounded" />}
                   onClick={() => {
                     downloadAutomationConfig(buildExportableAutomation());
                   }}
@@ -315,7 +314,7 @@ export default function AutomationCreation({
                 </Button>
                 <Button
                   variant="secondary"
-                  leftSection={<DownloadIcon />}
+                  leftSection={<LocalIcon icon="download-rounded" />}
                   onClick={() => {
                     downloadFolderScanningConfig(
                       buildExportableAutomation(),

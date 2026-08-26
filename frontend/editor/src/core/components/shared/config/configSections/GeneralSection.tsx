@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import {
   Group,
   Paper,
@@ -9,7 +10,6 @@ import {
   NumberInput,
   Select,
 } from "@mantine/core";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { Button } from "@app/ui/Button";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
@@ -126,7 +126,11 @@ const GeneralSection: React.FC<GeneralSectionProps> = ({
                     )}
                     data-testid="check-for-updates"
                   >
-                    <RefreshIcon fontSize="small" />
+                    <LocalIcon
+                      icon="refresh-rounded"
+                      width="1.25rem"
+                      height="1.25rem"
+                    />
                   </ActionIcon>
                 </Tooltip>
               )}

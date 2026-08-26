@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -9,11 +10,6 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import HomeIcon from "@mui/icons-material/Home";
-import FolderIcon from "@mui/icons-material/Folder";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
@@ -244,7 +240,13 @@ export function MoveToFolderDialog({
               <Button
                 variant="tertiary"
                 size="sm"
-                leftSection={<CreateNewFolderIcon fontSize="small" />}
+                leftSection={
+                  <LocalIcon
+                    icon="create-new-folder-rounded"
+                    width="1.25rem"
+                    height="1.25rem"
+                  />
+                }
                 onClick={() => {
                   setCreatingFolder(true);
                   setNewFolderName("");
@@ -262,7 +264,13 @@ export function MoveToFolderDialog({
         {error && (
           <Alert
             color="red"
-            icon={<ErrorOutlineIcon fontSize="small" />}
+            icon={
+              <LocalIcon
+                icon="error-outline-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             variant="light"
             role="alert"
           >
@@ -331,11 +339,21 @@ function FolderPick({
       disabled={disabled}
       leftSection={
         isRoot ? (
-          <HomeIcon fontSize="small" />
+          <LocalIcon icon="home-rounded" width="1.25rem" height="1.25rem" />
         ) : isActive ? (
-          <FolderOpenIcon fontSize="small" style={{ color }} />
+          <LocalIcon
+            icon="folder-open-rounded"
+            width="1.25rem"
+            height="1.25rem"
+            style={{ color }}
+          />
         ) : (
-          <FolderIcon fontSize="small" style={{ color }} />
+          <LocalIcon
+            icon="folder-rounded"
+            width="1.25rem"
+            height="1.25rem"
+            style={{ color }}
+          />
         )
       }
       style={{

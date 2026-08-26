@@ -8,10 +8,7 @@ import {
   Loader,
   Tooltip,
 } from "@mantine/core";
-import LayersIcon from "@mui/icons-material/Layers";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { useViewer } from "@app/contexts/ViewerContext";
@@ -334,7 +331,7 @@ export function LayerSidebar({
       <div className="sidebar-base__header">
         <div className="sidebar-base__header-title">
           <span className="sidebar-base__header-icon">
-            <LayersIcon fontSize="small" />
+            <LocalIcon icon="layers-rounded" width="1.25rem" height="1.25rem" />
           </span>
           <Text fw={600} size="sm" tt="uppercase" lts={0.5} style={{ flex: 1 }}>
             Layers
@@ -352,7 +349,11 @@ export function LayerSidebar({
                 aria-label={t("viewer.layers.showAll", "Show all layers")}
                 title={t("viewer.layers.showAll", "Show all layers")}
               >
-                <VisibilityIcon sx={{ fontSize: "1rem" }} />
+                <LocalIcon
+                  icon="visibility-rounded"
+                  width="1rem"
+                  height="1rem"
+                />
               </ActionIcon>
               <ActionIcon
                 variant="tertiary"
@@ -362,7 +363,11 @@ export function LayerSidebar({
                 aria-label={t("viewer.layers.hideAll", "Hide all layers")}
                 title={t("viewer.layers.hideAll", "Hide all layers")}
               >
-                <VisibilityOffIcon sx={{ fontSize: "1rem" }} />
+                <LocalIcon
+                  icon="visibility-off-rounded"
+                  width="1rem"
+                  height="1rem"
+                />
               </ActionIcon>
             </>
           )}

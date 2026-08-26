@@ -1,5 +1,5 @@
 import { Button } from "@app/ui/Button";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 
 interface NonPdfBannerProps {
@@ -16,7 +16,12 @@ export function NonPdfBanner({ onConvertToPdf }: NonPdfBannerProps) {
       size="sm"
       variant="secondary"
       accent="warning"
-      leftSection={<PictureAsPdfIcon style={{ fontSize: "0.9rem" }} />}
+      leftSection={
+        <LocalIcon
+          icon="picture-as-pdf-rounded"
+          style={{ fontSize: "0.9rem" }}
+        />
+      }
       onClick={onConvertToPdf}
       style={{
         position: "absolute",

@@ -1,9 +1,8 @@
 import React from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Box } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 export interface NavigationArrowsProps {
   onPrevious: () => void;
@@ -40,7 +39,7 @@ const NavigationArrows: React.FC<NavigationArrowsProps> = ({
           left: "0",
         }}
       >
-        <ChevronLeftIcon />
+        <LocalIcon icon="chevron-left-rounded" />
       </ActionIcon>
 
       {/* Content */}
@@ -68,7 +67,7 @@ const NavigationArrows: React.FC<NavigationArrowsProps> = ({
           right: "0",
         }}
       >
-        <ChevronRightIcon />
+        <LocalIcon icon="chevron-right-rounded" />
       </ActionIcon>
     </Box>
   );

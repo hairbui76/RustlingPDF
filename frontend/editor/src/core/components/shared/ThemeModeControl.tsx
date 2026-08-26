@@ -1,14 +1,17 @@
 import { Menu, Tooltip } from "@mantine/core";
+import { LocalIcon, materialSymbol } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import SettingsBrightnessRoundedIcon from "@mui/icons-material/SettingsBrightnessRounded";
-import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 
 import { Button } from "@app/ui/Button";
 import { useTheme } from "@app/components/shared/ThemeProvider";
 import type { ThemeMode } from "@app/constants/theme";
 import "@app/components/shared/ThemeModeControl.css";
+
+const LightModeRoundedIcon = materialSymbol("light-mode-rounded");
+const DarkModeRoundedIcon = materialSymbol("dark-mode-rounded");
+const SettingsBrightnessRoundedIcon = materialSymbol(
+  "settings-brightness-rounded",
+);
 
 const ICONS: Record<ThemeMode, typeof LightModeRoundedIcon> = {
   light: LightModeRoundedIcon,
@@ -86,8 +89,10 @@ export function ThemeModeControl({ collapsed }: { collapsed: boolean }) {
               leftSection={<Icon sx={{ fontSize: "1rem" }} />}
               rightSection={
                 checked ? (
-                  <CheckRoundedIcon
-                    sx={{ fontSize: "1rem" }}
+                  <LocalIcon
+                    icon="check-rounded"
+                    width="1rem"
+                    height="1rem"
                     aria-hidden="true"
                   />
                 ) : undefined

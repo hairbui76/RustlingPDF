@@ -1,6 +1,6 @@
 import React from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Box } from "@mantine/core";
-import VisibilityIcon from "@mui/icons-material/Visibility";
 
 export interface HoverOverlayProps {
   onMouseEnter?: (e: React.MouseEvent) => void;
@@ -58,7 +58,10 @@ const HoverOverlay: React.FC<HoverOverlayProps> = ({
           pointerEvents: "none",
         }}
       >
-        <VisibilityIcon style={{ color: "white", fontSize: "1.5rem" }} />
+        <LocalIcon
+          icon="visibility-rounded"
+          style={{ color: "white", fontSize: "1.5rem" }}
+        />
       </Box>
     </Box>
   );

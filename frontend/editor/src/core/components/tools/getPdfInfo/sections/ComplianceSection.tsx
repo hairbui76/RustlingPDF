@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { LocalIcon, materialSymbol } from "@app/components/shared/LocalIcon";
 import {
   Badge,
   Group,
@@ -9,15 +10,15 @@ import {
   Tooltip,
   Divider,
 } from "@mantine/core";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
-import InfoIcon from "@mui/icons-material/InfoOutlined";
 import SectionBlock from "@app/components/tools/getPdfInfo/shared/SectionBlock";
 import type {
   PdfCompliance,
   PdfComplianceSummary,
 } from "@app/types/getPdfInfo";
 import { useTranslation } from "react-i18next";
+
+const CheckIcon = materialSymbol("check-rounded");
+const CloseIcon = materialSymbol("close-rounded");
 
 interface ComplianceSectionProps {
   anchorId: string;
@@ -249,7 +250,10 @@ const EmptyComplianceState: React.FC = () => {
     <Paper p="md" radius="sm" withBorder>
       <Group gap="sm">
         <ThemeIcon color="gray" variant="light" size="lg" radius="xl">
-          <InfoIcon style={{ fontSize: "1.2rem" }} />
+          <LocalIcon
+            icon="info-outline-rounded"
+            style={{ fontSize: "1.2rem" }}
+          />
         </ThemeIcon>
         <Stack gap={2}>
           <Text size="sm" fw={500}>

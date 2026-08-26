@@ -1,4 +1,5 @@
 import { Tooltip, Popover, Stack, Slider, Text, Group } from "@mantine/core";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
@@ -6,10 +7,6 @@ import { useState } from "react";
 import type { TrackedAnnotation } from "@embedpdf/plugin-annotation";
 import type { PdfAnnotationObject } from "@embedpdf/models";
 import type { AnnotationPatch } from "@app/components/viewer/viewerTypes";
-import TuneIcon from "@mui/icons-material/Tune";
-import FormatAlignLeftIcon from "@mui/icons-material/FormatAlignLeft";
-import FormatAlignCenterIcon from "@mui/icons-material/FormatAlignCenter";
-import FormatAlignRightIcon from "@mui/icons-material/FormatAlignRight";
 
 export type PropertiesAnnotationType = "text" | "note" | "shape";
 
@@ -103,7 +100,10 @@ export function PropertiesPopover({
             onClick={() => onUpdate({ textAlign: 0 })}
             size="md"
           >
-            <FormatAlignLeftIcon style={{ fontSize: 18 }} />
+            <LocalIcon
+              icon="format-align-left-rounded"
+              style={{ fontSize: 18 }}
+            />
           </ActionIcon>
           <ActionIcon
             aria-label={t("annotation.alignCenter", "Align center")}
@@ -111,7 +111,10 @@ export function PropertiesPopover({
             onClick={() => onUpdate({ textAlign: 1 })}
             size="md"
           >
-            <FormatAlignCenterIcon style={{ fontSize: 18 }} />
+            <LocalIcon
+              icon="format-align-center-rounded"
+              style={{ fontSize: 18 }}
+            />
           </ActionIcon>
           <ActionIcon
             aria-label={t("annotation.alignRight", "Align right")}
@@ -119,7 +122,10 @@ export function PropertiesPopover({
             onClick={() => onUpdate({ textAlign: 2 })}
             size="md"
           >
-            <FormatAlignRightIcon style={{ fontSize: 18 }} />
+            <LocalIcon
+              icon="format-align-right-rounded"
+              style={{ fontSize: 18 }}
+            />
           </ActionIcon>
         </Group>
       </div>
@@ -203,7 +209,7 @@ export function PropertiesPopover({
             onClick={() => setOpened(!opened)}
             disabled={disabled}
           >
-            <TuneIcon style={{ fontSize: 18 }} />
+            <LocalIcon icon="tune-rounded" style={{ fontSize: 18 }} />
           </ActionIcon>
         </Tooltip>
       </Popover.Target>

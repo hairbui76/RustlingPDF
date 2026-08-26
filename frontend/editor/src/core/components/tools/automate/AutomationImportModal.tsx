@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -11,7 +12,6 @@ import {
 } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { Dropzone } from "@mantine/dropzone";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Z_INDEX_AUTOMATE_MODAL } from "@app/styles/zIndex";
 import {
   ParsedAutomationImport,
@@ -145,7 +145,10 @@ export default function AutomationImportModal({
             mih={80}
             justify="center"
           >
-            <UploadFileIcon style={{ fontSize: 32, opacity: 0.6 }} />
+            <LocalIcon
+              icon="upload-file-rounded"
+              style={{ fontSize: 32, opacity: 0.6 }}
+            />
             <div>
               <Text size="sm" fw={500}>
                 {t(

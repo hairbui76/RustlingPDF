@@ -37,24 +37,14 @@ import ThemeModeControl from "@app/components/shared/ThemeModeControl";
 import { useLogoAssets } from "@app/hooks/useLogoAssets";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import type { RustlingFileStub } from "@app/types/fileContext";
-import MenuIcon from "@mui/icons-material/Menu";
-import SearchIcon from "@mui/icons-material/Search";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
-import CloseIcon from "@mui/icons-material/Close";
-import AddIcon from "@mui/icons-material/Add";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
-import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutlined";
 import { useFolders } from "@app/contexts/FolderContext";
 import type { FolderId } from "@app/types/folder";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import SettingsIcon from "@mui/icons-material/Settings";
 import type { FileId } from "@app/types/file";
 import { FileItem } from "@app/components/shared/FileSidebarFileItem";
 import { VersionHistoryModal } from "@app/components/filesPage/VersionHistoryModal";
 import { useBulkAddProgress } from "@app/services/bulkAddProgress";
 import "@app/components/shared/FileSidebar.css";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 
 const COLLAPSED_WIDTH = "3.5rem";
 const EXPANDED_WIDTH = "16.25rem"; // ~260px
@@ -734,7 +724,10 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
       >
         {isFileDragOver && (
           <div className="file-sidebar-drop-overlay" aria-hidden="true">
-            <UploadFileIcon className="file-sidebar-drop-overlay-icon" />
+            <LocalIcon
+              icon="upload-file-rounded"
+              className="file-sidebar-drop-overlay-icon"
+            />
             {!collapsed && (
               <span className="file-sidebar-drop-overlay-text">
                 {t("fileSidebar.dropToAdd", "Drop files to add")}
@@ -773,7 +766,7 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                 className="file-sidebar-menu-icon"
                 data-toggle-flip-rtl={toggleIcon ? "true" : undefined}
               >
-                {toggleIcon ?? <MenuIcon />}
+                {toggleIcon ?? <LocalIcon icon="menu-rounded" />}
               </span>
               {/* Expanded: the full horizontal lockup (mark + wordmark).
                   Collapsed: nothing but the toggle — the lockup is 3.53:1 and
@@ -808,7 +801,8 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
               }
             >
               {searchActive && !collapsed ? (
-                <CloseIcon
+                <LocalIcon
+                  icon="close-rounded"
                   className="file-sidebar-search-icon"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -816,7 +810,10 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                   }}
                 />
               ) : (
-                <SearchIcon className="file-sidebar-search-icon" />
+                <LocalIcon
+                  icon="search-rounded"
+                  className="file-sidebar-search-icon"
+                />
               )}
               {!collapsed &&
                 (searchActive ? (
@@ -891,7 +888,10 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                   }
                 }}
               >
-                <UploadFileIcon className="file-sidebar-action-icon" />
+                <LocalIcon
+                  icon="upload-file-rounded"
+                  className="file-sidebar-action-icon"
+                />
                 {!collapsed && (
                   <span className="file-sidebar-action-label sidebar-content-fade">
                     {terminology.uploadFromComputer}
@@ -974,7 +974,10 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                   }
                 }}
               >
-                <FolderOpenIcon className="file-sidebar-action-icon" />
+                <LocalIcon
+                  icon="folder-open-rounded"
+                  className="file-sidebar-action-icon"
+                />
                 {!collapsed && (
                   <span className="file-sidebar-action-label sidebar-content-fade">
                     {t("fileSidebar.myFiles", "My Files")}
@@ -1054,7 +1057,11 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                     )}
                     data-testid="open-files-page"
                   >
-                    <OpenInNewIcon sx={{ fontSize: "1rem" }} />
+                    <LocalIcon
+                      icon="open-in-new-rounded"
+                      width="1rem"
+                      height="1rem"
+                    />
                   </ActionIcon>
                   <Menu position="bottom-end" withinPortal shadow="md">
                     <Menu.Target>
@@ -1064,19 +1071,33 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                         title={t("fileSidebar.addFiles", "Add files")}
                         aria-label={t("fileSidebar.addFiles", "Add files")}
                       >
-                        <AddIcon sx={{ fontSize: "1rem" }} />
+                        <LocalIcon
+                          icon="add-rounded"
+                          width="1rem"
+                          height="1rem"
+                        />
                       </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
                       <Menu.Item
-                        leftSection={<AddIcon sx={{ fontSize: 16 }} />}
+                        leftSection={
+                          <LocalIcon
+                            icon="add-rounded"
+                            width={16}
+                            height={16}
+                          />
+                        }
                         onClick={() => nativeFileInputRef.current?.click()}
                       >
                         {t("fileSidebar.addFiles", "Add files")}
                       </Menu.Item>
                       <Menu.Item
                         leftSection={
-                          <CreateNewFolderOutlinedIcon sx={{ fontSize: 16 }} />
+                          <LocalIcon
+                            icon="create-new-folder-outline-rounded"
+                            width={16}
+                            height={16}
+                          />
                         }
                         onClick={() => setCreatingCollection(true)}
                       >
@@ -1123,13 +1144,17 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
                               aria-expanded={isOpen}
                               onClick={() => toggleCollection(collection.id)}
                             >
-                              <ChevronRightIcon
+                              <LocalIcon
+                                icon="chevron-right-rounded"
+                                width="1rem"
+                                height="1rem"
                                 className="file-sidebar-collection-chevron"
                                 data-open={isOpen}
-                                sx={{ fontSize: "1rem" }}
                               />
-                              <FolderOutlinedIcon
-                                sx={{ fontSize: "0.95rem" }}
+                              <LocalIcon
+                                icon="folder-outline-rounded"
+                                width="0.95rem"
+                                height="0.95rem"
                               />
                               <span className="file-sidebar-collection-name">
                                 {collection.name}
@@ -1308,7 +1333,11 @@ const FileSidebar = forwardRef<HTMLDivElement, FileSidebarProps>(
             )}
             {onOpenSettings && !collapsed && (
               <div className="file-sidebar-bottom-settings">
-                <SettingsIcon sx={{ fontSize: "1.1rem" }} />
+                <LocalIcon
+                  icon="settings-rounded"
+                  width="1.1rem"
+                  height="1.1rem"
+                />
               </div>
             )}
           </div>

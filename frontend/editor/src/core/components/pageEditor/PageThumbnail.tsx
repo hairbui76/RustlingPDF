@@ -7,13 +7,6 @@ import React, {
 } from "react";
 import { Text, Checkbox } from "@mantine/core";
 import { useIsMobile } from "@app/hooks/useIsMobile";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import RotateLeftIcon from "@mui/icons-material/RotateLeft";
-import RotateRightIcon from "@mui/icons-material/RotateRight";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ContentCutIcon from "@mui/icons-material/ContentCut";
-import AddIcon from "@mui/icons-material/Add";
 import { PDFPage, PDFDocument } from "@app/types/pageEditor";
 import { useFilesModalContext } from "@app/contexts/FilesModalContext";
 import { getFileColorWithOpacity } from "@app/components/pageEditor/fileColors";
@@ -22,6 +15,7 @@ import HoverActionMenu, {
   HoverAction,
 } from "@app/components/shared/HoverActionMenu";
 import { RustlingFileStub } from "@app/types/fileContext";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 
 interface PageThumbnailProps {
   page: PDFPage;
@@ -322,7 +316,7 @@ const PageThumbnail: React.FC<PageThumbnailProps> = ({
     () => [
       {
         id: "move-left",
-        icon: <ArrowBackIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="arrow-back-rounded" style={{ fontSize: 20 }} />,
         label: "Move Left",
         onClick: (e) => {
           e.stopPropagation();
@@ -335,7 +329,9 @@ const PageThumbnail: React.FC<PageThumbnailProps> = ({
       },
       {
         id: "move-right",
-        icon: <ArrowForwardIcon style={{ fontSize: 20 }} />,
+        icon: (
+          <LocalIcon icon="arrow-forward-rounded" style={{ fontSize: 20 }} />
+        ),
         label: "Move Right",
         onClick: (e) => {
           e.stopPropagation();
@@ -349,33 +345,35 @@ const PageThumbnail: React.FC<PageThumbnailProps> = ({
       },
       {
         id: "rotate-left",
-        icon: <RotateLeftIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="rotate-left-rounded" style={{ fontSize: 20 }} />,
         label: "Rotate Left",
         onClick: handleRotateLeft,
       },
       {
         id: "rotate-right",
-        icon: <RotateRightIcon style={{ fontSize: 20 }} />,
+        icon: (
+          <LocalIcon icon="rotate-right-rounded" style={{ fontSize: 20 }} />
+        ),
         label: "Rotate Right",
         onClick: handleRotateRight,
       },
       {
         id: "delete",
-        icon: <DeleteIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="delete-rounded" style={{ fontSize: 20 }} />,
         label: "Delete Page",
         onClick: handleDelete,
         color: "red",
       },
       {
         id: "split",
-        icon: <ContentCutIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="content-cut-rounded" style={{ fontSize: 20 }} />,
         label: "Split After",
         onClick: handleSplit,
         hidden: pageIndex >= totalPages - 1,
       },
       {
         id: "insert",
-        icon: <AddIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="add-rounded" style={{ fontSize: 20 }} />,
         label: "Insert File After",
         onClick: handleInsertFileAfter,
       },

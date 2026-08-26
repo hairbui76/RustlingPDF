@@ -1,5 +1,5 @@
 import { Menu } from "@mantine/core";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { RustlingFileStub } from "@app/types/fileContext";
 import { useOpenInNewWindow } from "@app/extensions/openInNewWindow";
@@ -23,7 +23,13 @@ export function OpenInNewWindowMenuItem({
 
   return (
     <Menu.Item
-      leftSection={<OpenInNewIcon fontSize="small" />}
+      leftSection={
+        <LocalIcon
+          icon="open-in-new-rounded"
+          width="1.25rem"
+          height="1.25rem"
+        />
+      }
       onClick={(e) => {
         e.stopPropagation();
         openInNewWindow(file);

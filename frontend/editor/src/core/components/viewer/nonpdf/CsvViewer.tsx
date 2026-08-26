@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import {
   Badge,
   Center,
@@ -9,7 +10,6 @@ import {
   Table,
   Text,
 } from "@mantine/core";
-import SortIcon from "@mui/icons-material/Sort";
 import { useTranslation } from "react-i18next";
 
 import { formatFileSize } from "@app/utils/fileUtils";
@@ -210,7 +210,8 @@ export function CsvViewer({ file, isTsv }: CsvViewerProps) {
                     <Text size="xs" fw={600} truncate style={{ maxWidth: 200 }}>
                       {h || t("viewer.nonPdf.columnDefault", { index: i + 1 })}
                     </Text>
-                    <SortIcon
+                    <LocalIcon
+                      icon="sort-rounded"
                       style={{
                         fontSize: "0.85rem",
                         opacity: sortCol === i ? 1 : 0.3,

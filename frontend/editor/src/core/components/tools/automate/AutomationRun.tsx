@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Text, Stack, Group, Card, Progress, Loader } from "@mantine/core";
 import { Button } from "@app/ui/Button";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import CheckIcon from "@mui/icons-material/Check";
 import { useViewScopedFiles } from "@app/hooks/tools/shared/useViewScopedFiles";
 import { useToolRegistry } from "@app/contexts/ToolRegistryContext";
 import { AutomationConfig, ExecutionStep } from "@app/types/automation";
@@ -142,7 +141,12 @@ export default function AutomationRun({
   const getStepIcon = (step: ExecutionStep) => {
     switch (step.status) {
       case EXECUTION_STATUS.COMPLETED:
-        return <CheckIcon style={{ fontSize: 16, color: "green" }} />;
+        return (
+          <LocalIcon
+            icon="check-rounded"
+            style={{ fontSize: 16, color: "green" }}
+          />
+        );
       case EXECUTION_STATUS.ERROR:
         return <span style={{ fontSize: 16, color: "red" }}>✕</span>;
       case EXECUTION_STATUS.RUNNING:
@@ -228,7 +232,7 @@ export default function AutomationRun({
         {/* Action Buttons */}
         <Group justify="space-between" mt="xl">
           <Button
-            leftSection={<PlayArrowIcon />}
+            leftSection={<LocalIcon icon="play-arrow-rounded" />}
             onClick={executeAutomation}
             disabled={
               isExecuting || !selectedFiles || selectedFiles.length === 0

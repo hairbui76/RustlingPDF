@@ -1,12 +1,14 @@
 import React from "react";
-import ImageIcon from "@mui/icons-material/Image";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import ArticleIcon from "@mui/icons-material/Article";
-import CodeIcon from "@mui/icons-material/Code";
-import DataObjectIcon from "@mui/icons-material/DataObject";
-import HtmlIcon from "@mui/icons-material/Html";
+import { materialSymbol } from "@app/components/shared/LocalIcon";
 
 import type { NonPdfFileType } from "@app/utils/fileUtils";
+
+const ImageIcon = materialSymbol("image-rounded");
+const TableChartIcon = materialSymbol("table-chart");
+const ArticleIcon = materialSymbol("article-rounded");
+const CodeIcon = materialSymbol("code-rounded");
+const DataObjectIcon = materialSymbol("data-object-rounded");
+const HtmlIcon = materialSymbol("html-rounded");
 
 export interface FileTypeMeta {
   label: string;

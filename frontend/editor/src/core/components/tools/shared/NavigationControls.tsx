@@ -1,7 +1,6 @@
 import { Stack, Group, Text } from "@mantine/core";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { ActionIcon } from "@app/ui/ActionIcon";
 
 export interface NavigationControlsProps {
@@ -31,7 +30,7 @@ const NavigationControls = ({
           disabled={totalFiles <= 1}
           data-testid="review-panel-prev"
         >
-          <ChevronLeftIcon style={{ fontSize: "1rem" }} />
+          <LocalIcon icon="chevron-left-rounded" style={{ fontSize: "1rem" }} />
         </ActionIcon>
         <Text size="xs" c="dimmed">
           {currentIndex + 1} of {totalFiles}
@@ -45,7 +44,10 @@ const NavigationControls = ({
           disabled={totalFiles <= 1}
           data-testid="review-panel-next"
         >
-          <ChevronRightIcon style={{ fontSize: "1rem" }} />
+          <LocalIcon
+            icon="chevron-right-rounded"
+            style={{ fontSize: "1rem" }}
+          />
         </ActionIcon>
       </Group>
     </Stack>

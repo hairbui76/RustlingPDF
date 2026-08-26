@@ -1,10 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Loader } from "@mantine/core";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
-import GridViewIcon from "@mui/icons-material/GridView";
-import FolderIcon from "@mui/icons-material/Folder";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { WorkbenchType, isValidWorkbench } from "@app/types/workbench";
 import { PageEditorFileDropdown } from "@app/components/shared/PageEditorFileDropdown";
 import type { CustomWorkbenchViewInstance } from "@app/contexts/ToolWorkflowContext";
@@ -58,7 +55,7 @@ const createViewOptions = (
         {switchingTo === "viewer" ? (
           <Loader size="sm" />
         ) : (
-          <InsertDriveFileIcon fontSize="medium" />
+          <LocalIcon icon="draft-rounded" width="1.5rem" height="1.5rem" />
         )}
       </div>
     ),
@@ -87,7 +84,7 @@ const createViewOptions = (
         {switchingTo === "pageEditor" ? (
           <Loader size="sm" />
         ) : (
-          <GridViewIcon fontSize="medium" />
+          <LocalIcon icon="grid-view-rounded" width="1.5rem" height="1.5rem" />
         )}
       </div>
     ),
@@ -100,7 +97,7 @@ const createViewOptions = (
         {switchingTo === "fileEditor" ? (
           <Loader size="sm" />
         ) : (
-          <FolderIcon fontSize="medium" />
+          <LocalIcon icon="folder-rounded" width="1.5rem" height="1.5rem" />
         )}
       </div>
     ),
@@ -117,7 +114,13 @@ const createViewOptions = (
           {switchingTo === view.workbenchId ? (
             <Loader size="sm" />
           ) : (
-            view.icon || <PictureAsPdfIcon fontSize="medium" />
+            view.icon || (
+              <LocalIcon
+                icon="picture-as-pdf-rounded"
+                width="1.5rem"
+                height="1.5rem"
+              />
+            )
           )}
           <span>{view.label}</span>
         </div>

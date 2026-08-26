@@ -10,7 +10,6 @@ import { ActionIcon } from "@app/ui/ActionIcon";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
   clearFilesPageReturnRoute,
   getFilesPageReturnRoute,
@@ -37,10 +36,6 @@ import {
   WorkbenchBarRenderContext,
   WorkbenchBarSection,
 } from "@app/types/workbenchBar";
-import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
-import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
-import CloseIcon from "@mui/icons-material/Close";
-import PrintIcon from "@mui/icons-material/Print";
 import "@app/components/shared/WorkbenchBar.css";
 
 const SECTION_ORDER: WorkbenchBarSection[] = ["top", "middle", "bottom"];
@@ -319,12 +314,24 @@ export default function WorkbenchBar({
     {
       value: "viewer",
       label: t("workbenchBar.viewer", "Viewer"),
-      icon: <InsertDriveFileOutlinedIcon fontSize="small" />,
+      icon: (
+        <LocalIcon
+          icon="draft-outline-rounded"
+          width="1.25rem"
+          height="1.25rem"
+        />
+      ),
     },
     {
       value: "fileEditor",
       label: t("workbenchBar.activeFiles", "Active Files"),
-      icon: <FolderOutlinedIcon fontSize="small" />,
+      icon: (
+        <LocalIcon
+          icon="folder-outline-rounded"
+          width="1.25rem"
+          height="1.25rem"
+        />
+      ),
     },
     ...(selectedTool === "multiTool"
       ? [
@@ -346,7 +353,13 @@ export default function WorkbenchBar({
       .map((v) => ({
         value: v.workbenchId,
         label: v.label,
-        icon: v.icon ?? <InsertDriveFileOutlinedIcon fontSize="small" />,
+        icon: v.icon ?? (
+          <LocalIcon
+            icon="draft-outline-rounded"
+            width="1.25rem"
+            height="1.25rem"
+          />
+        ),
       })),
   ];
 
@@ -406,7 +419,12 @@ export default function WorkbenchBar({
                   : "Back to My Files",
                 { folder: returnRoute.label ?? "" },
               )}
-              leftSection={<ArrowBackIcon style={{ fontSize: "1.1rem" }} />}
+              leftSection={
+                <LocalIcon
+                  icon="arrow-back-rounded"
+                  style={{ fontSize: "1.1rem" }}
+                />
+              }
             >
               <span className="workbench-bar-view-label">
                 {returnRoute.label
@@ -476,7 +494,7 @@ export default function WorkbenchBar({
               }
               aria-label={t("workbenchBar.print", "Print PDF")}
             >
-              <PrintIcon sx={{ fontSize: "1rem" }} />
+              <LocalIcon icon="print-rounded" width="1rem" height="1rem" />
             </ActionIcon>,
             t("workbenchBar.print", "Print PDF"),
           )}
@@ -548,7 +566,7 @@ export default function WorkbenchBar({
                   : t("workbenchBar.closePdf", "Close PDF")
               }
             >
-              <CloseIcon sx={{ fontSize: "1rem" }} />
+              <LocalIcon icon="close-rounded" width="1rem" height="1rem" />
             </ActionIcon>,
             currentView === "fileEditor"
               ? t("workbenchBar.closeAll", "Close All")

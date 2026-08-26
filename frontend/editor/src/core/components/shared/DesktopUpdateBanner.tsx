@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Group, Text } from "@mantine/core";
-import CloseIcon from "@mui/icons-material/Close";
 import { useTranslation } from "react-i18next";
 import { Button } from "@app/ui/Button";
 import { usePreferences } from "@app/contexts/PreferencesContext";
@@ -92,7 +92,9 @@ export default function DesktopUpdateBanner() {
       <Button
         variant="quiet"
         size="sm"
-        leftSection={<CloseIcon fontSize="small" />}
+        leftSection={
+          <LocalIcon icon="close-rounded" width="1.25rem" height="1.25rem" />
+        }
         aria-label={t("desktopUpdate.dismiss", "Not now")}
         onClick={() => setDismissed(true)}
         disabled={busy}

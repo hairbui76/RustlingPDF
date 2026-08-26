@@ -1,15 +1,17 @@
 import { useMemo } from "react";
+import { materialSymbol } from "@app/components/shared/LocalIcon";
 import { useNavigationState } from "@app/contexts/NavigationContext";
 import { useToolNavigation } from "@app/hooks/useToolNavigation";
 import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import { ToolId } from "@app/types/toolId";
 
+const CompressIcon = materialSymbol("compress-rounded");
+const SwapHorizIcon = materialSymbol("swap-horiz-rounded");
+const CleaningServicesIcon = materialSymbol("cleaning-services-rounded");
+const CropIcon = materialSymbol("crop-rounded");
+const TextFieldsIcon = materialSymbol("text-fields-rounded");
+
 // Material UI Icons
-import CompressIcon from "@mui/icons-material/Compress";
-import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
-import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
-import CropIcon from "@mui/icons-material/Crop";
-import TextFieldsIcon from "@mui/icons-material/TextFields";
 
 export interface SuggestedTool {
   id: ToolId;

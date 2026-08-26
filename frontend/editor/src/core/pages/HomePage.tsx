@@ -16,9 +16,6 @@ import {
 } from "@app/contexts/NavigationContext";
 import { useViewer } from "@app/contexts/ViewerContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import AppsIcon from "@mui/icons-material/AppsRounded";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 
 import RightSidebar from "@app/components/tools/RightSidebar";
 import ToolGroupBar from "@app/components/tools/ToolGroupBar";
@@ -436,7 +433,7 @@ export default function HomePage() {
                   }
                 }}
               >
-                <AppsIcon sx={{ fontSize: "1.5rem" }} />
+                <LocalIcon icon="apps" width="1.5rem" height="1.5rem" />
                 <span className="mobile-bottom-button-label">
                   {t("quickAccess.allTools", "Tools")}
                 </span>
@@ -524,7 +521,7 @@ export default function HomePage() {
               // Back-arrow on /files; burger elsewhere.
               toggleIcon={
                 navigationState.workbench === "myFiles" ? (
-                  <ArrowBackIcon />
+                  <LocalIcon icon="arrow-back-rounded" />
                 ) : undefined
               }
               onToggleCollapse={() => {
@@ -607,7 +604,7 @@ const MyFilesSidebarOverrides = forwardRef<HTMLDivElement, FileSidebarProps>(
         onUploadFiles={handleUpload}
         onPickGoogleDriveFiles={handleUpload}
         extraAction={{
-          icon: <CreateNewFolderIcon />,
+          icon: <LocalIcon icon="create-new-folder-rounded" />,
           label: t("filesPage.newFolder", "New folder"),
           onClick: () => filesPage.openNewFolderDialog(),
           disabled: newFolderDisabledReason !== null,

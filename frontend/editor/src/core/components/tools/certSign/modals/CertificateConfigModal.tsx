@@ -10,14 +10,13 @@ import {
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useRef } from "react";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorIcon from "@mui/icons-material/Error";
 import {
   CertificateSelector,
   CertificateType,
   UploadFormat,
 } from "@app/components/tools/certSign/CertificateSelector";
 import apiClient from "@app/services/apiClient";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 
 export interface CertificateSubmitData {
   certType: CertificateType;
@@ -245,8 +244,10 @@ export const CertificateConfigModal: React.FC<CertificateConfigModalProps> = ({
         )}
         {certValidation.status === "valid" && (
           <Group gap="xs">
-            <CheckCircleIcon
-              fontSize="small"
+            <LocalIcon
+              icon="check-circle-rounded"
+              width="1.25rem"
+              height="1.25rem"
               style={{ color: "var(--mantine-color-green-6)" }}
             />
             <Text size="sm" c="green">
@@ -267,8 +268,10 @@ export const CertificateConfigModal: React.FC<CertificateConfigModalProps> = ({
         )}
         {certValidation.status === "error" && (
           <Group gap="xs">
-            <ErrorIcon
-              fontSize="small"
+            <LocalIcon
+              icon="error-rounded"
+              width="1.25rem"
+              height="1.25rem"
               style={{ color: "var(--mantine-color-red-6)" }}
             />
             <Text size="sm" c="red">

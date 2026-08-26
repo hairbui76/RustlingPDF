@@ -1,9 +1,8 @@
 import React from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Card, Group, Text, Progress } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
-import StorageIcon from "@mui/icons-material/Storage";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { StorageStats } from "@app/services/fileStorage";
 import { formatFileSize } from "@app/utils/fileUtils";
 import { getStorageUsagePercent } from "@app/utils/storageUtils";
@@ -30,7 +29,7 @@ const StorageStatsCard: React.FC<StorageStatsCardProps> = ({
   return (
     <Card withBorder p="sm" mb="md" style={{ width: "90%", maxWidth: 600 }}>
       <Group align="center" gap="md">
-        <StorageIcon />
+        <LocalIcon icon="storage-rounded" />
         <div style={{ flex: 1 }}>
           <Text size="sm" fw={500}>
             {t("fileManager.storage", "Storage")}:{" "}
@@ -63,7 +62,9 @@ const StorageStatsCard: React.FC<StorageStatsCardProps> = ({
               accent="danger"
               size="sm"
               onClick={onClearAll}
-              leftSection={<DeleteIcon style={{ fontSize: 16 }} />}
+              leftSection={
+                <LocalIcon icon="delete-rounded" style={{ fontSize: 16 }} />
+              }
             >
               {t("fileManager.clearAll", "Clear All")}
             </Button>

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Slider } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
 import { useViewer } from "@app/contexts/ViewerContext";
 import { useNavigationState } from "@app/contexts/NavigationContext";
-import ZoomInIcon from "@mui/icons-material/ZoomIn";
-import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 
 /**
  * Compact zoom controls rendered inline in the WorkbenchBar when the current workbench is "viewer".
@@ -43,7 +42,7 @@ export function ViewerInlineControls() {
         onClick={() => viewer.zoomActions.zoomOut()}
         aria-label={t("viewer.zoomOut", "Zoom out")}
       >
-        <ZoomOutIcon sx={{ fontSize: "1rem" }} />
+        <LocalIcon icon="zoom-out-rounded" width="1rem" height="1rem" />
       </ActionIcon>
 
       <div className="viewer-inline-controls__slider-wrap">
@@ -71,7 +70,7 @@ export function ViewerInlineControls() {
         onClick={() => viewer.zoomActions.zoomIn()}
         aria-label={t("viewer.zoomIn", "Zoom in")}
       >
-        <ZoomInIcon sx={{ fontSize: "1rem" }} />
+        <LocalIcon icon="zoom-in-rounded" width="1rem" height="1rem" />
       </ActionIcon>
 
       <span className="viewer-inline-controls__zoom-pct">

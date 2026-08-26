@@ -1,8 +1,8 @@
 import { useRef, useEffect, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Stack, Group, ColorPicker, Slider, Text } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
-import DeleteIcon from "@mui/icons-material/Delete";
 
 interface DrawSignatureCanvasProps {
   signature: string | null;
@@ -156,7 +156,7 @@ export const DrawSignatureCanvas: React.FC<DrawSignatureCanvasProps> = ({
       <Button
         variant="secondary"
         accent="danger"
-        leftSection={<DeleteIcon sx={{ fontSize: 16 }} />}
+        leftSection={<LocalIcon icon="delete-rounded" width={16} height={16} />}
         onClick={clearCanvas}
         disabled={disabled || !signature}
         fullWidth

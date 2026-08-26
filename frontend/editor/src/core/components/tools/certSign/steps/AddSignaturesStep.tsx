@@ -1,9 +1,8 @@
 import { useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Stack, Text, Paper } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
-import AddIcon from "@mui/icons-material/Add";
-import CancelIcon from "@mui/icons-material/Cancel";
 import {
   SignatureTypeSelector,
   SignatureType,
@@ -108,7 +107,7 @@ export const AddSignaturesStep: React.FC<AddSignaturesStepProps> = ({
 
           {!placementMode ? (
             <Button
-              leftSection={<AddIcon />}
+              leftSection={<LocalIcon icon="add-rounded" />}
               onClick={handlePlaceSignature}
               disabled={!hasSignature || disabled}
             >
@@ -121,7 +120,7 @@ export const AddSignaturesStep: React.FC<AddSignaturesStepProps> = ({
             <Button
               variant="secondary"
               accent="danger"
-              leftSection={<CancelIcon />}
+              leftSection={<LocalIcon icon="cancel-rounded" />}
               onClick={onCancelPlacement}
               disabled={disabled}
             >

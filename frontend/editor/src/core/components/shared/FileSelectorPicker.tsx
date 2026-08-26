@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { createPortal } from "react-dom";
 import { Box, Popover, ScrollArea, Text, Loader } from "@mantine/core";
 import { Button } from "@app/ui/Button";
-import AddIcon from "@mui/icons-material/Add";
 import { useTranslation } from "react-i18next";
 import {
   createRustlingFile,
@@ -370,7 +370,8 @@ export function FileSelectorPicker({
               {placeholder ||
                 t("fileSelectorPicker.placeholder", "Select file")}
             </Text>
-            <AddIcon
+            <LocalIcon
+              icon="add-rounded"
               style={{
                 fontSize: 18,
                 color: "var(--mantine-color-dimmed)",

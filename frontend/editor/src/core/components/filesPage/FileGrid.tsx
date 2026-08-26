@@ -1,19 +1,9 @@
 import React, { useCallback, useMemo, useRef } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Checkbox, Menu, Tooltip } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import FolderIcon from "@mui/icons-material/Folder";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
-import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
-import DeleteIcon from "@mui/icons-material/Delete";
-import HistoryIcon from "@mui/icons-material/History";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
-import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 
 import { FileId } from "@app/types/file";
 import { FolderId, FolderRecord, ROOT_FOLDER_ID } from "@app/types/folder";
@@ -215,7 +205,7 @@ function EmptyState({
   return (
     <div className="files-page-empty">
       <span className="files-page-empty-icon">
-        <FolderIcon style={{ fontSize: "2.5rem" }} />
+        <LocalIcon icon="folder-rounded" style={{ fontSize: "2.5rem" }} />
       </span>
       <div className="files-page-empty-title">{t(titleKey, titleFallback)}</div>
       <div className="files-page-empty-hint">{t(hintKey, hintFallback)}</div>
@@ -224,7 +214,13 @@ function EmptyState({
           {showUpload && (
             <Button
               size="md"
-              leftSection={<UploadFileIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="upload-file-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={onUpload}
             >
               {t("filesPage.empty.uploadCta", "Upload files")}
@@ -243,7 +239,13 @@ function EmptyState({
                   <Button
                     size="md"
                     variant="secondary"
-                    leftSection={<CreateNewFolderIcon fontSize="small" />}
+                    leftSection={
+                      <LocalIcon
+                        icon="create-new-folder-rounded"
+                        width="1.25rem"
+                        height="1.25rem"
+                      />
+                    }
                     disabled
                     style={{ pointerEvents: "auto" }}
                   >
@@ -255,7 +257,13 @@ function EmptyState({
               <Button
                 size="md"
                 variant="secondary"
-                leftSection={<CreateNewFolderIcon fontSize="small" />}
+                leftSection={
+                  <LocalIcon
+                    icon="create-new-folder-rounded"
+                    width="1.25rem"
+                    height="1.25rem"
+                  />
+                }
                 onClick={onCreateFolder}
               >
                 {t("filesPage.empty.newFolderCta", "Create folder")}
@@ -467,18 +475,30 @@ function FolderCard({
               onClick={(e) => e.stopPropagation()}
               aria-label={t("filesPage.folderMenu", "Folder actions")}
             >
-              <MoreVertIcon fontSize="small" />
+              <LocalIcon icon="more-vert" width="1.25rem" height="1.25rem" />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item
-              leftSection={<OpenInNewIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="open-in-new-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={onOpen}
             >
               {t("filesPage.open", "Open")}
             </Menu.Item>
             <Menu.Item
-              leftSection={<DriveFileRenameOutlineIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="drive-file-rename-outline-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={onRename}
             >
               {t("filesPage.rename", "Rename")}
@@ -494,7 +514,13 @@ function FolderCard({
             <Menu.Divider />
             <Menu.Item
               color="red"
-              leftSection={<DeleteIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="delete-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={onDelete}
             >
               {t("filesPage.deleteFolder", "Delete folder")}
@@ -636,9 +662,12 @@ function FileCard({
         ) : (
           <div className="files-page-card-thumb-fallback">
             {isPdf ? (
-              <PictureAsPdfIcon style={{ fontSize: "2rem" }} />
+              <LocalIcon
+                icon="picture-as-pdf-rounded"
+                style={{ fontSize: "2rem" }}
+              />
             ) : (
-              <InsertDriveFileIcon style={{ fontSize: "2rem" }} />
+              <LocalIcon icon="draft-rounded" style={{ fontSize: "2rem" }} />
             )}
             <span>{extension || "FILE"}</span>
           </div>
@@ -669,12 +698,18 @@ function FileCard({
               aria-label={t("filesPage.fileMenu", "File actions")}
               data-testid="file-card-actions"
             >
-              <MoreVertIcon fontSize="small" />
+              <LocalIcon icon="more-vert" width="1.25rem" height="1.25rem" />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item
-              leftSection={<OpenInNewIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="open-in-new-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onDoubleClick();
@@ -684,7 +719,13 @@ function FileCard({
             </Menu.Item>
             <OpenInNewWindowMenuItem file={file} />
             <Menu.Item
-              leftSection={<DriveFileMoveIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="drive-file-move-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onMove();
@@ -695,7 +736,13 @@ function FileCard({
             </Menu.Item>
             {onVersionHistory && (file.versionNumber ?? 1) > 1 && (
               <Menu.Item
-                leftSection={<HistoryIcon fontSize="small" />}
+                leftSection={
+                  <LocalIcon
+                    icon="history-rounded"
+                    width="1.25rem"
+                    height="1.25rem"
+                  />
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onVersionHistory();
@@ -707,7 +754,13 @@ function FileCard({
             <Menu.Divider />
             <Menu.Item
               color="red"
-              leftSection={<DeleteIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="delete-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove();
@@ -1009,18 +1062,30 @@ function FolderRow({
             onClick={(e) => e.stopPropagation()}
             aria-label={t("filesPage.folderMenu", "Folder actions")}
           >
-            <MoreVertIcon fontSize="small" />
+            <LocalIcon icon="more-vert" width="1.25rem" height="1.25rem" />
           </ActionIcon>
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Item
-            leftSection={<OpenInNewIcon fontSize="small" />}
+            leftSection={
+              <LocalIcon
+                icon="open-in-new-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             onClick={onOpen}
           >
             {t("filesPage.open", "Open")}
           </Menu.Item>
           <Menu.Item
-            leftSection={<DriveFileRenameOutlineIcon fontSize="small" />}
+            leftSection={
+              <LocalIcon
+                icon="drive-file-rename-outline-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             onClick={onRename}
           >
             {t("filesPage.rename", "Rename")}
@@ -1036,7 +1101,13 @@ function FolderRow({
           <Menu.Divider />
           <Menu.Item
             color="red"
-            leftSection={<DeleteIcon fontSize="small" />}
+            leftSection={
+              <LocalIcon
+                icon="delete-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             onClick={onDelete}
           >
             {t("filesPage.deleteFolder", "Delete folder")}
@@ -1167,7 +1238,11 @@ function FileRow({
             }}
           />
         ) : (
-          <PictureAsPdfIcon fontSize="small" />
+          <LocalIcon
+            icon="picture-as-pdf-rounded"
+            width="1.25rem"
+            height="1.25rem"
+          />
         )}
         <span
           style={{
@@ -1216,12 +1291,18 @@ function FileRow({
             aria-label={t("filesPage.fileMenu", "File actions")}
             data-testid="file-card-actions"
           >
-            <MoreVertIcon fontSize="small" />
+            <LocalIcon icon="more-vert" width="1.25rem" height="1.25rem" />
           </ActionIcon>
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Item
-            leftSection={<OpenInNewIcon fontSize="small" />}
+            leftSection={
+              <LocalIcon
+                icon="open-in-new-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             onClick={(e) => {
               e.stopPropagation();
               onOpen();
@@ -1231,7 +1312,13 @@ function FileRow({
           </Menu.Item>
           <OpenInNewWindowMenuItem file={file} />
           <Menu.Item
-            leftSection={<DriveFileMoveIcon fontSize="small" />}
+            leftSection={
+              <LocalIcon
+                icon="drive-file-move-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             onClick={(e) => {
               e.stopPropagation();
               onMove();
@@ -1241,7 +1328,13 @@ function FileRow({
           </Menu.Item>
           {onVersionHistory && (file.versionNumber ?? 1) > 1 && (
             <Menu.Item
-              leftSection={<HistoryIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="history-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onVersionHistory();
@@ -1253,7 +1346,13 @@ function FileRow({
           <Menu.Divider />
           <Menu.Item
             color="red"
-            leftSection={<DeleteIcon fontSize="small" />}
+            leftSection={
+              <LocalIcon
+                icon="delete-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             onClick={(e) => {
               e.stopPropagation();
               onRemove();

@@ -10,14 +10,11 @@
  * save UX that users expect from browser PDF viewers.
  */
 import React, { useCallback, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Stack, Group, Text, Transition, Paper, Badge } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
-import DownloadIcon from "@mui/icons-material/Download";
-import SaveIcon from "@mui/icons-material/Save";
-import EditNoteIcon from "@mui/icons-material/EditNote";
-import CloseIcon from "@mui/icons-material/Close";
 import { useFormFill } from "@app/tools/formFill/FormFillContext";
 import { downloadFile } from "@app/services/downloadService";
 
@@ -120,9 +117,11 @@ export function FormSaveBar({
             <Stack gap="xs" p="md">
               <Group justify="space-between" wrap="nowrap">
                 <Group gap="sm" wrap="nowrap">
-                  <EditNoteIcon
-                    sx={{
-                      fontSize: 24,
+                  <LocalIcon
+                    icon="edit-note-rounded"
+                    width={24}
+                    height={24}
+                    style={{
                       color: isDirty
                         ? "var(--mantine-color-blue-6)"
                         : "var(--mantine-color-gray-6)",
@@ -158,7 +157,7 @@ export function FormSaveBar({
                   onClick={() => setDismissed(true)}
                   aria-label={t("viewer.formBar.dismiss", "Dismiss")}
                 >
-                  <CloseIcon sx={{ fontSize: 16 }} />
+                  <LocalIcon icon="close-rounded" width={16} height={16} />
                 </ActionIcon>
               </Group>
 
@@ -167,7 +166,9 @@ export function FormSaveBar({
                   <Button
                     size="sm"
                     variant="secondary"
-                    leftSection={<SaveIcon sx={{ fontSize: 18 }} />}
+                    leftSection={
+                      <LocalIcon icon="save-rounded" width={18} height={18} />
+                    }
                     loading={applying}
                     disabled={saving}
                     onClick={handleApply}
@@ -177,7 +178,13 @@ export function FormSaveBar({
                   </Button>
                   <Button
                     size="sm"
-                    leftSection={<DownloadIcon sx={{ fontSize: 18 }} />}
+                    leftSection={
+                      <LocalIcon
+                        icon="download-rounded"
+                        width={18}
+                        height={18}
+                      />
+                    }
                     loading={saving}
                     disabled={applying}
                     onClick={handleDownload}

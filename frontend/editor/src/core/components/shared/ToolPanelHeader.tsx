@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import CloseIcon from "@mui/icons-material/Close";
 import "@app/components/shared/ToolPanelHeader.css";
 
 export interface ToolPanelHeaderProps {
@@ -45,7 +45,7 @@ export function ToolPanelHeader({
           onClick={onClose}
           aria-label={closeLabel ?? ""}
         >
-          <CloseIcon sx={{ fontSize: 18 }} />
+          <LocalIcon icon="close-rounded" width={18} height={18} />
         </ActionIcon>
       )}
     </div>

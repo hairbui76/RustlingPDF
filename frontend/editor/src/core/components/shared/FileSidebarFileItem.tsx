@@ -1,15 +1,9 @@
 import React, { useState, useCallback, useRef } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { createPortal } from "react-dom";
 import { Menu } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import FolderIcon from "@mui/icons-material/FolderOutlined";
-import FolderOffIcon from "@mui/icons-material/FolderOffOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
-import HistoryIcon from "@mui/icons-material/History";
 import type { FileId } from "@app/types/file";
 import { FileDocIcon } from "@app/components/shared/FileDocIcon";
 import { getFileDocVariant } from "@app/components/shared/filePreview/getFileTypeIcon";
@@ -250,13 +244,17 @@ export function FileItem({
                 : t("fileSidebar.fileItem.openInViewer", "Open in viewer")
             }
           >
-            <VisibilityOutlinedIcon
+            <LocalIcon
+              icon="visibility-outline-rounded"
+              width="1.1rem"
+              height="1.1rem"
               className="file-sidebar-eye-open"
-              sx={{ fontSize: "1.1rem" }}
             />
-            <VisibilityOffOutlinedIcon
+            <LocalIcon
+              icon="visibility-off-outline-rounded"
+              width="1.1rem"
+              height="1.1rem"
               className="file-sidebar-eye-closed"
-              sx={{ fontSize: "1.1rem" }}
             />
           </ActionIcon>
           {(onDelete || (hasVersionHistory && onVersionHistory)) && (
@@ -273,7 +271,7 @@ export function FileItem({
                     "More actions",
                   )}
                 >
-                  <MoreVertIcon sx={{ fontSize: "1.1rem" }} />
+                  <LocalIcon icon="more-vert" width="1.1rem" height="1.1rem" />
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
@@ -286,7 +284,13 @@ export function FileItem({
                       </Menu.Label>
                       {currentCollectionId && (
                         <Menu.Item
-                          leftSection={<FolderOffIcon sx={{ fontSize: 16 }} />}
+                          leftSection={
+                            <LocalIcon
+                              icon="folder-off-outline-rounded"
+                              width={16}
+                              height={16}
+                            />
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
                             onMoveToCollection(fileId, null);
@@ -302,7 +306,13 @@ export function FileItem({
                         <Menu.Item
                           key={collection.id}
                           disabled={collection.id === currentCollectionId}
-                          leftSection={<FolderIcon sx={{ fontSize: 16 }} />}
+                          leftSection={
+                            <LocalIcon
+                              icon="folder-outline-rounded"
+                              width={16}
+                              height={16}
+                            />
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
                             onMoveToCollection(fileId, collection.id);
@@ -316,7 +326,13 @@ export function FileItem({
                   )}
                 {hasVersionHistory && onVersionHistory && (
                   <Menu.Item
-                    leftSection={<HistoryIcon sx={{ fontSize: 16 }} />}
+                    leftSection={
+                      <LocalIcon
+                        icon="history-rounded"
+                        width={16}
+                        height={16}
+                      />
+                    }
                     onClick={(e) => {
                       e.stopPropagation();
                       onVersionHistory(fileId);
@@ -338,7 +354,11 @@ export function FileItem({
                       <Menu.Item
                         color="red"
                         leftSection={
-                          <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                          <LocalIcon
+                            icon="delete-outline-rounded"
+                            width={16}
+                            height={16}
+                          />
                         }
                         onClick={(e) => {
                           e.stopPropagation();

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Text, Modal, Group, Stack, Tooltip } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { Button } from "@app/ui/Button";
@@ -7,13 +8,6 @@ import { alert } from "@app/components/toast";
 import { useTranslation } from "react-i18next";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
-import CloseIcon from "@mui/icons-material/Close";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import UnarchiveIcon from "@mui/icons-material/Unarchive";
-import HistoryIcon from "@mui/icons-material/History";
-import PushPinIcon from "@mui/icons-material/PushPin";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import {
   draggable,
   dropTargetForElements,
@@ -272,7 +266,7 @@ const FileEditorThumbnail = ({
     return [
       {
         id: "view",
-        icon: <VisibilityIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="visibility-rounded" style={{ fontSize: 20 }} />,
         label: t("openInViewer", "Open in Viewer"),
         onClick: (e) => {
           e.stopPropagation();
@@ -281,7 +275,7 @@ const FileEditorThumbnail = ({
       },
       {
         id: "pin",
-        icon: <PushPinIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="keep-rounded" style={{ fontSize: 20 }} />,
         label: isPinned
           ? t("unpin", "Unpin File (replace after tool run)")
           : t("pin", "Pin File (keep active after tool run)"),
@@ -320,7 +314,7 @@ const FileEditorThumbnail = ({
       },
       {
         id: "unzip",
-        icon: <UnarchiveIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="unarchive-rounded" style={{ fontSize: 20 }} />,
         label: t("fileManager.unzip", "Unzip"),
         onClick: (e) => {
           e.stopPropagation();
@@ -338,7 +332,7 @@ const FileEditorThumbnail = ({
       },
       {
         id: "versionHistory",
-        icon: <HistoryIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="history-rounded" style={{ fontSize: 20 }} />,
         label: t("fileManager.versionHistory", "Version history"),
         onClick: (e) => {
           e.stopPropagation();
@@ -348,7 +342,7 @@ const FileEditorThumbnail = ({
       },
       {
         id: "close",
-        icon: <CloseIcon style={{ fontSize: 20 }} />,
+        icon: <LocalIcon icon="close-rounded" style={{ fontSize: 20 }} />,
         label: t("close", "Close"),
         onClick: (e) => {
           e.stopPropagation();
@@ -480,7 +474,7 @@ const FileEditorThumbnail = ({
                 </span>
                 {isPinned && (
                   <span className={styles.pinnedBadge}>
-                    <PushPinIcon style={{ fontSize: 12 }} />
+                    <LocalIcon icon="keep-rounded" style={{ fontSize: 12 }} />
                   </span>
                 )}
                 {isEncrypted && (
@@ -503,7 +497,10 @@ const FileEditorThumbnail = ({
                       }}
                       style={{ pointerEvents: "auto" }}
                     >
-                      <LockOpenIcon style={{ fontSize: 12 }} />
+                      <LocalIcon
+                        icon="lock-open-rounded"
+                        style={{ fontSize: 12 }}
+                      />
                     </ActionIcon>
                   </Tooltip>
                 )}
@@ -516,7 +513,7 @@ const FileEditorThumbnail = ({
 
           {/* Drag handle */}
           <span ref={handleRef} className={styles.dragHandle} aria-hidden>
-            <DragIndicatorIcon fontSize="small" />
+            <LocalIcon icon="drag-indicator" width="1.25rem" height="1.25rem" />
           </span>
         </div>
 

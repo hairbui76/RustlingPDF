@@ -9,11 +9,6 @@ import { CheckboxIndicator } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
-import PushPinIcon from "@mui/icons-material/PushPin";
-import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import {
   draggable,
   dropTargetForElements,
@@ -25,6 +20,7 @@ import { FileId } from "@app/types/file";
 import { useFileActionTerminology } from "@app/hooks/useFileActionTerminology";
 import { useFileActionIcons } from "@app/hooks/useFileActionIcons";
 import { downloadFile } from "@app/services/downloadService";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 
 interface FileItem {
   id: FileId;
@@ -267,7 +263,7 @@ const FileThumbnail = ({
             setShowActions((v) => !v);
           }}
         >
-          <MoreVertIcon fontSize="small" />
+          <LocalIcon icon="more-vert" width="1.25rem" height="1.25rem" />
         </ActionIcon>
       </div>
 
@@ -285,9 +281,17 @@ const FileThumbnail = ({
             className={styles.actionRow}
             leftSection={
               isPinned ? (
-                <PushPinIcon fontSize="small" />
+                <LocalIcon
+                  icon="keep-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
               ) : (
-                <PushPinOutlinedIcon fontSize="small" />
+                <LocalIcon
+                  icon="keep-outline-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
               )
             }
             onClick={() => {
@@ -324,7 +328,13 @@ const FileThumbnail = ({
             justify="start"
             fullWidth
             className={`${styles.actionRow} ${styles.actionDanger}`}
-            leftSection={<DeleteOutlineIcon fontSize="small" />}
+            leftSection={
+              <LocalIcon
+                icon="delete-outline-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             onClick={() => {
               onDeleteFile(file.id);
               onSetStatus(`Deleted ${file.name}`);
@@ -383,13 +393,13 @@ const FileThumbnail = ({
         {/* Pin indicator (bottom-left) */}
         {isPinned && (
           <span className={styles.pinIndicator} aria-hidden>
-            <PushPinIcon fontSize="small" />
+            <LocalIcon icon="keep-rounded" width="1.25rem" height="1.25rem" />
           </span>
         )}
 
         {/* Drag handle (span wrapper so we can attach a ref reliably) */}
         <span ref={handleRef} className={styles.dragHandle} aria-hidden>
-          <DragIndicatorIcon fontSize="small" />
+          <LocalIcon icon="drag-indicator" width="1.25rem" height="1.25rem" />
         </span>
       </div>
     </div>

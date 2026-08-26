@@ -1,4 +1,5 @@
 import React, { ReactNode, useState, useMemo } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import {
   Stack,
   Text,
@@ -9,8 +10,6 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
-import SearchIcon from "@mui/icons-material/Search";
 import { Z_INDEX_AUTOMATE_DROPDOWN } from "@app/styles/zIndex";
 
 export interface DropdownItem {
@@ -153,7 +152,8 @@ const DropdownListWithFooter: React.FC<DropdownListWithFooterProps> = ({
             <Text size="sm" style={{ flex: 1 }}>
               {getDisplayText()}
             </Text>
-            <UnfoldMoreIcon
+            <LocalIcon
+              icon="unfold-more-rounded"
               style={{
                 fontSize: "1rem",
                 color:
@@ -189,7 +189,12 @@ const DropdownListWithFooter: React.FC<DropdownListWithFooterProps> = ({
                   placeholder={t("dropdownList.searchPlaceholder", "Search...")}
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  leftSection={<SearchIcon style={{ fontSize: "1rem" }} />}
+                  leftSection={
+                    <LocalIcon
+                      icon="search-rounded"
+                      style={{ fontSize: "1rem" }}
+                    />
+                  }
                   size="sm"
                   style={{ width: "100%" }}
                 />

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Alert, Group, Modal, Stack, TextInput } from "@mantine/core";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 
 import { Button } from "@app/ui/Button";
 
@@ -88,7 +88,13 @@ export function FolderNameDialog({
         {error && (
           <Alert
             color="red"
-            icon={<ErrorOutlineIcon fontSize="small" />}
+            icon={
+              <LocalIcon
+                icon="error-outline-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
+            }
             variant="light"
             role="alert"
           >

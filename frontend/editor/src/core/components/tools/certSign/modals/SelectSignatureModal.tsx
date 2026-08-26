@@ -1,4 +1,5 @@
 import { Modal, Stack, Text, Group, Box } from "@mantine/core";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
@@ -6,10 +7,6 @@ import {
   useSavedSignatures,
   SavedSignature,
 } from "@app/hooks/tools/sign/useSavedSignatures";
-import DrawIcon from "@mui/icons-material/Draw";
-import TextFieldsIcon from "@mui/icons-material/TextFields";
-import ImageIcon from "@mui/icons-material/Image";
-import CloseIcon from "@mui/icons-material/Close";
 
 interface SelectSignatureModalProps {
   opened: boolean;
@@ -151,7 +148,11 @@ export const SelectSignatureModal: React.FC<SelectSignatureModalProps> = ({
                     )}
                     style={{ margin: "0 6px" }}
                   >
-                    <CloseIcon sx={{ fontSize: "1rem" }} />
+                    <LocalIcon
+                      icon="close-rounded"
+                      width="1rem"
+                      height="1rem"
+                    />
                   </ActionIcon>
                 </Group>
               ))}
@@ -173,7 +174,7 @@ export const SelectSignatureModal: React.FC<SelectSignatureModalProps> = ({
         <Group grow>
           <Button
             variant="secondary"
-            leftSection={<DrawIcon />}
+            leftSection={<LocalIcon icon="draw-rounded" />}
             onClick={() => {
               onCreateNew("canvas");
               onClose();
@@ -183,7 +184,7 @@ export const SelectSignatureModal: React.FC<SelectSignatureModalProps> = ({
           </Button>
           <Button
             variant="secondary"
-            leftSection={<TextFieldsIcon />}
+            leftSection={<LocalIcon icon="text-fields-rounded" />}
             onClick={() => {
               onCreateNew("text");
               onClose();
@@ -193,7 +194,7 @@ export const SelectSignatureModal: React.FC<SelectSignatureModalProps> = ({
           </Button>
           <Button
             variant="secondary"
-            leftSection={<ImageIcon />}
+            leftSection={<LocalIcon icon="image-rounded" />}
             onClick={() => {
               onCreateNew("image");
               onClose();

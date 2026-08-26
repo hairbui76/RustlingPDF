@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import { useSidebarContext } from "@app/contexts/SidebarContext";
@@ -13,9 +14,6 @@ import { ToolPanelHeader } from "@app/components/shared/ToolPanelHeader";
 import { Tooltip as AppTooltip } from "@app/components/shared/Tooltip";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { withViewTransition } from "@app/utils/viewTransition";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import CloseIcon from "@mui/icons-material/Close";
 import { ToolId } from "@app/types/toolId";
 import type { ToolRegistryEntry } from "@app/data/toolsTaxonomy";
 import {
@@ -166,7 +164,11 @@ export default function RightSidebar() {
               className="tool-panel__expand-btn tool-panel__toggle-vt"
               onClick={handleExpand}
             >
-              <ChevronLeftIcon sx={{ fontSize: "1.1rem" }} />
+              <LocalIcon
+                icon="chevron-left-rounded"
+                width="1.1rem"
+                height="1.1rem"
+              />
             </ActionIcon>
           </div>
           <div className="tool-panel__collapsed-divider" />
@@ -257,7 +259,11 @@ export default function RightSidebar() {
                     }
                     className="tool-panel__expand-btn"
                   >
-                    <CloseIcon sx={{ fontSize: "1.1rem" }} />
+                    <LocalIcon
+                      icon="close-rounded"
+                      width="1.1rem"
+                      height="1.1rem"
+                    />
                   </ActionIcon>
                 ) : (
                   <ActionIcon
@@ -268,7 +274,11 @@ export default function RightSidebar() {
                     aria-label={t("toolPanel.collapse", "Collapse panel")}
                     className="tool-panel__expand-btn tool-panel__toggle-vt"
                   >
-                    <ChevronRightIcon sx={{ fontSize: "1.1rem" }} />
+                    <LocalIcon
+                      icon="chevron-right-rounded"
+                      width="1.1rem"
+                      height="1.1rem"
+                    />
                   </ActionIcon>
                 )}
               </div>

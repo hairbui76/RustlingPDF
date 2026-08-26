@@ -1,16 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Badge, Tooltip } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import CloseIcon from "@mui/icons-material/Close";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
-import DeleteIcon from "@mui/icons-material/Delete";
-import DownloadIcon from "@mui/icons-material/Download";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import HistoryIcon from "@mui/icons-material/History";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 import { FileId } from "@app/types/file";
 import { FolderRecord } from "@app/types/folder";
@@ -137,7 +130,7 @@ export function FileDetailsPanel({
             onClick={onClose}
             aria-label={t("filesPage.closeDetails", "Close details")}
           >
-            <CloseIcon fontSize="small" />
+            <LocalIcon icon="close-rounded" width="1.25rem" height="1.25rem" />
           </ActionIcon>
         </Tooltip>
       </div>
@@ -153,7 +146,8 @@ export function FileDetailsPanel({
               {single.thumbnailUrl ? (
                 <img src={single.thumbnailUrl} alt="" />
               ) : (
-                <PictureAsPdfIcon
+                <LocalIcon
+                  icon="picture-as-pdf-rounded"
                   style={{ fontSize: "3rem", color: "var(--c-text-subtle)" }}
                 />
               )}
@@ -185,11 +179,13 @@ export function FileDetailsPanel({
               onClick={() => setFieldsOpen((o) => !o)}
               aria-expanded={fieldsOpen}
               rightSection={
-                <KeyboardArrowDownIcon
+                <LocalIcon
+                  icon="keyboard-arrow-down-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
                   className={`files-page-details-collapse-chevron${
                     fieldsOpen ? " is-open" : ""
                   }`}
-                  fontSize="small"
                 />
               }
             >
@@ -238,7 +234,13 @@ export function FileDetailsPanel({
             {versionChain.length > 1 &&
               (compactVersions && onOpenVersionHistory ? (
                 <Button
-                  leftSection={<HistoryIcon fontSize="small" />}
+                  leftSection={
+                    <LocalIcon
+                      icon="history-rounded"
+                      width="1.25rem"
+                      height="1.25rem"
+                    />
+                  }
                   variant="secondary"
                   onClick={onOpenVersionHistory}
                 >
@@ -258,11 +260,13 @@ export function FileDetailsPanel({
                     onClick={() => setVersionsOpen((o) => !o)}
                     aria-expanded={versionsOpen}
                     rightSection={
-                      <KeyboardArrowDownIcon
+                      <LocalIcon
+                        icon="keyboard-arrow-down-rounded"
+                        width="1.25rem"
+                        height="1.25rem"
                         className={`files-page-details-collapse-chevron${
                           versionsOpen ? " is-open" : ""
                         }`}
-                        fontSize="small"
                       />
                     }
                   >
@@ -302,7 +306,13 @@ export function FileDetailsPanel({
 
       <div className="files-page-details-actions">
         <Button
-          leftSection={<OpenInNewIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon
+              icon="open-in-new-rounded"
+              width="1.25rem"
+              height="1.25rem"
+            />
+          }
           onClick={() => onAddToWorkspace(selectedFileIds)}
         >
           {files.length === 1
@@ -312,7 +322,13 @@ export function FileDetailsPanel({
               })}
         </Button>
         <Button
-          leftSection={<DownloadIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon
+              icon="download-rounded"
+              width="1.25rem"
+              height="1.25rem"
+            />
+          }
           variant="secondary"
           onClick={handleDownload}
           loading={downloading}
@@ -322,14 +338,22 @@ export function FileDetailsPanel({
             : t("filesPage.downloadAll", "Download all")}
         </Button>
         <Button
-          leftSection={<DriveFileMoveIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon
+              icon="drive-file-move-rounded"
+              width="1.25rem"
+              height="1.25rem"
+            />
+          }
           variant="secondary"
           onClick={() => onMove(selectedFileIds)}
         >
           {t("filesPage.moveTo", "Move to…")}
         </Button>
         <Button
-          leftSection={<DeleteIcon fontSize="small" />}
+          leftSection={
+            <LocalIcon icon="delete-rounded" width="1.25rem" height="1.25rem" />
+          }
           accent="danger"
           onClick={() => onRemove(selectedFileIds)}
         >

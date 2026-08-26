@@ -1,6 +1,6 @@
 import React from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Box, Center } from "@mantine/core";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import { RustlingFileStub } from "@app/types/fileContext";
 import DocumentThumbnail from "@app/components/shared/filePreview/DocumentThumbnail";
 import DocumentStack from "@app/components/shared/filePreview/DocumentStack";
@@ -43,7 +43,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     return (
       <Box style={{ width: "100%", height: "100%" }}>
         <Center style={{ width: "100%", height: "100%" }}>
-          <InsertDriveFileIcon
+          <LocalIcon
+            icon="draft-rounded"
             style={{
               fontSize: "4rem",
               color: "var(--mantine-color-gray-4)",

@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import {
   Stack,
   Text,
@@ -10,7 +11,6 @@ import {
 } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { CropParametersHook } from "@app/hooks/tools/crop/useCropParameters";
 import { useAllFiles } from "@app/contexts/FileContext";
 import CropAreaSelector from "@app/components/tools/crop/CropAreaSelector";
@@ -199,7 +199,10 @@ const CropSettings = ({ parameters, disabled = false }: CropSettingsProps) => {
               title={t("crop.reset", "Reset to full PDF")}
               aria-label={t("crop.reset", "Reset to full PDF")}
             >
-              <RestartAltIcon style={{ fontSize: "1rem" }} />
+              <LocalIcon
+                icon="restart-alt-rounded"
+                style={{ fontSize: "1rem" }}
+              />
             </ActionIcon>
           </Group>
 

@@ -1,14 +1,9 @@
 import { useMemo, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Badge, Menu } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import DeleteIcon from "@mui/icons-material/Delete";
-import DownloadIcon from "@mui/icons-material/Download";
-import HistoryIcon from "@mui/icons-material/History";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 import { FileId, ToolOperation } from "@app/types/file";
 import { ToolId } from "@app/types/toolId";
@@ -126,7 +121,7 @@ export function VersionTimeline({
     <div className="files-page-details-version-timeline">
       {!hideHeader && (
         <div className="files-page-details-version-timeline-label">
-          <HistoryIcon fontSize="small" />
+          <LocalIcon icon="history-rounded" width="1.25rem" height="1.25rem" />
           <span>{t("filesPage.field.versionHistory", "Version journey")}</span>
           <span className="files-page-details-version-timeline-count">
             {t("filesPage.versionsCount", "{{count}} versions", {
@@ -202,11 +197,13 @@ export function VersionTimeline({
                     </Badge>
                   }
                   rightSection={
-                    <KeyboardArrowDownIcon
+                    <LocalIcon
+                      icon="keyboard-arrow-down-rounded"
+                      width="1.25rem"
+                      height="1.25rem"
                       className={`files-page-details-version-timeline-chevron${
                         isExpanded ? " is-expanded" : ""
                       }`}
-                      fontSize="small"
                     />
                   }
                 >
@@ -244,12 +241,22 @@ export function VersionTimeline({
                         )}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreVertIcon fontSize="small" />
+                        <LocalIcon
+                          icon="more-vert"
+                          width="1.25rem"
+                          height="1.25rem"
+                        />
                       </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
                       <Menu.Item
-                        leftSection={<OpenInNewIcon fontSize="small" />}
+                        leftSection={
+                          <LocalIcon
+                            icon="open-in-new-rounded"
+                            width="1.25rem"
+                            height="1.25rem"
+                          />
+                        }
                         onClick={() => onAddToWorkspace([v.id])}
                       >
                         {t(
@@ -258,7 +265,13 @@ export function VersionTimeline({
                         )}
                       </Menu.Item>
                       <Menu.Item
-                        leftSection={<DownloadIcon fontSize="small" />}
+                        leftSection={
+                          <LocalIcon
+                            icon="download-rounded"
+                            width="1.25rem"
+                            height="1.25rem"
+                          />
+                        }
                         onClick={() => {
                           void downloadFileFromStorage(v);
                         }}
@@ -271,7 +284,13 @@ export function VersionTimeline({
                       <Menu.Divider />
                       <Menu.Item
                         color="red"
-                        leftSection={<DeleteIcon fontSize="small" />}
+                        leftSection={
+                          <LocalIcon
+                            icon="delete-rounded"
+                            width="1.25rem"
+                            height="1.25rem"
+                          />
+                        }
                         onClick={() => onRemove([v.id])}
                       >
                         {t("filesPage.removeVersion", "Remove this version")}

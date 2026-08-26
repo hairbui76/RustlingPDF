@@ -1,12 +1,9 @@
 import { useEffect, useCallback, useState, useRef } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Modal, Stack, Text, Badge, Box, Alert } from "@mantine/core";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { useAppConfig } from "@app/contexts/AppConfigContext";
-import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
-import ErrorRoundedIcon from "@mui/icons-material/ErrorRounded";
-import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
-import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
 import { Z_INDEX_OVER_FILE_MANAGER_MODAL } from "@app/styles/zIndex";
 import { BASE_PATH } from "@app/constants/app";
 import { buildMobileScannerUrl } from "@app/utils/mobileScannerUrl";
@@ -333,7 +330,7 @@ export default function MobileUploadModal({
     >
       <Stack gap="md">
         <Alert
-          icon={<InfoRoundedIcon style={{ fontSize: "1rem" }} />}
+          icon={<LocalIcon icon="info-rounded" style={{ fontSize: "1rem" }} />}
           color="blue"
           variant="light"
         >
@@ -352,7 +349,9 @@ export default function MobileUploadModal({
 
         {showExpiryWarning && timeRemaining !== null && (
           <Alert
-            icon={<WarningRoundedIcon style={{ fontSize: "1rem" }} />}
+            icon={
+              <LocalIcon icon="warning-rounded" style={{ fontSize: "1rem" }} />
+            }
             title={t("mobileUpload.expiryWarning", "Session Expiring Soon")}
             color="orange"
           >
@@ -368,7 +367,9 @@ export default function MobileUploadModal({
 
         {error && (
           <Alert
-            icon={<ErrorRoundedIcon style={{ fontSize: "1rem" }} />}
+            icon={
+              <LocalIcon icon="error-rounded" style={{ fontSize: "1rem" }} />
+            }
             title={t("mobileUpload.error", "Connection Error")}
             color="red"
           >
@@ -400,7 +401,9 @@ export default function MobileUploadModal({
               variant="filled"
               color="green"
               size="lg"
-              leftSection={<CheckRoundedIcon style={{ fontSize: "1rem" }} />}
+              leftSection={
+                <LocalIcon icon="check-rounded" style={{ fontSize: "1rem" }} />
+              }
             >
               {t("mobileUpload.filesReceived", "{{count}} file(s) received", {
                 count: filesReceived,

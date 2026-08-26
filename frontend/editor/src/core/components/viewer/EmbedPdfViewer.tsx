@@ -9,8 +9,6 @@ import { useTranslation } from "react-i18next";
 import { Box, Center, Text, Stack } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import CloseIcon from "@mui/icons-material/Close";
-import LockIcon from "@mui/icons-material/Lock";
 
 import { useFileState, useFileActions } from "@app/contexts/FileContext";
 import { useFileWithUrl } from "@app/hooks/useFileWithUrl";
@@ -48,6 +46,7 @@ import { useFormFill } from "@app/tools/formFill/FormFillContext";
 import { FormSaveBar } from "@app/tools/formFill/FormSaveBar";
 import { useViewerKeyCommand } from "@app/hooks/useViewerKeyCommand";
 import { alert } from "@app/components/toast";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 
 // ─── Measure dictionary extraction ────────────────────────────────────────────
 
@@ -1238,7 +1237,7 @@ const EmbedPdfViewerContent = ({
           }}
           onClick={onClose}
         >
-          <CloseIcon />
+          <LocalIcon icon="close-rounded" />
         </ActionIcon>
       )}
 
@@ -1254,7 +1253,7 @@ const EmbedPdfViewerContent = ({
       ) : isCurrentFileEncrypted ? (
         <Center style={{ flex: 1 }}>
           <Stack align="center" gap="md">
-            <LockIcon style={{ fontSize: 48, opacity: 0.5 }} />
+            <LocalIcon icon="lock" style={{ fontSize: 48, opacity: 0.5 }} />
             <Text fw={500}>
               {t(
                 "encryptedPdfUnlock.viewerLocked",

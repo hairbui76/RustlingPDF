@@ -1,12 +1,7 @@
 import { Stack, Text, Group, Divider, Paper } from "@mantine/core";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Button } from "@app/ui/Button";
 import { useTranslation } from "react-i18next";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import DrawIcon from "@mui/icons-material/Draw";
-import SecurityIcon from "@mui/icons-material/Security";
-import SettingsIcon from "@mui/icons-material/Settings";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
 import {
   CertificateType,
   UploadFormat,
@@ -69,7 +64,7 @@ export const ReviewSignatureStep: React.FC<ReviewSignatureStepProps> = ({
       {/* Signatures Summary */}
       <div>
         <Group gap="xs" mb="xs">
-          <DrawIcon sx={{ fontSize: 18 }} />
+          <LocalIcon icon="draw-rounded" width={18} height={18} />
           <Text size="sm" fw={600}>
             {t(
               "certSign.collab.signRequest.steps.yourSignatures",
@@ -103,7 +98,7 @@ export const ReviewSignatureStep: React.FC<ReviewSignatureStepProps> = ({
       {/* Certificate Info */}
       <div>
         <Group gap="xs" mb="xs">
-          <SecurityIcon sx={{ fontSize: 18 }} />
+          <LocalIcon icon="security-rounded" width={18} height={18} />
           <Text size="sm" fw={600}>
             {t("certSign.collab.signRequest.steps.certificate", "Certificate")}
           </Text>
@@ -116,7 +111,7 @@ export const ReviewSignatureStep: React.FC<ReviewSignatureStepProps> = ({
       {/* Settings from Owner */}
       <div>
         <Group gap="xs" mb="xs">
-          <SettingsIcon sx={{ fontSize: 18 }} />
+          <LocalIcon icon="settings-rounded" width={18} height={18} />
           <Text size="sm" fw={600}>
             {t(
               "certSign.collab.signRequest.signatureSettings",
@@ -170,7 +165,9 @@ export const ReviewSignatureStep: React.FC<ReviewSignatureStepProps> = ({
         <Button
           variant="secondary"
           onClick={onBack}
-          leftSection={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+          leftSection={
+            <LocalIcon icon="arrow-back-rounded" width={16} height={16} />
+          }
         >
           {t("certSign.collab.signRequest.steps.back", "Back")}
         </Button>
@@ -179,7 +176,9 @@ export const ReviewSignatureStep: React.FC<ReviewSignatureStepProps> = ({
           accent="danger"
           onClick={onDecline}
           disabled={disabled}
-          leftSection={<CancelIcon sx={{ fontSize: 16 }} />}
+          leftSection={
+            <LocalIcon icon="cancel-rounded" width={16} height={16} />
+          }
         >
           {t("certSign.collab.signRequest.declineButton", "Decline")}
         </Button>
@@ -188,7 +187,9 @@ export const ReviewSignatureStep: React.FC<ReviewSignatureStepProps> = ({
           onClick={onSign}
           disabled={disabled}
           style={{ flex: 1 }}
-          leftSection={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+          leftSection={
+            <LocalIcon icon="check-circle-rounded" width={16} height={16} />
+          }
         >
           {t("certSign.collab.signRequest.signButton", "Sign Document")}
         </Button>

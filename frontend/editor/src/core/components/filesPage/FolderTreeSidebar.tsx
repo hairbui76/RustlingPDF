@@ -1,14 +1,8 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Menu } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import HomeIcon from "@mui/icons-material/Home";
-import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { FolderThumbnail } from "@app/components/filesPage/FolderThumbnail";
 
 import { useFolders } from "@app/contexts/FolderContext";
@@ -159,7 +153,7 @@ function RootRow({ fileCount, isActive, onSelect, onDropFiles }: RootRowProps) {
     >
       <span className="files-page-tree-spacer" />
       <span className="files-page-tree-icon">
-        <HomeIcon fontSize="small" />
+        <LocalIcon icon="home-rounded" width="1.25rem" height="1.25rem" />
       </span>
       <span className="files-page-tree-name">
         {t("filesPage.allFiles", "All files")}
@@ -316,9 +310,17 @@ function TreeNodeRow({
             }}
           >
             {open ? (
-              <KeyboardArrowDownIcon fontSize="small" />
+              <LocalIcon
+                icon="keyboard-arrow-down-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
             ) : (
-              <KeyboardArrowRightIcon fontSize="small" />
+              <LocalIcon
+                icon="keyboard-arrow-right-rounded"
+                width="1.25rem"
+                height="1.25rem"
+              />
             )}
           </span>
         ) : (
@@ -354,12 +356,18 @@ function TreeNodeRow({
                 setMenuOpen((o) => !o);
               }}
             >
-              <MoreVertIcon fontSize="small" />
+              <LocalIcon icon="more-vert" width="1.25rem" height="1.25rem" />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item
-              leftSection={<EditIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="edit-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onRenameFolder(node.folder);
@@ -368,7 +376,13 @@ function TreeNodeRow({
               {t("filesPage.treeMenu.rename", "Rename")}
             </Menu.Item>
             <Menu.Item
-              leftSection={<CreateNewFolderIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="create-new-folder-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onRequestNewFolder(node.folder.id);
@@ -379,7 +393,13 @@ function TreeNodeRow({
             <Menu.Divider />
             <Menu.Item
               color="red"
-              leftSection={<DeleteOutlineIcon fontSize="small" />}
+              leftSection={
+                <LocalIcon
+                  icon="delete-outline-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onDeleteFolder(node.folder);

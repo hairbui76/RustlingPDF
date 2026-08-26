@@ -73,6 +73,20 @@ function scanForUsedIcons() {
           });
         }
 
+        // Match component-shaped icons: materialSymbol("icon-name")
+        const factoryMatches = content.match(/materialSymbol\("([^"]+)"\)/g);
+        if (factoryMatches) {
+          factoryMatches.forEach((match) => {
+            const iconMatch = match.match(/"([^"]+)"/);
+            if (iconMatch) {
+              usedIcons.add(iconMatch[1]);
+              debug(
+                `  Found (factory): ${iconMatch[1]} in ${path.relative(srcDir, filePath)}`,
+              );
+            }
+          });
+        }
+
         // Match old material-symbols-rounded spans: <span className="material-symbols-rounded">icon-name</span>
         const spanMatches = content.match(
           /<span[^>]*className="[^"]*material-symbols-rounded[^"]*"[^>]*>([^<]+)<\/span>/g,

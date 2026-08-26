@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { isAxiosError } from "axios";
-import DescriptionIcon from "@mui/icons-material/DescriptionOutlined";
 
 import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
 import {
@@ -1987,7 +1987,13 @@ const PdfTextEditor = ({ onComplete, onError }: BaseToolProps) => {
       id: WORKBENCH_VIEW_ID,
       workbenchId: WORKBENCH_ID,
       label: viewLabel,
-      icon: <DescriptionIcon fontSize="small" />,
+      icon: (
+        <LocalIcon
+          icon="description-outline-rounded"
+          width="1.25rem"
+          height="1.25rem"
+        />
+      ),
       component: PdfTextEditorView,
     });
     setLeftPanelView("toolContent");

@@ -15,10 +15,6 @@ import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
 import { useTranslation } from "react-i18next";
-import AutorenewIcon from "@mui/icons-material/Autorenew";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import FileDownloadIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import {
   PdfTextEditorViewData,
@@ -206,7 +202,11 @@ const PdfTextEditorSidebar = ({ data }: PdfTextEditorSidebarProps) => {
                         )}
                         style={{ flexShrink: 0 }}
                       >
-                        <InfoOutlinedIcon fontSize="small" />
+                        <LocalIcon
+                          icon="info-outline-rounded"
+                          width="1.25rem"
+                          height="1.25rem"
+                        />
                       </ActionIcon>
                     </Tooltip>
                     <Text fw={500} size="sm" style={{ flex: 1 }}>
@@ -331,7 +331,11 @@ const PdfTextEditorSidebar = ({ data }: PdfTextEditorSidebarProps) => {
                         )}
                         style={{ flexShrink: 0 }}
                       >
-                        <InfoOutlinedIcon fontSize="small" />
+                        <LocalIcon
+                          icon="info-outline-rounded"
+                          width="1.25rem"
+                          height="1.25rem"
+                        />
                       </ActionIcon>
                     </Tooltip>
                     <Text fw={500} size="sm" style={{ flex: 1 }}>
@@ -385,19 +389,31 @@ const PdfTextEditorSidebar = ({ data }: PdfTextEditorSidebarProps) => {
                   "More options",
                 )}
               >
-                <MoreHorizIcon fontSize="small" />
+                <LocalIcon icon="more-horiz" width="1.25rem" height="1.25rem" />
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Item
-                leftSection={<FileDownloadIcon fontSize="small" />}
+                leftSection={
+                  <LocalIcon
+                    icon="download-rounded"
+                    width="1.25rem"
+                    height="1.25rem"
+                  />
+                }
                 onClick={() => onGeneratePdf()}
                 disabled={!hasChanges || isGeneratingPdf}
               >
                 {t("pdfTextEditor.actions.downloadCopy", "Download Copy")}
               </Menu.Item>
               <Menu.Item
-                leftSection={<AutorenewIcon fontSize="small" />}
+                leftSection={
+                  <LocalIcon
+                    icon="autorenew-rounded"
+                    width="1.25rem"
+                    height="1.25rem"
+                  />
+                }
                 onClick={onReset}
                 color="red"
               >

@@ -1,8 +1,10 @@
-import UploadIcon from "@mui/icons-material/Upload";
-import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
-import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { isDesktopRuntime } from "@app/services/desktop/desktopRuntime";
+import { materialSymbol } from "@app/components/shared/LocalIcon";
+
+const UploadIcon = materialSymbol("upload-rounded");
+const DownloadOutlinedIcon = materialSymbol("download-rounded");
+const FolderOpenOutlinedIcon = materialSymbol("folder-open-outline-rounded");
+const SaveOutlinedIcon = materialSymbol("save-outline-rounded");
 
 export interface FileActionIcons {
   upload: typeof UploadIcon;

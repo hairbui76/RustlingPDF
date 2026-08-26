@@ -20,7 +20,6 @@ import { createRustlingFilesAndStubs } from "@app/services/fileStubHelpers";
 import apiClient from "@app/services/apiClient";
 import { PdfBookmarkObject, PdfActionType } from "@embedpdf/models";
 import { useTranslation } from "react-i18next";
-import BookmarksIcon from "@mui/icons-material/BookmarksRounded";
 import "@app/components/viewer/SidebarBase.css";
 import "@app/components/viewer/BookmarkSidebar.css";
 
@@ -682,7 +681,7 @@ export const BookmarkSidebar = ({
       <div className="sidebar-base__header bookmark-sidebar__header">
         <div className="sidebar-base__header-title bookmark-sidebar__header-title">
           <span className="sidebar-base__header-icon bookmark-sidebar__header-icon">
-            <BookmarksIcon />
+            <LocalIcon icon="bookmarks-rounded" />
           </span>
           <Text fw={600} size="sm" tt="uppercase" lts={0.5}>
             Bookmarks

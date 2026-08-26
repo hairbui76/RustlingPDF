@@ -1,7 +1,6 @@
 import { useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import type { Meta, StoryObj } from "@storybook/react";
-import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
-import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
 
 const meta: Meta<typeof SegmentedControl> = {
@@ -114,7 +113,11 @@ export const WithIcons: Story = {
             value: "viewer",
             label: (
               <>
-                <InsertDriveFileOutlinedIcon fontSize="small" />
+                <LocalIcon
+                  icon="draft-outline-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
                 <span>Viewer</span>
               </>
             ),
@@ -123,7 +126,11 @@ export const WithIcons: Story = {
             value: "files",
             label: (
               <>
-                <FolderOutlinedIcon fontSize="small" />
+                <LocalIcon
+                  icon="folder-outline-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
                 <span>Active Files</span>
               </>
             ),

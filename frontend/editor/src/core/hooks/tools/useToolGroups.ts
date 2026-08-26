@@ -1,7 +1,7 @@
 import { useMemo } from "react";
+import { materialSymbol } from "@app/components/shared/LocalIcon";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import React from "react";
 
 import {
@@ -14,6 +14,8 @@ import {
   type ToolRegistryEntry,
 } from "@app/data/toolsTaxonomy";
 import { ToolId } from "@app/types/toolId";
+
+const AutoAwesomeRoundedIcon = materialSymbol("auto-awesome-rounded");
 
 /** Top-level tool group: the pseudo-group "recommended", then each subcategory. */
 export const RECOMMENDED_GROUP_ID = "recommended" as const;

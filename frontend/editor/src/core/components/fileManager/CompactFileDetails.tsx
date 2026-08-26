@@ -1,10 +1,8 @@
 import React from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Stack, Box, Text, Center } from "@mantine/core";
 import { Button } from "@app/ui/Button";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useTranslation } from "react-i18next";
 import { getFileSize } from "@app/utils/fileUtils";
 import { RustlingFileStub } from "@app/types/fileContext";
@@ -75,7 +73,8 @@ const CompactFileDetails: React.FC<CompactFileDetailsProps> = ({
                 borderRadius: 4,
               }}
             >
-              <PictureAsPdfIcon
+              <LocalIcon
+                icon="picture-as-pdf-rounded"
                 style={{ fontSize: 20, color: "var(--mantine-color-gray-6)" }}
               />
             </Center>
@@ -117,7 +116,7 @@ const CompactFileDetails: React.FC<CompactFileDetailsProps> = ({
               disabled={isAnimating}
               aria-label={t("fileManager.previousFile", "Previous file")}
             >
-              <ChevronLeftIcon style={{ fontSize: 16 }} />
+              <LocalIcon icon="chevron-left-rounded" style={{ fontSize: 16 }} />
             </ActionIcon>
             <ActionIcon
               variant="tertiary"
@@ -126,7 +125,10 @@ const CompactFileDetails: React.FC<CompactFileDetailsProps> = ({
               disabled={isAnimating}
               aria-label={t("fileManager.nextFile", "Next file")}
             >
-              <ChevronRightIcon style={{ fontSize: 16 }} />
+              <LocalIcon
+                icon="chevron-right-rounded"
+                style={{ fontSize: 16 }}
+              />
             </ActionIcon>
           </Box>
         )}

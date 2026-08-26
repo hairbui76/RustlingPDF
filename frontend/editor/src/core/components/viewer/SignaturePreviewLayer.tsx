@@ -1,8 +1,8 @@
 import { memo, useRef, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Tooltip } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import CloseIcon from "@mui/icons-material/Close";
 import { useInteractionManagerCapability } from "@embedpdf/plugin-interaction-manager/react";
 import {
   Z_INDEX_SIGNATURE_OVERLAY,
@@ -182,7 +182,10 @@ export const SignaturePreviewLayer = memo(function SignaturePreviewLayer({
                   }}
                   aria-label={t("viewer.signature.delete", "Delete signature")}
                 >
-                  <CloseIcon style={{ fontSize: "0.8rem" }} />
+                  <LocalIcon
+                    icon="close-rounded"
+                    style={{ fontSize: "0.8rem" }}
+                  />
                 </ActionIcon>
               )}
 

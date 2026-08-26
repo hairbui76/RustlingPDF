@@ -30,6 +30,13 @@ interface LocalIconProps {
   height?: string | number;
   style?: React.CSSProperties;
   className?: string;
+  /* Forwarded to the rendered <svg>. Listed rather than spread from
+     SVGProps so a typo in a prop name is still a type error. */
+  onClick?: React.MouseEventHandler<SVGSVGElement>;
+  role?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+  "aria-label"?: string;
+  "data-testid"?: string;
 }
 
 /**
@@ -65,3 +72,62 @@ export const LocalIcon: React.FC<LocalIconProps> = ({
 };
 
 export default LocalIcon;
+
+/**
+ * The props an `@mui/icons-material` component used to accept, as far as this
+ * codebase ever used them. Kept so a call site that stored the *component*
+ * rather than an element — an icon map, a `typeof` field, a ternary picking
+ * one of two — did not have to change shape when the MUI icon set was
+ * dropped.
+ */
+export interface MaterialSymbolProps {
+  /** MUI size keyword, or a CSS length. */
+  fontSize?: "inherit" | "small" | "medium" | "large" | string | number;
+  /** The one MUI `sx` key ever used on an icon here, plus pass-through. */
+  sx?: { fontSize?: string | number } & React.CSSProperties;
+  style?: React.CSSProperties;
+  className?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+  "aria-label"?: string;
+}
+
+const MUI_FONT_SIZES: Record<string, string> = {
+  small: "1.25rem",
+  medium: "1.5rem",
+  large: "2.1875rem",
+};
+
+/**
+ * A component-shaped Material Symbol, for the places that keep icons as
+ * components. `materialSymbol("close-rounded")` is what
+ * `import CloseIcon from "@mui/icons-material/Close"` used to be: a component
+ * you can put in a map, take `typeof`, or choose between with a ternary.
+ *
+ * `scripts/generate-icons.js` scans for the literal string, so the name must
+ * be a literal — the bundled collection is offline and an icon it does not
+ * contain renders nothing.
+ */
+export function materialSymbol(icon: string): React.FC<MaterialSymbolProps> {
+  const Symbol: React.FC<MaterialSymbolProps> = ({
+    fontSize,
+    sx,
+    style,
+    className,
+    ...aria
+  }) => {
+    const { fontSize: sxFontSize, ...sxRest } = sx ?? {};
+    const raw = fontSize ?? sxFontSize;
+    const size = typeof raw === "string" ? (MUI_FONT_SIZES[raw] ?? raw) : raw;
+    return (
+      <LocalIcon
+        icon={icon}
+        width={size === "inherit" ? undefined : size}
+        style={{ ...sxRest, ...style }}
+        className={className}
+        {...aria}
+      />
+    );
+  };
+  Symbol.displayName = `MaterialSymbol(${icon})`;
+  return Symbol;
+}

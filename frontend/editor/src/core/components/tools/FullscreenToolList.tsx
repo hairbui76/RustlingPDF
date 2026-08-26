@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import {
@@ -11,8 +12,6 @@ import { ToolId } from "@app/types/toolId";
 import { useToolSections } from "@app/hooks/useToolSections";
 import NoToolsFound from "@app/components/tools/shared/NoToolsFound";
 import { useToolWorkflow } from "@app/contexts/ToolWorkflowContext";
-import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import ThumbUpRoundedIcon from "@mui/icons-material/ThumbUpRounded";
 import Badge from "@app/components/shared/Badge";
 import "@app/components/tools/ToolPanel.css";
 import DetailedToolItem from "@app/components/tools/fullscreen/DetailedToolItem";
@@ -155,7 +154,7 @@ const FullscreenToolList = ({
                     }}
                     aria-hidden
                   >
-                    <StarRoundedIcon />
+                    <LocalIcon icon="star-rounded" />
                   </span>
                   <Text size="sm" fw={600} tt="uppercase" lts={0.5} c="dimmed">
                     {t("toolPanel.fullscreen.favorites", "Favourites")}
@@ -201,7 +200,7 @@ const FullscreenToolList = ({
                     }}
                     aria-hidden
                   >
-                    <ThumbUpRoundedIcon />
+                    <LocalIcon icon="thumb-up-rounded" />
                   </span>
                   <Text size="sm" fw={600} tt="uppercase" lts={0.5} c="dimmed">
                     {t("toolPanel.fullscreen.recommended", "Recommend")}

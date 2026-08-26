@@ -3,7 +3,6 @@ import { Modal } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { ActionIcon } from "@app/ui/ActionIcon";
 import { Button, type ButtonAccent } from "@app/ui/Button";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import LocalIcon from "@app/components/shared/LocalIcon";
 import { Z_INDEX_OVER_FULLSCREEN_SURFACE } from "@app/styles/zIndex";
 import { useLogoAssets } from "@app/hooks/useLogoAssets";
@@ -216,7 +215,11 @@ export default function OnboardingSlideShell({
                       disabled={button.disabled}
                       aria-label={t("onboarding.buttons.back", "Back")}
                     >
-                      <ChevronLeftIcon fontSize="small" />
+                      <LocalIcon
+                        icon="chevron-left-rounded"
+                        width="1.25rem"
+                        height="1.25rem"
+                      />
                     </ActionIcon>
                   ))}
                 </div>

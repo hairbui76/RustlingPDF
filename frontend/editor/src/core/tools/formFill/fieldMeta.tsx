@@ -3,22 +3,29 @@
  * Used by FormFill, FormFieldSidebar, and any future form tools.
  */
 import React from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import type { FormFieldType } from "@app/tools/formFill/types";
-import TextFieldsIcon from "@mui/icons-material/TextFields";
-import CheckBoxIcon from "@mui/icons-material/CheckBox";
-import ArrowDropDownCircleIcon from "@mui/icons-material/ArrowDropDownCircle";
-import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
-import ListIcon from "@mui/icons-material/List";
-import DrawIcon from "@mui/icons-material/Draw";
 
 export const FIELD_TYPE_ICON: Record<FormFieldType, React.ReactNode> = {
-  text: <TextFieldsIcon sx={{ fontSize: "inherit" }} />,
-  checkbox: <CheckBoxIcon sx={{ fontSize: "inherit" }} />,
-  combobox: <ArrowDropDownCircleIcon sx={{ fontSize: "inherit" }} />,
-  listbox: <ListIcon sx={{ fontSize: "inherit" }} />,
-  radio: <RadioButtonCheckedIcon sx={{ fontSize: "inherit" }} />,
-  button: <DrawIcon sx={{ fontSize: "inherit" }} />,
-  signature: <DrawIcon sx={{ fontSize: "inherit" }} />,
+  text: (
+    <LocalIcon icon="text-fields-rounded" width="inherit" height="inherit" />
+  ),
+  checkbox: (
+    <LocalIcon icon="check-box-rounded" width="inherit" height="inherit" />
+  ),
+  combobox: (
+    <LocalIcon
+      icon="arrow-drop-down-circle-rounded"
+      width="inherit"
+      height="inherit"
+    />
+  ),
+  listbox: <LocalIcon icon="list-rounded" width="inherit" height="inherit" />,
+  radio: (
+    <LocalIcon icon="radio-button-checked" width="inherit" height="inherit" />
+  ),
+  button: <LocalIcon icon="draw-rounded" width="inherit" height="inherit" />,
+  signature: <LocalIcon icon="draw-rounded" width="inherit" height="inherit" />,
 };
 
 export const FIELD_TYPE_COLOR: Record<FormFieldType, string> = {

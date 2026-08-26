@@ -4,7 +4,6 @@ import { ActionIcon } from "@app/ui/ActionIcon";
 import { useTranslation } from "react-i18next";
 import { useViewer } from "@app/contexts/ViewerContext";
 import LocalIcon from "@app/components/shared/LocalIcon";
-import ViewListIcon from "@mui/icons-material/ViewList";
 import "@app/components/viewer/SidebarBase.css";
 
 interface ThumbnailSidebarProps {
@@ -171,7 +170,11 @@ export function ThumbnailSidebar({
           <div className="sidebar-base__header">
             <div className="sidebar-base__header-title">
               <span className="sidebar-base__header-icon">
-                <ViewListIcon fontSize="small" />
+                <LocalIcon
+                  icon="view-list-rounded"
+                  width="1.25rem"
+                  height="1.25rem"
+                />
               </span>
               <Text
                 fw={600}

@@ -7,13 +7,14 @@
  */
 
 import React, { type ReactNode } from "react";
+import { LocalIcon, materialSymbol } from "@app/components/shared/LocalIcon";
 import { TourProvider, useTour, type StepType } from "@reactour/tour";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CheckIcon from "@mui/icons-material/Check";
 import type { TFunction } from "i18next";
 import i18n from "@app/i18n";
+
+const ArrowForwardIcon = materialSymbol("arrow-forward-rounded");
+const ArrowBackIcon = materialSymbol("arrow-back-rounded");
 
 /**
  * Renders tour copy that uses <strong> for emphasis as real React elements,
@@ -166,7 +167,7 @@ export default function OnboardingTour({
                 : t("onboarding.next", "Next")
             }
           >
-            {isLast ? <CheckIcon /> : <ArrowIcon />}
+            {isLast ? <LocalIcon icon="check-rounded" /> : <ArrowIcon />}
           </ActionIcon>
         );
       }}

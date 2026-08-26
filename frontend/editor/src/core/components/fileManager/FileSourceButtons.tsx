@@ -1,8 +1,7 @@
 import React, { useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { Stack, Text, Group } from "@mantine/core";
 import { Button } from "@app/ui/Button";
-import HistoryIcon from "@mui/icons-material/History";
-import PhonelinkIcon from "@mui/icons-material/Phonelink";
 import { useTranslation } from "react-i18next";
 import { useFileManagerContext } from "@app/contexts/FileManagerContext";
 import { useGoogleDrivePicker } from "@app/hooks/useGoogleDrivePicker";
@@ -73,7 +72,7 @@ const FileSourceButtons: React.FC<FileSourceButtonsProps> = ({
       <Button
         variant={activeSource === "recent" ? "primary" : "tertiary"}
         accent="neutral"
-        leftSection={<HistoryIcon />}
+        leftSection={<LocalIcon icon="history-rounded" />}
         justify={buttonJustify}
         onClick={() => onSourceChange("recent")}
         fullWidth={!horizontal}
@@ -123,7 +122,7 @@ const FileSourceButtons: React.FC<FileSourceButtonsProps> = ({
         <Button
           variant="tertiary"
           accent="neutral"
-          leftSection={<PhonelinkIcon />}
+          leftSection={<LocalIcon icon="devices-rounded" />}
           justify={buttonJustify}
           onClick={handleMobileUploadClick}
           fullWidth={!horizontal}

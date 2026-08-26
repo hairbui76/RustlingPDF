@@ -1,11 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { LocalIcon, materialSymbol } from "@app/components/shared/LocalIcon";
 import { useTranslation } from "react-i18next";
 import { Text, Stack, Group } from "@mantine/core";
 import { ActionIcon } from "@app/ui/ActionIcon";
-import SettingsIcon from "@mui/icons-material/Settings";
-import CloseIcon from "@mui/icons-material/Close";
-import AddCircleOutline from "@mui/icons-material/AddCircleOutlined";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import {
   draggable,
   dropTargetForElements,
@@ -19,6 +16,8 @@ import {
   type AutomationDropEdge,
   getAutomationDropIndex,
 } from "@app/utils/automationReorder";
+
+const AddCircleOutline = materialSymbol("add-circle-outline-rounded");
 
 interface ToolListProps {
   tools: AutomationTool[];
@@ -208,7 +207,7 @@ function SortableToolRow({
               color: "var(--mantine-color-gray-6)",
             }}
           >
-            <CloseIcon style={{ fontSize: 16 }} />
+            <LocalIcon icon="close-rounded" style={{ fontSize: 16 }} />
           </ActionIcon>
         )}
 
@@ -231,7 +230,7 @@ function SortableToolRow({
               touchAction: "none",
             }}
           >
-            <DragIndicatorIcon style={{ fontSize: 18 }} />
+            <LocalIcon icon="drag-indicator" style={{ fontSize: 18 }} />
           </ActionIcon>
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -257,7 +256,7 @@ function SortableToolRow({
               title={t("automate.creation.tools.configure", "Configure tool")}
               style={{ color: "var(--mantine-color-gray-6)" }}
             >
-              <SettingsIcon style={{ fontSize: 16 }} />
+              <LocalIcon icon="settings-rounded" style={{ fontSize: 16 }} />
             </ActionIcon>
           )}
         </Group>

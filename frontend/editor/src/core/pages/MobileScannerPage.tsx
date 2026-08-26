@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LocalIcon } from "@app/components/shared/LocalIcon";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Alert,
@@ -11,12 +12,6 @@ import {
   Switch,
   Text,
 } from "@mantine/core";
-import AddPhotoAlternateRoundedIcon from "@mui/icons-material/AddPhotoAlternateRounded";
-import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import ErrorRoundedIcon from "@mui/icons-material/ErrorRounded";
-import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
-import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
-import UploadRoundedIcon from "@mui/icons-material/UploadRounded";
 import { useTranslation } from "react-i18next";
 import { Button as DSButton } from "@app/ui/Button";
 import { SegmentedControl } from "@app/ui/SegmentedControl";
@@ -935,7 +930,8 @@ export default function MobileScannerPage() {
   if (uploadSuccess) {
     return (
       <Stack align="center" justify="center" mih="100dvh" p="xl">
-        <CheckCircleRoundedIcon
+        <LocalIcon
+          icon="check-circle-rounded"
           style={{ fontSize: "4rem", color: "var(--mantine-color-green-6)" }}
         />
         <Text size="xl" fw={700}>
@@ -986,7 +982,7 @@ export default function MobileScannerPage() {
 
       {(sessionMessage || !online) && (
         <Box p="sm">
-          <Alert color="blue" icon={<InfoRoundedIcon />}>
+          <Alert color="blue" icon={<LocalIcon icon="info-rounded" />}>
             {sessionMessage ??
               t(
                 "mobileScanner.offlineReady",
@@ -999,7 +995,7 @@ export default function MobileScannerPage() {
         <Box p="sm">
           <Alert
             color="red"
-            icon={<ErrorRoundedIcon />}
+            icon={<LocalIcon icon="error-rounded" />}
             withCloseButton
             onClose={() => setUploadError(null)}
           >
@@ -1017,7 +1013,7 @@ export default function MobileScannerPage() {
       )}
       {cameraError && (
         <Box p="sm">
-          <Alert color="orange" icon={<InfoRoundedIcon />}>
+          <Alert color="orange" icon={<LocalIcon icon="info-rounded" />}>
             {cameraError}
           </Alert>
         </Box>
@@ -1043,7 +1039,8 @@ export default function MobileScannerPage() {
             style={{ cursor: "pointer" }}
           >
             <Stack align="center">
-              <PhotoCameraRoundedIcon
+              <LocalIcon
+                icon="photo-camera-rounded"
                 style={{
                   fontSize: "3rem",
                   color: "var(--mantine-color-blue-6)",
@@ -1065,7 +1062,8 @@ export default function MobileScannerPage() {
             style={{ cursor: "pointer" }}
           >
             <Stack align="center">
-              <UploadRoundedIcon
+              <LocalIcon
+                icon="upload-rounded"
                 style={{
                   fontSize: "3rem",
                   color: "var(--mantine-color-green-6)",
@@ -1174,7 +1172,8 @@ export default function MobileScannerPage() {
           </DSButton>
           <Card withBorder p="xl">
             <Stack align="center">
-              <AddPhotoAlternateRoundedIcon
+              <LocalIcon
+                icon="add-photo-alternate-rounded"
                 style={{
                   fontSize: "4rem",
                   color: "var(--mantine-color-gray-5)",
