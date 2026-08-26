@@ -19,7 +19,7 @@ comes first and the history of how it got there comes after.
 | Local release build of the sidecar, deps cold | 8m51s (thin) | 11m39s for the workspace crate alone, deps warm (fat) |
 | Local `cargo test --no-run`, processing crate | 2m44s, 19 targets | 5m06s compile + 91 links |
 | Local processing suite runtime | 1m31s | (not measured; dominated by links) |
-| setup.exe / MSI / deb | 43.6 / 50.1 / 40.9 MiB (v0.1.6) | 44.7 / 49.5 / 40.5 |
+| setup.exe / MSI / deb | 43.1 / 49.6 / 40.4 MiB (v0.1.7) | 44.7 / 49.5 / 40.5 |
 | Sidecar crates in graph | 500 | 500 |
 | Crate names with ≥2 versions | 58 (`zip 0.6.6` gone; `zip` and `quick-xml` still ×2/×3 via the umya fork and citationberg) | 58 |
 | Frontend `dependencies` | 60 | 73 |
@@ -88,6 +88,20 @@ ship in the frontend (pdf.js, embedpdf/PDFium-wasm, pdf-lib).
   office2pdf that compile fine in the fork's own workspace fail here.
   Feature unification is per graph; a dependency bump verified only in its
   own repo is not verified.
+
+### Measured after batch 2 (v0.1.7, run 32929594162)
+
+| | v0.1.6 | v0.1.7 | Δ |
+|---|---|---|---|
+| setup.exe | 43.6 MiB | 43.1 MiB | −0.5 |
+| MSI | 50.1 MiB | 49.6 MiB | −0.5 |
+| deb | 40.9 MiB | 40.4 MiB | −0.5 |
+| Windows leg | 1542s | 1467s | −5% |
+| Linux leg | 663s | 1138s | cold: `Cargo.lock` changed with the office2pdf pin, so the rust-cache key missed and the sidecar stage ran 602s instead of 288s; the tauri step also doubled (396s). One-time; the next tag restores the warm key. |
+
+The −0.5 MiB is the two dropped fallback faces plus the smaller frontend
+bundle after the icon migration. The zip dedupe and the test regroup are
+build-time changes and do not show in the artifacts.
 
 ## Findings still open, ranked by what they are worth
 
