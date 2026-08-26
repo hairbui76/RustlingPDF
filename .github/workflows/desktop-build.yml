@@ -192,6 +192,11 @@ jobs:
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           key: ${{ matrix.platform }}
+          # Only main and release tags may write the cache. Every saved key
+          # counts against the repository's 10 GB, thin-LTO caches run
+          # 2.8-3.2 GB each, and a PR branch that saved its own key would
+          # evict a main key that every release depends on.
+          save-if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
           workspaces: |
             rust -> target
             frontend/editor/src-tauri -> target

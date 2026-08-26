@@ -55,6 +55,8 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
+          # See desktop-build.yml: branch runs restore but never save.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           workspaces: rust -> target
 
       # External-tool policy: no backend test HARD-requires an external binary.
