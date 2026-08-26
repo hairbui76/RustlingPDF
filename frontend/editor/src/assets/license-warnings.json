@@ -1,6 +1,30 @@
 {
   "warnings": [
     {
+      "message": "❓ This PR contains 3 packages with unknown license type \"OFL-1.1\" - manual review required",
+      "licenseType": "OFL-1.1",
+      "licenseUrl": "",
+      "reason": "Unknown license type",
+      "packageCount": 3,
+      "affectedDependencies": [
+        {
+          "name": "@embedpdf/fonts-arabic",
+          "version": "1.0.0",
+          "url": "https://github.com/embedpdf/embed-pdf-viewer"
+        },
+        {
+          "name": "@embedpdf/fonts-hebrew",
+          "version": "1.0.0",
+          "url": "https://github.com/embedpdf/embed-pdf-viewer"
+        },
+        {
+          "name": "@embedpdf/fonts-latin",
+          "version": "1.0.0",
+          "url": "https://github.com/embedpdf/embed-pdf-viewer"
+        }
+      ]
+    },
+    {
       "message": "❓ This PR contains 4 packages with unknown license type \"LGPL-2.1-or-later\" - manual review required",
       "licenseType": "LGPL-2.1-or-later",
       "licenseUrl": "",
