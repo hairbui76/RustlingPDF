@@ -17,7 +17,7 @@ Update these product-version sites together:
 | `rust/VERSION` | Canonical version |
 | `frontend/editor/src-tauri/tauri.conf.json` | Tauri `version` |
 | `rust/crates/rustling-processing/src/runtime_metrics.rs` | Version assertion |
-| `rust/crates/rustling-processing/tests/info_endpoints.rs` | Status endpoint assertion |
+| `rust/crates/rustling-processing/tests/cases/info_endpoints.rs` | Status endpoint assertion |
 
 Audit the old version before committing:
 
