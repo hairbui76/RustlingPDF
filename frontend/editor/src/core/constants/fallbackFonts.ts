@@ -7,12 +7,20 @@
  * thing in the frontend payload, and it exists only to draw documents that
  * reference a font without embedding it.
  *
- * Four faces are enough because the engine does not require an exact match.
+ * Two faces are enough because the engine does not require an exact match.
  * `findBestFontMatch` in @embedpdf/engines picks the closest weight (biased
  * toward the bolder side at 400 and above) and falls back to a non-italic face
- * when no italic one exists. So a document asking for Light gets Regular and
- * one asking for ExtraBold gets Bold — a slightly different stroke on text
- * that was already being substituted, rather than a missing glyph.
+ * when no italic one exists. So a document asking for Light gets Regular, one
+ * asking for ExtraBold gets Bold, and one asking for Italic gets the upright
+ * face — a different stroke or slant on text that was already being
+ * substituted, rather than a missing glyph.
+ *
+ * The italic faces shipped from 0.0.x to 0.1.6 (four faces, ~1.2 MB raw /
+ * ~0.5 MB installer). They were dropped in 0.1.7 as a size call: italic text
+ * in a document that failed to embed its own font is rare enough that paying
+ * half a megabyte on every download for its slant was judged the wrong trade.
+ * Restoring them is adding "NotoSans-Italic.ttf" and "NotoSans-BoldItalic.ttf"
+ * back to this list — nothing else knows they exist.
  *
  * This list is the single source of truth: `vite.config.ts` copies exactly
  * these files, and `pdfiumFallbackFonts.ts` filters the package metadata
@@ -25,9 +33,7 @@
  */
 export const SHIPPED_LATIN_FONT_FILES = [
   "NotoSans-Regular.ttf",
-  "NotoSans-Italic.ttf",
   "NotoSans-Bold.ttf",
-  "NotoSans-BoldItalic.ttf",
 ] as const;
 
 export function isShippedLatinFont(file: string): boolean {

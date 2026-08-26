@@ -20,13 +20,15 @@ describe("pdfiumFallbackFonts", () => {
     expect(new Set(advertised)).toEqual(new Set(SHIPPED_LATIN_FONT_FILES));
   });
 
-  it("still covers regular and bold in both uprights and italics", () => {
-    // The engine picks the closest weight, so these four are what every other
-    // weight degrades onto. Losing one silently widens the substitution.
+  it("still covers regular and bold uprights, and nothing italic", () => {
+    // The engine picks the closest weight, so these two are what every other
+    // weight degrades onto; italics degrade onto them too, by design since
+    // 0.1.7 (see fallbackFonts.ts). Losing one silently widens the
+    // substitution; regaining an italic silently re-adds half a megabyte.
     const shape = latin
       .map((v) => `${v.weight ?? 400}${v.italic ? "i" : ""}`)
       .sort();
-    expect(shape).toEqual(["400", "400i", "700", "700i"]);
+    expect(shape).toEqual(["400", "700"]);
   });
 
   it("drops the majority of the package rather than a token few", () => {
