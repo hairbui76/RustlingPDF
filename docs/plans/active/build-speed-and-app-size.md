@@ -17,6 +17,7 @@ comes first and the history of how it got there comes after.
 | Windows `stage-sidecar` | 680s | 1009s |
 | Windows `tauri build` | 555s | 571s |
 | Release wall-clock (dry-run skipped for non-packaging releases) | ~26 min | ~55 min |
+| `tauri build` step, Windows | 568s, 62% of it the shell crate's codegen+link — at its floor short of accepting installer growth (F-A) | 571s, cause unknown |
 | Local release build of the sidecar, deps cold | 8m51s (thin) | 11m39s for the workspace crate alone, deps warm (fat) |
 | Local `cargo test --no-run`, processing crate | 2m44s, 19 targets | 5m06s compile + 91 links |
 | Local processing suite runtime | 1m31s | (not measured; dominated by links) |
@@ -126,11 +127,30 @@ signing, not the shell's link". That was wrong, and the correction is the
 useful part: it is almost entirely the shell's own codegen and link, which is
 also why thin LTO barely moved it (571s → 555s → 568s across three releases).
 
-The suspect is `codegen-units = 1` in `src-tauri/Cargo.toml`, which serialises
-codegen for a crate that embeds the whole frontend and the Tauri runtime.
-Thin LTO still optimises across units, so 16 (cargo's release default) should
-cost little size. Being measured on branch `perf/shell-codegen-units`; the
-numbers to compare are the 350s segment and the installer sizes.
+**`codegen-units = 1` was the suspect, and it is not the answer.** Measured on
+branch `perf/shell-codegen-units` (dry-run 32994685855, since deleted), with
+16 — cargo's release default — against the shipped v0.1.7 build:
+
+| | cgu = 1 (shipped) | cgu = 16 | Δ |
+|---|---|---|---|
+| shell crate + link | 350s | 325s | **−25s (−7%)** |
+| setup.exe | 43.05 MiB | 43.34 MiB | **+0.29 MiB** |
+| MSI | 49.61 MiB | 49.98 MiB | **+0.37 MiB** |
+
+Not merged. Batch 1 and batch 2 together bought about 0.5 MiB an installer;
+handing 0.3 back for 25 seconds a leg is the wrong direction for a project
+that has chosen size at every previous fork in this file.
+
+What the negative result tells us is worth more than the 25s would have been:
+the cost is not parallelism in codegen, it is the crate itself — one unit that
+embeds the whole frontend, the Tauri runtime and 359 linked dependencies. The
+remaining knob pointing the same way is `lto = false` for the shell, which
+would trade more size for more time on the same axis; do not spend a dry-run
+on it without a decision to accept installer growth first.
+
+**F-A is therefore closed as measured, with no cheap win.** The desktop legs
+are near their floor at ~1500s Windows / ~660s Linux unless the size policy
+changes.
 
 To re-measure the phases:
 
@@ -215,6 +235,9 @@ setters or the fork's fixes land there.
 - Re-run `cargo bloat` looking for more — Office (15.4 MB) and OCR (4.5 MB) are content, not bloat.
 - Bump `umya-spreadsheet` to 3.x without reading F-D.
 - Re-add `@mui/material` for a component: 193 MB of node_modules for a peer nothing imports.
+- Retry `codegen-units` on the desktop shell: measured, +0.3 MiB for −25s (F-A).
+- Let release tags write Actions caches: GitHub scopes them to the tag ref, so
+  nothing can ever read them back (F-B).
 
 ## How to re-measure
 
