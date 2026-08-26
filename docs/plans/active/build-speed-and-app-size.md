@@ -1,7 +1,8 @@
 # Build speed and app size — audit, plan, and results
 
 First audited 2026-08-25 against `f7e1ebc` (v0.1.5); re-scanned 2026-08-26 at
-`c119081` after batches 1 and 2 landed. Every number is measured unless marked
+`c119081` after batches 1 and 2 landed; cache and `tauri build` re-measured
+2026-08-27 at `3371854`. Every number is measured unless marked
 *est.*; sizes are compressed bytes (what a user downloads) unless marked raw.
 This file exists so the next person — or the next model — starts from
 evidence, not from a fresh scan. Sections are ordered so the current state
@@ -26,7 +27,7 @@ comes first and the history of how it got there comes after.
 | `frontend/node_modules` | 947 MB | 1.2 GB |
 | Frontend dist, desktop-pruned, raw | 18 MB (assets 13, locales 2.5, fonts 1.6) | 19 MB (fonts 2.8) |
 | Frontend code (js+css+wasm), gzip | 4.26 MB | not measured |
-| Actions cache | 9.54 GB of 10 | 10.94 GB (over limit) |
+| Actions cache | 7.20 GB of 10 | 10.94 GB (over limit) |
 
 Largest single items, unchanged: `pdfium.wasm` 4.5 MB raw (1.83 compressed),
 `index.js` 2.07 MB raw, `pdf.worker.min.mjs` 1.26, `pdf-engine` 1.02, the two
@@ -105,23 +106,68 @@ build-time changes and do not show in the artifacts.
 
 ## Findings still open, ranked by what they are worth
 
-### F-A — The `tauri build` step (555s Windows / 196s Linux)
+### F-A — The `tauri build` step: 62% of it is one crate's codegen
 
-Now the largest stage thin LTO did not touch. It runs `vite build --mode core`
-(the desktop frontend), then the shell's release build, then MSI+NSIS
-packaging and signing. Not yet split into its parts on a runner; the local
-desktop-mode vite build is fast, so the suspicion is the shell link plus two
-installer packagings. Measure before touching: add `--timings`-style step
-splits to the workflow, then decide.
+**Measured** on the v0.1.7 Windows leg (run 32929594162, job 98059222803) by
+reading the step's own timestamps out of the CI log — no workflow change was
+needed, and none should be made to measure this again:
 
-### F-B — Cache pressure: 9.54 GB of 10
+| Phase | Time | Share |
+|---|---|---|
+| `vite build --mode core` (the `beforeBuildCommand`) | 24s | 4.2% |
+| cargo: the shell's 359 dependencies | 40s | 7.0% |
+| **cargo: the `rustlingpdf` shell crate + link** | **350s** | **61.6%** |
+| MSI — WiX candle ×2 + light | 71s | 12.5% |
+| NSIS — makensis | 81s | 14.3% |
+| | 568s | |
 
-Thin-LTO caches are larger than fat (Linux 1.8 → 2.8 GB, Windows 2.3 →
-3.2 GB). `save-if` stops branches from adding keys but does not shrink the
-four that exist. Cheapest next step: drop `v0-rust-desktop` (1.1 GB, the
-desktop *CI* workflow's shell-only debug cache, which overlaps the release
-shell cache) by pointing that workflow at `cache-targets: false`, or accept
-that the backend CI cache (1.8 GB) is the next to go under pressure.
+An earlier note here guessed this step was "mostly vite build, bundling and
+signing, not the shell's link". That was wrong, and the correction is the
+useful part: it is almost entirely the shell's own codegen and link, which is
+also why thin LTO barely moved it (571s → 555s → 568s across three releases).
+
+The suspect is `codegen-units = 1` in `src-tauri/Cargo.toml`, which serialises
+codegen for a crate that embeds the whole frontend and the Tauri runtime.
+Thin LTO still optimises across units, so 16 (cargo's release default) should
+cost little size. Being measured on branch `perf/shell-codegen-units`; the
+numbers to compare are the 350s segment and the installer sizes.
+
+To re-measure the phases:
+
+```bash
+JOB=$(gh api repos/hairbui76/RustlingPDF/actions/runs/<id>/jobs   --jq '.jobs[] | select(.name|contains("windows-x86_64")) | .id')
+gh api repos/hairbui76/RustlingPDF/actions/jobs/$JOB/logs > win.log
+grep -nE "beforeBuildCommand|Running .cargo build|Compiling rustlingpdf|Built .tauri_cli|msi] Verifying|nsis] Verifying|bundles at" win.log
+```
+
+### F-B — Cache pressure: fixed, 7.20 GB of 10 (was 9.54)
+
+Two leaks, both of them GitHub's ref scoping, found by listing caches with
+their `ref` (`gh cache list --json key,sizeInBytes,ref`):
+
+1. `save-if` let release **tags** write rust-cache keys. A cache is scoped to
+   the ref that wrote it, so those landed under `refs/tags/vX.Y.Z` where the
+   next tag — a different ref — cannot read them, and neither can main.
+   v0.1.7 left a 1.79 GB Linux copy nothing would ever restore. Tag runs
+   still restore from main; they must not write. Fixed in `3371854`.
+2. The **Docker layer cache** in `release.yml` had the same scoping problem
+   and no upside: only that workflow writes `scope=release` and only tags run
+   it, so `cache-from` had never hit once. The two image builds share their
+   common stages through the builder's local state inside the run, not
+   through the export — which is why `mode=max` → `mode=min` made
+   publish-images *faster* (1275s at v0.1.5 → 836s at v0.1.6), not slower.
+   Removed entirely in `3371854`; same-tag re-runs now rebuild the images,
+   the accepted trade.
+
+Deleting the orphans took the repository from 9.49 GB to 7.20 GB. What
+remains is four legitimate keys: Windows release 3.2 GB, Linux release
+1.8 GB, backend CI 1.8 GB, npm 0.6 GB. `v0-rust-desktop` (1.1 GB, the
+Desktop CI shell debug cache) had already been evicted before this was
+looked at, which is its own signal about how tight the budget had become.
+
+Do not chase the remaining four with `cache-targets: false`: Desktop CI
+finishes in ~120s *because* of its cache, and rebuilding 359 shell
+dependencies per run would trade 2 minutes of wall clock for 1 GB.
 
 ### F-C — Remaining duplicate crate versions (58 names)
 
