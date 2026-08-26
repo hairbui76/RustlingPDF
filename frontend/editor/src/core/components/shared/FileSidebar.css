@@ -306,6 +306,11 @@
   flex: 1;
   min-height: 0;
   overflow-y: scroll;
+  /* Inset the rows from the rail's edges. The section header above them sits
+     at 14px; 8px here plus the row's own 12px lands the row content a hair
+     inside that line, and a selected row's card no longer touches the
+     sidebar border on either side. */
+  padding: 2px 8px 8px;
 }
 
 /* --- Grouped list (legacy web build: Recent + per-category groups). Inert when the
