@@ -25,14 +25,22 @@ name: Release
 # working with no arguments).
 #
 # Caching: the Dockerfile's BuildKit cache mounts (cargo registry + target)
-# do not persist on hosted runners, so both build steps share a
-# `type=gha,scope=release` layer cache. mode=min exports only the final
-# image layers. mode=max used to export the intermediate stages too, and
-# those blobs (~3.3 GB, regenerated every release because the rust-build
-# stage changes with every commit) were what pushed the repository over the
-# 10 GB Actions cache limit and got the desktop Rust caches evicted — turning
-# ~27-minute desktop legs into ~50-minute cold builds. The intermediate stages
-# almost never hit anyway: a release is a new commit, so rust-build is a miss.
+# do not persist on hosted runners, and the `type=gha` layer cache that used
+# to sit here is gone. It could never hit. This workflow runs on tags, GitHub
+# scopes a cache to the ref that wrote it, and nothing writes `scope=release`
+# on main — so every release exported blobs into `refs/tags/vX.Y.Z` that the
+# next release, on a different tag, could not read. The two image builds do
+# share their common stages (rust-build, frontend-build, pdfium), but through
+# the builder's LOCAL state within the run, which needs no export.
+#
+# The export was not free: mode=max took publish-images 1275s at v0.1.5,
+# mode=min 836s at v0.1.6, and removing it should take back the rest, plus
+# ~560 MB per release of the repository's 10 GB cache budget.
+#
+# The one case this loses: re-running the SAME tag after a transient failure
+# no longer restores its own layers and rebuilds the images. That is rare and
+# was judged the cheaper side. If image builds ever start running on main,
+# reinstate `cache-from`/`cache-to` here — then the scope would be readable.
 #
 # Desktop bundles: publish-desktop calls the reusable desktop-build workflow
 # (linux deb, windows MSI + NSIS setup.exe; AppImage and macOS are paused —
@@ -177,8 +185,6 @@ jobs:
             REVISION=${{ github.sha }}
             CREATED=${{ steps.meta.outputs.created }}
             SOURCE=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha,scope=release
-          cache-to: type=gha,mode=min,scope=release
 
       # Shares the rust-build stage with the runtime build above: the buildx
       # builder's local state plus the scope=release gha cache make this an
@@ -198,8 +204,6 @@ jobs:
             REVISION=${{ github.sha }}
             CREATED=${{ steps.meta.outputs.created }}
             SOURCE=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha,scope=release
-          cache-to: type=gha,mode=min,scope=release
 
   # The desktop bundle matrix lives in the reusable workflow (also used by
   # the desktop-release-dryrun proof workflow); its legs run in parallel
