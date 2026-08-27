@@ -16,8 +16,9 @@ comes first and the history of how it got there comes after.
 | Linux desktop leg, warm cache | 663s | 752s |
 | Windows `stage-sidecar` | 680s | 1009s |
 | Windows `tauri build` | 555s | 571s |
-| Release wall-clock (dry-run skipped for non-packaging releases) | ~19 min *est.*, next release confirms | ~55 min |
-| Windows desktop leg | 1099s (sidecar overlaps the shell compile, F-A2) | 1829s |
+| Release wall-clock (dry-run skipped for non-packaging releases) | **19 min** (v0.1.8, run 33074435222: 1153s) | ~55 min |
+| Windows desktop leg | **1076s** on the release path (v0.1.8) | 1829s |
+| Linux desktop leg | **490s** (v0.1.8) | 752s |
 | `tauri build` phases, Windows | 62% of it the shell crate's codegen+link — at its floor short of accepting installer growth (F-A) | cause unknown |
 | Local release build of the sidecar, deps cold | 8m51s (thin) | 11m39s for the workspace crate alone, deps warm (fat) |
 | Local `cargo test --no-run`, processing crate | 2m44s, 19 targets | 5m06s compile + 91 links |
@@ -179,9 +180,20 @@ Measured (dry-run 33054543374, against the v0.1.7 release run):
 | — bundle | 152s | 136s | |
 | setup.exe / MSI / deb | 43.05 / 49.61 / 40.4 MiB | 43.04 / 49.60 / 40.42 | identical |
 
+On installer sizes generally: do not read a couple of hundred KB as a
+regression. The MSI has measured 49.5, 49.6, 50.1, 49.61, 49.66 and 49.81
+across v0.1.4-v0.1.8 and two runner images, for content that was sometimes
+identical — Rust builds are not bit-reproducible and the CAB compresses
+whatever it is given. Only compare builds made the same way, as the table
+above does.
+
 The overlap is not free — CPU contention stretched the shell compile by
-217s — and it is still worth 368. Release wall clock should land near
-**19 minutes**, from 25.
+217s — and it is still worth 368.
+
+**Confirmed on the release path** by v0.1.8 (run 33074435222): Windows leg
+1076s, Linux 490s, whole release 1153s = **19 minutes**, from 25. The
+critical path is still the Windows leg; `publish-images` (826s) runs beside
+it and does not gate.
 
 With that, the desktop legs are near their floor unless the size policy
 changes: what is left inside them is the two crates' own codegen and link.
@@ -222,6 +234,16 @@ looked at, which is its own signal about how tight the budget had become.
 Do not chase the remaining four with `cache-targets: false`: Desktop CI
 finishes in ~120s *because* of its cache, and rebuilding 359 shell
 dependencies per run would trade 2 minutes of wall clock for 1 GB.
+
+**Three things turn a warm leg cold, and only two are ours:** a change to
+`Cargo.lock`/`Cargo.toml` (the key's second hash), seven days without a run
+(GitHub expires unused caches), and — the one that is not ours — a hosted
+**runner image update**, which rotates rust-cache's environment hash. The
+0.1.8 dry-run hit exactly that: image `20260729.566` → `20260819.586` took
+the key from `5e20711c` to `ddb67ab4`, the restore reported "No cache found",
+and the Windows leg ran 1976s instead of ~1100s while it rebuilt 359
+dependencies and then paid 284s to save the new key. Nothing to fix; worth
+recognising on sight, because it looks exactly like a regression.
 
 ### F-C — Remaining duplicate crate versions (58 names)
 
