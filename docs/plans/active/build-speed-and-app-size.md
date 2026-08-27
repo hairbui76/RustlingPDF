@@ -16,8 +16,9 @@ comes first and the history of how it got there comes after.
 | Linux desktop leg, warm cache | 663s | 752s |
 | Windows `stage-sidecar` | 680s | 1009s |
 | Windows `tauri build` | 555s | 571s |
-| Release wall-clock (dry-run skipped for non-packaging releases) | ~26 min | ~55 min |
-| `tauri build` step, Windows | 568s, 62% of it the shell crate's codegen+link — at its floor short of accepting installer growth (F-A) | 571s, cause unknown |
+| Release wall-clock (dry-run skipped for non-packaging releases) | ~19 min *est.*, next release confirms | ~55 min |
+| Windows desktop leg | 1099s (sidecar overlaps the shell compile, F-A2) | 1829s |
+| `tauri build` phases, Windows | 62% of it the shell crate's codegen+link — at its floor short of accepting installer growth (F-A) | cause unknown |
 | Local release build of the sidecar, deps cold | 8m51s (thin) | 11m39s for the workspace crate alone, deps warm (fat) |
 | Local `cargo test --no-run`, processing crate | 2m44s, 19 targets | 5m06s compile + 91 links |
 | Local processing suite runtime | 1m31s | (not measured; dominated by links) |
@@ -148,9 +149,42 @@ remaining knob pointing the same way is `lto = false` for the shell, which
 would trade more size for more time on the same axis; do not spend a dry-run
 on it without a decision to accept installer growth first.
 
-**F-A is therefore closed as measured, with no cheap win.** The desktop legs
-are near their floor at ~1500s Windows / ~660s Linux unless the size policy
-changes.
+**On the compile itself, F-A is closed: no cheap win there.** But the
+measurement pointed somewhere else that was free.
+
+### F-A2 — Overlapping the two cargo builds: −25% a leg, no size cost (done)
+
+The leg was building two *independent* cargo workspaces back to back — the
+sidecar (645s) and then the shell (350s) — and both are largely
+single-threaded codegen and linking, on a four-core runner. Nothing needs the
+sidecar binary until the bundler does.
+
+Since `perf/parallel-sidecar-shell`: the sidecar starts in the background
+right after the Rust cache restore, `tauri build` is split into its
+`--no-bundle` and `bundle` halves, compile-gate stubs stand in for the
+externalBin and resources the compile only checks the existence of, and a
+join step waits on the background build's exit code before staging the real
+binary. `task desktop:prepare:no-sidecar` exists so the prepare step does not
+block on the very build that is already running.
+
+Measured (dry-run 33054543374, against the v0.1.7 release run):
+
+| | before | after | Δ |
+|---|---|---|---|
+| Windows leg | 1467s | **1099s** | −368s (−25%) |
+| Linux leg | 663s | **465s** | −198s (−30%) |
+| — shell compile (windows) | 414s | 631s | +217s: it now shares the runner with the sidecar |
+| — separate sidecar stage | 659s | 0s | absorbed into the overlap |
+| — join (wait + stage) | — | 75s | |
+| — bundle | 152s | 136s | |
+| setup.exe / MSI / deb | 43.05 / 49.61 / 40.4 MiB | 43.04 / 49.60 / 40.42 | identical |
+
+The overlap is not free — CPU contention stretched the shell compile by
+217s — and it is still worth 368. Release wall clock should land near
+**19 minutes**, from 25.
+
+With that, the desktop legs are near their floor unless the size policy
+changes: what is left inside them is the two crates' own codegen and link.
 
 To re-measure the phases:
 
