@@ -4,10 +4,20 @@ tasks:
   prepare:
     desc: "Prepare desktop build dependencies"
     deps:
+      - prepare:no-sidecar
+      - stage-sidecar
+
+  # Everything `prepare` does except building the sidecar. Exists for the
+  # release matrix, which starts the sidecar build itself so it can run
+  # alongside the shell compile — depending on `stage-sidecar` here would
+  # block on the very cargo build that is already running, and serialise the
+  # two again. Local builds want `prepare`, not this.
+  prepare:no-sidecar:
+    desc: "Prepare desktop build dependencies, leaving the sidecar to the caller"
+    deps:
       - task: ":frontend:prepare"
         vars: { MODE: core }
       - provisioner
-      - stage-sidecar
 
   stage-sidecar:
     desc: "Build the release Rust backend + pinned native runtimes and stage them for Tauri bundling"

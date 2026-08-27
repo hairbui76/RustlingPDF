@@ -10,10 +10,18 @@ name: Desktop build (reusable)
 # macos-latest (Apple silicon, paused) builds .app + dmg for darwin-aarch64. Each leg
 # stages the release Rust backend as the Tauri externalBin sidecar plus the
 # pinned PDFium, qpdf, and Tesseract runtimes
-# (`task desktop:stage-sidecar`), prepares the desktop frontend, runs
-# `npx tauri build`,
-# and uploads the bundles as an artifact named desktop-<os>-<arch>, which
-# release.yml downloads and attaches to the GitHub release.
+# (`task desktop:stage-sidecar`), prepares the desktop frontend, builds and
+# bundles the app, and uploads the bundles as an artifact named
+# desktop-<os>-<arch>, which release.yml downloads and attaches to the
+# GitHub release.
+#
+# The sidecar build does not sit in that sequence: it is started in the
+# background right after the Rust cache restore and joined just before
+# bundling. The two cargo workspaces are independent at compile time, and
+# building them back to back was 645s + 350s of largely single-threaded work
+# on the same runner (v0.1.7 windows leg, run 32929594162). `tauri build` is
+# split into its `--no-bundle` and `bundle` halves so the compile half can
+# run while the sidecar is still going.
 #
 # Bundle signing: with sign=true (the default and what both callers pass),
 # `tauri build` signs the signable bundles (.AppImage/.deb on linux, .msi on
@@ -209,6 +217,30 @@ jobs:
             frontend/editor/src-tauri/provisioner -> target
             frontend/editor/src-tauri/thumbnail-handler -> target
 
+      # The sidecar and the desktop shell are two separate cargo workspaces
+      # that do not depend on each other at COMPILE time — only the bundler
+      # needs the sidecar binary. Built back to back they cost this leg
+      # 645s + 350s of largely single-threaded codegen and linking (measured
+      # on the v0.1.7 windows leg, run 32929594162). Starting the sidecar
+      # here lets it run through npm ci, the frontend prepare and the whole
+      # shell compile; "Join the sidecar build" below is where they meet.
+      #
+      # `set +e` inside the subshell on purpose: the exit code has to reach
+      # the rc file even when cargo fails, or the join step would wait out
+      # its timeout instead of reporting the real error.
+      - name: Start the sidecar build (runs alongside the shell compile)
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/sidecar"
+          (
+            set +e
+            cd rust
+            cargo build --release --locked -p rustling-processing \
+              > "${RUNNER_TEMP}/sidecar/build.log" 2>&1
+            echo $? > "${RUNNER_TEMP}/sidecar/rc"
+          ) &
+          echo "sidecar build started as pid $!"
+
       # Node 22 to match the Frontend CI gate (see frontend.yml for the
       # version rationale).
       - name: Set up Node 22
@@ -225,14 +257,81 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      # Builds the release rustling-processing binary, installs the pinned
-      # PDFium, qpdf, and Tesseract runtimes (platform-dispatched checksum-
-      # verified installers), then stages them into src-tauri.
-      - name: Stage the Rust sidecar and native runtimes (task desktop:stage-sidecar)
-        run: task desktop:stage-sidecar
+      # tauri-build refuses to compile when the externalBin and resources
+      # sources named in tauri.conf.json are missing, so they are stubbed for
+      # the compile. Nothing reads them: externalBin and resources are copied
+      # by the BUNDLER, and the join step below replaces every stub with the
+      # real binary and runtimes before bundling starts. The same trick keeps
+      # the Desktop CI compile gate honest (see desktop.yml).
+      - name: Stub the sidecar staging (compile gate only)
+        working-directory: frontend/editor
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/binaries src-tauri/resources/pdfium \
+            src-tauri/resources/tools
+          host_triple=$(rustc -vV | sed -n 's/^host: //p')
+          exe_suffix=""
+          case "$host_triple" in *windows*) exe_suffix=".exe" ;; esac
+          stub="src-tauri/binaries/rustling-processing-${host_triple}${exe_suffix}"
+          : > "$stub"
+          chmod +x "$stub"
+          : > src-tauri/resources/pdfium/.compile-gate-stub
+          : > src-tauri/resources/tools/.compile-gate-stub
+
+      # Frontend desktop env files, icons and OG metadata; on the windows leg
+      # this also builds the MSI provisioner + thumbnail-handler helper
+      # binaries into src-tauri/windows/wix/ (task desktop:provisioner is
+      # platforms: [windows]). The :no-sidecar variant is deliberate — see
+      # the comment on the background start above.
+      - name: Prepare the desktop frontend (task desktop:prepare:no-sidecar)
+        run: task desktop:prepare:no-sidecar
+
+      # `--no-bundle` stops after the shell binary, which is the half that
+      # does not need the sidecar. The bundle half runs below, once the
+      # sidecar has landed. Splitting a `tauri build` in two this way is what
+      # the CLI's own `build --no-bundle` / `bundle` pair is for.
+      #
+      # This step runs the vite build too (tauri.conf.json's
+      # beforeBuildCommand), so `dist/` exists before the compile.
+      - name: Compile the desktop shell (no bundling)
+        working-directory: frontend/editor
+        run: npx tauri build --no-bundle --verbose
+
+      # Where the two halves meet. The sidecar has had npm ci, the frontend
+      # prepare and the whole shell compile to finish in; usually it is
+      # already done and this costs only the staging.
+      #
+      # `task desktop:stage-sidecar` re-runs the cargo build as a no-op, then
+      # installs the pinned runtimes and copies everything over the compile
+      # gate's stubs. Its own "binary not found" check is the second guard
+      # against bundling a stub.
+      - name: Join the sidecar build and stage it
+        run: |
+          set -euo pipefail
+          rc_file="${RUNNER_TEMP}/sidecar/rc"
+          # Far beyond the ~11 minutes the build takes. It exists so a wedged
+          # compiler fails here with its own log instead of running the job
+          # out to the 120-minute job timeout with nothing to read.
+          for _ in $(seq 1 1800); do
+            [ -f "$rc_file" ] && break
+            sleep 1
+          done
+          if [ ! -f "$rc_file" ]; then
+            echo "::error::the sidecar build did not finish within 30 minutes"
+            tail -n 50 "${RUNNER_TEMP}/sidecar/build.log" || true
+            exit 1
+          fi
+          cat "${RUNNER_TEMP}/sidecar/build.log"
+          rc=$(cat "$rc_file")
+          if [ "$rc" != "0" ]; then
+            echo "::error::the sidecar build failed with exit code ${rc}"
+            exit "$rc"
+          fi
+          task desktop:stage-sidecar
 
       # Diagnostic listing so a bad staging layout is visible in the log
-      # without a local reproduction environment for the platform.
+      # without a local reproduction environment for the platform. Placed
+      # after the join, so what it prints is what gets bundled.
       - name: Show staged native runtime layout
         run: |
           ls -la frontend/editor/src-tauri/binaries/
@@ -240,14 +339,6 @@ jobs:
           find frontend/editor/src-tauri/resources/tools -type f -print | sort
           du -sk frontend/editor/src-tauri/resources/tools
           du -sh frontend/editor/src-tauri/resources/tools
-
-      # Frontend desktop env files, icons and OG metadata; on the windows leg
-      # this also builds the MSI provisioner + thumbnail-handler helper
-      # binaries into src-tauri/windows/wix/ (task desktop:provisioner is
-      # platforms: [windows]). The stage-sidecar dependency re-runs as a
-      # cheap incremental no-op.
-      - name: Prepare the desktop frontend (task desktop:prepare)
-        run: task desktop:prepare
 
       # The bundler signs the signable bundles in place (.sig siblings) when
       # the signing env is present; --no-sign (sign=false) skips signing
@@ -259,7 +350,7 @@ jobs:
       # but that bundler flag is what produces the signatures we publish for
       # manual verification — the collect step below fails the build if they
       # ever stop appearing.
-      - name: Build Tauri bundles (${{ matrix.bundles }})
+      - name: Bundle and sign (${{ matrix.bundles }})
         working-directory: frontend/editor
         env:
           BUNDLE_SIGN: ${{ inputs.sign }}
@@ -278,7 +369,7 @@ jobs:
           # --verbose keeps the underlying bundler tools' output (linuxdeploy,
           # WiX, hdiutil) in the log — without it a bundling failure surfaces
           # only as "failed to run <tool>" with the real error swallowed.
-          args=(build --verbose --bundles "${BUNDLES}")
+          args=(bundle --verbose --bundles "${BUNDLES}")
           if [ "${BUNDLE_SIGN}" != "true" ]; then
             args+=(--no-sign)
           fi
