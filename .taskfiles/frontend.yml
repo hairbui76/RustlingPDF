@@ -15,7 +15,12 @@ tasks:
       - package-lock.json
       - package.json
     status:
-      - test -d node_modules
+      # Go Task runs status commands through the native platform shell. The
+      # POSIX `test` command is unavailable on Windows, so the release workflow
+      # treated an existing node_modules as missing and ran npm ci a second
+      # time from desktop:prepare:no-sidecar. Node is already a prerequisite
+      # for this task and gives us the same check on every platform.
+      - node -e "require('node:fs').accessSync('node_modules')"
     env:
       CI: '{{ .CI | default "false" }}'
 
