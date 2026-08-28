@@ -18,10 +18,12 @@ use thiserror::Error;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 use crate::{
+    paddle_ocr::{PaddleOcrError, PaddleOcrService},
     pdf_document_ops::{DocumentOperationError, strip_images_to_file},
     pdf_merge::{MergeError, MergeInput, MergeOptions, merge_pdf_paths_to_file},
     pdfium_backend::{
-        PdfiumOcrError, PdfiumOcrMode, PdfiumOcrPrepareAttempt, try_prepare_tesseract_pages,
+        PdfiumOcrError, PdfiumOcrMode, PdfiumOcrPrepareAttempt, PdfiumOcrTextLine,
+        try_prepare_tesseract_pages, write_paddle_searchable_page,
     },
     process_executor::{ProcessExecutor, ProcessExecutorError, exit_status},
     runtime_config::OcrProcessSettings,
@@ -53,6 +55,7 @@ pub(crate) struct OcrRuntime {
     pub ocrmypdf_commands: Option<Vec<String>>,
     pub tesseract_commands: Option<Vec<String>>,
     pub process_controls: Arc<OcrProcessControls>,
+    pub paddle_ocr_service: Arc<PaddleOcrService>,
 }
 
 #[derive(Clone, Debug)]
@@ -115,6 +118,8 @@ pub enum OcrError {
         command: String,
         timeout_minutes: u64,
     },
+    #[error(transparent)]
+    Paddle(#[from] PaddleOcrError),
     #[error("PDFium is required for the Tesseract OCR fallback: {details}")]
     PdfiumUnavailable { details: String },
     #[error(transparent)]
@@ -144,13 +149,28 @@ pub(crate) fn run_ocr(
     options: &OcrOptions,
     runtime: &OcrRuntime,
 ) -> Result<OcrOutput, OcrError> {
-    let (languages, render_type) = validated_options(options, &runtime.tessdata_dir)?;
+    let render_type = validated_request_shape(options)?;
+    let languages = if runtime.paddle_ocr_service.is_selected() {
+        options.languages.clone()
+    } else {
+        validated_tesseract_languages(options, &runtime.tessdata_dir)?
+    };
 
     let work_dir = TempDir::new()?;
     let ocr_pdf = work_dir.path().join("ocr-output.pdf");
     let sidecar_txt = work_dir.path().join("ocr-sidecar.txt");
 
-    let used_ocrmypdf = if runtime.ocrmypdf_enabled {
+    let used_ocrmypdf = if runtime.paddle_ocr_service.is_selected() {
+        run_paddle_fallback(
+            input_path,
+            &ocr_pdf,
+            &sidecar_txt,
+            options,
+            runtime,
+            work_dir.path(),
+        )?;
+        false
+    } else if runtime.ocrmypdf_enabled {
         let arguments = ocrmypdf_arguments(
             input_path,
             &ocr_pdf,
@@ -279,10 +299,7 @@ fn ocrmypdf_arguments(
     arguments
 }
 
-fn validated_options<'a>(
-    options: &'a OcrOptions,
-    tessdata_dir: &Path,
-) -> Result<(Vec<String>, &'a str), OcrError> {
+fn validated_request_shape(options: &OcrOptions) -> Result<&str, OcrError> {
     if options.languages.is_empty() {
         return Err(OcrError::NoLanguages);
     }
@@ -290,7 +307,13 @@ fn validated_options<'a>(
     if render_type != "hocr" && render_type != "sandwich" {
         return Err(OcrError::InvalidRenderType);
     }
+    Ok(render_type)
+}
 
+fn validated_tesseract_languages(
+    options: &OcrOptions,
+    tessdata_dir: &Path,
+) -> Result<Vec<String>, OcrError> {
     let available_languages = available_tesseract_languages(tessdata_dir);
     let languages = options
         .languages
@@ -302,7 +325,101 @@ fn validated_options<'a>(
         return Err(OcrError::InvalidLanguages);
     }
 
-    Ok((languages, render_type))
+    Ok(languages)
+}
+
+/// Chooses which pages an engine OCRs, matching the Tesseract fallback rule.
+///
+/// `skip-text` retains pages that already carry text; every other value —
+/// including `force-ocr`, `Normal`, and an absent value — OCRs every page.
+fn ocr_page_selection_mode(options: &OcrOptions) -> PdfiumOcrMode {
+    if options.ocr_type.as_deref() == Some("skip-text") {
+        PdfiumOcrMode::SkipTextPages
+    } else {
+        PdfiumOcrMode::AllPages
+    }
+}
+
+fn run_paddle_fallback(
+    input_path: &Path,
+    output_path: &Path,
+    sidecar_path: &Path,
+    options: &OcrOptions,
+    runtime: &OcrRuntime,
+    work_dir: &Path,
+) -> Result<(), OcrError> {
+    let font_path = runtime.paddle_ocr_service.font_path()?.clone();
+    let images_dir = work_dir.join("paddle-images");
+    let pages_dir = work_dir.join("paddle-pages");
+    fs::create_dir_all(&images_dir)?;
+    fs::create_dir_all(&pages_dir)?;
+    let mode = ocr_page_selection_mode(options);
+    let filename = input_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("document.pdf");
+    let artifacts = match try_prepare_tesseract_pages(
+        input_path,
+        filename,
+        mode,
+        runtime.render_dpi,
+        &images_dir,
+        &pages_dir,
+    )? {
+        PdfiumOcrPrepareAttempt::Prepared(artifacts) => artifacts,
+        PdfiumOcrPrepareAttempt::Unavailable {
+            explicitly_configured,
+            details,
+        } => {
+            let details = if explicitly_configured {
+                format!("the explicitly configured PDFium runtime could not load: {details}")
+            } else {
+                details
+            };
+            return Err(OcrError::PdfiumUnavailable { details });
+        }
+    };
+
+    let mut pages = Vec::with_capacity(artifacts.len());
+    let mut sidecar = String::new();
+    for artifact in artifacts {
+        let selected_path = if let Some(image_path) = &artifact.image_path {
+            let encoded_image = fs::read(image_path)?;
+            let recognized = runtime.paddle_ocr_service.recognize_image(&encoded_image)?;
+            let lines = recognized
+                .iter()
+                .map(|line| PdfiumOcrTextLine {
+                    text: line.text.clone(),
+                    points: line.points,
+                })
+                .collect::<Vec<_>>();
+            write_paddle_searchable_page(
+                image_path,
+                &font_path,
+                artifact.page_number,
+                artifact.page_width,
+                artifact.page_height,
+                &lines,
+                &artifact.expected_ocr_pdf_path,
+            )?;
+            for line in recognized {
+                sidecar.push_str(&line.text);
+                sidecar.push('\n');
+            }
+            artifact.expected_ocr_pdf_path
+        } else {
+            artifact.original_pdf_path
+        };
+        pages.push(MergeInput {
+            filename: format!("page-{}.pdf", artifact.page_number),
+            path: selected_path,
+        });
+    }
+    merge_pdf_paths_to_file(&pages, MergeOptions::default(), output_path)?;
+    if options.sidecar {
+        fs::write(sidecar_path, sidecar)?;
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -610,7 +727,12 @@ fn process_details(stdout: &[u8], stderr: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path, sync::Arc, time::Duration};
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+        sync::Arc,
+        time::Duration,
+    };
 
     #[cfg(unix)]
     use lopdf::{Document, Object, Stream, dictionary};
@@ -620,11 +742,16 @@ mod tests {
 
     use super::{
         OcrError, OcrOptions, OcrProcessControls, OcrRuntime, is_multiprocessing_unavailable,
-        ocrmypdf_arguments, run_ocr, run_ocrmypdf, validated_options,
+        ocr_page_selection_mode, ocrmypdf_arguments, run_ocr, run_ocrmypdf,
+        validated_request_shape, validated_tesseract_languages,
     };
     #[cfg(unix)]
     use crate::process_executor::ProcessExecutor;
     use crate::runtime_config::OcrProcessSettings;
+    use crate::{
+        paddle_ocr::{PaddleOcrConfig, PaddleOcrService},
+        pdfium_backend::PdfiumOcrMode,
+    };
 
     fn options() -> OcrOptions {
         OcrOptions {
@@ -653,6 +780,7 @@ mod tests {
                 tesseract_session_limit: 1,
                 tesseract_timeout: Duration::from_secs(30 * 60),
             })),
+            paddle_ocr_service: Arc::new(PaddleOcrService::from_config(Ok(None))),
         }
     }
 
@@ -678,14 +806,14 @@ mod tests {
         let mut request = options();
         request.languages = vec![" eng ".to_owned()];
         assert!(matches!(
-            validated_options(&request, directory.path()),
+            validated_tesseract_languages(&request, directory.path()),
             Err(OcrError::InvalidLanguages)
         ));
 
         request.languages = vec!["eng".to_owned()];
         request.ocr_render_type = " hocr ".to_owned();
         assert!(matches!(
-            validated_options(&request, directory.path()),
+            validated_request_shape(&request),
             Err(OcrError::InvalidRenderType)
         ));
         Ok(())
@@ -715,7 +843,7 @@ mod tests {
         request.languages = vec!["fra".to_owned(), "ENG".to_owned()];
 
         assert!(matches!(
-            validated_options(&request, directory.path()),
+            validated_tesseract_languages(&request, directory.path()),
             Err(OcrError::InvalidLanguages)
         ));
         Ok(())
@@ -736,9 +864,9 @@ mod tests {
             "ENG".to_owned(),
         ];
 
-        let (languages, render_type) = validated_options(&request, directory.path())?;
+        let languages = validated_tesseract_languages(&request, directory.path())?;
         assert_eq!(languages, ["deu", "eng", "deu"]);
-        assert_eq!(render_type, "hocr");
+        assert_eq!(validated_request_shape(&request)?, "hocr");
         Ok(())
     }
 
@@ -758,6 +886,156 @@ mod tests {
             Err(OcrError::OcrToolsUnavailable)
         ));
         Ok(())
+    }
+
+    fn paddle_runtime(
+        tessdata_dir: &Path,
+        config: Result<Option<PaddleOcrConfig>, String>,
+    ) -> OcrRuntime {
+        let mut runtime = runtime(tessdata_dir);
+        // Both default engines stay "available" so a fall-back would be visible
+        // as a different error rather than as the same unavailability.
+        runtime.ocrmypdf_enabled = true;
+        runtime.tesseract_enabled = true;
+        runtime.paddle_ocr_service = Arc::new(PaddleOcrService::from_config(config));
+        runtime
+    }
+
+    fn complete_paddle_config() -> PaddleOcrConfig {
+        PaddleOcrConfig {
+            onnx_runtime_path: PathBuf::from("/opt/onnx/libonnxruntime.so"),
+            detector_model_path: PathBuf::from("/models/detector.onnx"),
+            recognizer_model_path: PathBuf::from("/models/recognizer.onnx"),
+            dictionary_path: PathBuf::from("/models/ppocrv6_dict.txt"),
+            text_layer_font_path: PathBuf::from("/fonts/NotoSansCJK-Regular.otf"),
+        }
+    }
+
+    /// The default engine keeps its tessdata gate. Paddle must not have relaxed
+    /// validation for requests that never select it.
+    #[test]
+    fn default_engine_still_rejects_languages_without_installed_tessdata()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let mut runtime = runtime(directory.path());
+        runtime.tesseract_enabled = true;
+        assert!(matches!(
+            run_ocr(
+                Path::new("in.pdf"),
+                Path::new("out.pdf"),
+                &options(),
+                &runtime,
+            ),
+            Err(OcrError::InvalidLanguages)
+        ));
+        Ok(())
+    }
+
+    /// Paddle uses one pinned model and dictionary pair, so `languages` cannot
+    /// be checked against tessdata. An empty tessdata directory must not block
+    /// an explicitly selected Paddle engine.
+    #[test]
+    fn explicit_paddle_does_not_require_installed_tessdata()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let runtime = paddle_runtime(directory.path(), Ok(Some(complete_paddle_config())));
+        let error = run_ocr(
+            Path::new("in.pdf"),
+            Path::new("out.pdf"),
+            &options(),
+            &runtime,
+        )
+        .err()
+        .ok_or("Paddle cannot succeed without the operator artifacts")?;
+        assert!(
+            !matches!(
+                error,
+                OcrError::InvalidLanguages | OcrError::NoLanguages | OcrError::OcrToolsUnavailable
+            ),
+            "request failed on the default engine's checks: {error}"
+        );
+        Ok(())
+    }
+
+    /// Selecting Paddle does not loosen the shared request contract.
+    #[test]
+    fn explicit_paddle_keeps_request_shape_validation() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let runtime = paddle_runtime(directory.path(), Ok(Some(complete_paddle_config())));
+
+        let mut request = options();
+        request.languages.clear();
+        assert!(matches!(
+            run_ocr(
+                Path::new("in.pdf"),
+                Path::new("out.pdf"),
+                &request,
+                &runtime
+            ),
+            Err(OcrError::NoLanguages)
+        ));
+
+        let mut request = options();
+        request.ocr_render_type = "fancy".to_owned();
+        assert!(matches!(
+            run_ocr(
+                Path::new("in.pdf"),
+                Path::new("out.pdf"),
+                &request,
+                &runtime
+            ),
+            Err(OcrError::InvalidRenderType)
+        ));
+        Ok(())
+    }
+
+    /// A misconfigured Paddle engine is a configuration failure, never a quiet
+    /// hand-off to `OCRmyPDF` or Tesseract, and it is reported before any
+    /// rendering work begins.
+    #[test]
+    fn invalid_paddle_configuration_never_falls_back() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let runtime = paddle_runtime(
+            directory.path(),
+            Err("ocr.paddle.detectorModelPath is required when ocr.engine is paddle".to_owned()),
+        );
+        let error = run_ocr(
+            Path::new("in.pdf"),
+            Path::new("out.pdf"),
+            &options(),
+            &runtime,
+        )
+        .err()
+        .ok_or("an invalid Paddle configuration must fail")?;
+        assert!(
+            matches!(
+                &error,
+                OcrError::Paddle(paddle)
+                    if paddle.to_string().contains("detectorModelPath")
+            ),
+            "expected a Paddle configuration error, got: {error}"
+        );
+        Ok(())
+    }
+
+    /// Paddle selects the same pages as the Tesseract fallback, so `skip-text`
+    /// keeps retaining pages that already carry text.
+    #[test]
+    fn paddle_selects_pages_with_the_tesseract_fallback_rule() {
+        let mut request = options();
+        request.ocr_type = Some("skip-text".to_owned());
+        assert_eq!(
+            ocr_page_selection_mode(&request),
+            PdfiumOcrMode::SkipTextPages
+        );
+        for value in [None, Some("force-ocr"), Some("Normal")] {
+            request.ocr_type = value.map(str::to_owned);
+            assert_eq!(
+                ocr_page_selection_mode(&request),
+                PdfiumOcrMode::AllPages,
+                "ocrType {value:?} must OCR every page"
+            );
+        }
     }
 
     #[test]

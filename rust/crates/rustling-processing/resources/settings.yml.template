@@ -84,6 +84,15 @@ AutomaticallyGenerated:
   UUID: example
   appVersion: 0.35.0
 
+ocr:
+  engine: auto # OCR engine: 'auto' uses OCRmyPDF then the Tesseract fallback; 'paddle' uses the optional in-process PaddleOCR engine. 'paddle' requires every path below and never falls back to another engine. NOTE: the desktop app and the Docker images are not built with the paddle-ocr feature, so 'paddle' reports the missing feature there.
+  paddle: # Local artifacts you provide yourself. Nothing here is bundled or downloaded, and these are only read when engine is 'paddle'.
+    onnxRuntimePath: "" # path to the ONNX Runtime shared library
+    detectorModelPath: "" # path to the supported PaddleOCR text-detection model
+    recognizerModelPath: "" # path to the supported PaddleOCR text-recognition model
+    dictionaryPath: "" # path to the supported PaddleOCR character dictionary
+    textLayerFontPath: "" # path to a TrueType/OpenType font covering the recognised characters; used for the invisible searchable text layer
+
 processExecutor:
   sessionLimit: # Process executor instances limits
     qpdfSessionLimit: 4

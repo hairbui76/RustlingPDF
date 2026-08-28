@@ -24,6 +24,7 @@ pub mod ocr_pdf;
 pub mod office_builtin_engine;
 pub mod office_sanitizer;
 pub mod office_to_pdf;
+mod paddle_ocr;
 mod page_selection;
 pub mod pdf_accessibility;
 pub mod pdf_ai_comments;
@@ -183,6 +184,7 @@ use crate::{
         OfficeConversion, OfficeToPdfError, PdfToOfficeOutput, convert_office_to_pdf,
         convert_pdf_to_office,
     },
+    paddle_ocr::PaddleOcrService,
     pdf_accessibility::{
         AccessibilityError, AccessibilityRepairs, check_accessibility,
         remediate_accessibility_to_file,
@@ -1368,6 +1370,9 @@ impl ProcessingRuntime {
         let ocr_process_controls = Arc::new(OcrProcessControls::new(
             runtime_config.ocr_process_settings(),
         ));
+        let paddle_ocr_service = Arc::new(PaddleOcrService::from_config(
+            runtime_config.paddle_ocr_config(),
+        ));
         let repair_runtime = Arc::new(RepairRuntime::from_runtime_config(&runtime_config));
         let classification_service = Arc::new(classification::ClassificationService::new());
         let runtime_config = Arc::new(runtime_config);
@@ -1404,6 +1409,7 @@ impl ProcessingRuntime {
             .layer(middleware::from_fn(enforce_endpoint_availability))
             .layer(Extension(Arc::clone(&runtime_config)))
             .layer(Extension(Arc::clone(&ocr_process_controls)))
+            .layer(Extension(Arc::clone(&paddle_ocr_service)))
             .layer(Extension(Arc::clone(&repair_runtime)))
             .layer(Extension(Arc::clone(&ai_comment_engine_settings)))
             .layer(Extension(Arc::clone(&runtime_metrics)))
@@ -1428,6 +1434,7 @@ impl ProcessingRuntime {
                 .layer(middleware::from_fn(enforce_endpoint_availability))
                 .layer(Extension(Arc::clone(&runtime_config)))
                 .layer(Extension(ocr_process_controls))
+                .layer(Extension(paddle_ocr_service))
                 .layer(Extension(repair_runtime))
                 .layer(Extension(ai_comment_engine_settings))
                 .layer(Extension(Arc::clone(&runtime_metrics)))
@@ -4680,6 +4687,7 @@ async fn markdown_to_pdf(multipart: Multipart) -> Result<Response, ApiError> {
 async fn ocr_pdf(
     Extension(runtime_config): Extension<Arc<RuntimeConfig>>,
     Extension(process_controls): Extension<Arc<OcrProcessControls>>,
+    Extension(paddle_ocr_service): Extension<Arc<PaddleOcrService>>,
     multipart: Multipart,
 ) -> Result<Response, ApiError> {
     let request = read_ocr_request(multipart).await?;
@@ -4694,6 +4702,7 @@ async fn ocr_pdf(
         ocrmypdf_commands: None,
         tesseract_commands: None,
         process_controls,
+        paddle_ocr_service,
     };
     let temp_dir = request.temp_dir;
     let output_path = temp_dir.path().join("ocr-output");
@@ -13128,6 +13137,7 @@ fn map_ocr_error(error: &OcrError) -> ApiError {
         | OcrError::TesseractFailed { .. }
         | OcrError::TesseractStart { .. }
         | OcrError::TesseractTimeout { .. }
+        | OcrError::Paddle(_)
         | OcrError::Pdfium(_)
         | OcrError::Merge(_)
         | OcrError::RemoveImages(_)

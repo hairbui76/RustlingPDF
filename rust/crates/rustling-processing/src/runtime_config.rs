@@ -646,6 +646,71 @@ impl RuntimeConfig {
             )
     }
 
+    /// Resolves the explicitly selected Paddle OCR artifact set.
+    ///
+    /// `auto` (the default) preserves the OCRmyPDF/Tesseract path. Selecting
+    /// `paddle` requires every path; incomplete configuration is retained as an
+    /// error so a typo cannot silently fall back to a different engine.
+    pub(crate) fn paddle_ocr_config(
+        &self,
+    ) -> Result<Option<crate::paddle_ocr::PaddleOcrConfig>, String> {
+        let engine = self.string(&["ocr", "engine"], "RUSTLING_PROCESSING_OCR_ENGINE", "auto");
+        match engine.trim() {
+            "" | "auto" => return Ok(None),
+            "paddle" => {}
+            value => {
+                return Err(format!(
+                    "ocr.engine must be 'auto' or 'paddle', got '{value}'"
+                ));
+            }
+        }
+
+        let path = |field: &str, environment: &str| {
+            let value = self.string(&["ocr", "paddle", field], environment, "");
+            (!value.trim().is_empty())
+                .then(|| PathBuf::from(value))
+                .ok_or_else(|| format!("ocr.paddle.{field} is required when ocr.engine is paddle"))
+        };
+        Ok(Some(crate::paddle_ocr::PaddleOcrConfig {
+            onnx_runtime_path: path(
+                "onnxRuntimePath",
+                "RUSTLING_PROCESSING_PADDLE_OCR_ONNX_RUNTIME_PATH",
+            )?,
+            detector_model_path: path(
+                "detectorModelPath",
+                "RUSTLING_PROCESSING_PADDLE_OCR_DETECTOR_MODEL_PATH",
+            )?,
+            recognizer_model_path: path(
+                "recognizerModelPath",
+                "RUSTLING_PROCESSING_PADDLE_OCR_RECOGNIZER_MODEL_PATH",
+            )?,
+            dictionary_path: path(
+                "dictionaryPath",
+                "RUSTLING_PROCESSING_PADDLE_OCR_DICTIONARY_PATH",
+            )?,
+            text_layer_font_path: path(
+                "textLayerFontPath",
+                "RUSTLING_PROCESSING_PADDLE_OCR_TEXT_LAYER_FONT_PATH",
+            )?,
+        }))
+    }
+
+    /// Reports whether the operator selected an OCR engine other than the
+    /// default.
+    ///
+    /// Any non-`auto` value counts, including an invalid one. An invalid
+    /// selection must reach `paddle_ocr_config` and fail as a configuration
+    /// error; letting it fall back to the Tesseract-availability answer would
+    /// report `501 Not Implemented` on a host without `OCRmyPDF` and hide the
+    /// typo.
+    fn ocr_engine_is_explicitly_selected(&self) -> bool {
+        !matches!(
+            self.string(&["ocr", "engine"], "RUSTLING_PROCESSING_OCR_ENGINE", "auto")
+                .trim(),
+            "" | "auto"
+        )
+    }
+
     /// Returns the maximum page-rendering DPI used by the OCR fallback.
     #[must_use]
     pub fn max_render_dpi(&self) -> i32 {
@@ -1252,9 +1317,10 @@ impl RuntimeConfig {
             .iter()
             .find(|(configured_endpoint, _)| *configured_endpoint == endpoint)
         {
-            return alternatives
-                .iter()
-                .any(|group| !is_group_disabled(group, disabled_groups));
+            return (endpoint == "ocr-pdf" && self.ocr_engine_is_explicitly_selected())
+                || alternatives
+                    .iter()
+                    .any(|group| !is_group_disabled(group, disabled_groups));
         }
         !ENDPOINT_GROUPS.iter().any(|(group, endpoints)| {
             is_tool_group(group)
@@ -1915,6 +1981,87 @@ mod tests {
         assert_eq!(configured.ocrmypdf_timeout.as_secs(), 12 * 60);
         assert_eq!(configured.tesseract_session_limit, 3);
         assert_eq!(configured.tesseract_timeout.as_secs(), 9 * 60);
+        Ok(())
+    }
+
+    #[test]
+    fn paddle_ocr_is_disabled_by_default_and_requires_every_explicit_path()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "{}\n")?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        assert_eq!(config.paddle_ocr_config()?, None);
+
+        fs::write(&settings, "ocr:\n  engine: paddle\n")?;
+        let config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        assert_eq!(
+            config.paddle_ocr_config(),
+            Err("ocr.paddle.onnxRuntimePath is required when ocr.engine is paddle".to_owned())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn paddle_ocr_yaml_keeps_all_paths_explicit_and_enables_ocr_availability()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(
+            &settings,
+            "ocr:\n  engine: paddle\n  paddle:\n    onnxRuntimePath: /opt/onnx/libonnxruntime.so\n    detectorModelPath: /models/detector.onnx\n    recognizerModelPath: /models/recognizer.onnx\n    dictionaryPath: /models/ppocrv6_dict.txt\n    textLayerFontPath: /fonts/NotoSansCJK-Regular.otf\n",
+        )?;
+        let mut config = RuntimeConfig::from_files(&settings, directory.path().join("missing.yml"));
+        let paddle = config
+            .paddle_ocr_config()?
+            .ok_or("expected Paddle OCR configuration")?;
+        assert_eq!(
+            paddle.onnx_runtime_path,
+            Path::new("/opt/onnx/libonnxruntime.so")
+        );
+        assert_eq!(
+            paddle.detector_model_path,
+            Path::new("/models/detector.onnx")
+        );
+        assert_eq!(
+            paddle.recognizer_model_path,
+            Path::new("/models/recognizer.onnx")
+        );
+        assert_eq!(
+            paddle.dictionary_path,
+            Path::new("/models/ppocrv6_dict.txt")
+        );
+        assert_eq!(
+            paddle.text_layer_font_path,
+            Path::new("/fonts/NotoSansCJK-Regular.otf")
+        );
+
+        config
+            .dependency_disabled_groups
+            .extend(["OCRmyPDF".to_owned(), "tesseract".to_owned()]);
+        assert!(config.is_endpoint_enabled("ocr-pdf"));
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_ocr_engine_is_reported_instead_of_falling_back()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let settings = directory.path().join("settings.yml");
+        fs::write(&settings, "ocr:\n  engine: Paddle\n")?;
+        let mut config = RuntimeConfig::from_files(settings, directory.path().join("missing.yml"));
+        assert_eq!(
+            config.paddle_ocr_config(),
+            Err("ocr.engine must be 'auto' or 'paddle', got 'Paddle'".to_owned())
+        );
+
+        // The endpoint stays advertised so the request fails with the
+        // configuration error above instead of `501 Not Implemented`, which
+        // would blame the absent Tesseract for the operator's typo.
+        config
+            .dependency_disabled_groups
+            .extend(["OCRmyPDF".to_owned(), "tesseract".to_owned()]);
+        assert!(config.is_endpoint_enabled("ocr-pdf"));
         Ok(())
     }
 

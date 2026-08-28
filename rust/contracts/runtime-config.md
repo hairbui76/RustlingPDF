@@ -151,6 +151,41 @@ request a strict validation profile.
 `dependenciesReady` means probing is complete; it does not mean every optional
 program is installed.
 
+## OCR engine selection
+
+`ocr.engine` chooses the OCR engine and defaults to `auto`. `auto` keeps the
+OCRmyPDF/Tesseract behavior; `paddle` selects the optional in-process
+`PaddleOCR-Rust` engine. Any other value is a configuration error that is
+reported when an OCR request runs, and an explicitly selected engine keeps the
+`ocr-pdf` endpoint advertised so that error is what the caller sees.
+
+Selecting `paddle` requires all five artifact paths below. They are local file
+paths supplied by the operator; nothing is bundled or downloaded, and an
+incomplete set is an error rather than a fallback to another engine.
+
+| YAML key | Environment variable |
+|---|---|
+| `ocr.engine` | `RUSTLING_PROCESSING_OCR_ENGINE` |
+| `ocr.paddle.onnxRuntimePath` | `RUSTLING_PROCESSING_PADDLE_OCR_ONNX_RUNTIME_PATH` |
+| `ocr.paddle.detectorModelPath` | `RUSTLING_PROCESSING_PADDLE_OCR_DETECTOR_MODEL_PATH` |
+| `ocr.paddle.recognizerModelPath` | `RUSTLING_PROCESSING_PADDLE_OCR_RECOGNIZER_MODEL_PATH` |
+| `ocr.paddle.dictionaryPath` | `RUSTLING_PROCESSING_PADDLE_OCR_DICTIONARY_PATH` |
+| `ocr.paddle.textLayerFontPath` | `RUSTLING_PROCESSING_PADDLE_OCR_TEXT_LAYER_FONT_PATH` |
+
+Values are used untrimmed apart from the emptiness check, and an empty value
+counts as unset. The models and dictionary are verified against pinned
+identities, and a text-layer font is required rather than chosen from the host,
+because the supported dictionary contains Unicode that the PDF Standard 14
+fonts do not cover. `rust/contracts/ocr-pdf.md` owns the resulting endpoint
+behavior.
+
+Paddle is compiled behind the `paddle-ocr` Cargo feature, and no shipped
+artifact enables it. The desktop sidecar and both Docker binaries build
+`-p rustling-processing` without the feature, so selecting `paddle` there
+reports the missing feature. `rustling-cli` enables it for local development.
+Enabling the feature does not enable the engine; `ocr.engine` still has to
+select it.
+
 ## Processing limits and paths
 
 The service supports explicit environment overrides for upload limits, PDFium,

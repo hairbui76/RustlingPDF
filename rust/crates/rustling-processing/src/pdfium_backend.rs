@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet, hash_map::DefaultHasher},
-    fs::File,
+    fs::{self, File},
     hash::{Hash, Hasher},
     io::{self, Cursor, Write},
     path::{Path, PathBuf},
@@ -8,9 +8,9 @@ use std::{
 
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage, imageops};
 use pdfium_render::prelude::{
-    PdfDocument, PdfFontWeight, PdfPage, PdfPageContentRegenerationStrategy, PdfPageObjectCommon,
-    PdfPageObjectsCommon, PdfPagePaperSize, PdfPageRenderRotation, PdfPageText, PdfPoints,
-    PdfRenderConfig, Pdfium, PdfiumError,
+    PdfDocument, PdfFontToken, PdfFontWeight, PdfPage, PdfPageContentRegenerationStrategy,
+    PdfPageObjectCommon, PdfPageObjectsCommon, PdfPagePaperSize, PdfPageRenderRotation,
+    PdfPageText, PdfPageTextRenderMode, PdfPoints, PdfRenderConfig, Pdfium, PdfiumError,
 };
 use rxing::{
     BarcodeFormat, BinaryBitmap, DecodeHintValue, DecodeHints, Luma8LuminanceSource,
@@ -339,10 +339,19 @@ pub enum PdfiumOcrMode {
 #[derive(Debug)]
 pub struct PdfiumOcrPageArtifact {
     pub page_number: usize,
+    pub page_width: f32,
+    pub page_height: f32,
     pub original_pdf_path: PathBuf,
     pub image_path: Option<PathBuf>,
     pub ocr_output_base: PathBuf,
     pub expected_ocr_pdf_path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PdfiumOcrTextLine {
+    pub text: String,
+    /// Four points in top-left-origin source-image pixel coordinates.
+    pub points: [(f32, f32); 4],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -563,6 +572,8 @@ pub enum PdfiumToImageError {
 pub enum PdfiumOcrError {
     #[error("could not lock the PDFium runtime because another operation panicked")]
     RuntimePoisoned,
+    #[error("PDFium is required to build Paddle searchable pages: {details}")]
+    PdfiumUnavailable { details: String },
     #[error("could not read '{filename}' as a PDF with PDFium: {source}")]
     ReadPdf {
         filename: String,
@@ -596,6 +607,22 @@ pub enum PdfiumOcrError {
         #[source]
         source: PdfiumError,
     },
+    #[error("could not read rendered OCR image '{path}': {source}")]
+    ReadOcrImage {
+        path: PathBuf,
+        #[source]
+        source: image::ImageError,
+    },
+    #[error("could not read OCR text-layer font '{path}': {source}")]
+    ReadOcrFont {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+    #[error("the OCR text-layer font is {actual} bytes; the limit is {limit} bytes")]
+    OcrFontTooLarge { actual: u64, limit: u64 },
+    #[error("Paddle returned invalid text geometry for page {page_number}")]
+    InvalidOcrTextGeometry { page_number: usize },
     #[error(transparent)]
     Render(#[from] PdfiumToImageError),
 }
@@ -1337,6 +1364,7 @@ fn page_number(page_index: i32) -> usize {
 /// The source PDF is loaded once. Every page is retained as a one-page PDF, and
 /// pages selected for OCR are additionally rendered to PNG without retaining a
 /// full-document raster set in memory.
+#[allow(clippy::too_many_lines)]
 pub fn try_prepare_tesseract_pages(
     input_path: &Path,
     filename: &str,
@@ -1376,6 +1404,8 @@ pub fn try_prepare_tesseract_pages(
                 page_number,
                 source,
             })?;
+        let page_width = page.width().value;
+        let page_height = page.height().value;
         let has_text = if mode == PdfiumOcrMode::SkipTextPages {
             let text = page.text().map_err(|source| PdfiumOcrError::Page {
                 operation: "extract text from",
@@ -1441,6 +1471,8 @@ pub fn try_prepare_tesseract_pages(
         let expected_ocr_pdf_path = ocr_output_base.with_extension("pdf");
         artifacts.push(PdfiumOcrPageArtifact {
             page_number,
+            page_width,
+            page_height,
             original_pdf_path,
             image_path,
             ocr_output_base,
@@ -1448,6 +1480,265 @@ pub fn try_prepare_tesseract_pages(
         });
     }
     Ok(PdfiumOcrPrepareAttempt::Prepared(artifacts))
+}
+
+/// Builds one raster-backed searchable PDF page from Paddle OCR lines.
+///
+/// The rendered image is the visual page. Text objects use render mode 3
+/// (invisible), so selecting/searching sees the recognized Unicode without
+/// painting it a second time over the scan.
+pub fn write_paddle_searchable_page(
+    image_path: &Path,
+    font_path: &Path,
+    page_number: usize,
+    page_width: f32,
+    page_height: f32,
+    lines: &[PdfiumOcrTextLine],
+    output_path: &Path,
+) -> Result<(), PdfiumOcrError> {
+    let image = image::open(image_path).map_err(|source| PdfiumOcrError::ReadOcrImage {
+        path: image_path.to_path_buf(),
+        source,
+    })?;
+    let font_bytes = read_bounded_ocr_font(font_path)?;
+
+    let runtime = shared_pdfium_runtime();
+    let pdfium = match &runtime.instance {
+        Ok(pdfium) => pdfium.lock().map_err(|_| PdfiumOcrError::RuntimePoisoned)?,
+        Err(details) => {
+            return Err(PdfiumOcrError::PdfiumUnavailable {
+                details: details.clone(),
+            });
+        }
+    };
+    let mut document =
+        pdfium
+            .create_new_pdf()
+            .map_err(|source| PdfiumOcrError::CreatePageDocument {
+                page_number,
+                source,
+            })?;
+    let font = document
+        .fonts_mut()
+        .load_true_type_from_bytes(&font_bytes, true)
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "load the OCR text-layer font for",
+            page_number,
+            source,
+        })?;
+    let page_width = PdfPoints::new(page_width);
+    let page_height = PdfPoints::new(page_height);
+    let mut page = document
+        .pages_mut()
+        .create_page_at_end(PdfPagePaperSize::new_custom(page_width, page_height))
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "create searchable output for",
+            page_number,
+            source,
+        })?;
+    page.objects_mut()
+        .create_image_object(
+            PdfPoints::ZERO,
+            PdfPoints::ZERO,
+            &image,
+            Some(page_width),
+            Some(page_height),
+        )
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "add the rendered background to",
+            page_number,
+            source,
+        })?;
+
+    for line in lines.iter().filter(|line| !line.text.is_empty()) {
+        place_invisible_ocr_line(
+            &mut page,
+            font,
+            line,
+            page_number,
+            (image.width(), image.height()),
+            (page_width.value, page_height.value),
+        )?;
+    }
+    drop(page);
+    document
+        .save_to_file(output_path)
+        .map_err(|source| PdfiumOcrError::SavePage {
+            page_number,
+            source,
+        })?;
+    Ok(())
+}
+
+/// Reads the operator-supplied text-layer font under an explicit bound.
+///
+/// The path comes from configuration rather than the request, but it is still
+/// caller-named, so it gets the same bounded treatment as any other artifact
+/// this service loads from disk.
+fn read_bounded_ocr_font(font_path: &Path) -> Result<Vec<u8>, PdfiumOcrError> {
+    const MAX_FONT_BYTES: u64 = 32 * 1024 * 1024;
+
+    let metadata = fs::metadata(font_path).map_err(|source| PdfiumOcrError::ReadOcrFont {
+        path: font_path.to_path_buf(),
+        source,
+    })?;
+    if metadata.len() > MAX_FONT_BYTES {
+        return Err(PdfiumOcrError::OcrFontTooLarge {
+            actual: metadata.len(),
+            limit: MAX_FONT_BYTES,
+        });
+    }
+    let font_bytes = fs::read(font_path).map_err(|source| PdfiumOcrError::ReadOcrFont {
+        path: font_path.to_path_buf(),
+        source,
+    })?;
+    let actual = u64::try_from(font_bytes.len()).unwrap_or(u64::MAX);
+    if actual > MAX_FONT_BYTES {
+        return Err(PdfiumOcrError::OcrFontTooLarge {
+            actual,
+            limit: MAX_FONT_BYTES,
+        });
+    }
+    Ok(font_bytes)
+}
+
+/// Adds one recognised line to the page as invisible text at its source
+/// position, scaled so the glyph run spans the recognised quadrilateral.
+fn place_invisible_ocr_line(
+    page: &mut PdfPage,
+    font: PdfFontToken,
+    line: &PdfiumOcrTextLine,
+    page_number: usize,
+    image_size: (u32, u32),
+    page_size: (f32, f32),
+) -> Result<(), PdfiumOcrError> {
+    let placement = ocr_line_placement(
+        line.points,
+        image_size.0,
+        image_size.1,
+        page_size.0,
+        page_size.1,
+    )
+    .ok_or(PdfiumOcrError::InvalidOcrTextGeometry { page_number })?;
+    let mut object = page
+        .objects_mut()
+        .create_text_object(
+            PdfPoints::ZERO,
+            PdfPoints::ZERO,
+            &line.text,
+            font,
+            PdfPoints::new(placement.height),
+        )
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "create invisible text on",
+            page_number,
+            source,
+        })?;
+    object
+        .as_text_object_mut()
+        .ok_or(PdfiumOcrError::InvalidOcrTextGeometry { page_number })?
+        .set_render_mode(PdfPageTextRenderMode::Invisible)
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "hide the OCR text layer on",
+            page_number,
+            source,
+        })?;
+    let text_width = object
+        .width()
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "measure invisible text on",
+            page_number,
+            source,
+        })?
+        .value;
+    if !text_width.is_finite() || text_width <= f32::EPSILON {
+        return Err(PdfiumOcrError::InvalidOcrTextGeometry { page_number });
+    }
+    object
+        .scale(placement.width / text_width, 1.0)
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "position invisible text on",
+            page_number,
+            source,
+        })?;
+    object
+        .rotate_counter_clockwise_degrees(placement.angle_degrees)
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "rotate invisible text on",
+            page_number,
+            source,
+        })?;
+    object
+        .translate(
+            PdfPoints::new(placement.origin_x),
+            PdfPoints::new(placement.origin_y),
+        )
+        .map_err(|source| PdfiumOcrError::Page {
+            operation: "position invisible text on",
+            page_number,
+            source,
+        })?;
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct OcrLinePlacement {
+    origin_x: f32,
+    origin_y: f32,
+    width: f32,
+    height: f32,
+    angle_degrees: f32,
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn ocr_line_placement(
+    points: [(f32, f32); 4],
+    image_width: u32,
+    image_height: u32,
+    page_width: f32,
+    page_height: f32,
+) -> Option<OcrLinePlacement> {
+    if image_width == 0
+        || image_height == 0
+        || !page_width.is_finite()
+        || !page_height.is_finite()
+        || page_width <= 0.0
+        || page_height <= 0.0
+        || points.iter().any(|(x, y)| !x.is_finite() || !y.is_finite())
+    {
+        return None;
+    }
+    let scale_x = page_width / image_width as f32;
+    let scale_y = page_height / image_height as f32;
+    let map = |(x, y): (f32, f32)| (x * scale_x, page_height - y * scale_y);
+    let [top_left, top_right, bottom_right, bottom_left] = points.map(map);
+    let distance = |a: (f32, f32), b: (f32, f32)| (b.0 - a.0).hypot(b.1 - a.1);
+    let width = f32::midpoint(
+        distance(top_left, top_right),
+        distance(bottom_left, bottom_right),
+    );
+    let height = f32::midpoint(
+        distance(top_left, bottom_left),
+        distance(top_right, bottom_right),
+    );
+    let angle_degrees = (top_right.1 - top_left.1)
+        .atan2(top_right.0 - top_left.0)
+        .to_degrees();
+    if !width.is_finite()
+        || !height.is_finite()
+        || !angle_degrees.is_finite()
+        || width <= f32::EPSILON
+        || height <= f32::EPSILON
+    {
+        return None;
+    }
+    Some(OcrLinePlacement {
+        origin_x: bottom_left.0,
+        origin_y: bottom_left.1,
+        width,
+        height,
+        angle_degrees,
+    })
 }
 
 pub fn try_auto_split_pdf_to_zip(
@@ -3885,10 +4176,11 @@ mod tests {
     use pdfium_render::prelude::Pdfium;
 
     use super::{
-        AutoCropSampling, add_page_to_auto_split_groups, detect_content_bounds, edge_page_indices,
-        is_blank_rgba,
+        AutoCropSampling, PdfiumOcrError, PdfiumOcrTextLine, add_page_to_auto_split_groups,
+        detect_content_bounds, edge_page_indices, is_blank_rgba, ocr_line_placement,
+        write_paddle_searchable_page,
     };
-    use crate::pdfium_runtime::pdfium_library_path;
+    use crate::pdfium_runtime::{pdfium_library_path, shared_pdfium_runtime};
 
     #[test]
     fn auto_split_keeps_a_first_page_divider_and_drops_later_dividers() {
@@ -3902,6 +4194,125 @@ mod tests {
         }
         groups.retain(|group| !group.is_empty());
         assert_eq!(groups, [vec![0, 1], vec![3, 4]]);
+    }
+
+    #[test]
+    fn paddle_geometry_maps_top_left_pixels_to_bottom_left_pdf_points() {
+        let placement = ocr_line_placement(
+            [
+                (100.0, 200.0),
+                (500.0, 200.0),
+                (500.0, 300.0),
+                (100.0, 300.0),
+            ],
+            1_000,
+            2_000,
+            100.0,
+            200.0,
+        )
+        .unwrap_or_else(|| panic!("expected valid OCR geometry"));
+        let close = |actual: f32, expected: f32| (actual - expected).abs() < 1e-4;
+        assert!(close(placement.origin_x, 10.0), "{placement:?}");
+        assert!(close(placement.origin_y, 170.0), "{placement:?}");
+        assert!(close(placement.width, 40.0), "{placement:?}");
+        assert!(close(placement.height, 10.0), "{placement:?}");
+        assert!(close(placement.angle_degrees, 0.0), "{placement:?}");
+    }
+
+    /// Executable proof that a Paddle page is searchable and does not repaint
+    /// the scan.
+    ///
+    /// This is the only check that exercises `load_true_type_from_bytes(.., true)`
+    /// against a real font. `PDFium` reports success while producing a page whose
+    /// text cannot be extracted when the CID font cannot encode the recognised
+    /// string, so the round trip has to be the assertion.
+    #[test]
+    fn paddle_searchable_page_extracts_its_invisible_text() -> Result<(), Box<dyn std::error::Error>>
+    {
+        use pdfium_render::prelude::{
+            PdfPageObjectsCommon, PdfPageTextObject, PdfPageTextRenderMode,
+        };
+
+        let directory = tempfile::tempdir()?;
+        let image_path = directory.path().join("page.png");
+        let mut raster = image::RgbImage::from_pixel(200, 100, image::Rgb([255, 255, 255]));
+        // A dark band where the recognised line sits, so the page is a scan
+        // rather than a blank sheet.
+        for y in 20..50 {
+            for x in 20..180 {
+                raster.put_pixel(x, y, image::Rgb([40, 40, 40]));
+            }
+        }
+        raster.save(&image_path)?;
+
+        let font_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("resources")
+            .join("fonts")
+            .join("DejaVuSans.ttf");
+        let output_path = directory.path().join("searchable.pdf");
+        let lines = [PdfiumOcrTextLine {
+            text: "Hello".to_owned(),
+            points: [(20.0, 20.0), (180.0, 20.0), (180.0, 50.0), (20.0, 50.0)],
+        }];
+
+        if let Err(error) = write_paddle_searchable_page(
+            &image_path,
+            &font_path,
+            1,
+            200.0,
+            100.0,
+            &lines,
+            &output_path,
+        ) {
+            // Matching the crop and auto-rename tests: a host without PDFium
+            // skips, but an explicitly configured runtime must have worked.
+            let PdfiumOcrError::PdfiumUnavailable { .. } = error else {
+                return Err(error.into());
+            };
+            if crate::environment::var_os(crate::pdfium_runtime::PDFIUM_LIBRARY_PATH_ENV).is_some()
+            {
+                return Err(std::io::Error::other(
+                    "the configured PDFium runtime did not build a Paddle searchable page",
+                )
+                .into());
+            }
+            return Ok(());
+        }
+
+        let runtime = shared_pdfium_runtime();
+        let pdfium = runtime
+            .instance
+            .as_ref()
+            .map_err(|error| std::io::Error::other(error.clone()))?
+            .lock()
+            .map_err(|_| std::io::Error::other("the PDFium runtime lock is poisoned"))?;
+        let document = pdfium
+            .load_pdf_from_file(&output_path, None)
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
+        let page = document
+            .pages()
+            .first()
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
+        let extracted = page
+            .text()
+            .map_err(|error| std::io::Error::other(error.to_string()))?
+            .all();
+        assert!(
+            extracted.contains("Hello"),
+            "the searchable layer extracted as {extracted:?}"
+        );
+
+        let render_modes = page
+            .objects()
+            .iter()
+            .filter_map(|object| object.as_text_object().map(PdfPageTextObject::render_mode))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            render_modes,
+            [PdfPageTextRenderMode::Invisible],
+            "the OCR text layer must not repaint the scan"
+        );
+        Ok(())
     }
 
     #[test]
