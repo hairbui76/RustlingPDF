@@ -20,6 +20,10 @@ import {
  * sole conversion target, so auto-detection preselects "<ext> → PDF" and the
  * Convert button is ready. An extension with no PDF route, or with several
  * targets, would open onto an empty or wrong setting — this test fails first.
+ *
+ * The NSIS installer registers the same menu from `windows/nsis/hooks.nsh`;
+ * the last block pins that file to the MSI so the two installers can never
+ * offer different menus.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -32,7 +36,32 @@ const PROVISIONING_WXS = join(
   "provisioning.wxs",
 );
 
+const NSIS_HOOKS = join(
+  EDITOR_ROOT,
+  "src-tauri",
+  "windows",
+  "nsis",
+  "hooks.nsh",
+);
+
 const wxs = readFileSync(PROVISIONING_WXS, "utf8");
+const nsh = readFileSync(NSIS_HOOKS, "utf8");
+
+/** `[key, label, action]` for each .pdf cascade verb the MSI authors. */
+function msiPdfCascadeVerbs(): string[][] {
+  const labels = new Map(
+    [
+      ...wxs.matchAll(
+        /\\\.pdf\\shell\\RustlingPDF\\shell\\(\w+)" ForceDeleteOnUninstall="yes">\s*<RegistryValue Type="string" Name="MUIVerb" Value="([^"]+)"/g,
+      ),
+    ].map((m) => [m[1], m[2]]),
+  );
+  return [
+    ...wxs.matchAll(
+      /\\\.pdf\\shell\\RustlingPDF\\shell\\(\w+)\\command">\s*<RegistryValue Type="string" Value="&quot;\[!Path\]&quot; --tool (\w+) &quot;%1&quot;"/g,
+    ),
+  ].map((m) => [m[1], labels.get(m[1]) ?? "", m[2]]);
+}
 
 function registeredExtensions(): string[] {
   const match = wxs.match(
@@ -109,5 +138,46 @@ describe("Explorer Convert to PDF verb", () => {
     );
     expect(TOOL_INTENT_ACTIONS).toContain("convert");
     expect(resolveToolIntent("convert")).toBe("convert");
+  });
+});
+
+describe("NSIS installer Explorer menu", () => {
+  it("registers the Convert to PDF verb for the same extensions, in the same order", () => {
+    const nsisExtensions = [
+      ...nsh.matchAll(/!insertmacro \$\{_MACRO\} "([^"]+)"/g),
+    ].map((m) => m[1]);
+    expect(nsisExtensions).toEqual(registeredExtensions());
+  });
+
+  it("uses the MSI's Convert to PDF key, label and command", () => {
+    expect(nsh).toContain(
+      '!define RUSTLING_CONVERT_VERB "RustlingPDF.ConvertToPdf"',
+    );
+    expect(wxs).toContain("\\shell\\RustlingPDF.ConvertToPdf");
+    expect(nsh).toContain('"MUIVerb" "Convert to PDF with RustlingPDF"');
+    expect(wxs).toContain('Value="Convert to PDF with RustlingPDF"');
+    expect(nsh).toContain(
+      '\\command" "" "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\" --tool convert $\\"%1$\\""',
+    );
+  });
+
+  it("mirrors every .pdf cascade verb of the MSI", () => {
+    const msiVerbs = msiPdfCascadeVerbs();
+    const nsisVerbs = [
+      ...nsh.matchAll(
+        /!insertmacro RUSTLING_WRITE_PDF_CASCADE_VERB "(\w+)" "([^"]+)" "(\w+)"/g,
+      ),
+    ].map((m) => [m[1], m[2], m[3]]);
+    expect(msiVerbs.length).toBeGreaterThan(0);
+    expect(nsisVerbs).toEqual(msiVerbs);
+    // Every cascade action is a launch intent the app understands.
+    expect(msiVerbs.map(([, , action]) => action)).toEqual([
+      ...TOOL_INTENT_ACTIONS,
+    ]);
+  });
+
+  it("defines both hooks the template inserts", () => {
+    expect(nsh).toMatch(/^!macro NSIS_HOOK_POSTINSTALL\r?$/m);
+    expect(nsh).toMatch(/^!macro NSIS_HOOK_POSTUNINSTALL\r?$/m);
   });
 });

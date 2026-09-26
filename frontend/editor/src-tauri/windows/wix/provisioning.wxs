@@ -382,6 +382,9 @@
         touches the shared `SystemFileAssociations\.<ext>\shell` parent.
       - The Id suffix is the extension itself, so an extension may only use
         characters valid in a WiX identifier (letters and digits suffice).
+      - The NSIS installer registers the same verbs (and the .pdf cascade
+        above) from ../nsis/hooks.nsh. Change both together; the test keeps
+        their extension lists, keys, labels and commands identical.
     -->
     <?define ConvertToPdfExtensions = "doc;docx;odt;rtf;xls;xlsx;ods;ppt;pptx;odp;jpg;jpeg;png;gif;bmp;tiff;webp;svg"?>
     <DirectoryRef Id="TARGETDIR">

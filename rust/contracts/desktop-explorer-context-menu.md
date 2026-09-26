@@ -6,7 +6,9 @@ with the selected files preloaded into the chosen tool. Right-clicking one or
 more convertible non-PDF files (Word, Excel, PowerPoint, OpenDocument, RTF, and
 common images) shows a flat "Convert to PDF with RustlingPDF" verb that opens
 the Convert tool with those files selected and PDF preselected as the target.
-Windows-only, MSI registered; Linux/macOS keep their existing
+Windows-only, registered by both Windows installers (the MSI through
+`provisioning.wxs`, the NSIS `*-setup.exe` through `windows/nsis/hooks.nsh`,
+see [NSIS installer](#nsis-installer)); Linux/macOS keep their existing
 file-association "Open With" behavior unchanged.
 
 ## Registry surface (MSI-provisioned)
@@ -98,6 +100,36 @@ png gif bmp tiff webp svg`.
 - Uninstall force-deletes only each `RustlingPDF.ConvertToPdf` key (whole
   subtree); the shared `SystemFileAssociations\.<ext>\shell` parents are never
   marked, exactly as for the `.pdf` cascade.
+
+## NSIS installer
+
+`bundle.windows.nsis.installerHooks` points at
+`frontend/editor/src-tauri/windows/nsis/hooks.nsh`, which the forked
+`installer.nsi` already includes through `{{installer_hooks}}` — the template
+itself stays unmodified. It writes the **same keys, labels and commands** as the
+MSI (the `.pdf` cascade and every `RustlingPDF.ConvertToPdf` verb) under
+`SHCTX`, which is `HKLM` for this perMachine installer, so a machine that ran
+both installers has one menu, not two.
+
+- `NSIS_HOOK_POSTINSTALL` writes the keys. Installs, reinstalls and in-place
+  updates all overwrite them, so the command always names the current
+  `$INSTDIR`.
+- `NSIS_HOOK_POSTUNINSTALL` deletes the `.pdf` cascade and each convert verb
+  **only while its command still launches this installation's executable** —
+  the same guard the template applies to deep links — so an MSI install (or a
+  second copy elsewhere) that later claimed the key keeps its menu. It then
+  removes the `…\.<ext>\shell` and `…\.<ext>` parents with `/ifempty` only,
+  which never touches another application's verbs.
+- NSIS does not reclaim keys the way MSI does, and an update does not run the
+  old uninstaller, so an extension dropped from the list in a later release
+  keeps its verb on NSIS-updated machines until the app is uninstalled. The
+  verb still launches the app, which degrades to a plain Convert-tool open.
+- `convertToPdfMenu.test.ts` pins `hooks.nsh` to `provisioning.wxs`: the same
+  extensions in the same order, the same convert key/label/command, and the
+  same `.pdf` cascade `[key, label, action]` triples. There is no NSIS
+  install/uninstall lifecycle check on CI (only the MSI has one); `hooks.nsh`
+  was compile-checked with makensis 3.09 and its expansion inspected with
+  `/PPO`.
 
 ## Action set — single source of truth
 
@@ -201,9 +233,9 @@ fails if a registered command loses (or silently never had) a caller.
   legacy context menu — the user must click "Show more options" (or
   Shift+F10). Top-level Win11 placement requires a packaged (MSIX/sparse)
   `IExplorerCommand` extension: documented follow-up, out of v1 scope.
-- **NSIS dev builds have no menu**: `task desktop:build:dev:windows` builds
-  NSIS, which does not consume `wix.fragmentPaths`. Only the MSI (the release
-  bundle target) registers the menu. Not a bug.
+- **NSIS builds register the menu through `hooks.nsh`**, including
+  `task desktop:build:dev:windows`. They still carry nothing else from
+  `provisioning.wxs` (see `desktop-windows-installer.md`).
 - **WiX compile proof**: WiX cannot compile on Linux; the fragment is
   XML-validated against the WiX 3.14.1 `wix.xsd` locally, the MSI build on the
   `windows-latest` CI leg is the compile gate, and

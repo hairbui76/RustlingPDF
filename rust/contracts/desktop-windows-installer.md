@@ -20,10 +20,12 @@ type (`windows-x86_64-msi` / `windows-x86_64-nsis`), so an install only ever
 updates onto its own installer.
 
 **The NSIS installer does NOT carry `provisioning.wxs`** — no
-thumbnail-handler COM registration, no Explorer cascade menu, no
+thumbnail-handler COM registration, no non-advertised "Open with" ProgId, no
 `RUSTLING_*` MDM provisioning properties. Users who want those install the
 MSI; if NSIS ever becomes the only installer those must be ported to NSIS
-installer hooks and this contract extended. The MSI is produced by
+installer hooks and this contract extended. The one part already ported is the
+Explorer context menu, registered by `windows/nsis/hooks.nsh` with identical
+keys (`desktop-explorer-context-menu.md`, "NSIS installer"). The MSI is produced by
 tauri-bundler's own WiX template, which this repository extends through one
 fragment:
 

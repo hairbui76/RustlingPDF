@@ -77,6 +77,7 @@
       },
       "nsis": {
         "template": "windows/nsis/installer.nsi",
+        "installerHooks": "windows/nsis/hooks.nsh",
         "compression": "lzma",
         "installMode": "perMachine"
       }

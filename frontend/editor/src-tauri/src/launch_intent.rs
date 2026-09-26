@@ -1,12 +1,12 @@
 //! Launch-intent parsing and multi-select aggregation for Explorer context
 //! menu launches.
 //!
-//! The Windows MSI registers a cascade context menu for `.pdf` files, plus a
-//! flat "Convert to PDF with RustlingPDF" verb for convertible non-PDF files
-//! (which reuses the `convert` action); every verb invokes
-//! `RustlingPDF.exe --tool <action> "%1"`. Explorer launches one process per
-//! selected file, so an N-file multi-select becomes N single-instance
-//! callbacks in the primary process. This module turns those N callbacks into
+//! The Windows installers (MSI and NSIS) register a cascade context menu for
+//! `.pdf` files, plus a flat "Convert to PDF with RustlingPDF" verb for
+//! convertible non-PDF files (which reuses the `convert` action); every verb
+//! invokes `RustlingPDF.exe --tool <action> "%1"`. Explorer launches one
+//! process per selected file, so an N-file multi-select becomes N
+//! single-instance callbacks in the primary process. This module turns those N callbacks into
 //! ONE frontend batch: launches carrying the same intent are buffered and
 //! flushed after a sliding debounce window (bounded by a hard cap).
 //!
