@@ -2,9 +2,12 @@
 
 Right-clicking one or more `.pdf` files in Windows Explorer shows a
 "RustlingPDF" cascade submenu with quick actions that launch/focus the app
-with the selected files preloaded into the chosen tool. Windows-only, MSI
-registered; Linux/macOS keep their existing file-association "Open With"
-behavior unchanged.
+with the selected files preloaded into the chosen tool. Right-clicking one or
+more convertible non-PDF files (Word, Excel, PowerPoint, OpenDocument, RTF, and
+common images) shows a flat "Convert to PDF with RustlingPDF" verb that opens
+the Convert tool with those files selected and PDF preselected as the target.
+Windows-only, MSI registered; Linux/macOS keep their existing
+file-association "Open With" behavior unchanged.
 
 ## Registry surface (MSI-provisioned)
 
@@ -53,6 +56,48 @@ HKLM\SOFTWARE\Classes\SystemFileAssociations\.pdf\shell\RustlingPDF
 - MSI upgrades are safe because the pinned UpgradeCode's
   `afterInstallInitialize` major-upgrade removes the old product first and the
   new components are additive with auto-derived GUIDs.
+
+## Convert to PDF verb (non-PDF files)
+
+The same fragment generates one more component per extension listed in its
+`ConvertToPdfExtensions` preprocessor define, using WiX 3's candle
+`<?foreach?>` (a candle preprocessor directive, so it is expanded even though
+the bundler does not Handlebars-render fragments):
+
+```
+HKLM\SOFTWARE\Classes\SystemFileAssociations\.<ext>\shell\RustlingPDF.ConvertToPdf
+  MUIVerb          = "Convert to PDF with RustlingPDF"
+  Icon             = "<exe>",0
+  MultiSelectModel = "Player"
+  command\(Default) = "<exe>" --tool convert "%1"
+```
+
+Registered extensions: `doc docx odt rtf xls xlsx ods ppt pptx odp jpg jpeg
+png gif bmp tiff webp svg`.
+
+- **No new action name.** The verb reuses `convert`, so the action triple,
+  launch parsing and multi-select aggregation are unchanged. A selection that
+  mixes these types aggregates into one `convert` batch.
+- **PDF is preselected by the Convert tool itself**, not by the launch: every
+  registered extension is a source format whose only conversion target is PDF
+  (`CONVERSION_MATRIX`), so the tool's auto-detection selects `<ext> → PDF`
+  (or `any → PDF` for a mixed selection) and the user presses Convert. The
+  conversion is not started automatically — optional converters can be
+  unavailable, and the tool shows that state before any work begins.
+- **Selection rule.** Only formats the desktop app converts without an
+  optional program most machines lack are registered. DOCX/XLSX/PPTX work with
+  the built-in engine; DOC/ODT/RTF/XLS/ODS/PPT/ODP need LibreOffice; images
+  need nothing. HTML/Markdown/email (WeasyPrint), eBooks (Calibre) and CBR
+  (7-Zip) are deliberately not registered: a verb that lands on a disabled
+  Convert button is worse than no verb.
+- `frontend/editor/src/core/services/convertToPdfMenu.test.ts` parses the
+  define and fails if any registered extension is not a recognised source
+  format with a valid `→ PDF` conversion, or if the verb stops using
+  `--tool convert`. `verify-msi-lifecycle.ps1` reads the same define and
+  asserts each verb key exists after install and is gone after uninstall.
+- Uninstall force-deletes only each `RustlingPDF.ConvertToPdf` key (whole
+  subtree); the shared `SystemFileAssociations\.<ext>\shell` parents are never
+  marked, exactly as for the `.pdf` cascade.
 
 ## Action set — single source of truth
 

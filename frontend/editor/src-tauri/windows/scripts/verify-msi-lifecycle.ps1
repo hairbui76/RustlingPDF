@@ -300,6 +300,21 @@ $VerbKey = 'RustlingPDF'
 $LegacyVerbKey = '{{product_name}}'
 $CascadeRoot = 'SOFTWARE\Classes\SystemFileAssociations\.pdf\shell'
 
+# The flat "Convert to PDF with RustlingPDF" verb registered for each
+# convertible non-PDF extension. The extension list is read from the
+# ConvertToPdfExtensions define in provisioning.wxs itself rather than copied
+# here, so adding an extension there extends these checks with it. A missing or
+# unparsable define is recorded as a failure below, never as zero checks.
+$ConvertToPdfVerbKey = 'RustlingPDF.ConvertToPdf'
+$ProvisioningWxs = Join-Path $PSScriptRoot '..\wix\provisioning.wxs'
+$ConvertToPdfExtensions = @()
+if (Test-Path -LiteralPath $ProvisioningWxs) {
+    $wxsText = Get-Content -LiteralPath $ProvisioningWxs -Raw
+    if ($wxsText -match '<\?define\s+ConvertToPdfExtensions\s*=\s*"([^"]+)"\s*\?>') {
+        $ConvertToPdfExtensions = @($Matches[1].Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+}
+
 # provisioning.wxs's components are 64-bit (candle runs with -arch x64, which
 # makes WiX default Component/@Win64 to yes), so the legacy tree is rehearsed in
 # the 64-bit view. If that assumption is ever wrong, the "present" check below
@@ -600,6 +615,15 @@ foreach ($verb in @('01_open', '02_merge', '03_compress', '04_convert')) {
         -SubKey "$CascadeRoot\$VerbKey\shell\$verb\command" -Label "cascade verb $verb command" | Out-Null
 }
 
+Add-Result -Phase 'install' -Name 'Convert to PDF extension list was read from provisioning.wxs' `
+    -Ok ($ConvertToPdfExtensions.Count -gt 0) -Detail "extensions: [$($ConvertToPdfExtensions -join ', ')]" `
+    -FailureDetail "no ConvertToPdfExtensions define found in $ProvisioningWxs, so the per-extension verb checks would prove nothing"
+foreach ($ext in $ConvertToPdfExtensions) {
+    Assert-RegistryKeyPresent -Phase 'install' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+        -SubKey "SOFTWARE\Classes\SystemFileAssociations\.$ext\shell\$ConvertToPdfVerbKey\command" `
+        -Label "Convert to PDF verb command (.$ext)" | Out-Null
+}
+
 # The submenu title the user actually reads. A raw Handlebars token here is the
 # v3.1.0 defect; it must never come back.
 #
@@ -723,6 +747,11 @@ Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive
     -SubKey "$CascadeRoot\$VerbKey" -Label "Explorer cascade tree '$VerbKey'"
 Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
     -SubKey "$CascadeRoot\$LegacyVerbKey" -Label "legacy cascade tree '$LegacyVerbKey'"
+foreach ($ext in $ConvertToPdfExtensions) {
+    Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `
+        -SubKey "SOFTWARE\Classes\SystemFileAssociations\.$ext\shell\$ConvertToPdfVerbKey" `
+        -Label "Convert to PDF verb tree (.$ext)"
+}
 Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::CurrentUser) `
     -SubKey 'Software\RustlingPDF\RustlingPDF' -Label 'bundler template HKCU product key'
 Assert-RegistryKeyAbsent -Phase 'uninstall' -Hive ([Microsoft.Win32.RegistryHive]::LocalMachine) `

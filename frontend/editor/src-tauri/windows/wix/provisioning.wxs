@@ -354,6 +354,51 @@
       </Component>
     </DirectoryRef>
 
+    <!--
+      Explorer "Convert to PDF with RustlingPDF" verb for convertible
+      non-PDF files — one flat verb per extension, no cascade (it is the only
+      action these files get, and a one-item submenu is just an extra click).
+
+      ConvertToPdfExtensions is the registered set. Every entry MUST be a
+      source format the Convert tool maps to exactly one target, PDF
+      (CONVERSION_MATRIX in frontend/editor/src/core/constants/
+      convertConstants.ts), so the tool preselects "<ext> → PDF" when the
+      launch lands; convertToPdfMenu.test.ts parses this define and enforces
+      that. The set is deliberately limited to formats the desktop app
+      converts without an optional external program most machines lack
+      (WeasyPrint, Calibre, 7-Zip) — offering a verb that opens onto a
+      disabled Convert button is worse than not offering it. DOC/ODT/RTF/XLS/
+      ODS/PPT/ODP still need LibreOffice; DOCX/XLSX/PPTX fall back to the
+      built-in engine, images need nothing.
+
+      Notes:
+      - `-\-tool convert` reuses the existing `convert` intent (same action
+        triple as the .pdf cascade above), so multi-select aggregation and
+        routing need no new action name.
+      - `<?foreach?>` is the WiX 3 candle preprocessor, not Handlebars, so it
+        IS expanded (the bundler passes this file to candle unrendered, see
+        the cleanup policy above). It produces one component per extension:
+        each owns exactly one verb key, force-deleted on uninstall, and never
+        touches the shared `SystemFileAssociations\.<ext>\shell` parent.
+      - The Id suffix is the extension itself, so an extension may only use
+        characters valid in a WiX identifier (letters and digits suffice).
+    -->
+    <?define ConvertToPdfExtensions = "doc;docx;odt;rtf;xls;xlsx;ods;ppt;pptx;odp;jpg;jpeg;png;gif;bmp;tiff;webp;svg"?>
+    <DirectoryRef Id="TARGETDIR">
+      <?foreach Ext in $(var.ConvertToPdfExtensions)?>
+      <Component Id="ConvertToPdfMenu_$(var.Ext)" Guid="*">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.$(var.Ext)\shell\RustlingPDF.ConvertToPdf" ForceDeleteOnUninstall="yes">
+          <RegistryValue Type="string" Name="MUIVerb" Value="Convert to PDF with RustlingPDF" KeyPath="yes" />
+          <RegistryValue Type="string" Name="Icon" Value="&quot;[!Path]&quot;,0" />
+          <RegistryValue Type="string" Name="MultiSelectModel" Value="Player" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\SystemFileAssociations\.$(var.Ext)\shell\RustlingPDF.ConvertToPdf\command">
+          <RegistryValue Type="string" Value="&quot;[!Path]&quot; --tool convert &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
+      <?endforeach?>
+    </DirectoryRef>
+
     <ComponentGroup Id="ProvisioningComponentGroup">
       <ComponentRef Id="ProvisionerBinaryComponent" />
       <ComponentRef Id="ThumbnailHandlerDllComponent" />
@@ -367,6 +412,9 @@
       <ComponentRef Id="PdfContextMenuMergeComponent" />
       <ComponentRef Id="PdfContextMenuCompressComponent" />
       <ComponentRef Id="PdfContextMenuConvertComponent" />
+      <?foreach Ext in $(var.ConvertToPdfExtensions)?>
+      <ComponentRef Id="ConvertToPdfMenu_$(var.Ext)" />
+      <?endforeach?>
     </ComponentGroup>
 
     <CustomAction

@@ -5,10 +5,11 @@ import type { ToolId } from "@app/types/toolId";
 /**
  * Explorer context-menu launch intents (desktop only).
  *
- * The Windows MSI registers cascade verbs that launch the app with
- * `--tool <action>`; the Rust side aggregates multi-select launches and hands
- * the frontend one batch tagged with the action name. This module maps that
- * action to a tool route.
+ * The Windows MSI registers cascade verbs for `.pdf` files, and a "Convert to
+ * PDF" verb for convertible non-PDF files that reuses `convert`, all launching
+ * the app with `--tool <action>`; the Rust side aggregates multi-select
+ * launches and hands the frontend one batch tagged with the action name. This
+ * module maps that action to a tool route.
  *
  * SINGLE SOURCE OF TRUTH triple — this list MUST stay identical to:
  * - `frontend/editor/src-tauri/src/launch_intent.rs` (`TOOL_INTENT_ACTIONS`)
