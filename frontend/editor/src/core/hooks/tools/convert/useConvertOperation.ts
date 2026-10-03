@@ -6,6 +6,7 @@ import {
   defaultParameters,
 } from "@app/hooks/tools/convert/useConvertParameters";
 import { createFileFromApiResponse } from "@app/utils/fileResponseUtils";
+import { createStandardErrorHandler } from "@app/utils/toolErrorHandler";
 import {
   useToolOperation,
   defineCustomTool,
@@ -295,18 +296,12 @@ export const useConvertOperation = (_parameters?: ConvertParameters) => {
   const operation = useToolOperation<ConvertParameters>({
     ...convertOperationConfig,
     customProcessor: customConvertProcessor, // Use instance-specific processor for translation support
-    getErrorMessage: (error) => {
-      if (error.response?.data && typeof error.response.data === "string") {
-        return error.response.data;
-      }
-      if (error.message) {
-        return error.message;
-      }
-      return t(
+    getErrorMessage: createStandardErrorHandler(
+      t(
         "convert.errorConversion",
         "An error occurred while converting the file.",
-      );
-    },
+      ),
+    ),
   });
 
   return operation;

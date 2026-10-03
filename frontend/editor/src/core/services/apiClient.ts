@@ -1,5 +1,6 @@
 import axios from "axios";
 import { handleHttpError } from "@app/services/httpErrorHandler";
+import { normalizeAxiosErrorResponse } from "@app/services/errorUtils";
 import { setupApiInterceptors } from "@app/services/apiClientSetup";
 import { getApiBaseUrl } from "@app/services/apiClientConfig";
 
@@ -22,6 +23,9 @@ setupApiInterceptors(apiClient);
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Blob-typed requests receive the backend's JSON error as a Blob; parse it
+    // once so the toast and every tool's error handler can read its message.
+    await normalizeAxiosErrorResponse(error);
     await handleHttpError(error); // Handle error (shows toast unless suppressed)
     return Promise.reject(error);
   },

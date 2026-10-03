@@ -2,16 +2,20 @@
  * Standardized error handling utilities for tool operations
  */
 
-import { normalizeAxiosErrorData } from "@app/services/errorUtils";
+import {
+  messageFromErrorData,
+  normalizeAxiosErrorData,
+} from "@app/services/errorUtils";
 
 /**
  * Default error extractor that follows the standard pattern
  */
 export const extractErrorMessage = (error: any): string => {
-  if (error.response?.data && typeof error.response.data === "string") {
-    return error.response.data;
+  const responseMessage = messageFromErrorData(error?.response?.data);
+  if (responseMessage) {
+    return responseMessage;
   }
-  if (error.message) {
+  if (error?.message) {
     return error.message;
   }
   return "There was an error processing your request.";
@@ -24,10 +28,11 @@ export const extractErrorMessage = (error: any): string => {
  */
 export const createStandardErrorHandler = (fallbackMessage: string) => {
   return (error: any): string => {
-    if (error.response?.data && typeof error.response.data === "string") {
-      return error.response.data;
+    const responseMessage = messageFromErrorData(error?.response?.data);
+    if (responseMessage) {
+      return responseMessage;
     }
-    if (error.message) {
+    if (error?.message) {
       return error.message;
     }
     return fallbackMessage;
